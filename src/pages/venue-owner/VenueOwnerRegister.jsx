@@ -9,6 +9,7 @@ import { Textarea } from '../../components/ui/textarea';
 import { toast } from '/src/components/ui/use-toast';
 import { supabase } from '/src/lib/supabase';
 import { useToast } from '../../components/ui/use-toast';
+import { notifyAdminOfVenueSubmission } from '../../lib/api'; // Adjust path if needed
 
 const VenueOwnerRegister = () => {
   const navigate = useNavigate();
@@ -112,28 +113,27 @@ const VenueOwnerRegister = () => {
 
       // 2. Create venue owner profile
       console.log('Creating venue owner profile...');
-      const { error: venueOwnerError } = await supabase
-        .from('venue_owners')
-        .insert([
-          {
-            user_id: user.id,
-            full_name: formData.full_name,
-            phone: formData.phone,
-            email: formData.email,
-          }
-        ]);
+      const { error: profileError } = await supabase
+        .from('user_profiles')
+        .insert([{
+          id: user.id,
+          first_name: formData.full_name.split(' ')[0],
+          last_name: formData.full_name.split(' ')[1],
+          phone: formData.phone,
+          email: formData.email,
+        }]);
 
-      if (venueOwnerError) {
-        console.error('Venue owner creation error:', venueOwnerError);
-        // If venue owner creation fails, delete the user account
+      if (profileError) {
+        console.error('Venue owner profile creation error:', profileError);
+        // If venue owner profile creation fails, delete the user account
         await supabase.auth.admin.deleteUser(user.id);
-        throw venueOwnerError;
+        throw profileError;
       }
       console.log('Venue owner profile created successfully');
 
       // 3. Create venue
       console.log('Creating venue...');
-      const { data: venue, error: venueError } = await supabase
+      const { data: newVenue, error: venueError } = await supabase
         .from('venues')
         .insert([
           {
@@ -156,27 +156,20 @@ const VenueOwnerRegister = () => {
       if (venueError) {
         console.error('Venue creation error:', venueError);
         // If venue creation fails, delete the venue owner profile and user account
-        await supabase.from('venue_owners').delete().eq('user_id', user.id);
+        await supabase.from('user_profiles').delete().eq('id', user.id);
         await supabase.auth.admin.deleteUser(user.id);
         throw venueError;
       }
-      console.log('Venue created successfully:', venue);
+      console.log('Venue created successfully:', newVenue);
 
       // Send admin notification email after successful venue creation
-      await fetch('https://agydpkzfucicraedllgl.functions.supabase.co/send-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: ADMIN_EMAIL,
-          subject: 'New Venue Submission Pending Approval',
-          template: 'admin-venue-submitted',
-          data: {
-            venueName: venue.name,
-            ownerName: formData.full_name,
-            ownerEmail: formData.email,
-          }
-        })
-      });
+      await notifyAdminOfVenueSubmission(newVenue, {
+        id: user.id,
+        first_name: formData.full_name.split(' ')[0],
+        last_name: formData.full_name.split(' ')[1],
+        phone: formData.phone,
+        email: formData.email,
+      }, user);
 
       toast({
         title: 'Registration Successful',

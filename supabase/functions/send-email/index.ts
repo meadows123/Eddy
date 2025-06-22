@@ -97,23 +97,6 @@ serve(async (req) => {
         throw new Error('Invalid template')
     }
 
-    const ADMIN_EMAIL = "admin@example.com"; // Replace with your admin's real email
-
-await fetch('https://agydpkzfucicraedllgl.supabase.co.functions.supabase.co/send-email', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    to: ADMIN_EMAIL,
-    subject: 'New Venue Submission Pending Approval',
-    template: 'admin-venue-submitted',
-    data: {
-      venueName: newVenue.name,
-      ownerName: userProfile.first_name + ' ' + userProfile.last_name, // or however you get the owner's name
-      ownerEmail: user.email, // or however you get the owner's email
-    }
-  })
-});
-
     console.log('Sending email...')
     await client.send({
       from: Deno.env.get('SMTP_FROM') || '',
@@ -148,4 +131,40 @@ await fetch('https://agydpkzfucicraedllgl.supabase.co.functions.supabase.co/send
   }
 }) 
 
-//mapboxAccessToken={import.meta.env.VITE_MAPBOX_TOKEN} 
+/**
+ * Sends an admin notification email after a new venue is submitted.
+ * @param {Object} newVenue - The new venue object (must have a 'name' property)
+ * @param {Object} userProfile - The user profile object (must have 'first_name' and 'last_name')
+ * @param {Object} user - The user object (must have 'email')
+ */
+export async function notifyAdminOfVenueSubmission(newVenue, userProfile, user) {
+  const EDGE_FUNCTION_URL = "https://agydpkzfucicraedllgl.supabase.co/functions/v1/send-email"; // Replace with your actual project ID
+  const ADMIN_EMAIL = "sales@oneeddy.com"; // Change to your admin email
+
+  try {
+    const response = await fetch(EDGE_FUNCTION_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        to: ADMIN_EMAIL,
+        subject: "New Venue Submission Pending Approval",
+        template: "admin-venue-submitted",
+        data: {
+          venueName: newVenue.name,
+          ownerName: `${userProfile.first_name} ${userProfile.last_name}`,
+          ownerEmail: user.email
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || "Failed to send admin notification email.");
+    }
+    // Optionally, show a toast or log success
+    console.log("Admin notification email sent!");
+  } catch (err) {
+    // Optionally, show a toast or log error
+    console.error("Error sending admin notification:", err.message);
+  }
+} 
