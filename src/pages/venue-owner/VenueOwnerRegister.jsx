@@ -63,18 +63,6 @@ const VenueOwnerRegister = () => {
       if (signUpError) throw signUpError;
       const user = signUpData.user;
 
-      // 2. Create user profile
-      const { error: profileError } = await supabase
-        .from('user_profiles')
-        .insert([{
-          id: user.id,
-          first_name: formData.full_name.split(' ')[0],
-          last_name: formData.full_name.split(' ')[1] || '',
-          phone: formData.phone,
-          email: formData.email,
-        }]);
-      if (profileError) throw profileError;
-
       // 3. Create venue owner record
       const { error: ownerError } = await supabase
         .from('venue_owners')
