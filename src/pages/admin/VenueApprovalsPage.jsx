@@ -30,7 +30,7 @@ const VenueApprovalsPage = () => {
     setLoading(true);
     const { data, error } = await supabase
       .from('venues')
-      .select(`*, venue_owners:owner_id (full_name, email)`)
+      .select('*')
       .eq('status', 'pending');
     if (!error) setPendingVenues(data);
     setLoading(false);
