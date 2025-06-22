@@ -216,5 +216,16 @@ export async function notifyAdminOfVenueSubmission(newVenue, userProfile, user) 
   }
 }
 
-const { data, error } = await supabase.from('venue_owners').select('*');
-console.log(data, error); 
+function VenueOwnersTest() {
+  useEffect(() => {
+    async function fetchVenueOwners() {
+      const { data, error } = await supabase.from("venue_owners").select("*");
+      console.log(data, error);
+    }
+    fetchVenueOwners();
+  }, []);
+
+  return <div>Check the console for venue owners data.</div>;
+}
+
+export default VenueOwnersTest; 
