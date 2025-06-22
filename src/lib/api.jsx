@@ -214,4 +214,7 @@ export async function notifyAdminOfVenueSubmission(newVenue, userProfile, user) 
   } catch (err) {
     console.error("Error sending admin notification:", err.message);
   }
-} 
+}
+
+const { data, error } = await supabase.from('venue_owners').select('*');
+console.log(data, error); 
