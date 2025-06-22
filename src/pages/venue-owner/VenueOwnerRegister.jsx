@@ -33,7 +33,7 @@ const VenueOwnerRegister = () => {
       venue_type: 'restaurant',
       opening_hours: '',
       capacity: '',
-      price_range: 'medium',
+      price_range: '$$',
     };
   });
 
@@ -382,9 +382,9 @@ const VenueOwnerRegister = () => {
                     onChange={handleChange}
                     className="w-full pl-10 pr-3 py-2 bg-white border border-brand-burgundy/20 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-burgundy focus:border-transparent"
                   >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
+                    <option value="$">$</option>
+                    <option value="$$">$$</option>
+                    <option value="$$$">$$$</option>
                   </select>
                 </div>
               </div>
