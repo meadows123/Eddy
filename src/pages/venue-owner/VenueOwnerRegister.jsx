@@ -55,118 +55,60 @@ const VenueOwnerRegister = () => {
     setLoading(true);
 
     try {
-      console.log('Starting registration process...');
-      
-      // 1. Check if email already exists
-      const { data: existingUser } = await supabase.auth.signInWithPassword({
+      // 1. Register the user
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
       });
+      if (signUpError) throw signUpError;
+      const user = signUpData.user;
 
-      if (existingUser?.user) {
-        toast({
-          title: 'Email Already Registered',
-          description: 'This email is already registered. Please use a different email or try logging in.',
-          variant: 'destructive',
-        });
-        setLoading(false);
-        return;
-      }
-
-      // 2. Register the user
-      console.log('Attempting to sign up user...');
-      const { data: { user, session }, error: signUpError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-      });
-
-      if (signUpError) {
-        console.error('Sign up error:', signUpError);
-        if (signUpError.message.includes('already registered')) {
-          toast({
-            title: 'Email Already Registered',
-            description: 'This email is already registered. Please use a different email or try logging in.',
-            variant: 'destructive',
-          });
-        } else {
-          throw signUpError;
-        }
-        setLoading(false);
-        return;
-      }
-
-      // Check if email confirmation is required
-      if (!session) {
-        toast({
-          title: 'Email Confirmation Required',
-          description: 'Please check your email for a confirmation link. Your form data has been saved.',
-          variant: 'default',
-        });
-        setLoading(false);
-        return;
-      }
-
-      // Clear saved form data after successful registration
-      localStorage.removeItem('venueRegistrationData');
-
-      console.log('User signed up successfully:', user);
-
-      // 2. Create venue owner profile
-      console.log('Creating venue owner profile...');
+      // 2. Create user profile
       const { error: profileError } = await supabase
         .from('user_profiles')
         .insert([{
           id: user.id,
           first_name: formData.full_name.split(' ')[0],
-          last_name: formData.full_name.split(' ')[1],
+          last_name: formData.full_name.split(' ')[1] || '',
           phone: formData.phone,
           email: formData.email,
         }]);
+      if (profileError) throw profileError;
 
-      if (profileError) {
-        console.error('Venue owner profile creation error:', profileError);
-        // If venue owner profile creation fails, delete the user account
-        await supabase.auth.admin.deleteUser(user.id);
-        throw profileError;
-      }
-      console.log('Venue owner profile created successfully');
+      // 3. Create venue owner record
+      const { error: ownerError } = await supabase
+        .from('venue_owners')
+        .insert([{
+          user_id: user.id,
+          full_name: formData.full_name,
+          phone: formData.phone,
+          email: formData.email,
+        }]);
+      if (ownerError) throw ownerError;
 
-      // 3. Create venue
-      console.log('Creating venue...');
+      // 4. Create venue
       const { data: newVenue, error: venueError } = await supabase
         .from('venues')
-        .insert([
-          {
-            name: formData.venue_name,
-            description: formData.venue_description,
-            address: formData.venue_address,
-            phone: formData.venue_phone,
-            email: formData.venue_email,
-            type: formData.venue_type,
-            opening_hours: formData.opening_hours,
-            capacity: parseInt(formData.capacity),
-            price_range: formData.price_range,
-            owner_id: user.id,
-            status: 'pending' // Will be approved by admin
-          }
-        ])
+        .insert([{
+          name: formData.venue_name,
+          description: formData.venue_description,
+          type: formData.venue_type,
+          price_range: formData.price_range,
+          address: formData.venue_address,
+          contact_phone: formData.venue_phone,
+          contact_email: formData.venue_email,
+          owner_id: user.id,
+          status: 'pending'
+        }])
         .select()
         .single();
+      if (venueError) throw venueError;
 
-      if (venueError) {
-        console.error('Venue creation error:', venueError);
-        // If venue creation fails, delete the venue owner profile and user account
-        await supabase.from('user_profiles').delete().eq('id', user.id);
-        await supabase.auth.admin.deleteUser(user.id);
-        throw venueError;
-      }
-      console.log('Venue created successfully:', newVenue);
-
-      // Send admin notification email after successful venue creation
+      // 5. Notify admin
       await notifyAdminOfVenueSubmission(newVenue, {
         id: user.id,
         first_name: formData.full_name.split(' ')[0],
-        last_name: formData.full_name.split(' ')[1],
+        last_name: formData.full_name.split(' ')[1] || '',
         phone: formData.phone,
         email: formData.email,
       }, user);
@@ -176,9 +118,7 @@ const VenueOwnerRegister = () => {
         description: 'Your venue is pending approval. We will notify you once approved.',
       });
 
-      // Redirect to pending page
       navigate('/venue-owner/pending');
-
     } catch (error) {
       console.error('Registration error:', error);
       toast({
