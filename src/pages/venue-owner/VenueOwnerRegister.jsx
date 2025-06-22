@@ -446,6 +446,22 @@ const VenueOwnerRegister = () => {
                   placeholder="Enter city"
                 />
               </div>
+
+              <div>
+                <Label htmlFor="venue_country" className="text-brand-burgundy">
+                  Country
+                </Label>
+                <Input
+                  id="venue_country"
+                  name="venue_country"
+                  type="text"
+                  required
+                  value={formData.venue_country || ''}
+                  onChange={handleChange}
+                  className="pl-10 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
+                  placeholder="Enter country"
+                />
+              </div>
             </div>
 
             <div>
