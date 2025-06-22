@@ -1,536 +1,549 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Store, Mail, Lock, User, Building2, Phone, MapPin, ArrowRight } from 'lucide-react';
-import { Button } from '/src/components/ui/button';
-import { Input } from '../../components/ui/input';
-import { Label } from '../../components/ui/label';
-import { Textarea } from '../../components/ui/textarea';
-import { toast } from '/src/components/ui/use-toast';
-import { supabase } from '/src/lib/supabase';
-import { useToast } from '../../components/ui/use-toast';
+import { useAuth } from '../contexts/AuthContext';
+import { userApi, savedVenuesApi, bookingsApi } from '../lib/api';
+import { Button } from '../components/ui/button';
+import { Card } from '../components/ui/card';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
+import { Heart, Calendar, Settings } from 'lucide-react';
+import { supabase } from '../lib/supabase';
+import { CardElement, useStripe, useElements, Elements } from '@stripe/react-stripe-js';
+import { loadStripe } from '@stripe/stripe-js';
+import { Input } from "../components/ui/input";
 
-const VenueOwnerRegister = () => {
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
-  const [formData, setFormData] = useState(() => {
-    // Try to load saved form data from localStorage
-    const savedData = localStorage.getItem('venueRegistrationData');
-    return savedData ? JSON.parse(savedData) : {
-      full_name: '',
-      email: '',
-      phone: '',
-      password: '',
-      venue_name: '',
-      venue_description: '',
-      venue_address: '',
-      venue_phone: '',
-      venue_email: '',
-      venue_type: 'restaurant',
-      opening_hours: '',
-      capacity: '',
-      price_range: 'medium',
-    };
-  });
+const stripePromise = loadStripe('pk_test_...'); // Replace with your real publishable key
 
-  const ADMIN_EMAIL = "sales@oneeddy.com"; // Replace with your admin's email
+const UserProfilePage = () => {
+  const { user, signIn, signUp, signOut } = useAuth();
+  const [isSignup, setIsSignup] = useState(false);
+  const [form, setForm] = useState({ email: '', password: '' });
+  const [signupForm, setSignupForm] = useState({ email: '', password: '', confirm: '' });
+  const [error, setError] = useState(null);
+  const [signupError, setSignupError] = useState(null);
+  const [profile, setProfile] = useState(null);
+  const [savedVenues, setSavedVenues] = useState([]);
+  const [bookings, setBookings] = useState([]);
 
-  // Save form data to localStorage whenever it changes
+  // Load user data when logged in
   useEffect(() => {
-    localStorage.setItem('venueRegistrationData', JSON.stringify(formData));
-  }, [formData]);
+    if (user) {
+      loadUserData();
+    }
+  }, [user]);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+  const loadUserData = async () => {
+    try {
+      // Load profile
+      const profileData = await userApi.getProfile(user.id);
+      setProfile(profileData);
+
+      // Load saved venues
+      const venuesData = await savedVenuesApi.getSavedVenues(user.id);
+      setSavedVenues(venuesData);
+
+      // Load bookings
+      const bookingsData = await bookingsApi.getUserBookings(user.id);
+      setBookings(bookingsData);
+    } catch (error) {
+      console.error('Error loading user data:', error);
+    }
   };
 
-  const handleSubmit = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
-    setLoading(true);
-
     try {
-      console.log('Starting registration process...');
-      
-      // 1. Check if email already exists
-      const { data: existingUser } = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password,
+      const { error } = await signIn(form);
+      if (error) throw error;
+    } catch (error) {
+      setError(error.message);
+    }
+  };
+
+  const handleSignup = async (e) => {
+    e.preventDefault();
+    if (signupForm.password !== signupForm.confirm) {
+      setSignupError('Passwords do not match');
+      return;
+    }
+    try {
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: signupForm.email,
+        password: signupForm.password,
       });
-
-      if (existingUser?.user) {
-        toast({
-          title: 'Email Already Registered',
-          description: 'This email is already registered. Please use a different email or try logging in.',
-          variant: 'destructive',
-        });
-        setLoading(false);
-        return;
-      }
-
-      // 2. Register the user
-      console.log('Attempting to sign up user...');
-      const { data: { user, session }, error: signUpError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-      });
-
       if (signUpError) {
         console.error('Sign up error:', signUpError);
-        if (signUpError.message.includes('already registered')) {
-          toast({
-            title: 'Email Already Registered',
-            description: 'This email is already registered. Please use a different email or try logging in.',
-            variant: 'destructive',
-          });
-        } else {
-          throw signUpError;
-        }
-        setLoading(false);
+        setSignupError(signUpError.message);
         return;
       }
 
-      // Check if email confirmation is required
-      if (!session) {
-        toast({
-          title: 'Email Confirmation Required',
-          description: 'Please check your email for a confirmation link. Your form data has been saved.',
-          variant: 'default',
-        });
-        setLoading(false);
-        return;
-      }
-
-      // Clear saved form data after successful registration
-      localStorage.removeItem('venueRegistrationData');
-
-      console.log('User signed up successfully:', user);
-
-      // 2. Create venue owner profile
-      console.log('Creating venue owner profile...');
+      const userId = signUpData.user.id;
       const { error: profileError } = await supabase
         .from('user_profiles')
-        .insert([{
-          id: user.id,
-          first_name: formData.full_name.split(' ')[0],
-          last_name: formData.full_name.split(' ')[1],
-          phone: formData.phone,
-          email: formData.email,
-        }]);
-
+        .insert([{ id: userId, first_name: '', last_name: '', phone_number: '' }]);
       if (profileError) {
-        console.error('Venue owner profile creation error:', profileError);
-        // If venue owner profile creation fails, delete the user account
-        await supabase.auth.admin.deleteUser(user.id);
-        throw profileError;
+        console.error('Insert error:', profileError);
+        setSignupError(profileError.message);
+        return;
       }
-      console.log('Venue owner profile created successfully');
-
-      // 3. Create venue
-      console.log('Creating venue...');
-      const { data: venue, error: venueError } = await supabase
-        .from('venues')
-        .insert([
-          {
-            name: formData.venue_name,
-            description: formData.venue_description,
-            address: formData.venue_address,
-            phone: formData.venue_phone,
-            email: formData.venue_email,
-            type: formData.venue_type,
-            opening_hours: formData.opening_hours,
-            capacity: parseInt(formData.capacity),
-            price_range: formData.price_range,
-            owner_id: user.id,
-            status: 'pending' // Will be approved by admin
-          }
-        ])
-        .select()
-        .single();
-
-      if (venueError) {
-        console.error('Venue creation error:', venueError);
-        // If venue creation fails, delete the venue owner profile and user account
-        await supabase.from('user_profiles').delete().eq('id', user.id);
-        await supabase.auth.admin.deleteUser(user.id);
-        throw venueError;
-      }
-      console.log('Venue created successfully:', venue);
-
-      // Send admin notification email after successful venue creation
-      await fetch('https://agydpkzfucicraedllgl.functions.supabase.co/send-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: ADMIN_EMAIL,
-          subject: 'New Venue Submission Pending Approval',
-          template: 'admin-venue-submitted',
-          data: {
-            venueName: venue.name,
-            ownerName: formData.full_name,
-            ownerEmail: formData.email,
-          }
-        })
-      });
-
-      toast({
-        title: 'Registration Successful',
-        description: 'Your venue is pending approval. We will notify you once approved.',
-      });
-
-      // Redirect to pending page
-      navigate('/venue-owner/pending');
-
     } catch (error) {
-      console.error('Registration error:', error);
-      toast({
-        title: 'Registration Failed',
-        description: error.message || 'An error occurred during registration',
-        variant: 'destructive',
+      setSignupError(error.message);
+    }
+  };
+
+  if (!user) {
+    return (
+      <div className="bg-brand-cream/50 min-h-screen">
+        <div className="max-w-md mx-auto mt-16 p-8 bg-white rounded shadow mb-20">
+          <h2 className="text-2xl font-bold mb-4 text-brand-burgundy">{isSignup ? 'Sign Up' : 'Login to your profile'}</h2>
+          {isSignup ? (
+            <form onSubmit={handleSignup} className="space-y-4">
+              <input
+                type="email"
+                name="email"
+                placeholder="Email"
+                value={signupForm.email}
+                onChange={e => setSignupForm({ ...signupForm, email: e.target.value })}
+                className="w-full border p-2 rounded bg-white"
+                required
+              />
+              <input
+                type="password"
+                name="password"
+                placeholder="Password"
+                value={signupForm.password}
+                onChange={e => setSignupForm({ ...signupForm, password: e.target.value })}
+                className="w-full border p-2 rounded bg-white"
+                required
+              />
+              <input
+                type="password"
+                name="confirm"
+                placeholder="Confirm Password"
+                value={signupForm.confirm}
+                onChange={e => setSignupForm({ ...signupForm, confirm: e.target.value })}
+                className="w-full border p-2 rounded bg-white"
+                required
+              />
+              {signupError && <div className="text-red-500">{signupError}</div>}
+              <Button type="submit" className="w-full bg-brand-burgundy text-white">Sign Up</Button>
+              <div className="text-center mt-4">
+                <span className="text-brand-burgundy/70">Already have an account? </span>
+                <button 
+                  type="button" 
+                  onClick={() => setIsSignup(false)}
+                  className="font-bold text-brand-burgundy hover:text-brand-burgundy/80 transition-colors"
+                >
+                  Log In
+                </button>
+              </div>
+            </form>
+          ) : (
+            <form onSubmit={handleLogin} className="space-y-4">
+              <input
+                type="email"
+                name="email"
+                placeholder="Email"
+                value={form.email}
+                onChange={e => setForm({ ...form, [e.target.name]: e.target.value })}
+                className="w-full border p-2 rounded bg-white"
+                required
+              />
+              <input
+                type="password"
+                name="password"
+                placeholder="Password"
+                value={form.password}
+                onChange={e => setForm({ ...form, [e.target.name]: e.target.value })}
+                className="w-full border p-2 rounded bg-white"
+                required
+              />
+              {error && <div className="text-red-500">{error}</div>}
+              <Button type="submit" className="w-full bg-brand-burgundy text-white">Login</Button>
+              <div className="text-center mt-4">
+                <span className="text-brand-burgundy/70">Don't have an account? </span>
+                <button 
+                  type="button" 
+                  onClick={() => setIsSignup(true)}
+                  className="font-bold text-brand-burgundy hover:text-brand-burgundy/80 transition-colors"
+                >
+                  Sign Up
+                </button>
+              </div>
+            </form>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-brand-cream/50 min-h-screen">
+      <div className="container py-8">
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-heading text-brand-burgundy mb-2">My Profile</h1>
+            <p className="text-brand-burgundy/70">Manage your account and preferences</p>
+          </div>
+          <Button 
+            onClick={signOut}
+            variant="outline" 
+            className="border-brand-burgundy text-brand-burgundy hover:bg-brand-burgundy/10"
+          >
+            Sign Out
+                </Button>
+              </div>
+
+        <Tabs defaultValue="profile" className="space-y-4">
+          <TabsList className="bg-white p-1 rounded-lg border border-brand-burgundy/10">
+            <TabsTrigger value="profile" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy">
+              <Settings className="h-4 w-4 mr-2" />
+              Profile
+            </TabsTrigger>
+            <TabsTrigger value="saved" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy">
+              <Heart className="h-4 w-4 mr-2" />
+              Saved Venues
+            </TabsTrigger>
+            <TabsTrigger value="bookings" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy">
+              <Calendar className="h-4 w-4 mr-2" />
+              My Bookings
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy">
+              <Settings className="h-4 w-4 mr-2" />
+              Settings
+            </TabsTrigger>
+            <TabsTrigger value="member" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy">
+              <span role="img" aria-label="VIP" className="h-4 w-4 mr-2">👑</span>
+              Member
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="profile">
+            <Card className="bg-white border-brand-burgundy/10">
+              <div className="p-6">
+                <h2 className="text-xl font-semibold mb-4">Profile Information</h2>
+                {profile ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-brand-burgundy/70">Email</label>
+                      <p className="mt-1">{user.email}</p>
+            </div>
+                  <div>
+                      <label className="block text-sm font-medium text-brand-burgundy/70">Name</label>
+                      <p className="mt-1">{profile.first_name} {profile.last_name}</p>
+                  </div>
+                  <div>
+                      <label className="block text-sm font-medium text-brand-burgundy/70">Phone</label>
+                      <p className="mt-1">{profile.phone_number || 'Not set'}</p>
+                  </div>
+                  </div>
+                ) : (
+                  <p>Loading profile...</p>
+                )}
+                </div>
+          </Card>
+          </TabsContent>
+
+          <TabsContent value="saved">
+            <Card className="bg-white border-brand-burgundy/10">
+              <div className="p-6">
+                <h2 className="text-xl font-semibold mb-4">Saved Venues</h2>
+                {savedVenues.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {savedVenues.map((saved) => (
+                      <Card key={saved.id} className="p-4">
+                        <h3 className="font-semibold">{saved.venues.name}</h3>
+                        <p className="text-sm text-brand-burgundy/70">{saved.venues.type}</p>
+                        <Button
+                          onClick={() => savedVenuesApi.removeSavedVenue(user.id, saved.venue_id)}
+                          variant="outline"
+                          className="mt-2 text-red-500 border-red-500 hover:bg-red-50"
+                        >
+                          Remove
+                        </Button>
+              </Card>
+                    ))}
+                  </div>
+                ) : (
+                  <p>No saved venues yet</p>
+                )}
+              </div>
+              </Card>
+          </TabsContent>
+
+          <TabsContent value="bookings">
+            <Card className="bg-white border-brand-burgundy/10">
+              <div className="p-6">
+                <h2 className="text-xl font-semibold mb-4">My Bookings</h2>
+                  {bookings.length > 0 ? (
+                  <div className="space-y-4">
+                    {bookings.map((booking) => (
+                      <Card key={booking.id} className="p-4">
+                          <div className="flex justify-between items-start">
+                            <div>
+                            <h3 className="font-semibold">{booking.venues.name}</h3>
+                            <p className="text-sm text-brand-burgundy/70">
+                              {new Date(booking.booking_date).toLocaleDateString()} at {booking.start_time}
+                            </p>
+                            <p className="text-sm text-brand-burgundy/70">
+                              {booking.number_of_guests} guests
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-medium text-brand-burgundy">
+                              {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                            </p>
+                            {booking.status === 'confirmed' && (
+                              <Button
+                                onClick={() => bookingsApi.cancelBooking(booking.id)}
+                                variant="outline"
+                                className="mt-2 text-red-500 border-red-500 hover:bg-red-50"
+                              >
+                                Cancel
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </Card>
+                      ))}
+                    </div>
+                  ) : (
+                  <p>No bookings yet</p>
+                  )}
+              </div>
+              </Card>
+          </TabsContent>
+
+          <TabsContent value="settings">
+            <Card className="bg-white border-brand-burgundy/10">
+              <div className="p-6 space-y-10">
+                {/* Change Password Section */}
+                <div className="space-y-2 pb-8 border-b border-brand-burgundy/10">
+                  <h2 className="text-xl font-semibold mb-2">Change Password</h2>
+                  <ChangePasswordForm user={user} />
+                </div>
+                {/* Payment Details Section */}
+                <Elements stripe={stripePromise}>
+                  <div className="space-y-2 pb-8 border-b border-brand-burgundy/10">
+                    <PaymentDetailsSection user={user} />
+                  </div>
+                </Elements>
+                {/* Referral Codes Section */}
+                <div className="space-y-2">
+                  <h2 className="text-xl font-semibold mb-2">Referral Codes</h2>
+                  <ReferralCodesSection user={user} />
+                </div>
+              </div>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="member">
+            <Card className="bg-white border-brand-burgundy/10">
+              <div className="p-6">
+                <h2 className="text-xl font-semibold mb-4">VIP Member Credit</h2>
+                <p className="mb-4 text-brand-burgundy/70">
+                  Deposit funds to your Eddy account and unlock exclusive VIP perks. 
+                  The more you deposit, the more power and privileges you get!
+                </p>
+                {/* Example: Show current credit and butler status */}
+                <div className="mb-6">
+                  <div className="text-lg font-bold">
+                    Credit Balance: <span className="text-brand-gold">${profile?.credit_balance?.toLocaleString() ?? 0}</span>
+                  </div>
+                  <div className="mt-2">
+                    {profile?.credit_balance >= 10000 ? (
+                      <div className="text-green-700 font-semibold flex items-center">
+                        <span role="img" aria-label="butler" className="mr-2">🕴️</span>
+                        You have a personal butler! Contact us for your VIP concierge service.
+                      </div>
+                    ) : (
+                      <div className="text-brand-burgundy/70">
+                        Deposit <span className="font-bold">${(10000 - (profile?.credit_balance ?? 0)).toLocaleString()}</span> more to unlock your personal butler!
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {/* Deposit Form (placeholder, connect to Stripe for real payments) */}
+                <form className="space-y-4 max-w-xs" onSubmit={e => { e.preventDefault(); /* handle deposit */ }}>
+                  <label className="block text-sm font-medium text-brand-burgundy/70">Deposit Amount</label>
+                  <input
+                    type="number"
+                    min="100"
+                    step="100"
+                    className="w-full border p-2 rounded bg-white"
+                    placeholder="Enter amount (USD)"
+                    // value, onChange, etc.
+                  />
+                  <Button type="submit" className="w-full bg-brand-burgundy text-white">Deposit</Button>
+                </form>
+                {/* Optionally: Transaction history, perks list, etc. */}
+              </div>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
+  );
+};
+
+function ChangePasswordForm({ user }) {
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState('');
+  const [error, setError] = useState('');
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setError('All fields are required.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setError('New passwords do not match.');
+      return;
+    }
+    setLoading(true);
+    try {
+      // Re-authenticate user
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword,
       });
+      if (signInError) throw signInError;
+      // Update password
+      const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+      if (updateError) throw updateError;
+      // Send password reset email
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(user.email);
+      if (resetError) throw resetError;
+      setSuccess('Password updated and reset email sent!');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      setError(err.message || 'Failed to update password.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="bg-brand-cream/50 min-h-screen">
-      <div className="container py-8">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="max-w-2xl w-full space-y-8 bg-white p-8 rounded-xl shadow-lg"
+    <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
+      <div>
+        <label className="block text-sm font-medium text-brand-burgundy/70">Current Password</label>
+        <input
+          type="password"
+          className="w-full border p-2 rounded bg-white"
+          value={currentPassword}
+          onChange={e => setCurrentPassword(e.target.value)}
+          required
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-brand-burgundy/70">New Password</label>
+        <input
+          type="password"
+          className="w-full border p-2 rounded bg-white"
+          value={newPassword}
+          onChange={e => setNewPassword(e.target.value)}
+          required
+        />
+      </div>
+      <div>
+        <label className="block text-sm font-medium text-brand-burgundy/70">Confirm New Password</label>
+        <input
+          type="password"
+          className="w-full border p-2 rounded bg-white"
+          value={confirmPassword}
+          onChange={e => setConfirmPassword(e.target.value)}
+          required
+        />
+      </div>
+      {error && <div className="text-red-500">{error}</div>}
+      {success && <div className="text-green-600">{success}</div>}
+      <button
+        type="submit"
+        className="bg-brand-gold text-brand-burgundy px-4 py-2 rounded hover:bg-brand-gold/90"
+        disabled={loading}
+      >
+        {loading ? 'Updating...' : 'Change Password'}
+      </button>
+    </form>
+  );
+}
+
+function PaymentDetailsSection({ user }) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [message, setMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // You will need to create a SetupIntent on your backend and fetch the clientSecret here
+  // For now, this is a placeholder
+  const clientSecret = null; // TODO: Fetch from your backend
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setMessage('');
+    setLoading(true);
+
+    if (!stripe || !elements) {
+      setMessage('Stripe is not loaded');
+      setLoading(false);
+      return;
+    }
+
+    // Confirm card setup (save card for future use)
+    const result = await stripe.confirmCardSetup(clientSecret, {
+      payment_method: {
+        card: elements.getElement(CardElement),
+        billing_details: {
+          email: user.email,
+        },
+      },
+    });
+
+    if (result.error) {
+      setMessage(result.error.message);
+    } else {
+      setMessage('Payment method saved!');
+      // Optionally, refresh the list of saved payment methods here
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div>
+      <h2 className="text-xl font-semibold mb-2">Payment Details</h2>
+      <p className="text-brand-burgundy/70 mb-2">
+        Your card details are processed securely by Stripe and never touch our servers. You can remove your payment method at any time.
+      </p>
+      <form onSubmit={handleSubmit} className="space-y-4 max-w-md">
+        <CardElement options={{ hidePostalCode: true }} />
+        <button
+          type="submit"
+          className="bg-brand-gold text-brand-burgundy px-4 py-2 rounded hover:bg-brand-gold/90"
+          disabled={!stripe || loading}
         >
-          <div className="text-center">
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.2 }}
-              className="mx-auto h-12 w-12 bg-brand-burgundy/10 rounded-full flex items-center justify-center"
-            >
-              <Store className="h-6 w-6 text-brand-burgundy" />
-            </motion.div>
-            <h2 className="mt-6 text-3xl font-heading text-brand-burgundy">
-              Register Your Venue
-            </h2>
-            <p className="mt-2 text-sm text-brand-burgundy/70">
-              Create your venue profile to start managing bookings
-            </p>
-          </div>
-
-          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-            {/* User Details Section */}
-            <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-brand-burgundy mb-4">Your Details</h3>
-              
-              <div>
-                <Label htmlFor="full_name" className="text-brand-burgundy">
-                  Full Name
-                </Label>
-                <div className="mt-1 relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <User className="h-5 w-5 text-brand-burgundy/50" />
-                  </div>
-                  <Input
-                    id="full_name"
-                    name="full_name"
-                    type="text"
-                    required
-                    value={formData.full_name}
-                    onChange={handleChange}
-                    className="pl-10 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
-                    placeholder="Enter your full name"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="email" className="text-brand-burgundy">
-                  Email Address
-                </Label>
-                <div className="mt-1 relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Mail className="h-5 w-5 text-brand-burgundy/50" />
-                  </div>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    required
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="pl-10 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
-                    placeholder="Enter your email"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="password" className="text-brand-burgundy">
-                  Password
-                </Label>
-                <div className="mt-1 relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-brand-burgundy/50" />
-                  </div>
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    required
-                    value={formData.password}
-                    onChange={handleChange}
-                    className="pl-10 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
-                    placeholder="Create a password"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="phone" className="text-brand-burgundy">
-                  Phone Number
-                </Label>
-                <div className="mt-1 relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Phone className="h-5 w-5 text-brand-burgundy/50" />
-                  </div>
-                  <Input
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    required
-                    value={formData.phone}
-                    onChange={handleChange}
-                    className="pl-10 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
-                    placeholder="Enter contact number"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Venue Details Section */}
-            <div className="space-y-4 pt-6 border-t border-brand-burgundy/10">
-              <h3 className="text-xl font-semibold text-brand-burgundy mb-4">Venue Details</h3>
-              
-              <div>
-                <Label htmlFor="venue_name" className="text-brand-burgundy">
-                  Venue Name
-                </Label>
-                <div className="mt-1 relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Building2 className="h-5 w-5 text-brand-burgundy/50" />
-                  </div>
-                  <Input
-                    id="venue_name"
-                    name="venue_name"
-                    type="text"
-                    required
-                    value={formData.venue_name}
-                    onChange={handleChange}
-                    className="pl-10 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
-                    placeholder="Enter your venue name"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="venue_description" className="text-brand-burgundy">
-                  Venue Description
-                </Label>
-                <Textarea
-                  id="venue_description"
-                  name="venue_description"
-                  required
-                  value={formData.venue_description}
-                  onChange={handleChange}
-                  className="mt-1 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
-                  placeholder="Describe your venue..."
-                  rows={4}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="venue_address" className="text-brand-burgundy">
-                  Address
-                </Label>
-                <div className="mt-1 relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <MapPin className="h-5 w-5 text-brand-burgundy/50" />
-                  </div>
-                  <Input
-                    id="venue_address"
-                    name="venue_address"
-                    type="text"
-                    required
-                    value={formData.venue_address}
-                    onChange={handleChange}
-                    className="pl-10 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
-                    placeholder="Enter venue address"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="venue_phone" className="text-brand-burgundy">
-                  Venue Phone
-                </Label>
-                <div className="mt-1 relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Phone className="h-5 w-5 text-brand-burgundy/50" />
-                  </div>
-                  <Input
-                    id="venue_phone"
-                    name="venue_phone"
-                    type="tel"
-                    required
-                    value={formData.venue_phone}
-                    onChange={handleChange}
-                    className="pl-10 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
-                    placeholder="Enter venue phone"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="venue_email" className="text-brand-burgundy">
-                  Venue Email
-                </Label>
-                <div className="mt-1 relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Mail className="h-5 w-5 text-brand-burgundy/50" />
-                  </div>
-                  <Input
-                    id="venue_email"
-                    name="venue_email"
-                    type="email"
-                    required
-                    value={formData.venue_email}
-                    onChange={handleChange}
-                    className="pl-10 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
-                    placeholder="Enter venue email"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="venue_type" className="text-brand-burgundy">
-                  Venue Type
-                </Label>
-                <div className="mt-1 relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Store className="h-5 w-5 text-brand-burgundy/50" />
-                  </div>
-                  <select
-                    id="venue_type"
-                    name="venue_type"
-                    required
-                    value={formData.venue_type}
-                    onChange={handleChange}
-                    className="w-full pl-10 pr-3 py-2 bg-white border border-brand-burgundy/20 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-burgundy focus:border-transparent"
-                  >
-                    <option value="restaurant">Restaurant</option>
-                    <option value="bar">Bar</option>
-                    <option value="club">Club</option>
-                    <option value="lounge">Lounge</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="price_range" className="text-brand-burgundy">
-                  Price Range
-                </Label>
-                <div className="mt-1 relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Store className="h-5 w-5 text-brand-burgundy/50" />
-                  </div>
-                  <select
-                    id="price_range"
-                    name="price_range"
-                    required
-                    value={formData.price_range}
-                    onChange={handleChange}
-                    className="w-full pl-10 pr-3 py-2 bg-white border border-brand-burgundy/20 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-burgundy focus:border-transparent"
-                  >
-                    <option value="low">Low</option>
-                    <option value="medium">Medium</option>
-                    <option value="high">High</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="capacity" className="text-brand-burgundy">
-                  Capacity
-                </Label>
-                <div className="mt-1 relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Store className="h-5 w-5 text-brand-burgundy/50" />
-                  </div>
-                  <Input
-                    id="capacity"
-                    name="capacity"
-                    type="number"
-                    required
-                    value={formData.capacity}
-                    onChange={handleChange}
-                    className="pl-10 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
-                    placeholder="Enter venue capacity"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="opening_hours" className="text-brand-burgundy">
-                  Opening Hours
-                </Label>
-                <div className="mt-1 relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Store className="h-5 w-5 text-brand-burgundy/50" />
-                  </div>
-                  <Input
-                    id="opening_hours"
-                    name="opening_hours"
-                    type="text"
-                    required
-                    value={formData.opening_hours}
-                    onChange={handleChange}
-                    className="pl-10 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
-                    placeholder="Enter venue opening hours"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <Button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-brand-burgundy text-white hover:bg-brand-burgundy/90"
-              >
-                {loading ? 'Registering...' : 'Register Venue'}
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </div>
-          </form>
-
-          <div className="text-center mt-6">
-            <p className="text-sm text-brand-burgundy/70">
-              Already have a venue account?{' '}
-              <Link to="/venue-owner/login" className="text-brand-burgundy hover:text-brand-gold font-medium">
-                Sign in
-              </Link>
-            </p>
-          </div>
-        </motion.div>
+          {loading ? 'Saving...' : 'Save Payment Method'}
+        </button>
+        {message && <div className="mt-2 text-brand-burgundy">{message}</div>}
+      </form>
+      {/* TODO: List and allow removal of saved payment methods */}
+      <div className="mt-4 text-xs text-brand-burgundy/60">
+        We comply with GDPR. Your payment data is handled by Stripe and you may request deletion at any time.
       </div>
     </div>
   );
-};
+}
 
-export default VenueOwnerRegister; 
+function ReferralCodesSection({ user }) {
+  // Implementation of ReferralCodesSection component
+  return (
+    <p>Referral Codes Section</p>
+  );
+}
+
+export default UserProfilePage;
