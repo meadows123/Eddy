@@ -26,6 +26,9 @@ const VenueOwnerRegister = () => {
       venue_name: '',
       venue_description: '',
       venue_address: '',
+      venue_city: '',
+      venue_state: '',
+      venue_country: '',
       venue_phone: '',
       venue_email: '',
       venue_type: 'restaurant',
@@ -85,8 +88,6 @@ const VenueOwnerRegister = () => {
           city: formData.venue_city,
           state: formData.venue_state,
           country: formData.venue_country,
-          latitude: parseFloat(formData.venue_latitude),
-          longitude: parseFloat(formData.venue_longitude),
           contact_phone: formData.venue_phone,
           contact_email: formData.venue_email,
           owner_id: user.id,
@@ -430,6 +431,22 @@ const VenueOwnerRegister = () => {
                     placeholder="Enter venue opening hours"
                   />
                 </div>
+              </div>
+
+              <div>
+                <Label htmlFor="venue_city" className="text-brand-burgundy">
+                  City
+                </Label>
+                <Input
+                  id="venue_city"
+                  name="venue_city"
+                  type="text"
+                  required
+                  value={formData.venue_city || ''}
+                  onChange={handleChange}
+                  className="pl-10 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
+                  placeholder="Enter city"
+                />
               </div>
             </div>
 
