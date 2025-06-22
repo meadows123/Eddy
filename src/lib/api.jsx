@@ -214,6 +214,4 @@ export async function notifyAdminOfVenueSubmission(newVenue, userProfile, user) 
   } catch (err) {
     console.error("Error sending admin notification:", err.message);
   }
-}
-
-export default ProfilePage; 
+} 
