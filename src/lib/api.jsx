@@ -153,11 +153,11 @@ export const bookingsApi = {
 }
 
 // Stripe Elements setup (frontend only)
-const stripePromise = loadStripe('pk_test_...'); // Your real Stripe publishable key
+export const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 // Call your Supabase Edge Function to create a SetupIntent
 export async function createStripeSetupIntent(email) {
-  const res = await fetch('https://agydpkzfucicraedllgl.supabase.co.functions.supabase.co/create-stripe-setup-intent', {
+  const res = await fetch('https://agydpkzfucicraedllgl.functions.supabase.co/create-stripe-setup-intent', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email }),
@@ -169,7 +169,7 @@ export async function createStripeSetupIntent(email) {
 
 // Call your Supabase Edge Function to list payment methods
 export async function listStripePaymentMethods(email) {
-  const res = await fetch('https://agydpkzfucicraedllgl.supabase.co.functions.supabase.co/stripe-payment-methods?email=' + encodeURIComponent(email));
+  const res = await fetch('https://agydpkzfucicraedllgl.functions.supabase.co/stripe-payment-methods?email=' + encodeURIComponent(email));
   if (!res.ok) throw new Error('Failed to fetch payment methods');
   const data = await res.json();
   return data.paymentMethods;
@@ -177,7 +177,7 @@ export async function listStripePaymentMethods(email) {
 
 // Call your Supabase Edge Function to remove a payment method
 export async function removeStripePaymentMethod(id) {
-  const res = await fetch('https://agydpkzfucicraedllgl.supabase.co.functions.supabase.co/stripe-payment-methods', {
+  const res = await fetch('https://agydpkzfucicraedllgl.functions.supabase.co/stripe-payment-methods', {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ id }),
@@ -186,12 +186,34 @@ export async function removeStripePaymentMethod(id) {
   return true;
 }
 
-function ProfilePage() {
-  return (
-    <Elements stripe={stripePromise}>
-      <UserProfilePage />
-    </Elements>
-  );
+export async function notifyAdminOfVenueSubmission(newVenue, userProfile, user) {
+  const EDGE_FUNCTION_URL = "https://agydpkzfucicraedllgl.functions.supabase.co/send-email"; // Replace with your actual project ID
+  const ADMIN_EMAIL = "sales@oneeddy.com"; // Change to your admin email
+
+  try {
+    const response = await fetch(EDGE_FUNCTION_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        to: ADMIN_EMAIL,
+        subject: "New Venue Submission Pending Approval",
+        template: "admin-venue-submitted",
+        data: {
+          venueName: newVenue.name,
+          ownerName: `${userProfile.first_name} ${userProfile.last_name}`,
+          ownerEmail: user.email
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || "Failed to send admin notification email.");
+    }
+    console.log("Admin notification email sent!");
+  } catch (err) {
+    console.error("Error sending admin notification:", err.message);
+  }
 }
 
 export default ProfilePage; 
