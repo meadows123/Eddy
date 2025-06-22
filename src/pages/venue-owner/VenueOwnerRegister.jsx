@@ -79,10 +79,14 @@ const VenueOwnerRegister = () => {
         .from('venues')
         .insert([{
           name: formData.venue_name,
-          description: formData.venue_description,
           type: formData.venue_type,
           price_range: formData.price_range,
           address: formData.venue_address,
+          city: formData.venue_city,
+          state: formData.venue_state,
+          country: formData.venue_country,
+          latitude: parseFloat(formData.venue_latitude),
+          longitude: parseFloat(formData.venue_longitude),
           contact_phone: formData.venue_phone,
           contact_email: formData.venue_email,
           owner_id: user.id,
