@@ -45,7 +45,6 @@ const VenueApprovalsPage = () => {
         .from('venues')
         .update({ 
           status: 'approved',
-          approved_at: new Date().toISOString(),
           rejection_reason: null
         })
         .eq('id', venue.id);
