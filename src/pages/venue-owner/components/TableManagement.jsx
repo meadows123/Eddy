@@ -19,7 +19,7 @@ import {
 import { supabase } from '../../../lib/supabase';
 import { toast } from '../../../components/ui/use-toast';
 
-const TableManagement = ({ venueId }) => {
+const TableManagement = ({ currentUser }) => {
   const [tables, setTables] = useState([]);
   const [isAddingTable, setIsAddingTable] = useState(false);
   const [newTable, setNewTable] = useState({
@@ -28,47 +28,62 @@ const TableManagement = ({ venueId }) => {
     price: '',
     table_type: '',
     status: 'available',
+    venue_id: '',
   });
 
-  // Log the venueId for debugging
+  // Log the currentUser for debugging
   useEffect(() => {
-    console.log('[TableManagement] venueId prop:', venueId);
-  }, [venueId]);
+    console.log('[TableManagement] currentUser prop:', currentUser);
+  }, [currentUser]);
 
-  // Fetch tables for this venue
+  // Fetch tables for all venues owned by the current user
   useEffect(() => {
-    if (!venueId) return;
+    if (!currentUser?.id) return;
     const fetchTables = async () => {
-      const { data, error } = await supabase
+      // Fetch all venues for this owner
+      const { data: venues, error: venuesError } = await supabase
+        .from('venues')
+        .select('id, name')
+        .eq('owner_id', currentUser.id);
+      if (venuesError) {
+        toast({ title: 'Error', description: venuesError.message, variant: 'destructive' });
+        setTables([]);
+        return;
+      }
+      const venueIds = venues.map(v => v.id);
+      if (venueIds.length === 0) {
+        setTables([]);
+        return;
+      }
+      // Fetch all tables for these venues
+      const { data: tablesData, error: tablesError } = await supabase
         .from('venue_tables')
         .select('*')
-        .eq('venue_id', venueId);
-      if (error) {
-        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        .in('venue_id', venueIds);
+      if (tablesError) {
+        toast({ title: 'Error', description: tablesError.message, variant: 'destructive' });
         setTables([]);
       } else {
-        setTables(data || []);
+        setTables(tablesData || []);
       }
     };
     fetchTables();
-  }, [venueId]);
+  }, [currentUser]);
 
   const handleAddTable = async () => {
-    if (!venueId) {
-      toast({ title: 'Error', description: 'Venue ID missing. Please create/select a venue before adding tables.', variant: 'destructive' });
-      console.error('[Add Table] Venue ID missing:', venueId);
+    if (!newTable.venue_id) {
+      toast({ title: 'Error', description: 'Please select a venue for this table.', variant: 'destructive' });
       return;
     }
     if (!newTable.table_number || !newTable.capacity || !newTable.price || !newTable.table_type || !newTable.status) {
       toast({ title: 'Missing Fields', description: 'Please fill all fields', variant: 'destructive' });
-      console.warn('[Add Table] Missing fields:', newTable);
       return;
     }
     // Log the data being inserted for debugging
-    console.log('[Add Table] Inserting table:', { ...newTable, venue_id: venueId });
+    console.log('[Add Table] Inserting table:', newTable);
     const { error } = await supabase.from('venue_tables').insert([
       {
-        venue_id: venueId,
+        venue_id: newTable.venue_id,
         table_number: newTable.table_number,
         capacity: parseInt(newTable.capacity),
         price: parseInt(newTable.price),
@@ -78,14 +93,15 @@ const TableManagement = ({ venueId }) => {
     ]);
     if (error) {
       toast({ title: 'Error', description: `Failed to add table: ${error.message}`, variant: 'destructive' });
-      console.error('[Add Table] Supabase insert error:', error);
     } else {
       toast({ title: 'Table Added', description: 'New table added successfully!' });
-      setNewTable({ table_number: '', capacity: '', price: '', table_type: '', status: 'available' });
+      setNewTable({ table_number: '', capacity: '', price: '', table_type: '', status: 'available', venue_id: '' });
       setIsAddingTable(false);
       // Refresh table list
-      const { data } = await supabase.from('venue_tables').select('*').eq('venue_id', venueId);
-      setTables(data || []);
+      const { data: venues } = await supabase.from('venues').select('id').eq('owner_id', currentUser.id);
+      const venueIds = venues.map(v => v.id);
+      const { data: tablesData } = await supabase.from('venue_tables').select('*').in('venue_id', venueIds);
+      setTables(tablesData || []);
     }
   };
 
@@ -104,19 +120,22 @@ const TableManagement = ({ venueId }) => {
 
   return (
     <div className="space-y-6">
-      {!venueId && (
+      {!currentUser && (
         <div className="bg-yellow-100 text-yellow-800 p-2 rounded mb-4">
-          <strong>Warning:</strong> Venue ID is missing. Table management will not work until a venue is loaded.<br />
-          Check the console for more details.
+          <strong>Warning:</strong> User ID is missing. Please create or select a user before adding tables.
         </div>
       )}
-      {venueId && (
+      {currentUser && (
         <>
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold text-brand-burgundy">Table Management</h3>
             <Dialog open={isAddingTable} onOpenChange={setIsAddingTable}>
               <DialogTrigger asChild>
-                <Button className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90">
+                <Button
+                  className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90"
+                  disabled={!currentUser}
+                  title={!currentUser ? "Create or select a user before adding tables" : ""}
+                >
                   <Plus className="h-4 w-4 mr-2" />
                   Add Table
                 </Button>
@@ -178,6 +197,24 @@ const TableManagement = ({ venueId }) => {
                       <option value="available">Available</option>
                       <option value="booked">Booked</option>
                       <option value="maintenance">Maintenance</option>
+                    </select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="venueId">Venue</Label>
+                    <select
+                      id="venueId"
+                      value={newTable.venue_id}
+                      onChange={e => setNewTable({ ...newTable, venue_id: e.target.value })}
+                      className="w-full border rounded px-2 py-1"
+                    >
+                      <option value="">Select a venue</option>
+                      {/* Render options dynamically */}
+                      {tables
+                        .map(table => table.venue_id)
+                        .filter((v, i, arr) => arr.indexOf(v) === i)
+                        .map(venueId => (
+                          <option key={venueId} value={venueId}>{venueId}</option>
+                        ))}
                     </select>
                   </div>
                   <Button 
