@@ -167,16 +167,17 @@ const VenueApprovalsPage = () => {
             pendingVenues.map((venue) => (
               <Card key={venue.id} className="bg-white border-brand-burgundy/10">
                 <CardHeader>
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <CardTitle className="text-xl text-brand-burgundy">{venue.name}</CardTitle>
-                      <div className="flex items-center space-x-2 mt-2">
-                        <Badge variant="outline" className="border-brand-burgundy/20 text-brand-burgundy">
-                          {venue.type}
-                        </Badge>
-                        <Badge variant="outline" className="border-brand-burgundy/20 text-brand-burgundy">
-                          {venue.price_range}
-                        </Badge>
+                  <div>
+                    <div className="flex items-start space-x-3">
+                      <Mail className="h-5 w-5 text-brand-burgundy/50 mt-1" />
+                      <div>
+                        <p className="text-sm font-medium text-brand-burgundy">Venue</p>
+                        <p className="text-sm text-brand-burgundy/70">
+                          {venue.venue_owners?.full_name || "No owner info"}
+                        </p>
+                        <p className="text-sm text-brand-burgundy/70">
+                          {venue.venue_owners?.email || "No owner email"}
+                        </p>
                       </div>
                     </div>
                     <div className="flex space-x-2">
@@ -185,7 +186,7 @@ const VenueApprovalsPage = () => {
                         className="bg-green-600 hover:bg-green-700"
                       >
                         <Check className="h-4 w-4 mr-2" />
-                        Approve
+                        approve
                       </Button>
                       <input
                         type="text"
@@ -227,8 +228,8 @@ const VenueApprovalsPage = () => {
                         <Mail className="h-5 w-5 text-brand-burgundy/50 mt-1" />
                         <div>
                           <p className="text-sm font-medium text-brand-burgundy">Owner</p>
-                          <p className="text-sm text-brand-burgundy/70">{venue.venue_owners.full_name}</p>
-                          <p className="text-sm text-brand-burgundy/70">{venue.venue_owners.email}</p>
+                          <p className="text-sm text-brand-burgundy/70">{venue.venue_owners?.full_name || "No owner info"}</p>
+                          <p className="text-sm text-brand-burgundy/70">{venue.venue_owners?.email || "No owner email"}</p>
                         </div>
                       </div>
                       <div className="flex items-start space-x-3">
