@@ -42,4 +42,40 @@ export async function fetchVenuesWithOwners() {
     .from('venues')
     .select('*, venue_owners(*)');
   return { data, error };
-} 
+}
+
+const activeBookings = bookings.filter(b => b.status === 'active' || b.status === 'confirmed').length;
+const pendingPayouts = bookings
+  .filter(b => b.status === 'pending_payout')
+  .reduce((sum, b) => sum + (b.tables?.price || 0), 0);
+
+// Fetch tables for the venue
+const { data: tables, error: tablesError } = await supabase
+  .from('venue_tables')
+  .select('*, tables:venue_tables(name, price)')
+  .eq('venue_id', venueData.id);
+
+const totalTables = tables ? tables.length : 0;
+
+setStats({
+  totalBookings,
+  totalRevenue,
+  averageRating,
+  popularTables,
+  pendingPayouts,
+  activeBookings,
+  totalTables,
+});
+
+const { data: memberBookings, error: memberError } = await supabase
+  .from('bookings')
+  .select('user_id, user:user_profiles(first_name, last_name), credit_balance')
+  .eq('venue_id', venueId);
+
+const uniqueMembers = Array.from(
+  new Map(
+    memberBookings.map(m => [m.user_id, m.user])
+  ).values()
+);
+
+setMembers(uniqueMembers); 

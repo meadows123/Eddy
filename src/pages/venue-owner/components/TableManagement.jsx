@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Card, 
   CardContent, 
@@ -16,35 +16,66 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '../../../components/ui/dialog';
+import { supabase } from '../../../lib/supabase';
+import { toast } from '../../../components/ui/use-toast';
 
-const TableManagement = () => {
-  const [tables, setTables] = useState([
-    { id: 1, number: 'A1', capacity: 4, price: 150000, status: 'available' },
-    { id: 2, number: 'A2', capacity: 6, price: 200000, status: 'booked' },
-    { id: 3, number: 'B1', capacity: 8, price: 300000, status: 'available' },
-  ]);
-
+const TableManagement = ({ venueId }) => {
+  const [tables, setTables] = useState([]);
   const [isAddingTable, setIsAddingTable] = useState(false);
   const [newTable, setNewTable] = useState({
-    number: '',
+    table_number: '',
     capacity: '',
     price: '',
+    table_type: '',
+    status: 'available',
   });
 
-  const handleAddTable = () => {
-    if (newTable.number && newTable.capacity && newTable.price) {
-      setTables([
-        ...tables,
-        {
-          id: Date.now(),
-          number: newTable.number,
-          capacity: parseInt(newTable.capacity),
-          price: parseInt(newTable.price),
-          status: 'available',
-        },
-      ]);
-      setNewTable({ number: '', capacity: '', price: '' });
+  // Fetch tables for this venue
+  useEffect(() => {
+    if (!venueId) return;
+    const fetchTables = async () => {
+      const { data, error } = await supabase
+        .from('venue_tables')
+        .select('*')
+        .eq('venue_id', venueId);
+      if (error) {
+        toast({ title: 'Error', description: error.message, variant: 'destructive' });
+        setTables([]);
+      } else {
+        setTables(data || []);
+      }
+    };
+    fetchTables();
+  }, [venueId]);
+
+  const handleAddTable = async () => {
+    if (!venueId) {
+      toast({ title: 'Error', description: 'Venue ID missing', variant: 'destructive' });
+      return;
+    }
+    if (!newTable.table_number || !newTable.capacity || !newTable.price || !newTable.table_type || !newTable.status) {
+      toast({ title: 'Missing Fields', description: 'Please fill all fields', variant: 'destructive' });
+      return;
+    }
+    const { error } = await supabase.from('venue_tables').insert([
+      {
+        venue_id: venueId,
+        table_number: newTable.table_number,
+        capacity: parseInt(newTable.capacity),
+        price: parseInt(newTable.price),
+        table_type: newTable.table_type,
+        status: newTable.status,
+      }
+    ]);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Table Added', description: 'New table added successfully!' });
+      setNewTable({ table_number: '', capacity: '', price: '', table_type: '', status: 'available' });
       setIsAddingTable(false);
+      // Refresh table list
+      const { data } = await supabase.from('venue_tables').select('*').eq('venue_id', venueId);
+      setTables(data || []);
     }
   };
 
@@ -81,8 +112,8 @@ const TableManagement = () => {
                 <Label htmlFor="tableNumber">Table Number</Label>
                 <Input
                   id="tableNumber"
-                  value={newTable.number}
-                  onChange={(e) => setNewTable({ ...newTable, number: e.target.value })}
+                  value={newTable.table_number}
+                  onChange={(e) => setNewTable({ ...newTable, table_number: e.target.value })}
                   placeholder="e.g., A1"
                 />
               </div>
@@ -106,6 +137,28 @@ const TableManagement = () => {
                   placeholder="Table price"
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="tableType">Table Type</Label>
+                <Input
+                  id="tableType"
+                  value={newTable.table_type}
+                  onChange={(e) => setNewTable({ ...newTable, table_type: e.target.value })}
+                  placeholder="e.g., VIP, Standard"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="status">Status</Label>
+                <select
+                  id="status"
+                  value={newTable.status}
+                  onChange={(e) => setNewTable({ ...newTable, status: e.target.value })}
+                  className="w-full border rounded px-2 py-1"
+                >
+                  <option value="available">Available</option>
+                  <option value="booked">Booked</option>
+                  <option value="maintenance">Maintenance</option>
+                </select>
+              </div>
               <Button 
                 className="w-full bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90"
                 onClick={handleAddTable}
@@ -122,7 +175,7 @@ const TableManagement = () => {
           <Card key={table.id} className="bg-white border-brand-burgundy/10">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-lg font-semibold text-brand-burgundy">
-                Table {table.number}
+                Table {table.table_number}
               </CardTitle>
               <div className="flex gap-2">
                 <Button variant="ghost" size="icon" className="h-8 w-8">
