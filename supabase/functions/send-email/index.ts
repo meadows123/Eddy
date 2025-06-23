@@ -26,10 +26,22 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders })
   }
 
+  if (req.headers.get("content-type") !== "application/json") {
+    return new Response(JSON.stringify({ error: "Invalid content type" }), { status: 400 });
+  }
+
+  let body;
+  try {
+    body = await req.json();
+  } catch (e) {
+    return new Response(JSON.stringify({ error: "Invalid JSON" }), { status: 400 });
+  }
+
   try {
     console.log('Received request:', req.method)
-    const { to, subject, template, data } = await req.json()
-    console.log('Request data:', { to, subject, template, data })
+    console.log('Request data:', body)
+
+    const { to, subject, template, data } = body
 
     const client = new SmtpClient()
 

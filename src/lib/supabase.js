@@ -20,13 +20,19 @@ supabase.auth.getSession().then(
   }
 )
 
+async function fetchVenues() {
+  await supabase.from('venues').select('*');
+}
+fetchVenues();
+
+// Insert a new venue
+await supabase.from('venues').insert({
+  name: 'My Venue',
+  owner_id: 'the-user-id', // This must match a user_id in venue_owners
+  // ...other fields
+});
+
+// Query venues with owner info
 const { data, error } = await supabase
   .from('venues')
-  .select(`
-    *,
-    venue_owner:owner_id (
-      full_name,
-      email
-    )
-  `)
-  .eq('status', 'pending'); 
+  .select('*, venue_owners(*)'); 
