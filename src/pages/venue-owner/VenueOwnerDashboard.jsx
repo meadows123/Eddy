@@ -46,7 +46,6 @@ const VenueOwnerDashboard = () => {
         .from('venues')
         .select('*')
         .eq('owner_id', currentUser?.id)
-        .gt('credit_balance', 0);
 
       if (error) {
         console.error('Error fetching members:', error);
@@ -288,7 +287,7 @@ const VenueOwnerDashboard = () => {
               <CreditCard className="h-4 w-4 text-brand-gold" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-brand-burgundy">₦{stats.totalRevenue.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-brand-burgundy">₦{(stats.totalRevenue ?? 0).toLocaleString()}</div>
               <p className="text-xs text-brand-burgundy/70 mt-1">All time earnings</p>
             </CardContent>
           </Card>
