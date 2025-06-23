@@ -144,7 +144,8 @@ const VenueOwnerDashboard = () => {
           *,
           tables:venue_id (
             name,
-            price
+            type,
+            city
           )
         `)
         .eq('venue_id', venueData.id);
