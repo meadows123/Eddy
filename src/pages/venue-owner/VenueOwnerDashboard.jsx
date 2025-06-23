@@ -118,8 +118,12 @@ const VenueOwnerDashboard = () => {
 
       // Get current user
       const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError) throw userError;
+      if (userError) {
+        console.error('User fetch error:', userError);
+        throw userError;
+      }
       setCurrentUser(user);
+      console.log('Current user:', user);
 
       // Get venue details
       const { data: venueData, error: venueError } = await supabase
@@ -130,6 +134,12 @@ const VenueOwnerDashboard = () => {
 
       if (venueError) {
         console.error('Error fetching venue:', venueError);
+        // If error is because no rows found, handle gracefully
+        if (venueError.code === 'PGRST116' || venueError.message?.includes('No rows')) {
+          setVenue(null);
+          setLoading(false);
+          return;
+        }
         throw venueError;
       }
 
@@ -242,12 +252,12 @@ const VenueOwnerDashboard = () => {
     );
   }
 
-  if (!venue) {
+  if (!venue && !loading) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
           <h2 className="text-yellow-800 font-semibold mb-2">No Venue Found</h2>
-          <p className="text-yellow-600">You haven't created a venue yet.</p>
+          <p className="text-yellow-600">You haven't created a venue yet, or your venue is not associated with your account.</p>
           <a
             href="/venue-owner/register"
             className="mt-4 inline-block bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors"
@@ -255,6 +265,9 @@ const VenueOwnerDashboard = () => {
             Create Venue
           </a>
         </div>
+        <pre className="mt-4 bg-gray-100 p-2 rounded text-xs text-gray-700 overflow-x-auto">
+          Debug Info: userId={currentUser?.id || 'N/A'}
+        </pre>
       </div>
     );
   }
@@ -358,7 +371,11 @@ const VenueOwnerDashboard = () => {
           <TabsContent value="tables">
             <Card className="bg-white border-brand-burgundy/10">
               <CardContent className="pt-6">
-                <TableManagement venueId={venue.id} />
+                {venue && venue.id ? (
+                  <TableManagement venueId={venue.id} />
+                ) : (
+                  <div className="text-center text-brand-burgundy/70 py-8">Loading venue info...</div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
