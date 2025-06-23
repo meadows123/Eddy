@@ -96,7 +96,7 @@ const VenuesPage = () => {
         const { data, error } = await supabase
           .from('venues')
           .select('*')
-          .eq('approval_status', 'approved')
+          .eq('status', 'approved')
           .eq('is_active', true)
           .order('created_at', { ascending: false });
 
