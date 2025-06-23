@@ -104,7 +104,7 @@ export const bookingsApi = {
   // Get user's bookings
   getUserBookings: async (userId) => {
     const { data, error } = await supabase
-      .from('user_bookings')
+      .from('bookings')
       .select(`
         *,
         venues (*)
@@ -119,7 +119,7 @@ export const bookingsApi = {
   // Create a new booking
   createBooking: async (bookingData) => {
     const { data, error } = await supabase
-      .from('user_bookings')
+      .from('bookings')
       .insert([bookingData])
       .select()
     
@@ -130,7 +130,7 @@ export const bookingsApi = {
   // Update booking status
   updateBookingStatus: async (bookingId, status) => {
     const { data, error } = await supabase
-      .from('user_bookings')
+      .from('bookings')
       .update({ status })
       .eq('id', bookingId)
       .select()
@@ -142,7 +142,7 @@ export const bookingsApi = {
   // Cancel booking
   cancelBooking: async (bookingId) => {
     const { data, error } = await supabase
-      .from('user_bookings')
+      .from('bookings')
       .update({ status: 'cancelled' })
       .eq('id', bookingId)
       .select()
@@ -155,7 +155,7 @@ export const bookingsApi = {
   getVenueBookings: async (venueId) => {
     const { data, error } = await supabase
       .from('bookings')
-      .select('*, venue:venues(*)')
+      .select('*, table:venue_tables(*, venue:venues(*))')
       .eq('venue_id', venueId)
     
     if (error) throw error
