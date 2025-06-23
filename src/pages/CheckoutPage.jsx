@@ -319,7 +319,8 @@ const CheckoutPage = () => {
       </div>
       
       <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md" aria-describedby="checkout-dialog-desc">
+          <div id="checkout-dialog-desc" className="sr-only">Enter your payment details to complete your booking.</div>
           <DialogHeader>
             <DialogTitle className="text-center text-2xl">Booking Confirmed!</DialogTitle>
             <DialogDescription className="text-center">
@@ -356,7 +357,8 @@ const CheckoutPage = () => {
 
       {/* Share Dialog */}
       <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
-        <DialogContent>
+        <DialogContent aria-describedby="checkout-dialog-desc-2">
+          <div id="checkout-dialog-desc-2" className="sr-only">Confirm your booking and review your order details.</div>
           <DialogHeader>
             <DialogTitle>Share Payment Links</DialogTitle>
           </DialogHeader>

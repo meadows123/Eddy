@@ -103,10 +103,13 @@ const TableManagement = ({ venueId }) => {
               Add Table
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent aria-describedby="add-table-desc">
             <DialogHeader>
               <DialogTitle>Add New Table</DialogTitle>
             </DialogHeader>
+            <div id="add-table-desc" className="sr-only">
+              Fill out the form below to add a new table to your venue.
+            </div>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
                 <Label htmlFor="tableNumber">Table Number</Label>

@@ -315,7 +315,8 @@ const BookingPage = () => {
         </div>
         
         <Dialog open={showConfirmation} onOpenChange={() => {setShowConfirmation(false); navigate('/profile')}}>
-          <DialogContent className="sm:max-w-md bg-white text-brand-burgundy rounded-lg">
+          <DialogContent className="sm:max-w-md bg-white text-brand-burgundy rounded-lg" aria-describedby="booking-dialog-desc">
+            <div id="booking-dialog-desc" className="sr-only">Enter your booking details below.</div>
             <DialogHeader className="text-center">
               <div className="flex justify-center my-6">
                 <div className="w-20 h-20 bg-brand-gold/20 rounded-full flex items-center justify-center">
