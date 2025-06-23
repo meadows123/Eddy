@@ -30,6 +30,11 @@ const TableManagement = ({ venueId }) => {
     status: 'available',
   });
 
+  // Log the venueId for debugging
+  useEffect(() => {
+    console.log('[TableManagement] venueId prop:', venueId);
+  }, [venueId]);
+
   // Fetch tables for this venue
   useEffect(() => {
     if (!venueId) return;
@@ -94,6 +99,12 @@ const TableManagement = ({ venueId }) => {
 
   return (
     <div className="space-y-6">
+      {!venueId && (
+        <div className="bg-yellow-100 text-yellow-800 p-2 rounded mb-4">
+          <strong>Warning:</strong> Venue ID is missing. Table management will not work until a venue is loaded.<br />
+          Check the console for more details.
+        </div>
+      )}
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-semibold text-brand-burgundy">Table Management</h3>
         <Dialog open={isAddingTable} onOpenChange={setIsAddingTable}>

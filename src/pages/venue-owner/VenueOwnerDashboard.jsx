@@ -271,7 +271,7 @@ const VenueOwnerDashboard = () => {
             <p className="text-brand-burgundy/70">Manage your venue, bookings, and revenue</p>
           </div>
           <div className="flex gap-4">
-            <Button variant="outline" className="border-brand-gold text-brand-gold hover:bg-brand-gold/10">
+            <Button variant="outline" className="border-brand-gold text-brand-gold hover:bg-brand-gold/10" onClick={() => navigate('/venue-owner/settings')}>
               <Settings className="h-4 w-4 mr-2" />
               Settings
             </Button>
