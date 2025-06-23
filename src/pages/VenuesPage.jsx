@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import VenueCard from '@/components/VenueCard';
-import { allVenuesData, getLagosLocations, getVenueTypes, getVenueRatings, getCuisineTypes, getMusicGenresList } from '@/data/clubData';
+import { getLagosLocations, getVenueTypes, getVenueRatings, getCuisineTypes, getMusicGenresList } from '@/data/clubData';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import VenueDetailPage from '@/pages/VenueDetailPage';
@@ -35,7 +35,7 @@ const VenuesPage = () => {
   }
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [filteredVenues, setFilteredVenues] = useState(allVenuesData);
+  const [filteredVenues, setFilteredVenues] = useState([]);
   const [venues, setVenues] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -62,18 +62,16 @@ const VenuesPage = () => {
   }, [typeFromUrl]);
 
   useEffect(() => {
-    let results = allVenuesData;
-    
+    let results = venues;
     if (searchTerm) {
-      results = results.filter(venue => 
-        venue.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        venue.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      results = results.filter(venue =>
+        (venue.name && venue.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (venue.description && venue.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (venue.ambiance && venue.ambiance.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (venue.cuisine && venue.cuisine.some(c => c.toLowerCase().includes(searchTerm.toLowerCase()))) ||
-        (venue.music && venue.music.some(m => m.toLowerCase().includes(searchTerm.toLowerCase())))
+        (venue.cuisine && Array.isArray(venue.cuisine) && venue.cuisine.some(c => c.toLowerCase().includes(searchTerm.toLowerCase()))) ||
+        (venue.music && Array.isArray(venue.music) && venue.music.some(m => m.toLowerCase().includes(searchTerm.toLowerCase())))
       );
     }
-    
     if (filters.location !== 'all') {
       results = results.filter(venue => venue.location === filters.location);
     }
@@ -84,14 +82,13 @@ const VenuesPage = () => {
       results = results.filter(venue => venue.rating >= parseFloat(filters.rating));
     }
     if (filters.cuisineType !== 'all') {
-        results = results.filter(venue => venue.cuisine && venue.cuisine.includes(filters.cuisineType));
+      results = results.filter(venue => venue.cuisine && venue.cuisine.includes(filters.cuisineType));
     }
     if (filters.musicGenre !== 'all') {
-        results = results.filter(venue => Array.isArray(venue.musicGenres) && venue.musicGenres.includes(filters.musicGenre));
+      results = results.filter(venue => Array.isArray(venue.musicGenres) && venue.musicGenres.includes(filters.musicGenre));
     }
-    
     setFilteredVenues(results);
-  }, [searchTerm, filters]);
+  }, [venues, searchTerm, filters]);
 
   useEffect(() => {
     const fetchVenues = async () => {
@@ -135,8 +132,8 @@ const VenuesPage = () => {
     });
   };
 
-  // Top picks for tonight (example logic, can be more dynamic)
-  const topPicks = allVenuesData.filter(v => v.rating >= 4.7).slice(0, 3);
+  // Top picks for tonight (use live venues)
+  const topPicks = venues.filter(v => v.rating >= 4.7).slice(0, 3);
   
   return (
     <div className="py-12 bg-brand-cream text-brand-burgundy">
