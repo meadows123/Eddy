@@ -26,13 +26,20 @@ async function fetchVenues() {
 fetchVenues();
 
 // Insert a new venue
-await supabase.from('venues').insert({
-  name: 'My Venue',
-  owner_id: 'the-user-id', // This must match a user_id in venue_owners
-  // ...other fields
-});
+async function insertVenue() {
+  await supabase.from('venues').insert({
+    name: 'My Venue',
+    owner_id: 'the-user-id', // This must match a user_id in venue_owners
+    // ...other fields
+  });
+}
 
-// Query venues with owner info
-const { data, error } = await supabase
-  .from('venues')
-  .select('*, venue_owners(*)'); 
+insertVenue();
+
+// Example function to fetch venues with owner info
+export async function fetchVenuesWithOwners() {
+  const { data, error } = await supabase
+    .from('venues')
+    .select('*, venue_owners(*)');
+  return { data, error };
+} 
