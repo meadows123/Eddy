@@ -361,8 +361,8 @@ const VenueOwnerDashboard = () => {
           <TabsContent value="tables">
             <Card className="bg-white border-brand-burgundy/10">
               <CardContent className="pt-6">
-                {venue && venue.id ? (
-                  <TableManagement venueId={venue.id} />
+                {venue && venue.owner_id ? (
+                  <TableManagement currentUser={{ id: venue.owner_id }} />
                 ) : (
                   <div className="text-center text-brand-burgundy/70 py-8">Loading venue info...</div>
                 )}
