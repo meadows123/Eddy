@@ -298,7 +298,7 @@ const VenueOwnerDashboard = () => {
               <TrendingUp className="h-4 w-4 text-brand-gold" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-brand-burgundy">₦{stats.pendingPayouts.toLocaleString()}</div>
+              <div className="text-2xl font-bold text-brand-burgundy">₦{(stats.pendingPayouts ?? 0).toLocaleString()}</div>
               <p className="text-xs text-brand-burgundy/70 mt-1">Available for withdrawal</p>
             </CardContent>
           </Card>
@@ -470,7 +470,7 @@ const VenueOwnerDashboard = () => {
                   {members.map(member => (
                     <tr key={member.id}>
                       <td className="py-2">{member.first_name} {member.last_name}</td>
-                      <td className="py-2">${member.credit_balance.toLocaleString()}</td>
+                      <td className="py-2">${(member.credit_balance ?? 0).toLocaleString()}</td>
                     </tr>
                   ))}
                 </tbody>
