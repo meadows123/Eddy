@@ -114,7 +114,7 @@ const TableManagement = ({ venueId }) => {
               Add Table
             </Button>
           </DialogTrigger>
-          <DialogContent aria-describedby="add-table-desc">
+          <DialogContent className="sm:max-w-md" aria-describedby="add-table-desc">
             <DialogHeader>
               <DialogTitle>Add New Table</DialogTitle>
             </DialogHeader>
