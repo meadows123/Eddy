@@ -50,10 +50,13 @@ const pendingPayouts = bookings
   .reduce((sum, b) => sum + (b.tables?.price || 0), 0);
 
 // Fetch tables for the venue
-const { data: tables, error: tablesError } = await supabase
-  .from('venue_tables')
-  .select('*, tables:venue_tables(name, price)')
-  .eq('venue_id', venueData.id);
+export async function fetchTables(venueId) {
+  const { data, error } = await supabase
+    .from('venue_tables')
+    .select('*')
+    .eq('venue_id', venueId);
+  return { data, error };
+}
 
 const totalTables = tables ? tables.length : 0;
 
