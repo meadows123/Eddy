@@ -18,4 +18,15 @@ supabase.auth.getSession().then(
       console.log('Supabase connected successfully')
     }
   }
-) 
+)
+
+const { data, error } = await supabase
+  .from('venues')
+  .select(`
+    *,
+    venue_owner:owner_id (
+      full_name,
+      email
+    )
+  `)
+  .eq('status', 'pending'); 
