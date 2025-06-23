@@ -149,6 +149,17 @@ export const bookingsApi = {
     
     if (error) throw error
     return data
+  },
+
+  // Get bookings for a specific venue
+  getVenueBookings: async (venueId) => {
+    const { data, error } = await supabase
+      .from('bookings')
+      .select('*, venue:venues(*)')
+      .eq('venue_id', venueId)
+    
+    if (error) throw error
+    return data
   }
 }
 
