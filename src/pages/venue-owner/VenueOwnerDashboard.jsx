@@ -42,9 +42,9 @@ const VenueOwnerDashboard = () => {
   useEffect(() => {
     const fetchMembers = async () => {
       const { data, error } = await supabase
-        .from('user_profiles')
-        .select('id, first_name, last_name, credit_balance, bookings!inner(venue_id)')
-        .eq('bookings.venue_id', venueId)
+        .from('venues')
+        .select('*')
+        .eq('owner_id', user.id)
         .gt('credit_balance', 0);
 
       if (error) {
@@ -142,7 +142,7 @@ const VenueOwnerDashboard = () => {
         .from('bookings')
         .select(`
           *,
-          tables (
+          tables:venue_id (
             name,
             price
           )
@@ -358,7 +358,7 @@ const VenueOwnerDashboard = () => {
           <TabsContent value="tables">
             <Card className="bg-white border-brand-burgundy/10">
               <CardContent className="pt-6">
-                <TableManagement />
+                <TableManagement venueId={venue.id} />
               </CardContent>
             </Card>
           </TabsContent>
