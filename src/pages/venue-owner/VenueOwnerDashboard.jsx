@@ -18,6 +18,7 @@ import TableManagement from './components/TableManagement';
 import { supabase } from '../../lib/supabase';
 import { toast } from '../../components/ui/use-toast';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 
 const VenueOwnerDashboard = () => {
   const navigate = useNavigate();
@@ -125,45 +126,34 @@ const VenueOwnerDashboard = () => {
       setCurrentUser(user);
       console.log('Current user:', user);
 
-      // Get venue details
-      const { data: venueData, error: venueError } = await supabase
+      // Get all venues for this owner
+      const { data: venuesData, error: venuesError } = await supabase
         .from('venues')
         .select('*')
-        .eq('owner_id', user.id)
-        .single();
-
-      if (venueError) {
-        console.error('Error fetching venue:', venueError);
-        // If error is because no rows found, handle gracefully
-        if (venueError.code === 'PGRST116' || venueError.message?.includes('No rows')) {
-          setVenue(null);
-          setLoading(false);
-          return;
-        }
-        throw venueError;
+        .eq('owner_id', user.id);
+      if (venuesError) {
+        console.error('Error fetching venues:', venuesError);
+        throw venuesError;
       }
-
-      console.log('Venue data:', venueData);
+      console.log('Venues data:', venuesData);
+      // Use the first venue for dashboard context (if you want to support multiple, update UI accordingly)
+      const venueData = venuesData && venuesData.length > 0 ? venuesData[0] : null;
       setVenue(venueData);
+      const venueIds = venuesData.map(v => v.id);
 
-      // Get booking statistics
-      const { data: bookings, error: bookingsError } = await supabase
-        .from('bookings')
-        .select(`
-          *,
-          tables:venue_id (
-            name,
-            type,
-            city
-          )
-        `)
-        .eq('venue_id', venueData.id);
-
-      if (bookingsError) {
-        console.error('Error fetching bookings:', bookingsError);
-        throw bookingsError;
+      // Get booking statistics for all venues owned by this user
+      let bookings = [];
+      if (venueIds.length > 0) {
+        const { data: bookingsData, error: bookingsError } = await supabase
+          .from('bookings')
+          .select('*')
+          .in('venue_id', venueIds);
+        if (bookingsError) {
+          console.error('Error fetching bookings:', bookingsError);
+          throw bookingsError;
+        }
+        bookings = bookingsData;
       }
-
       console.log('Bookings data:', bookings);
 
       // Calculate statistics
@@ -497,6 +487,19 @@ const VenueOwnerDashboard = () => {
             )}
           </div>
         </Card>
+
+        {/* Add Table Dialog */}
+        <Dialog>
+          <DialogContent aria-describedby="add-table-desc">
+            <DialogHeader>
+              <DialogTitle>Add New Table</DialogTitle>
+            </DialogHeader>
+            <div id="add-table-desc" className="sr-only">
+              Fill out the form below to add a new table to your venue.
+            </div>
+            {/* ...rest of your dialog... */}
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
