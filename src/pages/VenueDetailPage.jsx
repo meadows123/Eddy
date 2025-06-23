@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import TicketSelection from '@/components/TicketSelection'; // Will need styling updates
 import TableReservation from '@/components/TableReservation'; // Will need styling updates
 import { useToast } from '@/components/ui/use-toast';
-import { getVenueById } from '@/data/clubData'; // Renamed
+import { supabase } from '@/lib/supabase';
 
 const VenueDetailPage = () => {
   const { id } = useParams();
@@ -22,15 +22,20 @@ const VenueDetailPage = () => {
   const [isFavorite, setIsFavorite] = useState(false);
 
   useEffect(() => {
-    // Simulate API call
-    setTimeout(() => {
-      const foundVenue = getVenueById(id);
-      setVenue(foundVenue);
+    const fetchVenue = async () => {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('venues')
+        .select('*')
+        .eq('id', id)
+        .single();
+      setVenue(data);
       setLoading(false);
       // Check if venue is in favorites (from localStorage)
       const favorites = JSON.parse(localStorage.getItem('lagosvibe_favorites') || '[]');
       setIsFavorite(favorites.includes(id));
-    }, 500);
+    };
+    fetchVenue();
   }, [id]);
   
   const handleSelectTicket = (ticket) => {
@@ -185,6 +190,9 @@ const VenueDetailPage = () => {
                 <div className="flex items-start">
                   <MapPin className="h-5 w-5 mr-3 mt-0.5 text-brand-gold shrink-0" />
                   <span>{venue.address}</span>
+                </div>
+                <div className="flex items-start">
+                  <span>Price Range: {venue.price_range}</span>
                 </div>
                 <div className="flex items-start">
                   <CalendarDays className="h-5 w-5 mr-3 mt-0.5 text-brand-gold shrink-0" />
