@@ -28,9 +28,9 @@ const VenueCard = ({ venue }) => {
                 {tag}
               </Badge>
             ))}
-             <Badge variant="default" className="bg-brand-burgundy text-brand-cream backdrop-blur-sm border-brand-burgundy/50 shadow-md">
-                {venue.priceRange || 'N/A'}
-              </Badge>
+            <Badge variant="default" className="bg-brand-burgundy text-brand-cream backdrop-blur-sm border-brand-burgundy/50 shadow-md">
+              {venue.price_range || 'N/A'}
+            </Badge>
           </div>
            {venue.isFeatured && (
             <div className="absolute top-3 left-3">
@@ -47,9 +47,9 @@ const VenueCard = ({ venue }) => {
               <span className="font-semibold text-brand-burgundy/80">{venue.rating}</span>
             </div>
           </div>
-           <p className="text-xs text-brand-burgundy/60 flex items-center">
-              <MapPin className="h-3.5 w-3.5 mr-1 text-brand-gold" /> {venue.location}
-            </p>
+          <p className="text-xs text-brand-burgundy/60 flex items-center">
+            <MapPin className="h-3.5 w-3.5 mr-1 text-brand-gold" /> {venue.address || venue.location}
+          </p>
         </CardHeader>
         
         <CardContent className="flex-grow pt-0 pb-4">
