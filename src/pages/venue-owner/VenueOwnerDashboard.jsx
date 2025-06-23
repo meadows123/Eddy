@@ -45,7 +45,7 @@ const VenueOwnerDashboard = () => {
       const { data, error } = await supabase
         .from('venues')
         .select('*')
-        .eq('owner_id', currentUser?.id)
+        .eq('owner_id', currentUser?.id);
 
       if (error) {
         console.error('Error fetching members:', error);
