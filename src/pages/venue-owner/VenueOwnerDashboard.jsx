@@ -33,6 +33,7 @@ const VenueOwnerDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [members, setMembers] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
   const venueId = venue?.id;
 
   useEffect(() => {
@@ -44,7 +45,7 @@ const VenueOwnerDashboard = () => {
       const { data, error } = await supabase
         .from('venues')
         .select('*')
-        .eq('owner_id', user.id)
+        .eq('owner_id', currentUser?.id)
         .gt('credit_balance', 0);
 
       if (error) {
@@ -57,7 +58,7 @@ const VenueOwnerDashboard = () => {
     };
 
     if (venueId) fetchMembers();
-  }, [venueId]);
+  }, [venueId, currentUser?.id]);
 
   const checkAuth = async () => {
     try {
@@ -119,8 +120,7 @@ const VenueOwnerDashboard = () => {
       // Get current user
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError) throw userError;
-      
-      console.log('Current user:', user);
+      setCurrentUser(user);
 
       // Get venue details
       const { data: venueData, error: venueError } = await supabase
