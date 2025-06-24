@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
+import { 
+  Card, 
+  CardContent, 
+  CardHeader, 
+  CardTitle 
+} from '../../../components/ui/card';
 import { Button } from '../../../components/ui/button';
 import { Input } from '../../../components/ui/input';
 import { Label } from '../../../components/ui/label';
@@ -40,7 +45,7 @@ const TableManagement = ({ currentUser }) => {
       const { data: venuesData, error: venuesError } = await supabase
         .from('venues')
         .select('id, name')
-        .eq('owner_id', currentUser.id);
+        .eq('venue_id', currentUser.id);
       if (venuesError) {
         toast({ title: 'Error', description: venuesError.message, variant: 'destructive' });
         setVenues([]);
