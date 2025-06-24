@@ -33,7 +33,7 @@ export async function fetchTables(venueId) {
 export async function fetchVenuesWithOwners() {
   const { data, error } = await supabase
     .from('venues')
-    .select('*, venue_owners(*)');
+    .select('id, name, owner_id, venue_owners(*)');
   return { data, error };
 }
 
@@ -42,5 +42,13 @@ export async function fetchMemberBookings(venueId) {
     .from('bookings')
     .select('user_id, user:user_profiles(first_name, last_name), credit_balance')
     .eq('venue_id', venueId);
+  return { data, error };
+}
+
+export async function addTable(venueId, tableData) {
+  const { data, error } = await supabase
+    .from('venue_tables')
+    .insert([{ venue_id: venueId, ...tableData }])
+    .select()
   return { data, error };
 }

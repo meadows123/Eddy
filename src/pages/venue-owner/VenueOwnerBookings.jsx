@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Card, CardContent } from '../../components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import BookingList from './components/BookingList';
 import { supabase } from '../../lib/supabase';
 
@@ -37,6 +37,7 @@ const VenueOwnerBookings = () => {
             <p className="text-brand-burgundy/70">Manage your venue bookings</p>
           </div>
         </div>
+
         <Card className="bg-white border-brand-burgundy/10">
           <CardContent className="pt-6">
             <BookingList bookings={bookings} loading={loading} />
@@ -47,4 +48,4 @@ const VenueOwnerBookings = () => {
   );
 };
 
-export default VenueOwnerBookings;
+export default VenueOwnerBookings; 
