@@ -1,273 +1,541 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle 
-} from '../../../components/ui/card';
-import { Button } from '../../../components/ui/button';
-import { Input } from '../../../components/ui/input';
-import { Label } from '../../../components/ui/label';
-import { Plus, Edit2, Trash2 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '../../../components/ui/dialog';
-import { supabase } from '../../../lib/supabase';
-import { toast } from '../../../components/ui/use-toast';
+  BarChart3, 
+  Calendar, 
+  Users, 
+  CreditCard, 
+  TrendingUp, 
+  Table2,
+  Settings,
+  QrCode
+} from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
+import { useNavigate } from 'react-router-dom';
+import BookingList from './components/BookingList';
+import TableManagement from './components/TableManagement';
+import { supabase } from '../../lib/supabase';
+import { toast } from '../../components/ui/use-toast';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 
-const TableManagement = ({ currentUser }) => {
-  const [tables, setTables] = useState([]);
-  const [venues, setVenues] = useState([]);
-  const [isAddingTable, setIsAddingTable] = useState(false);
-  const [newTable, setNewTable] = useState({
-    table_number: '',
-    capacity: '',
-    price: '',
-    table_type: '',
-    status: 'available',
-    venue_id: '',
+const VenueOwnerDashboard = () => {
+  const navigate = useNavigate();
+  const [venue, setVenue] = useState(null);
+  const [stats, setStats] = useState({
+    totalBookings: 0,
+    totalRevenue: 0,
+    averageRating: 0,
+    popularTables: []
   });
+  const [recentBookings, setRecentBookings] = useState([]);
+  const [bookingTrends, setBookingTrends] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [members, setMembers] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
+  const venueId = venue?.id;
+  const [loginVenueMessage, setLoginVenueMessage] = useState('');
 
-  // Log the currentUser for debugging
   useEffect(() => {
-    console.log('[TableManagement] currentUser prop:', currentUser);
-  }, [currentUser]);
+    checkAuth();
+    fetchVenueLoginMessage();
+  }, []);
 
-  // Fetch venues and tables for all venues owned by the current user
   useEffect(() => {
-    if (!currentUser?.id) return;
-    const fetchVenuesAndTables = async () => {
-      // Fetch all venues for this owner
-      const { data: venuesData, error: venuesError } = await supabase
+    const fetchMembers = async () => {
+      const { data, error } = await supabase
         .from('venues')
-        .select('id, name')
-        .eq('owner_id', currentUser.id);
-      if (venuesError) {
-        toast({ title: 'Error', description: venuesError.message, variant: 'destructive' });
-        setVenues([]);
-        setTables([]);
-        return;
-      }
-      setVenues(venuesData || []);
-      const venueIds = (venuesData || []).map(v => v.id);
-      if (venueIds.length === 0) {
-        setTables([]);
-        return;
-      }
-      // Fetch all tables for these venues
-      const { data: tablesData, error: tablesError } = await supabase
-        .from('venue_tables')
         .select('*')
-        .in('venue_id', venueIds);
-      if (tablesError) {
-        toast({ title: 'Error', description: tablesError.message, variant: 'destructive' });
-        setTables([]);
+        .eq('owner_id', currentUser?.id);
+
+      if (error) {
+        console.error('Error fetching members:', error);
       } else {
-        setTables(tablesData || []);
+        // Deduplicate by user id
+        const unique = Array.from(new Map(data.map(m => [m.id, m])).values());
+        setMembers(unique);
       }
     };
-    fetchVenuesAndTables();
-  }, [currentUser]);
 
-  const handleAddTable = async () => {
-    if (!newTable.venue_id) {
-      toast({ title: 'Error', description: 'Please select a venue for this table.', variant: 'destructive' });
-      return;
-    }
-    if (!newTable.table_number || !newTable.capacity || !newTable.price || !newTable.table_type || !newTable.status) {
-      toast({ title: 'Missing Fields', description: 'Please fill all fields', variant: 'destructive' });
-      return;
-    }
-    // Log the data being inserted for debugging
-    console.log('[Add Table] Inserting table:', newTable);
-    const { error } = await supabase.from('venue_tables').insert([
-      {
-        venue_id: newTable.venue_id,
-        table_number: newTable.table_number,
-        capacity: parseInt(newTable.capacity),
-        price: parseInt(newTable.price),
-        table_type: newTable.table_type,
-        status: newTable.status,
+    if (venueId) fetchMembers();
+  }, [venueId, currentUser?.id]);
+
+  const checkAuth = async () => {
+    try {
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) throw sessionError;
+      
+      if (!session) {
+        console.log('No session found, redirecting to login...');
+        toast({
+          title: 'Authentication Required',
+          description: 'Please log in to access the dashboard',
+          variant: 'destructive',
+        });
+        navigate('/venue-owner/login');
+        return;
       }
-    ]);
-    if (error) {
-      toast({ title: 'Error', description: `Failed to add table: ${error.message}`, variant: 'destructive' });
-    } else {
-      toast({ title: 'Table Added', description: 'New table added successfully!' });
-      setNewTable({ table_number: '', capacity: '', price: '', table_type: '', status: 'available', venue_id: '' });
-      setIsAddingTable(false);
-      // Refresh table list
-      const { data: venues } = await supabase.from('venues').select('id').eq('owner_id', currentUser.id);
-      const venueIds = venues.map(v => v.id);
-      const { data: tablesData } = await supabase.from('venue_tables').select('*').in('venue_id', venueIds);
-      setTables(tablesData || []);
+
+      // Check if user is a venue owner
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+
+      const { data: venueOwner, error: venueOwnerError } = await supabase
+        .from('venue_owners')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (venueOwnerError || !venueOwner) {
+        console.log('User is not a venue owner, redirecting to register...');
+        toast({
+          title: 'Venue Owner Account Required',
+          description: 'Please register as a venue owner to access the dashboard',
+          variant: 'destructive',
+        });
+        navigate('/venue-owner/register');
+        return;
+      }
+
+      // If we get here, user is authenticated and is a venue owner
+      fetchVenueData();
+    } catch (error) {
+      console.error('Auth check error:', error);
+      setError(error.message);
+      toast({
+        title: 'Error',
+        description: 'Failed to verify authentication',
+        variant: 'destructive',
+      });
     }
   };
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'available':
-        return 'bg-green-100 text-green-800';
-      case 'booked':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'maintenance':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
+  const fetchVenueData = async () => {
+    try {
+      console.log('Fetching venue data...');
+      setLoading(true);
+      setError(null);
+
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) {
+        console.error('User fetch error:', userError);
+        throw userError;
+      }
+      setCurrentUser(user);
+      console.log('Current user:', user);
+
+      // Get all venues for this owner
+      const { data: venuesData, error: venuesError } = await supabase
+        .from('venues')
+        .select('*')
+        .eq('owner_id', user.id);
+      if (venuesError) {
+        console.error('Error fetching venues:', venuesError);
+        throw venuesError;
+      }
+      console.log('Venues data:', venuesData);
+      // Use the first venue for dashboard context (if you want to support multiple, update UI accordingly)
+      const venueData = venuesData && venuesData.length > 0 ? venuesData[0] : null;
+      setVenue(venueData);
+      const venueIds = venuesData.map(v => v.id);
+
+      // Get booking statistics for all venues owned by this user
+      let bookings = [];
+      if (venueIds.length > 0) {
+        const { data: bookingsData, error: bookingsError } = await supabase
+          .from('bookings')
+          .select('*')
+          .in('venue_id', venueIds);
+        if (bookingsError) {
+          console.error('Error fetching bookings:', bookingsError);
+          throw bookingsError;
+        }
+        bookings = bookingsData;
+      }
+      console.log('Bookings data:', bookings);
+
+      // Calculate statistics
+      const totalBookings = bookings.length;
+      const totalRevenue = bookings.reduce((sum, booking) => sum + (booking.tables?.price || 0), 0);
+      const averageRating = bookings.reduce((sum, booking) => sum + (booking.rating || 0), 0) / totalBookings || 0;
+
+      // Get popular tables
+      const tableBookings = {};
+      bookings.forEach(booking => {
+        if (booking.tables?.name) {
+          tableBookings[booking.tables.name] = (tableBookings[booking.tables.name] || 0) + 1;
+        }
+      });
+      const popularTables = Object.entries(tableBookings)
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
+
+      setStats({
+        totalBookings,
+        totalRevenue,
+        averageRating,
+        popularTables
+      });
+
+      // Get recent bookings
+      const recentBookingsData = bookings
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+        .slice(0, 5);
+      setRecentBookings(recentBookingsData);
+
+      // Get booking trends (last 7 days)
+      const last7Days = Array.from({ length: 7 }, (_, i) => {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        return date.toISOString().split('T')[0];
+      }).reverse();
+
+      const trends = last7Days.map(date => ({
+        date,
+        bookings: bookings.filter(b => b.created_at.startsWith(date)).length,
+        revenue: bookings
+          .filter(b => b.created_at.startsWith(date))
+          .reduce((sum, b) => sum + (b.tables?.price || 0), 0)
+      }));
+
+      setBookingTrends(trends);
+      console.log('Data fetch completed successfully');
+
+    } catch (error) {
+      console.error('Error in fetchVenueData:', error);
+      setError(error.message);
+      toast({
+        title: 'Error',
+        description: `Failed to fetch venue data: ${error.message}`,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
     }
   };
+
+  const fetchVenueLoginMessage = async () => {
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        setLoginVenueMessage('Error fetching user info.');
+        return;
+      }
+      const { data: venues, error: venuesError } = await supabase
+        .from('venues')
+        .select('id, name')
+        .eq('owner_id', user.id);
+      if (venuesError) {
+        setLoginVenueMessage('Error fetching venue.');
+        return;
+      }
+      if (venues && venues.length > 0) {
+        setLoginVenueMessage(`You have successfully logged in to ${venues[0].name}`);
+      } else {
+        setLoginVenueMessage('No venue found for this account.');
+      }
+    } catch (err) {
+      setLoginVenueMessage('Unexpected error fetching venue.');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <h2 className="text-red-800 font-semibold mb-2">Error Loading Dashboard</h2>
+          <p className="text-red-600">{error}</p>
+          <button
+            onClick={fetchVenueData}
+            className="mt-4 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!venue && !loading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <h2 className="text-yellow-800 font-semibold mb-2">No Venue Found</h2>
+          <p className="text-yellow-600">You haven't created a venue yet, or your venue is not associated with your account.</p>
+          <a
+            href="/venue-owner/register"
+            className="mt-4 inline-block bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 transition-colors"
+          >
+            Create Venue
+          </a>
+        </div>
+        <pre className="mt-4 bg-gray-100 p-2 rounded text-xs text-gray-700 overflow-x-auto">
+          Debug Info: userId={currentUser?.id || 'N/A'}
+        </pre>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Removed warning for missing currentUser */}
-      {/* Always show table management UI */}
-      <>
-        <div className="flex justify-between items-center">
-          <h3 className="text-lg font-semibold text-brand-burgundy">Table Management</h3>
-          <Dialog open={isAddingTable} onOpenChange={setIsAddingTable}>
-            <DialogTrigger asChild>
-              <Button
-                className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90"
-                title={"Add a new table to your venue"}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Table
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md" aria-describedby="add-table-desc">
-              <DialogHeader>
-                <DialogTitle>Add New Table</DialogTitle>
-              </DialogHeader>
-              <div id="add-table-desc" className="sr-only">
-                Fill out the form below to add a new table to your venue.
-              </div>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="tableNumber">Table Number</Label>
-                  <Input
-                    id="tableNumber"
-                    value={newTable.table_number}
-                    onChange={(e) => setNewTable({ ...newTable, table_number: e.target.value })}
-                    placeholder="e.g., A1"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="capacity">Capacity</Label>
-                  <Input
-                    id="capacity"
-                    type="number"
-                    value={newTable.capacity}
-                    onChange={(e) => setNewTable({ ...newTable, capacity: e.target.value })}
-                    placeholder="Number of seats"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="price">Price (₦)</Label>
-                  <Input
-                    id="price"
-                    type="number"
-                    value={newTable.price}
-                    onChange={(e) => setNewTable({ ...newTable, price: e.target.value })}
-                    placeholder="Table price"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="tableType">Table Type</Label>
-                  <Input
-                    id="tableType"
-                    value={newTable.table_type}
-                    onChange={(e) => setNewTable({ ...newTable, table_type: e.target.value })}
-                    placeholder="e.g., VIP, Standard"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="status">Status</Label>
-                  <select
-                    id="status"
-                    value={newTable.status}
-                    onChange={(e) => setNewTable({ ...newTable, status: e.target.value })}
-                    className="w-full border rounded px-2 py-1"
-                  >
-                    <option value="available">Available</option>
-                    <option value="booked">Booked</option>
-                    <option value="maintenance">Maintenance</option>
-                  </select>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="venueId">Venue</Label>
-                  <select
-                    id="venueId"
-                    value={newTable.venue_id}
-                    onChange={e => setNewTable({ ...newTable, venue_id: e.target.value })}
-                    className="w-full border rounded px-2 py-1"
-                  >
-                    <option value="">Select a venue</option>
-                    {/* Render options dynamically from venues */}
-                    {venues.map(venue => (
-                      <option key={venue.id} value={venue.id}>{venue.name}</option>
-                    ))}
-                  </select>
-                </div>
-                <Button 
-                  className="w-full bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90"
-                  onClick={handleAddTable}
-                >
-                  Add Table
-                </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
-        </div>
-        {tables.length === 0 ? (
-          <div className="text-center text-brand-burgundy/70 py-8">
-            No tables yet. Add your first table!
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {tables.map((table) => (
-              <Card key={table.id} className="bg-white border-brand-burgundy/10">
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-lg font-semibold text-brand-burgundy">
-                    Table {table.table_number}
-                  </CardTitle>
-                  <div className="flex gap-2">
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <Edit2 className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600">
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-brand-burgundy/70">Capacity:</span>
-                      <span className="font-medium">{table.capacity} seats</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-brand-burgundy/70">Price:</span>
-                      <span className="font-medium">₦{table.price.toLocaleString()}</span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-brand-burgundy/70">Status:</span>
-                      <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(table.status)}`}>
-                        {table.status}
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+    <div className="bg-brand-cream/50 min-h-screen">
+      <div className="container py-8">
+        {/* Venue login message */}
+        {loginVenueMessage && (
+          <div className="mb-6 p-4 rounded bg-green-50 border border-green-200 text-green-800 text-center">
+            {loginVenueMessage}
           </div>
         )}
-      </>
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h1 className="text-3xl font-heading text-brand-burgundy mb-2">Venue Dashboard</h1>
+            <p className="text-brand-burgundy/70">Manage your venue, bookings, and revenue</p>
+          </div>
+          <div className="flex gap-4">
+            <Button variant="outline" className="border-brand-gold text-brand-gold hover:bg-brand-gold/10" onClick={() => navigate('/venue-owner/settings')}>
+              <Settings className="h-4 w-4 mr-2" />
+              Settings
+            </Button>
+            <Button className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90">
+              <QrCode className="h-4 w-4 mr-2" />
+              Generate QR Code
+            </Button>
+          </div>
+        </div>
+
+        {/* Quick Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <Card className="bg-white border-brand-burgundy/10">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-brand-burgundy/70">Total Revenue</CardTitle>
+              <CreditCard className="h-4 w-4 text-brand-gold" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-brand-burgundy">₦{(stats.totalRevenue ?? 0).toLocaleString()}</div>
+              <p className="text-xs text-brand-burgundy/70 mt-1">All time earnings</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white border-brand-burgundy/10">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-brand-burgundy/70">Pending Payouts</CardTitle>
+              <TrendingUp className="h-4 w-4 text-brand-gold" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-brand-burgundy">₦{(stats.pendingPayouts ?? 0).toLocaleString()}</div>
+              <p className="text-xs text-brand-burgundy/70 mt-1">Available for withdrawal</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white border-brand-burgundy/10">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-brand-burgundy/70">Active Bookings</CardTitle>
+              <Calendar className="h-4 w-4 text-brand-gold" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-brand-burgundy">{stats.activeBookings}</div>
+              <p className="text-xs text-brand-burgundy/70 mt-1">Current bookings</p>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-white border-brand-burgundy/10">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-brand-burgundy/70">Total Tables</CardTitle>
+              <Table2 className="h-4 w-4 text-brand-gold" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-brand-burgundy">{stats.totalTables}</div>
+              <p className="text-xs text-brand-burgundy/70 mt-1">Available tables</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Main Content */}
+        <Tabs defaultValue="bookings" className="space-y-4">
+          <TabsList className="bg-white p-1 rounded-lg border border-brand-burgundy/10">
+            <TabsTrigger value="bookings" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy">
+              <Calendar className="h-4 w-4 mr-2" />
+              Bookings
+            </TabsTrigger>
+            <TabsTrigger value="tables" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy">
+              <Table2 className="h-4 w-4 mr-2" />
+              Tables
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy">
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Analytics
+            </TabsTrigger>
+            <TabsTrigger value="staff" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy">
+              <Users className="h-4 w-4 mr-2" />
+              Staff
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="bookings">
+            <Card className="bg-white border-brand-burgundy/10">
+              <CardContent className="pt-6">
+                <BookingList />
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="tables">
+            <Card className="bg-white border-brand-burgundy/10">
+              <CardContent className="pt-6">
+                {venue && venue.owner_id ? (
+                  <TableManagement currentUser={{ id: venue.owner_id }} />
+                ) : (
+                  <div className="text-center text-brand-burgundy/70 py-8">Loading venue info...</div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="analytics">
+            <Card className="bg-white border-brand-burgundy/10">
+              <CardHeader>
+                <CardTitle>Revenue Analytics</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {/* Add Analytics component here */}
+                <p className="text-brand-burgundy/70">Loading analytics...</p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="staff">
+            <Card className="bg-white border-brand-burgundy/10">
+              <CardHeader>
+                <CardTitle>Staff Management</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {/* Add StaffManagement component here */}
+                <p className="text-brand-burgundy/70">Loading staff...</p>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        {/* Booking Trends Chart */}
+        <Card className="p-6 mb-8">
+          <h3 className="text-lg font-semibold mb-4">Booking Trends</h3>
+          <div className="h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={bookingTrends}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" />
+                <YAxis yAxisId="left" />
+                <YAxis yAxisId="right" orientation="right" />
+                <Tooltip />
+                <Line
+                  yAxisId="left"
+                  type="monotone"
+                  dataKey="bookings"
+                  stroke="#8884d8"
+                  name="Bookings"
+                />
+                <Line
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="revenue"
+                  stroke="#82ca9d"
+                  name="Revenue"
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+
+        {/* Popular Tables */}
+        <Card className="p-6 mb-8">
+          <h3 className="text-lg font-semibold mb-4">Popular Tables</h3>
+          <div className="space-y-4">
+            {stats.popularTables.map((table, index) => (
+              <div key={index} className="flex justify-between items-center">
+                <span>{table.name}</span>
+                <span className="font-semibold">{table.count} bookings</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        {/* Recent Bookings */}
+        <Card className="p-6">
+          <h3 className="text-lg font-semibold mb-4">Recent Bookings</h3>
+          <div className="space-y-4">
+            {recentBookings.map((booking) => (
+              <div key={booking.id} className="flex justify-between items-center">
+                <div>
+                  <p className="font-semibold">{booking.tables?.name || 'Unknown Table'}</p>
+                  <p className="text-sm text-gray-500">
+                    {new Date(booking.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="font-semibold">${booking.tables?.price || 0}</p>
+                  <p className="text-sm text-gray-500">
+                    {booking.status}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        {/* Eddy Members */}
+        <Card className="bg-white border-brand-burgundy/10 mt-8">
+          <div className="p-6">
+            <h2 className="text-xl font-semibold mb-4">Eddy Members</h2>
+            {members && members.length > 0 ? (
+              <table className="w-full">
+                <thead>
+                  <tr>
+                    <th className="text-left py-2">Name</th>
+                    <th className="text-left py-2">Credit Balance</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {members.map(member => (
+                    <tr key={member.id}>
+                      <td className="py-2">{member.first_name} {member.last_name}</td>
+                      <td className="py-2">${(member.credit_balance ?? 0).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p>No Eddy Members yet.</p>
+            )}
+          </div>
+        </Card>
+
+        {/* Add Table Dialog */}
+        <Dialog>
+          <DialogContent aria-describedby="add-table-desc">
+            <DialogHeader>
+              <DialogTitle>Add New Table</DialogTitle>
+            </DialogHeader>
+            <div id="add-table-desc" className="sr-only">
+              Fill out the form below to add a new table to your venue.
+            </div>
+            {/* ...rest of your dialog... */}
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
   );
 };
 
-export default TableManagement; 
+export default VenueOwnerDashboard; 
