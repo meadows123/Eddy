@@ -21,6 +21,7 @@ import { toast } from '../../../components/ui/use-toast';
 
 const TableManagement = ({ currentUser }) => {
   const [tables, setTables] = useState([]);
+  const [venues, setVenues] = useState([]);
   const [isAddingTable, setIsAddingTable] = useState(false);
   const [newTable, setNewTable] = useState({
     table_number: '',
@@ -36,21 +37,23 @@ const TableManagement = ({ currentUser }) => {
     console.log('[TableManagement] currentUser prop:', currentUser);
   }, [currentUser]);
 
-  // Fetch tables for all venues owned by the current user
+  // Fetch venues and tables for all venues owned by the current user
   useEffect(() => {
     if (!currentUser?.id) return;
-    const fetchTables = async () => {
+    const fetchVenuesAndTables = async () => {
       // Fetch all venues for this owner
-      const { data: venues, error: venuesError } = await supabase
+      const { data: venuesData, error: venuesError } = await supabase
         .from('venues')
         .select('id, name')
         .eq('owner_id', currentUser.id);
       if (venuesError) {
         toast({ title: 'Error', description: venuesError.message, variant: 'destructive' });
+        setVenues([]);
         setTables([]);
         return;
       }
-      const venueIds = venues.map(v => v.id);
+      setVenues(venuesData || []);
+      const venueIds = (venuesData || []).map(v => v.id);
       if (venueIds.length === 0) {
         setTables([]);
         return;
@@ -67,7 +70,7 @@ const TableManagement = ({ currentUser }) => {
         setTables(tablesData || []);
       }
     };
-    fetchTables();
+    fetchVenuesAndTables();
   }, [currentUser]);
 
   const handleAddTable = async () => {
@@ -120,158 +123,149 @@ const TableManagement = ({ currentUser }) => {
 
   return (
     <div className="space-y-6">
-      {!currentUser && (
-        <div className="bg-yellow-100 text-yellow-800 p-2 rounded mb-4">
-          <strong>Warning:</strong> User ID is missing. Please create or select a user before adding tables.
-        </div>
-      )}
-      {currentUser && (
-        <>
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-brand-burgundy">Table Management</h3>
-            <Dialog open={isAddingTable} onOpenChange={setIsAddingTable}>
-              <DialogTrigger asChild>
-                <Button
-                  className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90"
-                  disabled={!currentUser}
-                  title={!currentUser ? "Create or select a user before adding tables" : ""}
+      {/* Removed warning for missing currentUser */}
+      {/* Always show table management UI */}
+      <>
+        <div className="flex justify-between items-center">
+          <h3 className="text-lg font-semibold text-brand-burgundy">Table Management</h3>
+          <Dialog open={isAddingTable} onOpenChange={setIsAddingTable}>
+            <DialogTrigger asChild>
+              <Button
+                className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90"
+                title={"Add a new table to your venue"}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Table
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md" aria-describedby="add-table-desc">
+              <DialogHeader>
+                <DialogTitle>Add New Table</DialogTitle>
+              </DialogHeader>
+              <div id="add-table-desc" className="sr-only">
+                Fill out the form below to add a new table to your venue.
+              </div>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="tableNumber">Table Number</Label>
+                  <Input
+                    id="tableNumber"
+                    value={newTable.table_number}
+                    onChange={(e) => setNewTable({ ...newTable, table_number: e.target.value })}
+                    placeholder="e.g., A1"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="capacity">Capacity</Label>
+                  <Input
+                    id="capacity"
+                    type="number"
+                    value={newTable.capacity}
+                    onChange={(e) => setNewTable({ ...newTable, capacity: e.target.value })}
+                    placeholder="Number of seats"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="price">Price (₦)</Label>
+                  <Input
+                    id="price"
+                    type="number"
+                    value={newTable.price}
+                    onChange={(e) => setNewTable({ ...newTable, price: e.target.value })}
+                    placeholder="Table price"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="tableType">Table Type</Label>
+                  <Input
+                    id="tableType"
+                    value={newTable.table_type}
+                    onChange={(e) => setNewTable({ ...newTable, table_type: e.target.value })}
+                    placeholder="e.g., VIP, Standard"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="status">Status</Label>
+                  <select
+                    id="status"
+                    value={newTable.status}
+                    onChange={(e) => setNewTable({ ...newTable, status: e.target.value })}
+                    className="w-full border rounded px-2 py-1"
+                  >
+                    <option value="available">Available</option>
+                    <option value="booked">Booked</option>
+                    <option value="maintenance">Maintenance</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="venueId">Venue</Label>
+                  <select
+                    id="venueId"
+                    value={newTable.venue_id}
+                    onChange={e => setNewTable({ ...newTable, venue_id: e.target.value })}
+                    className="w-full border rounded px-2 py-1"
+                  >
+                    <option value="">Select a venue</option>
+                    {/* Render options dynamically from venues */}
+                    {venues.map(venue => (
+                      <option key={venue.id} value={venue.id}>{venue.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <Button 
+                  className="w-full bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90"
+                  onClick={handleAddTable}
                 >
-                  <Plus className="h-4 w-4 mr-2" />
                   Add Table
                 </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md" aria-describedby="add-table-desc">
-                <DialogHeader>
-                  <DialogTitle>Add New Table</DialogTitle>
-                </DialogHeader>
-                <div id="add-table-desc" className="sr-only">
-                  Fill out the form below to add a new table to your venue.
-                </div>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="tableNumber">Table Number</Label>
-                    <Input
-                      id="tableNumber"
-                      value={newTable.table_number}
-                      onChange={(e) => setNewTable({ ...newTable, table_number: e.target.value })}
-                      placeholder="e.g., A1"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="capacity">Capacity</Label>
-                    <Input
-                      id="capacity"
-                      type="number"
-                      value={newTable.capacity}
-                      onChange={(e) => setNewTable({ ...newTable, capacity: e.target.value })}
-                      placeholder="Number of seats"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="price">Price (₦)</Label>
-                    <Input
-                      id="price"
-                      type="number"
-                      value={newTable.price}
-                      onChange={(e) => setNewTable({ ...newTable, price: e.target.value })}
-                      placeholder="Table price"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="tableType">Table Type</Label>
-                    <Input
-                      id="tableType"
-                      value={newTable.table_type}
-                      onChange={(e) => setNewTable({ ...newTable, table_type: e.target.value })}
-                      placeholder="e.g., VIP, Standard"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="status">Status</Label>
-                    <select
-                      id="status"
-                      value={newTable.status}
-                      onChange={(e) => setNewTable({ ...newTable, status: e.target.value })}
-                      className="w-full border rounded px-2 py-1"
-                    >
-                      <option value="available">Available</option>
-                      <option value="booked">Booked</option>
-                      <option value="maintenance">Maintenance</option>
-                    </select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="venueId">Venue</Label>
-                    <select
-                      id="venueId"
-                      value={newTable.venue_id}
-                      onChange={e => setNewTable({ ...newTable, venue_id: e.target.value })}
-                      className="w-full border rounded px-2 py-1"
-                    >
-                      <option value="">Select a venue</option>
-                      {/* Render options dynamically */}
-                      {tables
-                        .map(table => table.venue_id)
-                        .filter((v, i, arr) => arr.indexOf(v) === i)
-                        .map(venueId => (
-                          <option key={venueId} value={venueId}>{venueId}</option>
-                        ))}
-                    </select>
-                  </div>
-                  <Button 
-                    className="w-full bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90"
-                    onClick={handleAddTable}
-                  >
-                    Add Table
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
+        {tables.length === 0 ? (
+          <div className="text-center text-brand-burgundy/70 py-8">
+            No tables yet. Add your first table!
           </div>
-          {tables.length === 0 ? (
-            <div className="text-center text-brand-burgundy/70 py-8">
-              No tables yet. Add your first table!
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {tables.map((table) => (
-                <Card key={table.id} className="bg-white border-brand-burgundy/10">
-                  <CardHeader className="flex flex-row items-center justify-between pb-2">
-                    <CardTitle className="text-lg font-semibold text-brand-burgundy">
-                      Table {table.table_number}
-                    </CardTitle>
-                    <div className="flex gap-2">
-                      <Button variant="ghost" size="icon" className="h-8 w-8">
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {tables.map((table) => (
+              <Card key={table.id} className="bg-white border-brand-burgundy/10">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-lg font-semibold text-brand-burgundy">
+                    Table {table.table_number}
+                  </CardTitle>
+                  <div className="flex gap-2">
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <Edit2 className="h-4 w-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600">
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-brand-burgundy/70">Capacity:</span>
+                      <span className="font-medium">{table.capacity} seats</span>
                     </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-brand-burgundy/70">Capacity:</span>
-                        <span className="font-medium">{table.capacity} seats</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-brand-burgundy/70">Price:</span>
-                        <span className="font-medium">₦{table.price.toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-brand-burgundy/70">Status:</span>
-                        <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(table.status)}`}>
-                          {table.status}
-                        </span>
-                      </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-brand-burgundy/70">Price:</span>
+                      <span className="font-medium">₦{table.price.toLocaleString()}</span>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </>
-      )}
+                    <div className="flex justify-between text-sm">
+                      <span className="text-brand-burgundy/70">Status:</span>
+                      <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(table.status)}`}>
+                        {table.status}
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </>
     </div>
   );
 };
