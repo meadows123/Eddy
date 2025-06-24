@@ -60,8 +60,8 @@ const TableManagement = ({ currentUser }) => {
       }
       // Fetch all tables for these venues
       const { data: tablesData, error: tablesError } = await supabase
-        .from('venues')
-        .select('id, name')
+        .from('venue_tables')
+        .select('*')
         .in('venue_id', venueIds);
       if (tablesError) {
         toast({ title: 'Error', description: tablesError.message, variant: 'destructive' });
