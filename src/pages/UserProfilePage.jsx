@@ -25,8 +25,6 @@ const UserProfilePage = () => {
   const [bookings, setBookings] = useState([]);
   const navigate = useNavigate();
   const [depositAmount, setDepositAmount] = useState("");
-  const location = useLocation();
-  const depositAmountFromLocation = location.state?.depositAmount;
 
   // Load user data when logged in
   useEffect(() => {
