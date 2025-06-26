@@ -38,6 +38,8 @@ const VenueOwnerDashboard = () => {
   const venueId = venue?.id;
   const [loginVenueMessage, setLoginVenueMessage] = useState('');
 
+  console.log('Dashboard currentUser (top-level):', currentUser);
+
   useEffect(() => {
     checkAuth();
     fetchVenueLoginMessage();
@@ -397,7 +399,7 @@ const VenueOwnerDashboard = () => {
                 {venue && currentUser ? (
                   <TableManagement currentUser={currentUser} />
                 ) : (
-                  <div className="text-center text-brand-burgundy/70 py-8">Loading venue info...</div>
+                  <div>Loading venue info...</div>
                 )}
               </CardContent>
             </Card>
