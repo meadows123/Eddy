@@ -10,7 +10,7 @@ import {
   QrCode
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Button } from '../../../components/ui/button';
+import { Button } from '../../components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../../components/ui/tabs';
 import { useNavigate } from 'react-router-dom';
 import BookingList from './components/BookingList';
