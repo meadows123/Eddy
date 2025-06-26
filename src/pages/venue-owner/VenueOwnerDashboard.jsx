@@ -9,16 +9,16 @@ import {
   Settings,
   QrCode
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
+import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card';
+import { Button } from '../../../components/ui/button';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../../components/ui/tabs';
 import { useNavigate } from 'react-router-dom';
 import BookingList from './components/BookingList';
 import TableManagement from './components/TableManagement';
 import { supabase } from '../../lib/supabase';
-import { toast } from '../../components/ui/use-toast';
+import { toast } from '../../../components/ui/use-toast';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../../components/ui/dialog';
 
 const VenueOwnerDashboard = () => {
   const navigate = useNavigate();
@@ -36,9 +36,11 @@ const VenueOwnerDashboard = () => {
   const [members, setMembers] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const venueId = venue?.id;
+  const [loginVenueMessage, setLoginVenueMessage] = useState('');
 
   useEffect(() => {
     checkAuth();
+    fetchVenueLoginMessage();
   }, []);
 
   useEffect(() => {
@@ -217,6 +219,31 @@ const VenueOwnerDashboard = () => {
     }
   };
 
+  const fetchVenueLoginMessage = async () => {
+    try {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        setLoginVenueMessage('Error fetching user info.');
+        return;
+      }
+      const { data: venues, error: venuesError } = await supabase
+        .from('venues')
+        .select('id, name')
+        .eq('owner_id', user.id);
+      if (venuesError) {
+        setLoginVenueMessage('Error fetching venue.');
+        return;
+      }
+      if (venues && venues.length > 0) {
+        setLoginVenueMessage(`You have successfully logged in to ${venues[0].name}`);
+      } else {
+        setLoginVenueMessage('No venue found for this account.');
+      }
+    } catch (err) {
+      setLoginVenueMessage('Unexpected error fetching venue.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -265,6 +292,12 @@ const VenueOwnerDashboard = () => {
   return (
     <div className="bg-brand-cream/50 min-h-screen">
       <div className="container py-8">
+        {/* Venue login message */}
+        {loginVenueMessage && (
+          <div className="mb-6 p-4 rounded bg-green-50 border border-green-200 text-green-800 text-center">
+            {loginVenueMessage}
+          </div>
+        )}
         <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-3xl font-heading text-brand-burgundy mb-2">Venue Dashboard</h1>
@@ -361,8 +394,8 @@ const VenueOwnerDashboard = () => {
           <TabsContent value="tables">
             <Card className="bg-white border-brand-burgundy/10">
               <CardContent className="pt-6">
-                {venue && venue.owner_id ? (
-                  <TableManagement currentUser={{ id: venue.owner_id }} />
+                {venue && currentUser ? (
+                  <TableManagement currentUser={currentUser} />
                 ) : (
                   <div className="text-center text-brand-burgundy/70 py-8">Loading venue info...</div>
                 )}

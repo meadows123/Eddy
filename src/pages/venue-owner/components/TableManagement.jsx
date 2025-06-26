@@ -41,6 +41,7 @@ const TableManagement = ({ currentUser }) => {
   useEffect(() => {
     if (!currentUser?.id) return;
     const fetchVenuesAndTables = async () => {
+      console.log('Fetching venues for owner_id:', currentUser.id);
       // Fetch all venues for this owner
       const { data: venuesData, error: venuesError } = await supabase
         .from('venues')
