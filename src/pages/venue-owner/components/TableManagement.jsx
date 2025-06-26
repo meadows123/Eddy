@@ -44,7 +44,7 @@ const TableManagement = ({ currentUser }) => {
       // Fetch all venues for this owner
       const { data: venuesData, error: venuesError } = await supabase
         .from('venues')
-        .select('id, name')
+        .select('id, name, owner_id')
         .eq('owner_id', currentUser.id);
       if (venuesError) {
         toast({ title: 'Error', description: venuesError.message, variant: 'destructive' });
@@ -52,6 +52,9 @@ const TableManagement = ({ currentUser }) => {
         setTables([]);
         return;
       }
+      console.log('currentUser.id:', currentUser.id);
+      console.log('venuesData:', venuesData);
+      console.log('venuesError:', venuesError);
       setVenues(venuesData || []);
       const venueIds = Array.isArray(venuesData) ? venuesData.map(v => v.id) : [];
       if (!venueIds || venueIds.length === 0) {
@@ -67,6 +70,8 @@ const TableManagement = ({ currentUser }) => {
         toast({ title: 'Error', description: tablesError.message, variant: 'destructive' });
         setTables([]);
       } else {
+        console.log('tablesData:', tablesData);
+        console.log('tablesError:', tablesError);
         setTables(tablesData || []);
       }
     };
