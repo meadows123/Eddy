@@ -9,6 +9,7 @@ import { supabase } from '../lib/supabase';
 import { CardElement, useStripe, useElements, Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import { Input } from "../components/ui/input";
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const stripePromise = loadStripe('pk_test_...'); // Replace with your real publishable key
 
@@ -22,6 +23,10 @@ const UserProfilePage = () => {
   const [profile, setProfile] = useState(null);
   const [savedVenues, setSavedVenues] = useState([]);
   const [bookings, setBookings] = useState([]);
+  const navigate = useNavigate();
+  const [depositAmount, setDepositAmount] = useState("");
+  const location = useLocation();
+  const depositAmountFromLocation = location.state?.depositAmount;
 
   // Load user data when logged in
   useEffect(() => {
@@ -218,7 +223,7 @@ const UserProfilePage = () => {
 
           <TabsContent value="profile">
             <Card className="bg-white border-brand-burgundy/10">
-              <div className="p-6">
+              <div className="p-2 sm:p-4 md:p-6">
                 <h2 className="text-xl font-semibold mb-4">Profile Information</h2>
                 {profile ? (
                   <div className="space-y-4">
@@ -244,7 +249,7 @@ const UserProfilePage = () => {
 
           <TabsContent value="saved">
             <Card className="bg-white border-brand-burgundy/10">
-              <div className="p-6">
+              <div className="p-2 sm:p-4 md:p-6">
                 <h2 className="text-xl font-semibold mb-4">Saved Venues</h2>
                 {savedVenues.length > 0 ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -271,7 +276,7 @@ const UserProfilePage = () => {
 
           <TabsContent value="bookings">
             <Card className="bg-white border-brand-burgundy/10">
-              <div className="p-6">
+              <div className="p-2 sm:p-4 md:p-6">
                 <h2 className="text-xl font-semibold mb-4">My Bookings</h2>
                   {bookings.length > 0 ? (
                   <div className="space-y-4">
@@ -314,7 +319,7 @@ const UserProfilePage = () => {
 
           <TabsContent value="settings">
             <Card className="bg-white border-brand-burgundy/10">
-              <div className="p-6 space-y-10">
+              <div className="p-2 sm:p-4 md:p-6 space-y-10">
                 {/* Change Password Section */}
                 <div className="space-y-2 pb-8 border-b border-brand-burgundy/10">
                   <h2 className="text-xl font-semibold mb-2">Change Password</h2>
@@ -337,7 +342,7 @@ const UserProfilePage = () => {
 
           <TabsContent value="member">
             <Card className="bg-white border-brand-burgundy/10">
-              <div className="p-6">
+              <div className="p-2 sm:p-4 md:p-6">
                 <h2 className="text-xl font-semibold mb-4">VIP Member Credit</h2>
                 <p className="mb-4 text-brand-burgundy/70">
                   Deposit funds to your Eddy account and unlock exclusive VIP perks. 
@@ -361,8 +366,12 @@ const UserProfilePage = () => {
                     )}
                   </div>
                 </div>
-                {/* Deposit Form (placeholder, connect to Stripe for real payments) */}
-                <form className="space-y-4 max-w-xs" onSubmit={e => { e.preventDefault(); /* handle deposit */ }}>
+                {/* Deposit Form (navigate to checkout) */}
+                <form className="space-y-4 max-w-xs" onSubmit={e => {
+                  e.preventDefault();
+                  if (!depositAmount || isNaN(depositAmount) || Number(depositAmount) < 100) return;
+                  navigate('/checkout', { state: { depositAmount: Number(depositAmount) } });
+                }}>
                   <label className="block text-sm font-medium text-brand-burgundy/70">Deposit Amount</label>
                   <input
                     type="number"
@@ -370,7 +379,8 @@ const UserProfilePage = () => {
                     step="100"
                     className="w-full border p-2 rounded bg-white"
                     placeholder="Enter amount (USD)"
-                    // value, onChange, etc.
+                    value={depositAmount}
+                    onChange={e => setDepositAmount(e.target.value)}
                   />
                   <Button type="submit" className="w-full bg-brand-burgundy text-white">Deposit</Button>
                 </form>
@@ -511,6 +521,15 @@ function PaymentDetailsSection({ user }) {
       setMessage('Payment method saved!');
       // Optionally, refresh the list of saved payment methods here
     }
+
+    if (depositAmount && user) {
+      // Update the user's credit_balance in Supabase
+      await supabase
+        .from('user_profiles')
+        .update({ credit_balance: supabase.raw('credit_balance + ?', [depositAmount]) })
+        .eq('id', user.id);
+    }
+
     setLoading(false);
   };
 
