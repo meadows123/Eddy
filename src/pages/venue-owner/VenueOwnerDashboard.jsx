@@ -11,14 +11,14 @@ import {
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../../components/ui/tabs';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
 import { useNavigate } from 'react-router-dom';
 import BookingList from './components/BookingList';
 import TableManagement from './components/TableManagement';
 import { supabase } from '../../lib/supabase';
-import { toast } from '../../../components/ui/use-toast';
+import { toast } from '../../components/ui/use-toast';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../../components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 
 const VenueOwnerDashboard = () => {
   const navigate = useNavigate();
