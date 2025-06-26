@@ -19,6 +19,8 @@ import {
 import { supabase } from '../../../lib/supabase';
 import { toast } from '../../../components/ui/use-toast';
 
+console.log('venues in render:', venues);
+
 const TableManagement = ({ currentUser }) => {
   const [tables, setTables] = useState([]);
   const [venues, setVenues] = useState([]);
