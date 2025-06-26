@@ -19,8 +19,6 @@ import {
 import { supabase } from '../../../lib/supabase';
 import { toast } from '../../../components/ui/use-toast';
 
-console.log('venues in render:', venues);
-
 const TableManagement = ({ currentUser }) => {
   const [tables, setTables] = useState([]);
   const [venues, setVenues] = useState([]);
@@ -85,18 +83,35 @@ const TableManagement = ({ currentUser }) => {
       toast({ title: 'Error', description: 'Please select a venue for this table.', variant: 'destructive' });
       return;
     }
-    if (!newTable.table_number || !newTable.capacity || !newTable.price || !newTable.table_type || !newTable.status) {
+    if (
+      !newTable.table_number ||
+      !newTable.capacity ||
+      !newTable.price ||
+      !newTable.table_type ||
+      !newTable.status
+    ) {
       toast({ title: 'Missing Fields', description: 'Please fill all fields', variant: 'destructive' });
       return;
     }
+
+    // Ensure capacity and price are valid integers
+    const capacity = parseInt(newTable.capacity, 10);
+    const price = parseInt(newTable.price, 10);
+
+    if (isNaN(capacity) || isNaN(price)) {
+      toast({ title: 'Invalid Input', description: 'Capacity and Price must be valid numbers.', variant: 'destructive' });
+      return;
+    }
+
     // Log the data being inserted for debugging
-    console.log('[Add Table] Inserting table:', newTable);
+    console.log('[Add Table] Inserting table:', { ...newTable, capacity, price });
+
     const { error } = await supabase.from('venue_tables').insert([
       {
         venue_id: newTable.venue_id,
         table_number: newTable.table_number,
-        capacity: parseInt(newTable.capacity),
-        price: parseInt(newTable.price),
+        capacity,
+        price,
         table_type: newTable.table_type,
         status: newTable.status,
       }
@@ -127,6 +142,8 @@ const TableManagement = ({ currentUser }) => {
         return 'bg-gray-100 text-gray-800';
     }
   };
+
+  console.log('venues in render:', venues);
 
   return (
     <div className="space-y-6">
