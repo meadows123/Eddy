@@ -30,6 +30,7 @@ const TableManagement = ({ currentUser }) => {
     table_type: '',
     status: 'available',
     venue_id: '',
+    description: '',
   });
 
   // Log the currentUser for debugging
@@ -115,13 +116,14 @@ const TableManagement = ({ currentUser }) => {
         price,
         table_type: newTable.table_type,
         status: newTable.status,
+        description: newTable.description,
       }
     ]);
     if (error) {
       toast({ title: 'Error', description: `Failed to add table: ${error.message}`, variant: 'destructive' });
     } else {
       toast({ title: 'Table Added', description: 'New table added successfully!' });
-      setNewTable({ table_number: '', capacity: '', price: '', table_type: '', status: 'available', venue_id: '' });
+      setNewTable({ table_number: '', capacity: '', price: '', table_type: '', status: 'available', venue_id: '', description: '' });
       setIsAddingTable(false);
       // Refresh table list
       const { data: venues } = await supabase.from('venues').select('id').eq('owner_id', currentUser.id);
@@ -202,11 +204,25 @@ const TableManagement = ({ currentUser }) => {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="tableType">Table Type</Label>
-                  <Input
+                  <select
                     id="tableType"
                     value={newTable.table_type}
                     onChange={(e) => setNewTable({ ...newTable, table_type: e.target.value })}
-                    placeholder="e.g., VIP, Standard"
+                    className="w-full border rounded px-2 py-1"
+                  >
+                    <option value="">Select table type</option>
+                    <option value="standard">Standard</option>
+                    <option value="vip">VIP</option>
+                    <option value="booth">Booth</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="description">Description</Label>
+                  <Input
+                    id="description"
+                    value={newTable.description}
+                    onChange={(e) => setNewTable({ ...newTable, description: e.target.value })}
+                    placeholder="e.g., Near window, VIP section, Corner booth"
                   />
                 </div>
                 <div className="space-y-2">
@@ -270,6 +286,15 @@ const TableManagement = ({ currentUser }) => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
+                    {table.description && (
+                      <div className="text-sm text-brand-burgundy/80 italic mb-2">
+                        {table.description}
+                      </div>
+                    )}
+                    <div className="flex justify-between text-sm">
+                      <span className="text-brand-burgundy/70">Type:</span>
+                      <span className="font-medium">{table.table_type}</span>
+                    </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-brand-burgundy/70">Capacity:</span>
                       <span className="font-medium">{table.capacity} seats</span>
@@ -281,7 +306,7 @@ const TableManagement = ({ currentUser }) => {
                     <div className="flex justify-between text-sm">
                       <span className="text-brand-burgundy/70">Status:</span>
                       <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(table.status)}`}>
-                        {table.status}
+                        {table.status.charAt(0).toUpperCase() + table.status.slice(1)}
                       </span>
                     </div>
                   </div>
