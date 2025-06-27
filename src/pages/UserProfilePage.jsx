@@ -196,26 +196,31 @@ const UserProfilePage = () => {
               </div>
 
         <Tabs defaultValue="profile" className="space-y-4">
-          <TabsList className="bg-white p-1 rounded-lg border border-brand-burgundy/10">
-            <TabsTrigger value="profile" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy">
-              <Settings className="h-4 w-4 mr-2" />
-              Profile
+          <TabsList className="bg-white p-1 rounded-lg border border-brand-burgundy/10 grid grid-cols-2 md:grid-cols-5 h-auto">
+            <TabsTrigger value="profile" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 p-2 md:p-3 text-xs md:text-sm">
+              <Settings className="h-3 w-3 md:h-4 md:w-4" />
+              <span className="hidden sm:inline">Profile</span>
+              <span className="sm:hidden">Profile</span>
             </TabsTrigger>
-            <TabsTrigger value="saved" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy">
-              <Heart className="h-4 w-4 mr-2" />
-              Saved Venues
+            <TabsTrigger value="saved" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 p-2 md:p-3 text-xs md:text-sm">
+              <Heart className="h-3 w-3 md:h-4 md:w-4" />
+              <span className="hidden sm:inline">Saved</span>
+              <span className="sm:hidden">Saved</span>
             </TabsTrigger>
-            <TabsTrigger value="bookings" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy">
-              <Calendar className="h-4 w-4 mr-2" />
-              My Bookings
+            <TabsTrigger value="bookings" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 p-2 md:p-3 text-xs md:text-sm">
+              <Calendar className="h-3 w-3 md:h-4 md:w-4" />
+              <span className="hidden sm:inline">Bookings</span>
+              <span className="sm:hidden">Bookings</span>
             </TabsTrigger>
-            <TabsTrigger value="settings" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy">
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
+            <TabsTrigger value="settings" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 p-2 md:p-3 text-xs md:text-sm">
+              <Settings className="h-3 w-3 md:h-4 md:w-4" />
+              <span className="hidden sm:inline">Settings</span>
+              <span className="sm:hidden">Settings</span>
             </TabsTrigger>
-            <TabsTrigger value="member" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy">
-              <span role="img" aria-label="VIP" className="h-4 w-4 mr-2">👑</span>
-              Member
+            <TabsTrigger value="member" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 p-2 md:p-3 text-xs md:text-sm col-span-2 md:col-span-1">
+              <span role="img" aria-label="VIP" className="h-3 w-3 md:h-4 md:w-4 text-xs md:text-sm">👑</span>
+              <span className="hidden sm:inline">Member</span>
+              <span className="sm:hidden">VIP</span>
             </TabsTrigger>
           </TabsList>
 

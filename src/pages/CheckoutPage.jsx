@@ -119,13 +119,9 @@ const CheckoutPage = () => {
 
   const sendBookingConfirmationEmail = async (bookingData) => {
     try {
-      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/send-email`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${supabase.supabaseKey}`
-        },
-        body: JSON.stringify({
+      // Use Supabase's functions.invoke method for Edge Functions
+      const { data, error } = await supabase.functions.invoke('send-email', {
+        body: {
           to: bookingData.customerEmail,
           subject: 'Booking Confirmation - VIPClub',
           template: 'booking-confirmation',
@@ -136,19 +132,21 @@ const CheckoutPage = () => {
             ticketInfo: bookingData.ticket ? `${bookingData.ticket.name} - ₦${bookingData.ticket.price}` : null,
             tableInfo: bookingData.table ? `${bookingData.table.name} - ₦${bookingData.table.price}` : null,
             totalAmount: calculateTotal(),
-            bookingId: bookingData.id
+            bookingId: bookingData.bookingId || bookingData.id
           }
-        })
+        }
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to send confirmation email');
+      if (error) {
+        throw new Error(`Email service error: ${error.message}`);
       }
 
-      console.log('Booking confirmation email sent successfully');
+      console.log('Booking confirmation email sent successfully', data);
+      return true; // Email sent successfully
     } catch (error) {
       console.error('Error sending confirmation email:', error);
       // Don't block the booking process if email fails
+      return false; // Email failed but don't throw
     }
   };
 
@@ -273,23 +271,31 @@ const CheckoutPage = () => {
         localStorage.removeItem('lagosvibe_booking_selection');
 
         // Send confirmation email
-        await sendBookingConfirmationEmail({
+        const emailSent = await sendBookingConfirmationEmail({
           ...newBooking,
           bookingId: bookingRecord.id,
           venueName: selection.venueName || selection.name
         });
 
-        // Unlock VIP perks
-        const unlockedPerks = ["Free Welcome Drink", "Priority Queue"];
-        localStorage.setItem('lagosvibe_vip_perks', JSON.stringify(unlockedPerks));
-        
-        toast({ 
-          title: "Account Created & Booking Confirmed!", 
-          description: "Welcome to VIPClub! Check your email for confirmation.",
-          className: "bg-green-500 text-white"
-        });
+        if (emailSent) {
+          // Unlock VIP perks
+          const unlockedPerks = ["Free Welcome Drink", "Priority Queue"];
+          localStorage.setItem('lagosvibe_vip_perks', JSON.stringify(unlockedPerks));
+          
+          toast({ 
+            title: "Account Created & Booking Confirmed!", 
+            description: "Welcome to VIPClub! Check your email for confirmation.",
+            className: "bg-green-500 text-white"
+          });
 
-        setShowConfirmation(true);
+          setShowConfirmation(true);
+        } else {
+          toast({
+            title: "Booking Confirmed",
+            description: "Email confirmation failed to send, but your booking is confirmed. Check your profile for booking details.",
+            variant: "default",
+          });
+        }
 
       } catch (error) {
         console.error('Error processing booking:', error);
