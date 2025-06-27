@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, CreditCard, Calendar, Clock, User, Check, Share2, Plus, Minus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,12 @@ import { Copy } from 'lucide-react';
 const CheckoutPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
+  
+  // Check if this is a deposit flow
+  const isDepositFlow = location.pathname.includes('/deposit');
+  const depositAmount = location.state?.depositAmount;
   
   const [selection, setSelection] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -44,19 +49,33 @@ const CheckoutPage = () => {
   const [showShareDialog, setShowShareDialog] = useState(false);
   
   useEffect(() => {
-    const savedSelection = localStorage.getItem('lagosvibe_booking_selection');
-    if (savedSelection) {
-      const parsedSelection = JSON.parse(savedSelection);
-      if (parsedSelection.venueId === parseInt(id)) {
-        setSelection(parsedSelection);
-      } else {
-        navigate(`/venues/${id}`); // Redirect if venue ID doesn't match
+    if (isDepositFlow) {
+      // For deposit flow, we don't need venue selection
+      if (!depositAmount) {
+        navigate('/profile'); // Redirect back to profile if no deposit amount
+        return;
       }
+      setSelection({ 
+        depositAmount, 
+        isDeposit: true,
+        venueName: 'VIP Credit Deposit'
+      });
     } else {
-      navigate(`/venues/${id}`); // Redirect if no selection
+      // Original venue booking flow
+      const savedSelection = localStorage.getItem('lagosvibe_booking_selection');
+      if (savedSelection) {
+        const parsedSelection = JSON.parse(savedSelection);
+        if (parsedSelection.venueId === parseInt(id)) {
+          setSelection(parsedSelection);
+        } else {
+          navigate(`/venues/${id}`); // Redirect if venue ID doesn't match
+        }
+      } else {
+        navigate(`/venues/${id}`); // Redirect if no selection
+      }
     }
     setLoading(false);
-  }, [id, navigate]);
+  }, [id, navigate, isDepositFlow, depositAmount]);
   
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -128,6 +147,9 @@ const CheckoutPage = () => {
   };
   
   const calculateTotal = () => {
+    if (isDepositFlow && depositAmount) {
+      return depositAmount.toFixed(2);
+    }
     if (!selection) return 0;
     let total = (selection.ticket?.price || 0) + (selection.table?.price || 0) + 25; // 25 is service fee
     if (vipPerks.includes("10% Discount Applied")) {
@@ -192,9 +214,9 @@ const CheckoutPage = () => {
   
   return (
     <div className="container py-10">
-      <Link to={`/venues/${id}`} className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-6">
+      <Link to={isDepositFlow ? "/profile" : `/venues/${id}`} className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-6">
         <ArrowLeft className="mr-2 h-4 w-4" />
-        Back to Venue
+        {isDepositFlow ? "Back to Profile" : "Back to Venue"}
       </Link>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

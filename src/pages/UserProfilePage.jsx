@@ -368,7 +368,7 @@ const UserProfilePage = () => {
                 <form className="space-y-4 max-w-xs" onSubmit={e => {
                   e.preventDefault();
                   if (!depositAmount || isNaN(depositAmount) || Number(depositAmount) < 100) return;
-                  navigate('/checkout', { state: { depositAmount: Number(depositAmount) } });
+                  navigate('/checkout/deposit', { state: { depositAmount: Number(depositAmount) } });
                 }}>
                   <label className="block text-sm font-medium text-brand-burgundy/70">Deposit Amount</label>
                   <input
