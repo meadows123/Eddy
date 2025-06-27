@@ -14,6 +14,7 @@ import VenueOwnerPending from './pages/venue-owner/VenueOwnerPending';
 import VenueOwnerBookings from './pages/venue-owner/VenueOwnerBookings';
 import VenueOwnerTables from './pages/venue-owner/VenueOwnerTables';
 import VenueOwnerAnalytics from './pages/venue-owner/VenueOwnerAnalytics';
+import VenueOwnerSettings from './pages/venue-owner/VenueOwnerSettings';
 import VenueApprovalsPage from './pages/admin/VenueApprovalsPage';
 import ProfilePage from './pages/ProfilePage';
 import BookingsPage from './pages/BookingsPage';
@@ -105,6 +106,7 @@ const App = () => {
             <Route path="/venue-owner/bookings" element={<VenueOwnerBookings />} />
             <Route path="/venue-owner/tables" element={<VenueOwnerTables />} />
             <Route path="/venue-owner/analytics" element={<VenueOwnerAnalytics />} />
+            <Route path="/venue-owner/settings" element={<VenueOwnerSettings />} />
 
             {/* Admin Routes */}
             <Route path="/admin/venue-approvals" element={<VenueApprovalsPage />} />
