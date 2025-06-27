@@ -19,8 +19,11 @@ const VenueCard = ({ venue }) => {
         <div className="relative h-56 overflow-hidden">
           <img  
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
-            alt={`${venue.name} - ${venue.venueType} in ${venue.location}`}
-           src="https://images.unsplash.com/photo-1699990320295-ecd2664079ab" />
+            alt={`${venue.name} - ${venue.type} in ${venue.city}`}
+            src={venue.images && venue.images.length > 0 
+              ? venue.images[0] 
+              : "https://images.unsplash.com/photo-1699990320295-ecd2664079ab"
+            } />
           
           <div className="absolute top-3 right-3 flex gap-2">
             {venue.tags && venue.tags.slice(0, 1).map((tag, index) => (
@@ -48,7 +51,7 @@ const VenueCard = ({ venue }) => {
             </div>
           </div>
           <p className="text-xs text-brand-burgundy/60 flex items-center">
-            <MapPin className="h-3.5 w-3.5 mr-1 text-brand-gold" /> {venue.address || venue.location}
+            <MapPin className="h-3.5 w-3.5 mr-1 text-brand-gold" /> {venue.address}
           </p>
         </CardHeader>
         
@@ -58,12 +61,14 @@ const VenueCard = ({ venue }) => {
           <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-brand-burgundy/70 font-body">
             <div className="flex items-center">
               <Tag className="h-3.5 w-3.5 mr-1.5 text-brand-gold" />
-              <span>{venue.venueType}</span>
+              <span>{venue.type}</span>
             </div>
-            <div className="flex items-center">
-              <Users className="h-3.5 w-3.5 mr-1.5 text-brand-gold" />
-              <span>Up to {venue.capacity} guests</span>
-            </div>
+            {venue.capacity && (
+              <div className="flex items-center">
+                <Users className="h-3.5 w-3.5 mr-1.5 text-brand-gold" />
+                <span>Up to {venue.capacity} guests</span>
+              </div>
+            )}
           </div>
         </CardContent>
         

@@ -93,15 +93,41 @@ const VenuesPage = () => {
   useEffect(() => {
     const fetchVenues = async () => {
       try {
-        const { data, error } = await supabase
+        // Fetch venues
+        const { data: venuesData, error: venuesError } = await supabase
           .from('venues')
           .select('*')
           .eq('status', 'approved')
           .eq('is_active', true)
           .order('created_at', { ascending: false });
 
-        if (error) throw error;
-        setVenues(data);
+        if (venuesError) throw venuesError;
+
+        // Fetch images for all venues
+        const { data: imagesData, error: imagesError } = await supabase
+          .from('venue_images')
+          .select('*')
+          .order('is_primary', { ascending: false });
+
+        if (imagesError) {
+          console.error('Error fetching images:', imagesError);
+        }
+
+        // Combine venues with their images
+        const venuesWithImages = venuesData.map(venue => {
+          const venueImages = imagesData 
+            ? imagesData
+                .filter(img => img.venue_id === venue.id)
+                .map(img => img.image_url)
+            : [];
+          
+          return {
+            ...venue,
+            images: venueImages
+          };
+        });
+
+        setVenues(venuesWithImages);
       } catch (error) {
         console.error('Error fetching venues:', error);
         toast({
@@ -173,7 +199,10 @@ const VenuesPage = () => {
                         <img 
                           className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" 
                           alt={`${venue.name} venue image`}
-                         src="https://images.unsplash.com/photo-1699990320295-ecd2664079ab" />
+                          src={venue.images && venue.images.length > 0 
+                            ? venue.images[0] 
+                            : "https://images.unsplash.com/photo-1699990320295-ecd2664079ab"
+                          } />
                         <div className="absolute top-3 right-3">
                            <span className="bg-brand-gold text-brand-burgundy px-3 py-1 text-xs font-semibold rounded-full shadow">Top Pick</span>
                         </div>
