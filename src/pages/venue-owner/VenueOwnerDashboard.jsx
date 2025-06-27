@@ -7,7 +7,8 @@ import {
   TrendingUp, 
   Table2,
   Settings,
-  QrCode
+  QrCode,
+  Image
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -15,6 +16,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/ta
 import { useNavigate } from 'react-router-dom';
 import BookingList from './components/BookingList';
 import TableManagement from './components/TableManagement';
+import ImageManagement from './components/ImageManagement';
 import { supabase } from '../../lib/supabase';
 import { toast } from '../../components/ui/use-toast';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -375,6 +377,10 @@ const VenueOwnerDashboard = () => {
               <Table2 className="h-4 w-4 mr-2" />
               Tables
             </TabsTrigger>
+            <TabsTrigger value="images" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy">
+              <Image className="h-4 w-4 mr-2" />
+              Images
+            </TabsTrigger>
             <TabsTrigger value="analytics" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy">
               <BarChart3 className="h-4 w-4 mr-2" />
               Analytics
@@ -398,6 +404,18 @@ const VenueOwnerDashboard = () => {
               <CardContent className="pt-6">
                 {venue && currentUser ? (
                   <TableManagement currentUser={currentUser} />
+                ) : (
+                  <div>Loading venue info...</div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="images">
+            <Card className="bg-white border-brand-burgundy/10">
+              <CardContent className="pt-6">
+                {venue && currentUser ? (
+                  <ImageManagement currentUser={currentUser} />
                 ) : (
                   <div>Loading venue info...</div>
                 )}
