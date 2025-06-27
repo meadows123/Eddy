@@ -394,7 +394,7 @@ const VenueOwnerDashboard = () => {
           <TabsContent value="bookings">
             <Card className="bg-white border-brand-burgundy/10">
               <CardContent className="pt-6">
-                <BookingList />
+                <BookingList currentUser={currentUser} />
               </CardContent>
             </Card>
           </TabsContent>

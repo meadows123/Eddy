@@ -179,17 +179,18 @@ const CheckoutPage = () => {
 
       if (signUpError) throw signUpError;
 
-      // Create user profile
+      // Create user profile if it doesn't exist
       if (newUser.user) {
         const { error: profileError } = await supabase
           .from('user_profiles')
-          .insert([{
+          .upsert([{
             id: newUser.user.id,
             first_name: userData.fullName.split(' ')[0] || '',
             last_name: userData.fullName.split(' ').slice(1).join(' ') || '',
-            phone_number: userData.phone,
-            credit_balance: 0
-          }]);
+            phone_number: userData.phone
+          }], {
+            onConflict: 'id'
+          });
 
         if (profileError) {
           console.error('Error creating user profile:', profileError);
@@ -225,9 +226,33 @@ const CheckoutPage = () => {
           password: formData.password
         });
 
-        // Create booking record
+        // Prepare booking data for database
+        const bookingData = {
+          user_id: user?.id,
+          venue_id: selection.venueId || selection.id,
+          table_id: selection.table?.id || null,
+          booking_date: selection.date || new Date().toISOString().split('T')[0], // Use selected date or today
+          start_time: selection.time || '19:00:00', // Use selected time or default to 7 PM
+          end_time: selection.endTime || '23:00:00', // Default 4-hour booking
+          number_of_guests: selection.guests || selection.guestCount || 2,
+          status: 'confirmed',
+          total_amount: parseFloat(calculateTotal())
+        };
+
+        // Save booking to database
+        const { data: bookingRecord, error: bookingError } = await supabase
+          .from('bookings')
+          .insert([bookingData])
+          .select()
+          .single();
+
+        if (bookingError) {
+          throw new Error(`Failed to create booking: ${bookingError.message}`);
+        }
+
+        // Create booking record for localStorage (for backward compatibility)
         const newBooking = {
-          id: Date.now(),
+          id: bookingRecord.id,
           ...selection,
           customerName: formData.fullName,
           customerEmail: formData.email,
@@ -237,17 +262,22 @@ const CheckoutPage = () => {
           status: 'confirmed',
           referralCode: formData.referralCode,
           vipPerksApplied: vipPerks,
-          totalAmount: calculateTotal()
+          totalAmount: calculateTotal(),
+          dbRecord: bookingRecord // Reference to database record
         };
 
-        // Save booking to localStorage (in production, this would go to your database)
+        // Save booking to localStorage (for backward compatibility with existing components)
         const bookings = JSON.parse(localStorage.getItem('lagosvibe_bookings') || '[]');
         bookings.push(newBooking);
         localStorage.setItem('lagosvibe_bookings', JSON.stringify(bookings));
         localStorage.removeItem('lagosvibe_booking_selection');
 
         // Send confirmation email
-        await sendBookingConfirmationEmail(newBooking);
+        await sendBookingConfirmationEmail({
+          ...newBooking,
+          bookingId: bookingRecord.id,
+          venueName: selection.venueName || selection.name
+        });
 
         // Unlock VIP perks
         const unlockedPerks = ["Free Welcome Drink", "Priority Queue"];
