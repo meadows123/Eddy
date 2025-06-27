@@ -82,6 +82,10 @@ const VenueDetailPage = () => {
   };
   
   const handleProceedToBooking = () => {
+    console.log('handleProceedToBooking called');
+    console.log('selectedTicket:', selectedTicket);
+    console.log('selectedTable:', selectedTable);
+    
     if (!selectedTicket && !selectedTable) {
       toast({
         title: "Selection Required",
@@ -95,14 +99,18 @@ const VenueDetailPage = () => {
     const bookingSelection = {
       venueId: venue.id,
       venueName: venue.name,
-      venueImage: venue.images[0],
+      venueImage: venue.images && venue.images.length > 0 ? venue.images[0] : null,
       ticket: selectedTicket,
       table: selectedTable,
       timestamp: new Date().toISOString()
     };
     
+    console.log('Saving booking selection:', bookingSelection);
     localStorage.setItem('lagosvibe_booking_selection', JSON.stringify(bookingSelection));
-    navigate(`/checkout/${venue.id}`);
+    
+    const checkoutUrl = `/checkout/${venue.id}`;
+    console.log('Navigating to:', checkoutUrl);
+    navigate(checkoutUrl);
   };
 
   const toggleFavorite = () => {
@@ -283,7 +291,7 @@ const VenueDetailPage = () => {
                  <Card className="bg-white p-6 md:p-8 rounded-xl shadow-lg border-brand-burgundy/10 mb-8">
                     <h2 className="text-3xl font-heading text-brand-burgundy mb-6">Gallery</h2>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        {venue.images.slice(1, 7).map((img, index) => ( // Show up to 6 more images
+                        {venue.images && venue.images.slice(1, 7).map((img, index) => ( // Show up to 6 more images
                             <motion.div 
                                 key={index}
                                 className="aspect-square rounded-lg overflow-hidden shadow-md"
