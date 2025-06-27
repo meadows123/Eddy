@@ -29,6 +29,20 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
               <Input id="phone" name="phone" value={formData.phone} onChange={handleInputChange} className={errors.phone ? 'border-destructive' : ''} />
               {errors.phone && <p className="text-destructive text-sm mt-1">{errors.phone}</p>}
             </div>
+            <div>
+              <Label htmlFor="password">Create Password</Label>
+              <Input 
+                id="password" 
+                name="password" 
+                type="password" 
+                value={formData.password} 
+                onChange={handleInputChange} 
+                className={errors.password ? 'border-destructive' : ''} 
+                placeholder="Create a password for your account"
+              />
+              {errors.password && <p className="text-destructive text-sm mt-1">{errors.password}</p>}
+              <p className="text-xs text-muted-foreground mt-1">This will create your VIPClub account for future bookings</p>
+            </div>
           </div>
         </div>
 

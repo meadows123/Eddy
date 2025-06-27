@@ -5,7 +5,7 @@ import { Card, CardContent } from '../../../components/ui/card';
 import { Input } from '../../../components/ui/input';
 import { Label } from '../../../components/ui/label';
 import { toast } from '../../../components/ui/use-toast';
-import { Star, StarOff, Image as ImageIcon, Trash2 } from 'lucide-react';
+import { Upload, Star, StarOff, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../../../components/ui/dialog';
 
 const ImageManagement = ({ currentUser }) => {
@@ -13,6 +13,7 @@ const ImageManagement = ({ currentUser }) => {
   const [images, setImages] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [dragActive, setDragActive] = useState(false);
 
   useEffect(() => {
     if (currentUser) {
@@ -24,7 +25,6 @@ const ImageManagement = ({ currentUser }) => {
     try {
       setLoading(true);
       
-      // Get venue for current user
       const { data: venueData, error: venueError } = await supabase
         .from('venues')
         .select('*')
@@ -38,7 +38,6 @@ const ImageManagement = ({ currentUser }) => {
 
       setVenue(venueData);
 
-      // Get images for this venue
       const { data: imagesData, error: imagesError } = await supabase
         .from('venue_images')
         .select('*')
@@ -64,39 +63,67 @@ const ImageManagement = ({ currentUser }) => {
     }
   };
 
-  const uploadImageByUrl = async (imageUrl) => {
-    if (!venue || !imageUrl) return;
+  const uploadFile = async (file) => {
+    if (!venue || !file) return;
 
     try {
       setUploading(true);
 
-      // Save URL directly to database (no file upload needed)
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        throw new Error('Please select an image file');
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        throw new Error('Image must be less than 5MB');
+      }
+
+      // Create unique filename
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${venue.id}/${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
+
+      // Upload to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('venue-images')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('venue-images')
+        .getPublicUrl(fileName);
+
+      // Save to database
       const { data: imageData, error: dbError } = await supabase
         .from('venue_images')
         .insert([{
           venue_id: venue.id,
-          image_url: imageUrl,
-          is_primary: images.length === 0 // First image is primary
+          image_url: publicUrl,
+          is_primary: images.length === 0
         }])
         .select()
         .single();
 
       if (dbError) throw dbError;
 
-      // Update local state
       setImages(prev => [imageData, ...prev]);
       
       toast({
         title: 'Success',
-        description: 'Image added successfully!',
+        description: 'Image uploaded successfully!',
         className: 'bg-green-500 text-white'
       });
 
     } catch (error) {
-      console.error('Error adding image:', error);
+      console.error('Error uploading image:', error);
       toast({
         title: 'Error',
-        description: 'Failed to add image. Please try again.',
+        description: error.message || 'Failed to upload image. Please try again.',
         variant: 'destructive'
       });
     } finally {
@@ -104,8 +131,22 @@ const ImageManagement = ({ currentUser }) => {
     }
   };
 
-  const deleteImage = async (imageId) => {
+  const deleteImage = async (imageId, imageUrl) => {
     try {
+      // Extract filename from URL for storage deletion
+      const urlParts = imageUrl.split('/');
+      const fileName = urlParts[urlParts.length - 1];
+      const filePath = `${venue.id}/${fileName}`;
+
+      // Delete from storage
+      const { error: storageError } = await supabase.storage
+        .from('venue-images')
+        .remove([filePath]);
+
+      if (storageError) {
+        console.error('Storage deletion error:', storageError);
+      }
+
       // Delete from database
       const { error: dbError } = await supabase
         .from('venue_images')
@@ -114,7 +155,6 @@ const ImageManagement = ({ currentUser }) => {
 
       if (dbError) throw dbError;
 
-      // Update local state
       setImages(prev => prev.filter(img => img.id !== imageId));
       
       toast({
@@ -135,7 +175,6 @@ const ImageManagement = ({ currentUser }) => {
 
   const setPrimaryImage = async (imageId) => {
     try {
-      // First, set all images to not primary
       const { error: resetError } = await supabase
         .from('venue_images')
         .update({ is_primary: false })
@@ -143,7 +182,6 @@ const ImageManagement = ({ currentUser }) => {
 
       if (resetError) throw resetError;
 
-      // Then set the selected image as primary
       const { error: setPrimaryError } = await supabase
         .from('venue_images')
         .update({ is_primary: true })
@@ -151,7 +189,6 @@ const ImageManagement = ({ currentUser }) => {
 
       if (setPrimaryError) throw setPrimaryError;
 
-      // Update local state
       setImages(prev => 
         prev.map(img => ({
           ...img,
@@ -175,13 +212,29 @@ const ImageManagement = ({ currentUser }) => {
     }
   };
 
-  const handleAddImageUrl = (e) => {
+  const handleDrag = (e) => {
     e.preventDefault();
-    const formData = new FormData(e.target);
-    const imageUrl = formData.get('imageUrl');
-    if (imageUrl) {
-      uploadImageByUrl(imageUrl);
-      e.target.reset();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      uploadFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleFileInput = (e) => {
+    if (e.target.files && e.target.files[0]) {
+      uploadFile(e.target.files[0]);
     }
   };
 
@@ -206,43 +259,58 @@ const ImageManagement = ({ currentUser }) => {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-heading text-brand-burgundy">Venue Images</h2>
-          <p className="text-brand-burgundy/70">Add and manage photos of your venue</p>
+          <p className="text-brand-burgundy/70">Upload and manage photos of your venue</p>
         </div>
         <div className="text-sm text-brand-burgundy/60">
           {images.length} image{images.length !== 1 ? 's' : ''} uploaded
         </div>
       </div>
 
-      {/* Add Image URL Form */}
-      <Card className="border-brand-burgundy/20">
-        <CardContent className="p-6">
-          <form onSubmit={handleAddImageUrl} className="space-y-4">
-            <div>
-              <Label htmlFor="imageUrl" className="text-brand-burgundy font-medium">
-                Add Image URL
-              </Label>
-              <p className="text-sm text-brand-burgundy/60 mb-2">
-                Paste a URL from Unsplash, your website, or any image hosting service
-              </p>
-              <div className="flex gap-2">
-                <Input
-                  id="imageUrl"
-                  name="imageUrl"
-                  type="url"
-                  placeholder="https://images.unsplash.com/photo-..."
-                  className="flex-1"
-                  required
-                />
-                <Button 
-                  type="submit" 
-                  disabled={uploading}
-                  className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90"
-                >
-                  {uploading ? 'Adding...' : 'Add Image'}
-                </Button>
-              </div>
-            </div>
-          </form>
+      {/* Upload Area */}
+      <Card className={`border-2 border-dashed transition-colors ${
+        dragActive 
+          ? 'border-brand-gold bg-brand-gold/10' 
+          : 'border-brand-burgundy/20 hover:border-brand-gold/50'
+      }`}>
+        <CardContent className="p-8">
+          <div
+            className="text-center"
+            onDragEnter={handleDrag}
+            onDragLeave={handleDrag}
+            onDragOver={handleDrag}
+            onDrop={handleDrop}
+          >
+            <Upload className="h-12 w-12 mx-auto mb-4 text-brand-burgundy/40" />
+            <h3 className="text-lg font-semibold text-brand-burgundy mb-2">
+              Upload Venue Images
+            </h3>
+            <p className="text-brand-burgundy/70 mb-4">
+              Drag and drop images here, or click to select files from your device
+            </p>
+            <p className="text-sm text-brand-burgundy/50 mb-4">
+              Supports JPG, PNG, WebP • Max 5MB per image
+            </p>
+            <Input
+              type="file"
+              accept="image/*"
+              onChange={handleFileInput}
+              className="hidden"
+              id="image-upload"
+              disabled={uploading}
+            />
+            <Label htmlFor="image-upload">
+              <Button 
+                variant="outline" 
+                className="border-brand-gold text-brand-gold hover:bg-brand-gold/10"
+                disabled={uploading}
+                asChild
+              >
+                <span>
+                  {uploading ? 'Uploading...' : 'Choose Images'}
+                </span>
+              </Button>
+            </Label>
+          </div>
         </CardContent>
       </Card>
 
@@ -256,7 +324,17 @@ const ImageManagement = ({ currentUser }) => {
                   src={image.image_url}
                   alt="Venue"
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'flex';
+                  }}
                 />
+                <div className="absolute inset-0 bg-gray-200 flex items-center justify-center text-gray-500 hidden">
+                  <div className="text-center">
+                    <ImageIcon className="h-8 w-8 mx-auto mb-2" />
+                    <p className="text-sm">Image failed to load</p>
+                  </div>
+                </div>
                 {image.is_primary && (
                   <div className="absolute top-2 left-2">
                     <span className="bg-brand-gold text-brand-burgundy px-2 py-1 rounded text-xs font-semibold">
@@ -299,7 +377,7 @@ const ImageManagement = ({ currentUser }) => {
                         <Button variant="outline">Cancel</Button>
                         <Button 
                           variant="destructive"
-                          onClick={() => deleteImage(image.id)}
+                          onClick={() => deleteImage(image.id, image.image_url)}
                         >
                           Delete
                         </Button>
@@ -320,7 +398,7 @@ const ImageManagement = ({ currentUser }) => {
             No Images Yet
           </h3>
           <p className="text-brand-burgundy/70">
-            Add your first venue image using the form above
+            Upload your first venue image using the area above
           </p>
         </Card>
       )}

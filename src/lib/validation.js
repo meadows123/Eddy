@@ -9,6 +9,12 @@ export const validateCheckoutForm = (formData) => {
   }
   if (!formData.phone.trim()) errors.phone = 'Phone number is required';
   
+  if (!formData.password.trim()) {
+    errors.password = 'Password is required';
+  } else if (formData.password.length < 6) {
+    errors.password = 'Password must be at least 6 characters';
+  }
+  
   if (!formData.cardNumber.trim()) {
     errors.cardNumber = 'Card number is required';
   } else if (!/^\d{16}$/.test(formData.cardNumber.replace(/\s/g, ''))) {

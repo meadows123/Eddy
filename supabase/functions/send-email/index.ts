@@ -95,6 +95,60 @@ serve(async (req) => {
         `
         break
 
+      case 'booking-confirmation':
+        html = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #8B1538, #D4AF37); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+              <h1 style="color: white; margin: 0; font-size: 28px;">Booking Confirmed!</h1>
+              <p style="color: #F5F5DC; margin: 10px 0 0 0; font-size: 16px;">Your VIPClub experience awaits</p>
+            </div>
+            
+            <div style="background: white; padding: 30px; border: 1px solid #ddd; border-top: none;">
+              <p style="font-size: 18px; color: #333; margin-bottom: 20px;">Dear ${data.customerName},</p>
+              
+              <p style="color: #333; line-height: 1.6;">Thank you for choosing VIPClub! Your booking has been confirmed and we're excited to welcome you.</p>
+              
+              <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h2 style="color: #8B1538; margin-top: 0;">Booking Details</h2>
+                <p><strong>Venue:</strong> ${data.venueName}</p>
+                <p><strong>Booking Date:</strong> ${data.bookingDate}</p>
+                <p><strong>Booking ID:</strong> #${data.bookingId}</p>
+                ${data.ticketInfo ? `<p><strong>Ticket:</strong> ${data.ticketInfo}</p>` : ''}
+                ${data.tableInfo ? `<p><strong>Table:</strong> ${data.tableInfo}</p>` : ''}
+                <p><strong>Total Amount:</strong> ₦${data.totalAmount}</p>
+              </div>
+              
+              <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="color: #2e7d32; margin-top: 0;">What's Next?</h3>
+                <ul style="color: #333; margin: 0; padding-left: 20px;">
+                  <li>Arrive at the venue on your booking date</li>
+                  <li>Show this email or your booking ID at the entrance</li>
+                  <li>Present a valid ID for verification</li>
+                  <li>Enjoy your VIP experience!</li>
+                </ul>
+              </div>
+              
+              <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #D4AF37;">
+                <p style="margin: 0; color: #856404;"><strong>Important:</strong> Please save this email as your booking confirmation. You may be asked to present it at the venue.</p>
+              </div>
+              
+              <p style="color: #333; line-height: 1.6;">If you have any questions or need to make changes to your booking, please contact our support team.</p>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${Deno.env.get('APP_URL')}/profile" style="background: linear-gradient(135deg, #8B1538, #D4AF37); color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-weight: bold;">View My Bookings</a>
+              </div>
+              
+              <p style="color: #333;">Thank you for choosing VIPClub!</p>
+              <p style="color: #666; font-size: 14px;">Best regards,<br>The VIPClub Team</p>
+            </div>
+            
+            <div style="background: #f8f9fa; padding: 20px; text-align: center; border-radius: 0 0 10px 10px; border: 1px solid #ddd; border-top: none;">
+              <p style="color: #666; font-size: 12px; margin: 0;">This is an automated message. Please do not reply to this email.</p>
+            </div>
+          </div>
+        `
+        break
+
       case 'admin-venue-submitted':
         html = `
           <h1>New Venue Submission</h1>

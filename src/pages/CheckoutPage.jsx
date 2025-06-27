@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Copy } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 const CheckoutPage = () => {
   const { id } = useParams();
@@ -31,6 +32,7 @@ const CheckoutPage = () => {
     fullName: '',
     email: '',
     phone: '',
+    password: '',
     cardNumber: '',
     expiryDate: '',
     cvv: '',
@@ -115,7 +117,93 @@ const CheckoutPage = () => {
     return false;
   };
 
-  const handleSubmit = (e) => {
+  const sendBookingConfirmationEmail = async (bookingData) => {
+    try {
+      const response = await fetch(`${supabase.supabaseUrl}/functions/v1/send-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabase.supabaseKey}`
+        },
+        body: JSON.stringify({
+          to: bookingData.customerEmail,
+          subject: 'Booking Confirmation - VIPClub',
+          template: 'booking-confirmation',
+          data: {
+            customerName: bookingData.customerName,
+            venueName: bookingData.venueName,
+            bookingDate: new Date(bookingData.bookingDate).toLocaleDateString(),
+            ticketInfo: bookingData.ticket ? `${bookingData.ticket.name} - ₦${bookingData.ticket.price}` : null,
+            tableInfo: bookingData.table ? `${bookingData.table.name} - ₦${bookingData.table.price}` : null,
+            totalAmount: calculateTotal(),
+            bookingId: bookingData.id
+          }
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to send confirmation email');
+      }
+
+      console.log('Booking confirmation email sent successfully');
+    } catch (error) {
+      console.error('Error sending confirmation email:', error);
+      // Don't block the booking process if email fails
+    }
+  };
+
+  const createUserAccount = async (userData) => {
+    try {
+      // Check if user already exists
+      const { data: existingUser, error: checkError } = await supabase.auth.signInWithPassword({
+        email: userData.email,
+        password: userData.password
+      });
+
+      if (existingUser?.user) {
+        // User already exists, just sign them in
+        return existingUser.user;
+      }
+
+      // Create new user account
+      const { data: newUser, error: signUpError } = await supabase.auth.signUp({
+        email: userData.email,
+        password: userData.password,
+        options: {
+          data: {
+            full_name: userData.fullName,
+            phone: userData.phone
+          }
+        }
+      });
+
+      if (signUpError) throw signUpError;
+
+      // Create user profile
+      if (newUser.user) {
+        const { error: profileError } = await supabase
+          .from('user_profiles')
+          .insert([{
+            id: newUser.user.id,
+            first_name: userData.fullName.split(' ')[0] || '',
+            last_name: userData.fullName.split(' ').slice(1).join(' ') || '',
+            phone_number: userData.phone,
+            credit_balance: 0
+          }]);
+
+        if (profileError) {
+          console.error('Error creating user profile:', profileError);
+        }
+      }
+
+      return newUser.user;
+    } catch (error) {
+      console.error('Error creating user account:', error);
+      throw error;
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const formErrors = validateCheckoutForm(formData);
     setErrors(formErrors);
@@ -123,36 +211,66 @@ const CheckoutPage = () => {
     if (Object.keys(formErrors).length === 0) {
       setIsSubmitting(true);
       
-      if (formData.referralCode) {
-        applyReferralCode(formData.referralCode);
-      }
+      try {
+        // Apply referral code if provided
+        if (formData.referralCode) {
+          applyReferralCode(formData.referralCode);
+        }
 
-      setTimeout(() => {
-        setIsSubmitting(false);
-        setShowConfirmation(true);
-        
-        const bookings = JSON.parse(localStorage.getItem('lagosvibe_bookings') || '[]');
+        // Create user account
+        const user = await createUserAccount({
+          fullName: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+          password: formData.password
+        });
+
+        // Create booking record
         const newBooking = {
           id: Date.now(),
           ...selection,
           customerName: formData.fullName,
           customerEmail: formData.email,
           customerPhone: formData.phone,
+          userId: user?.id,
           bookingDate: new Date().toISOString(),
           status: 'confirmed',
           referralCode: formData.referralCode,
-          vipPerksApplied: vipPerks
+          vipPerksApplied: vipPerks,
+          totalAmount: calculateTotal()
         };
+
+        // Save booking to localStorage (in production, this would go to your database)
+        const bookings = JSON.parse(localStorage.getItem('lagosvibe_bookings') || '[]');
         bookings.push(newBooking);
         localStorage.setItem('lagosvibe_bookings', JSON.stringify(bookings));
         localStorage.removeItem('lagosvibe_booking_selection');
 
-        // Unlock VIP perks (mock)
+        // Send confirmation email
+        await sendBookingConfirmationEmail(newBooking);
+
+        // Unlock VIP perks
         const unlockedPerks = ["Free Welcome Drink", "Priority Queue"];
         localStorage.setItem('lagosvibe_vip_perks', JSON.stringify(unlockedPerks));
-        toast({ title: "VIP Perks Unlocked!", description: unlockedPerks.join(', ') });
+        
+        toast({ 
+          title: "Account Created & Booking Confirmed!", 
+          description: "Welcome to VIPClub! Check your email for confirmation.",
+          className: "bg-green-500 text-white"
+        });
 
-      }, 2000);
+        setShowConfirmation(true);
+
+      } catch (error) {
+        console.error('Error processing booking:', error);
+        toast({
+          title: "Booking Error",
+          description: error.message || "There was an error processing your booking. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
     } else {
       toast({
         title: "Form validation failed",
