@@ -23,6 +23,7 @@ const TableManagement = ({ currentUser }) => {
   const [tables, setTables] = useState([]);
   const [venues, setVenues] = useState([]);
   const [isAddingTable, setIsAddingTable] = useState(false);
+  const [editingTable, setEditingTable] = useState(null);
   const [newTable, setNewTable] = useState({
     table_number: '',
     capacity: '',
@@ -105,31 +106,89 @@ const TableManagement = ({ currentUser }) => {
       return;
     }
 
-    // Log the data being inserted for debugging
-    console.log('[Add Table] Inserting table:', { ...newTable, capacity, price });
+    const tableData = {
+      venue_id: newTable.venue_id,
+      table_number: newTable.table_number,
+      capacity,
+      price,
+      table_type: newTable.table_type,
+      status: newTable.status,
+      description: newTable.description,
+    };
 
-    const { error } = await supabase.from('venue_tables').insert([
-      {
-        venue_id: newTable.venue_id,
-        table_number: newTable.table_number,
-        capacity,
-        price,
-        table_type: newTable.table_type,
-        status: newTable.status,
-        description: newTable.description,
-      }
-    ]);
-    if (error) {
-      toast({ title: 'Error', description: `Failed to add table: ${error.message}`, variant: 'destructive' });
+    let error;
+    if (editingTable) {
+      // Update existing table
+      const result = await supabase
+        .from('venue_tables')
+        .update(tableData)
+        .eq('id', editingTable.id);
+      error = result.error;
     } else {
-      toast({ title: 'Table Added', description: 'New table added successfully!' });
+      // Add new table
+      const result = await supabase
+        .from('venue_tables')
+        .insert([tableData]);
+      error = result.error;
+    }
+
+    if (error) {
+      toast({ title: 'Error', description: `Failed to ${editingTable ? 'update' : 'add'} table: ${error.message}`, variant: 'destructive' });
+    } else {
+      toast({ title: `Table ${editingTable ? 'Updated' : 'Added'}`, description: `Table ${editingTable ? 'updated' : 'added'} successfully!` });
       setNewTable({ table_number: '', capacity: '', price: '', table_type: '', status: 'available', venue_id: '', description: '' });
+      setEditingTable(null);
       setIsAddingTable(false);
       // Refresh table list
       const { data: venues } = await supabase.from('venues').select('id').eq('owner_id', currentUser.id);
       const venueIds = venues.map(v => v.id);
       const { data: tablesData } = await supabase.from('venue_tables').select('*').in('venue_id', venueIds);
       setTables(tablesData || []);
+    }
+  };
+
+  const handleEditTable = (table) => {
+    setEditingTable(table);
+    setNewTable({
+      table_number: table.table_number,
+      capacity: table.capacity.toString(),
+      price: table.price.toString(),
+      table_type: table.table_type,
+      status: table.status,
+      venue_id: table.venue_id,
+      description: table.description || '',
+    });
+    setIsAddingTable(true);
+  };
+
+  const handleDeleteTable = async (tableId) => {
+    if (!confirm('Are you sure you want to delete this table?')) {
+      return;
+    }
+
+    const { error } = await supabase
+      .from('venue_tables')
+      .delete()
+      .eq('id', tableId);
+
+    if (error) {
+      toast({ title: 'Error', description: `Failed to delete table: ${error.message}`, variant: 'destructive' });
+    } else {
+      toast({ title: 'Table Deleted', description: 'Table deleted successfully!' });
+      // Refresh table list
+      const { data: venues } = await supabase.from('venues').select('id').eq('owner_id', currentUser.id);
+      const venueIds = venues.map(v => v.id);
+      const { data: tablesData } = await supabase.from('venue_tables').select('*').in('venue_id', venueIds);
+      setTables(tablesData || []);
+    }
+  };
+
+  const handleDialogClose = (open) => {
+    setIsAddingTable(open);
+    if (!open) {
+      // Reset form when dialog closes
+      setEditingTable(null);
+      setNewTable({ table_number: '', capacity: '', price: '', table_type: '', status: 'available', venue_id: '', description: '' });
     }
   };
 
@@ -155,7 +214,7 @@ const TableManagement = ({ currentUser }) => {
       <>
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-semibold text-brand-burgundy">Table Management</h3>
-          <Dialog open={isAddingTable} onOpenChange={setIsAddingTable}>
+          <Dialog open={isAddingTable} onOpenChange={handleDialogClose}>
             <DialogTrigger asChild>
               <Button
                 className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90"
@@ -167,10 +226,10 @@ const TableManagement = ({ currentUser }) => {
             </DialogTrigger>
             <DialogContent className="sm:max-w-md" aria-describedby="add-table-desc">
               <DialogHeader>
-                <DialogTitle>Add New Table</DialogTitle>
+                <DialogTitle>{editingTable ? 'Edit Table' : 'Add New Table'}</DialogTitle>
               </DialogHeader>
               <div id="add-table-desc" className="sr-only">
-                Fill out the form below to add a new table to your venue.
+                Fill out the form below to {editingTable ? 'edit the' : 'add a new'} table {editingTable ? '' : 'to your venue'}.
               </div>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
@@ -257,7 +316,7 @@ const TableManagement = ({ currentUser }) => {
                   className="w-full bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90"
                   onClick={handleAddTable}
                 >
-                  Add Table
+                  {editingTable ? 'Update Table' : 'Add Table'}
                 </Button>
               </div>
             </DialogContent>
@@ -276,10 +335,20 @@ const TableManagement = ({ currentUser }) => {
                     Table {table.table_number}
                   </CardTitle>
                   <div className="flex gap-2">
-                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8"
+                      onClick={() => handleEditTable(table)}
+                    >
                       <Edit2 className="h-4 w-4" />
                     </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-8 w-8 text-red-600"
+                      onClick={() => handleDeleteTable(table.id)}
+                    >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
