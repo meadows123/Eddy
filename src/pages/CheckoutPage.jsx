@@ -49,9 +49,15 @@ const CheckoutPage = () => {
   const [showShareDialog, setShowShareDialog] = useState(false);
   
   useEffect(() => {
+    console.log('CheckoutPage useEffect triggered');
+    console.log('isDepositFlow:', isDepositFlow);
+    console.log('id from params:', id);
+    console.log('location.pathname:', location.pathname);
+    
     if (isDepositFlow) {
       // For deposit flow, we don't need venue selection
       if (!depositAmount) {
+        console.log('No deposit amount, redirecting to profile');
         navigate('/profile'); // Redirect back to profile if no deposit amount
         return;
       }
@@ -63,14 +69,24 @@ const CheckoutPage = () => {
     } else {
       // Original venue booking flow
       const savedSelection = localStorage.getItem('lagosvibe_booking_selection');
+      console.log('savedSelection from localStorage:', savedSelection);
+      
       if (savedSelection) {
         const parsedSelection = JSON.parse(savedSelection);
+        console.log('parsedSelection:', parsedSelection);
+        console.log('parsedSelection.venueId:', parsedSelection.venueId);
+        console.log('id from params:', id);
+        console.log('Comparison result:', parsedSelection.venueId === id);
+        
         if (parsedSelection.venueId === id) {
+          console.log('Venue ID matches, setting selection');
           setSelection(parsedSelection);
         } else {
+          console.log('Venue ID mismatch, redirecting to venue page');
           navigate(`/venues/${id}`); // Redirect if venue ID doesn't match
         }
       } else {
+        console.log('No saved selection, redirecting to venue page');
         navigate(`/venues/${id}`); // Redirect if no selection
       }
     }
