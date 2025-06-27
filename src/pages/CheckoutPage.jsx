@@ -65,7 +65,7 @@ const CheckoutPage = () => {
       const savedSelection = localStorage.getItem('lagosvibe_booking_selection');
       if (savedSelection) {
         const parsedSelection = JSON.parse(savedSelection);
-        if (parsedSelection.venueId === parseInt(id)) {
+        if (parsedSelection.venueId === id) {
           setSelection(parsedSelection);
         } else {
           navigate(`/venues/${id}`); // Redirect if venue ID doesn't match
