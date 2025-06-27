@@ -29,7 +29,9 @@ const TableReservation = ({ clubId, tables, onReserve, selectedTableId }) => {
     
     onReserve({
       id: selectedTable.id,
-      name: selectedTable.name,
+      name: selectedTable.table_number,
+      table_number: selectedTable.table_number,
+      table_type: selectedTable.table_type,
       price: selectedTable.price,
       date,
       time,
@@ -38,7 +40,7 @@ const TableReservation = ({ clubId, tables, onReserve, selectedTableId }) => {
     
     toast({
       title: "Table selected!",
-      description: `${selectedTable.name} table has been added to your selection.`,
+      description: `Table ${selectedTable.table_number} has been added to your selection.`,
     });
   };
   
@@ -106,7 +108,8 @@ const TableReservation = ({ clubId, tables, onReserve, selectedTableId }) => {
                   : 'border-brand-burgundy/30 bg-brand-cream/50 text-brand-burgundy/70 hover:border-brand-burgundy/50'
               }`}
             >
-              <h4 className="font-medium text-sm">{table.name}</h4>
+              <h4 className="font-medium text-sm">Table {table.table_number}</h4>
+              <p className="text-xs text-brand-burgundy/70 mb-1">{table.table_type}</p>
               <p className="text-xs text-brand-burgundy/70 mb-2">Fits {table.capacity} people</p>
               <p className="text-sm font-bold">₦{table.price.toLocaleString()}</p>
             </motion.div>
@@ -123,7 +126,7 @@ const TableReservation = ({ clubId, tables, onReserve, selectedTableId }) => {
             : 'bg-brand-cream/50 text-brand-burgundy/50 cursor-not-allowed'
         }`}
       >
-        {selectedTable ? `Reserve ${selectedTable.name} Table - ₦${selectedTable.price.toLocaleString()}` : 'Select a Table'}
+        {selectedTable ? `Reserve Table ${selectedTable.table_number} - ₦${selectedTable.price.toLocaleString()}` : 'Select a Table'}
       </Button>
     </div>
   );

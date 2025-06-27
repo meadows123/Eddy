@@ -24,19 +24,52 @@ const VenueDetailPage = () => {
   useEffect(() => {
     const fetchVenue = async () => {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('venues')
-        .select('*')
-        .eq('id', id)
-        .single();
-      setVenue(data);
-      setLoading(false);
-      // Check if venue is in favorites (from localStorage)
-      const favorites = JSON.parse(localStorage.getItem('lagosvibe_favorites') || '[]');
-      setIsFavorite(favorites.includes(id));
+      try {
+        // Fetch venue data
+        const { data: venueData, error: venueError } = await supabase
+          .from('venues')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (venueError) throw venueError;
+
+        // Fetch tables for this venue
+        const { data: tablesData, error: tablesError } = await supabase
+          .from('venue_tables')
+          .select('*')
+          .eq('venue_id', id);
+
+        if (tablesError) {
+          console.error('Error fetching tables:', tablesError);
+        }
+
+        // Add tables to venue object
+        const venueWithTables = {
+          ...venueData,
+          tables: tablesData || [],
+          tickets: [] // For now, no tickets from database
+        };
+
+        setVenue(venueWithTables);
+        
+        // Check if venue is in favorites
+        const favorites = JSON.parse(localStorage.getItem('lagosvibe_favorites') || '[]');
+        setIsFavorite(favorites.includes(id));
+      } catch (error) {
+        console.error('Error fetching venue:', error);
+        toast({
+          title: "Error",
+          description: "Failed to load venue details. Please try again.",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
     };
+    
     fetchVenue();
-  }, [id]);
+  }, [id, toast]);
   
   const handleSelectTicket = (ticket) => {
     setSelectedTicket(ticket);
@@ -157,7 +190,7 @@ const VenueDetailPage = () => {
               <Star className="h-5 w-5 fill-current mr-1" />
               <span className="text-white font-semibold text-lg">{venue.rating}</span>
             </div>
-            <span className="text-white/80 text-sm font-body">• {venue.venueType} in {venue.location}</span>
+            <span className="text-white/80 text-sm font-body">• {venue.type} in {venue.city}</span>
           </motion.div>
         </div>
          <Link to="/venues" className="absolute top-6 left-6 md:top-8 md:left-8 inline-flex items-center text-sm text-white bg-black/30 hover:bg-black/50 px-3 py-2 rounded-full backdrop-blur-sm transition-colors">
@@ -316,7 +349,8 @@ const VenueDetailPage = () => {
                 )}
                 {selectedTable && (
                   <div className="mb-4 pb-4 border-b border-brand-burgundy/10">
-                    <h4 className="font-semibold text-brand-burgundy">{selectedTable.name} Table</h4>
+                    <h4 className="font-semibold text-brand-burgundy">Table {selectedTable.table_number}</h4>
+                    <p className="text-sm text-brand-burgundy/70">{selectedTable.table_type}</p>
                     <p className="text-sm text-brand-burgundy/70">Date: {selectedTable.date || 'Not set'} | Time: {selectedTable.time || 'Not set'}</p>
                     <p className="text-sm text-brand-burgundy/70">Guests: {selectedTable.guestCount || 'Not set'}</p>
                     <p className="text-sm text-brand-burgundy/70">Price: ₦{selectedTable.price.toLocaleString()}</p>

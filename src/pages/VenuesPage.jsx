@@ -76,7 +76,7 @@ const VenuesPage = () => {
       results = results.filter(venue => venue.location === filters.location);
     }
     if (filters.venueType !== 'all') {
-      results = results.filter(venue => venue.venueType === filters.venueType);
+      results = results.filter(venue => venue.type === filters.venueType.toLowerCase());
     }
     if (filters.rating !== 'all') {
       results = results.filter(venue => venue.rating >= parseFloat(filters.rating));
