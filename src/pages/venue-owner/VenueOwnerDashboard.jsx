@@ -142,36 +142,74 @@ const VenueOwnerDashboard = () => {
         throw venuesError;
       }
       console.log('Venues data:', venuesData);
+      console.log('Number of venues found:', venuesData?.length || 0);
+      
       // Use the first venue for dashboard context (if you want to support multiple, update UI accordingly)
       const venueData = venuesData && venuesData.length > 0 ? venuesData[0] : null;
       setVenue(venueData);
-      const venueIds = venuesData.map(v => v.id);
+      const venueIds = venuesData?.map(v => v.id) || [];
+      console.log('Venue IDs:', venueIds);
 
       // Get booking statistics for all venues owned by this user
       let bookings = [];
       if (venueIds.length > 0) {
+        console.log('Fetching bookings for venue IDs:', venueIds);
         const { data: bookingsData, error: bookingsError } = await supabase
           .from('bookings')
-          .select('*')
+          .select(`
+            *,
+            venue_tables (
+              id,
+              name,
+              price
+            )
+          `)
           .in('venue_id', venueIds);
         if (bookingsError) {
           console.error('Error fetching bookings:', bookingsError);
           throw bookingsError;
         }
-        bookings = bookingsData;
+        bookings = bookingsData || [];
+        console.log('Raw bookings data:', bookingsData);
+        console.log('Number of bookings found:', bookings.length);
+      } else {
+        console.log('No venue IDs found, skipping booking fetch');
       }
-      console.log('Bookings data:', bookings);
+
+      // Also check for any bookings in the database (debug)
+      const { data: allBookings, error: allBookingsError } = await supabase
+        .from('bookings')
+        .select('id, venue_id, user_id, status, total_amount, created_at')
+        .limit(10);
+      console.log('All bookings in database (first 10):', allBookings);
+      console.log('Total bookings in database:', allBookings?.length || 0);
+
+      // Get venue tables count
+      let totalTables = 0;
+      if (venueIds.length > 0) {
+        const { data: tablesData, error: tablesError } = await supabase
+          .from('venue_tables')
+          .select('id')
+          .in('venue_id', venueIds);
+        if (!tablesError) {
+          totalTables = tablesData?.length || 0;
+        }
+        console.log('Total tables found:', totalTables);
+      }
 
       // Calculate statistics
       const totalBookings = bookings.length;
-      const totalRevenue = bookings.reduce((sum, booking) => sum + (booking.tables?.price || 0), 0);
-      const averageRating = bookings.reduce((sum, booking) => sum + (booking.rating || 0), 0) / totalBookings || 0;
-
+      const totalRevenue = bookings.reduce((sum, booking) => sum + (booking.total_amount || 0), 0);
+      const activeBookings = bookings.filter(b => b.status === 'confirmed' || b.status === 'pending').length;
+      const pendingPayouts = bookings
+        .filter(b => b.status === 'confirmed')
+        .reduce((sum, booking) => sum + (booking.total_amount || 0), 0) * 0.8; // Assuming 80% payout after fees
+      
       // Get popular tables
       const tableBookings = {};
       bookings.forEach(booking => {
-        if (booking.tables?.name) {
-          tableBookings[booking.tables.name] = (tableBookings[booking.tables.name] || 0) + 1;
+        if (booking.venue_tables?.name) {
+          tableBookings[booking.venue_tables.name] = (tableBookings[booking.venue_tables.name] || 0) + 1;
         }
       });
       const popularTables = Object.entries(tableBookings)
@@ -182,7 +220,9 @@ const VenueOwnerDashboard = () => {
       setStats({
         totalBookings,
         totalRevenue,
-        averageRating,
+        activeBookings,
+        pendingPayouts,
+        totalTables,
         popularTables
       });
 
@@ -201,10 +241,10 @@ const VenueOwnerDashboard = () => {
 
       const trends = last7Days.map(date => ({
         date,
-        bookings: bookings.filter(b => b.created_at.startsWith(date)).length,
+        bookings: bookings.filter(b => b.created_at && b.created_at.startsWith(date)).length,
         revenue: bookings
-          .filter(b => b.created_at.startsWith(date))
-          .reduce((sum, b) => sum + (b.tables?.price || 0), 0)
+          .filter(b => b.created_at && b.created_at.startsWith(date))
+          .reduce((sum, b) => sum + (b.total_amount || 0), 0)
       }));
 
       setBookingTrends(trends);
@@ -426,11 +466,84 @@ const VenueOwnerDashboard = () => {
           <TabsContent value="analytics">
             <Card className="bg-white border-brand-burgundy/10">
               <CardHeader>
-                <CardTitle>Revenue Analytics</CardTitle>
+                <CardTitle className="text-brand-burgundy">Revenue Analytics</CardTitle>
               </CardHeader>
-              <CardContent>
-                {/* Add Analytics component here */}
-                <p className="text-brand-burgundy/70">Loading analytics...</p>
+              <CardContent className="space-y-6">
+                {/* Booking Trends Chart */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4 text-brand-burgundy">Booking Trends (Last 7 Days)</h3>
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={bookingTrends}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="date" />
+                        <YAxis yAxisId="left" />
+                        <YAxis yAxisId="right" orientation="right" />
+                        <Tooltip />
+                        <Line
+                          yAxisId="left"
+                          type="monotone"
+                          dataKey="bookings"
+                          stroke="#8B4513"
+                          name="Bookings"
+                          strokeWidth={2}
+                        />
+                        <Line
+                          yAxisId="right"
+                          type="monotone"
+                          dataKey="revenue"
+                          stroke="#DAA520"
+                          name="Revenue (₦)"
+                          strokeWidth={2}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* Popular Tables */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4 text-brand-burgundy">Popular Tables</h3>
+                  {stats.popularTables && stats.popularTables.length > 0 ? (
+                    <div className="space-y-4">
+                      {stats.popularTables.map((table, index) => (
+                        <div key={index} className="flex justify-between items-center p-3 bg-brand-cream/30 rounded-lg">
+                          <span className="font-medium text-brand-burgundy">{table.name}</span>
+                          <span className="font-semibold text-brand-gold">{table.count} bookings</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-brand-burgundy/70">No booking data available yet.</p>
+                  )}
+                </div>
+
+                {/* Recent Bookings */}
+                <div>
+                  <h3 className="text-lg font-semibold mb-4 text-brand-burgundy">Recent Bookings</h3>
+                  {recentBookings && recentBookings.length > 0 ? (
+                    <div className="space-y-4">
+                      {recentBookings.map((booking) => (
+                        <div key={booking.id} className="flex justify-between items-center p-3 bg-brand-cream/30 rounded-lg">
+                          <div>
+                            <p className="font-semibold text-brand-burgundy">{booking.venue_tables?.name || 'Unknown Table'}</p>
+                            <p className="text-sm text-brand-burgundy/70">
+                              {new Date(booking.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-semibold text-brand-gold">₦{(booking.total_amount || 0).toLocaleString()}</p>
+                            <p className="text-sm text-brand-burgundy/70 capitalize">
+                              {booking.status}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-brand-burgundy/70">No recent bookings found.</p>
+                  )}
+                </div>
               </CardContent>
             </Card>
           </TabsContent>
@@ -447,72 +560,6 @@ const VenueOwnerDashboard = () => {
             </Card>
           </TabsContent>
         </Tabs>
-
-        {/* Booking Trends Chart */}
-        <Card className="p-6 mb-8">
-          <h3 className="text-lg font-semibold mb-4">Booking Trends</h3>
-          <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={bookingTrends}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis yAxisId="left" />
-                <YAxis yAxisId="right" orientation="right" />
-                <Tooltip />
-                <Line
-                  yAxisId="left"
-                  type="monotone"
-                  dataKey="bookings"
-                  stroke="#8884d8"
-                  name="Bookings"
-                />
-                <Line
-                  yAxisId="right"
-                  type="monotone"
-                  dataKey="revenue"
-                  stroke="#82ca9d"
-                  name="Revenue"
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
-
-        {/* Popular Tables */}
-        <Card className="p-6 mb-8">
-          <h3 className="text-lg font-semibold mb-4">Popular Tables</h3>
-          <div className="space-y-4">
-            {stats.popularTables.map((table, index) => (
-              <div key={index} className="flex justify-between items-center">
-                <span>{table.name}</span>
-                <span className="font-semibold">{table.count} bookings</span>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        {/* Recent Bookings */}
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Recent Bookings</h3>
-          <div className="space-y-4">
-            {recentBookings.map((booking) => (
-              <div key={booking.id} className="flex justify-between items-center">
-                <div>
-                  <p className="font-semibold">{booking.tables?.name || 'Unknown Table'}</p>
-                  <p className="text-sm text-gray-500">
-                    {new Date(booking.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="font-semibold">${booking.tables?.price || 0}</p>
-                  <p className="text-sm text-gray-500">
-                    {booking.status}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
 
         {/* Eddy Members */}
         <Card className="bg-white border-brand-burgundy/10 mt-8">
