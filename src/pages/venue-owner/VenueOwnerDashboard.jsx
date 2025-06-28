@@ -158,7 +158,7 @@ const VenueOwnerDashboard = () => {
           .from('bookings')
           .select(`
             *,
-            venue_tables (
+            venue_tables!table_id (
               id,
               name,
               price
