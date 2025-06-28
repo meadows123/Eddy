@@ -160,18 +160,33 @@ const VenueOwnerDashboard = () => {
             *,
             venue_tables!table_id (
               id,
-              name,
+              table_number,
               price
             )
           `)
           .in('venue_id', venueIds);
+        
         if (bookingsError) {
-          console.error('Error fetching bookings:', bookingsError);
-          throw bookingsError;
+          console.error('Error fetching bookings with table join:', bookingsError);
+          // Fallback: try to get bookings without the table join
+          console.log('Trying fallback query without table join...');
+          const { data: fallbackBookings, error: fallbackError } = await supabase
+            .from('bookings')
+            .select('*')
+            .in('venue_id', venueIds);
+          
+          if (fallbackError) {
+            console.error('Fallback booking query also failed:', fallbackError);
+            throw fallbackError;
+          } else {
+            console.log('Fallback booking query succeeded:', fallbackBookings);
+            bookings = fallbackBookings || [];
+          }
+        } else {
+          bookings = bookingsData || [];
+          console.log('Raw bookings data:', bookingsData);
+          console.log('Number of bookings found:', bookings.length);
         }
-        bookings = bookingsData || [];
-        console.log('Raw bookings data:', bookingsData);
-        console.log('Number of bookings found:', bookings.length);
       } else {
         console.log('No venue IDs found, skipping booking fetch');
       }
@@ -183,6 +198,17 @@ const VenueOwnerDashboard = () => {
         .limit(10);
       console.log('All bookings in database (first 10):', allBookings);
       console.log('Total bookings in database:', allBookings?.length || 0);
+
+      // Test venue_tables structure (debug)
+      const { data: testTables, error: testTablesError } = await supabase
+        .from('venue_tables')
+        .select('*')
+        .limit(1);
+      console.log('Sample venue_tables data:', testTables);
+      console.log('venue_tables columns available:', testTables?.[0] ? Object.keys(testTables[0]) : 'No tables found');
+      if (testTablesError) {
+        console.log('venue_tables error:', testTablesError);
+      }
 
       // Get venue tables count
       let totalTables = 0;
@@ -208,8 +234,11 @@ const VenueOwnerDashboard = () => {
       // Get popular tables
       const tableBookings = {};
       bookings.forEach(booking => {
-        if (booking.venue_tables?.name) {
-          tableBookings[booking.venue_tables.name] = (tableBookings[booking.venue_tables.name] || 0) + 1;
+        if (booking.venue_tables?.table_number) {
+          tableBookings[booking.venue_tables.table_number] = (tableBookings[booking.venue_tables.table_number] || 0) + 1;
+        } else if (booking.table_id) {
+          // Fallback: use table_id if table details not available
+          tableBookings[`Table ${booking.table_id.slice(-8)}`] = (tableBookings[`Table ${booking.table_id.slice(-8)}`] || 0) + 1;
         }
       });
       const popularTables = Object.entries(tableBookings)
@@ -526,7 +555,13 @@ const VenueOwnerDashboard = () => {
                       {recentBookings.map((booking) => (
                         <div key={booking.id} className="flex justify-between items-center p-3 bg-brand-cream/30 rounded-lg">
                           <div>
-                            <p className="font-semibold text-brand-burgundy">{booking.venue_tables?.name || 'Unknown Table'}</p>
+                            <p className="font-semibold text-brand-burgundy">
+                              {booking.venue_tables?.table_number 
+                                ? `Table ${booking.venue_tables.table_number}` 
+                                : booking.table_id 
+                                ? `Table ${booking.table_id.slice(-8)}` 
+                                : 'Unknown Table'}
+                            </p>
                             <p className="text-sm text-brand-burgundy/70">
                               {new Date(booking.created_at).toLocaleDateString()}
                             </p>
