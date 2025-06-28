@@ -53,13 +53,9 @@ const BookingList = ({ currentUser }) => {
             id,
             name
           ),
-          venue_tables (
+          venue_tables!table_id (
             id,
-            name
-          ),
-          user_profiles (
-            first_name,
-            last_name
+            table_number
           )
         `)
         .in('venue_id', venueIds)
@@ -67,7 +63,28 @@ const BookingList = ({ currentUser }) => {
 
       if (bookingsError) throw bookingsError;
 
-      setBookings(bookingsData || []);
+      // Fetch user profiles separately to handle potential missing profiles
+      const userIds = bookingsData?.map(b => b.user_id).filter(Boolean) || [];
+      let userProfiles = {};
+      
+      if (userIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from('user_profiles')
+          .select('id, first_name, last_name')
+          .in('id', userIds);
+        
+        profilesData?.forEach(profile => {
+          userProfiles[profile.id] = profile;
+        });
+      }
+
+      // Combine bookings with user profiles
+      const bookingsWithProfiles = bookingsData?.map(booking => ({
+        ...booking,
+        user_profiles: userProfiles[booking.user_id] || null
+      })) || [];
+
+      setBookings(bookingsWithProfiles);
     } catch (error) {
       console.error('Error fetching bookings:', error);
       toast({
@@ -201,7 +218,7 @@ const BookingList = ({ currentUser }) => {
                 </div>
               </TableCell>
               <TableCell>
-                {booking.venue_tables?.name || 'No table assigned'}
+                {booking.venue_tables?.table_number ? `Table ${booking.venue_tables.table_number}` : 'No table assigned'}
               </TableCell>
               <TableCell>
                 {booking.number_of_guests}
