@@ -7,12 +7,12 @@ import {
   TableHead, 
   TableHeader, 
   TableRow 
-} from '../../../components/ui/table';
-import { Badge } from '../../../components/ui/badge';
-import { Button } from '../../../components/ui/button';
+} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Eye, Check, X } from 'lucide-react';
-import { supabase } from '../../../lib/supabase';
-import { toast } from '../../../components/ui/use-toast';
+import { supabase } from '@/lib/supabase';
+import { toast } from '@/components/ui/use-toast';
 
 const BookingList = ({ currentUser }) => {
   const [bookings, setBookings] = useState([]);

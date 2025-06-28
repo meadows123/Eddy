@@ -4,10 +4,10 @@ import {
   CardContent, 
   CardHeader, 
   CardTitle 
-} from '../../../components/ui/card';
-import { Button } from '../../../components/ui/button';
-import { Input } from '../../../components/ui/input';
-import { Label } from '../../../components/ui/label';
+} from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Plus, Edit2, Trash2 } from 'lucide-react';
 import {
   Dialog,
@@ -15,9 +15,9 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '../../../components/ui/dialog';
-import { supabase } from '../../../lib/supabase';
-import { toast } from '../../../components/ui/use-toast';
+} from '@/components/ui/dialog';
+import { supabase } from '@/lib/supabase';
+import { toast } from '@/components/ui/use-toast';
 
 const TableManagement = ({ currentUser }) => {
   const [tables, setTables] = useState([]);
