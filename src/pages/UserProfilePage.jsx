@@ -17,7 +17,15 @@ const UserProfilePage = () => {
   const { user, signIn, signUp, signOut } = useAuth();
   const [isSignup, setIsSignup] = useState(false);
   const [form, setForm] = useState({ email: '', password: '' });
-  const [signupForm, setSignupForm] = useState({ email: '', password: '', confirm: '' });
+  const [signupForm, setSignupForm] = useState({ 
+    email: '', 
+    password: '', 
+    confirm: '',
+    firstName: '',
+    lastName: '',
+    city: '',
+    country: ''
+  });
   const [error, setError] = useState(null);
   const [signupError, setSignupError] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -25,6 +33,14 @@ const UserProfilePage = () => {
   const [bookings, setBookings] = useState([]);
   const navigate = useNavigate();
   const [depositAmount, setDepositAmount] = useState("");
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    first_name: '',
+    last_name: '',
+    phone_number: '',
+    city: '',
+    country: ''
+  });
 
   // Load user data when logged in
   useEffect(() => {
@@ -35,17 +51,53 @@ const UserProfilePage = () => {
 
   const loadUserData = async () => {
     try {
-      // Load profile
-      const { data: profileData, error: profileError } = await supabase
+      // Load profile - handle missing profile by creating one
+      let { data: profileData, error: profileError } = await supabase
         .from('user_profiles')
         .select('*')
         .eq('id', user.id)
         .single();
       
-      if (profileError) {
+      if (profileError && profileError.code === 'PGRST116') {
+        // Profile doesn't exist, create one
+        console.log('Creating new user profile...');
+        const { data: newProfile, error: createError } = await supabase
+          .from('user_profiles')
+          .insert([{
+            id: user.id,
+            first_name: '',
+            last_name: '',
+            phone_number: '',
+            city: '',
+            country: '',
+            credit_balance: 0
+          }])
+          .select()
+          .single();
+        
+        if (createError) {
+          console.error('Error creating profile:', createError);
+        } else {
+          setProfile(newProfile);
+          setProfileForm({
+            first_name: newProfile.first_name || '',
+            last_name: newProfile.last_name || '',
+            phone_number: newProfile.phone_number || '',
+            city: newProfile.city || '',
+            country: newProfile.country || ''
+          });
+        }
+      } else if (profileError) {
         console.error('Profile error:', profileError);
       } else {
         setProfile(profileData);
+        setProfileForm({
+          first_name: profileData.first_name || '',
+          last_name: profileData.last_name || '',
+          phone_number: profileData.phone_number || '',
+          city: profileData.city || '',
+          country: profileData.country || ''
+        });
       }
 
       // Load saved venues (check if table exists first)
@@ -102,6 +154,31 @@ const UserProfilePage = () => {
     }
   };
 
+  const updateProfile = async () => {
+    try {
+      const { data: updatedProfile, error } = await supabase
+        .from('user_profiles')
+        .update({
+          first_name: profileForm.first_name,
+          last_name: profileForm.last_name,
+          phone_number: profileForm.phone_number,
+          city: profileForm.city,
+          country: profileForm.country
+        })
+        .eq('id', user.id)
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setProfile(updatedProfile);
+      setEditingProfile(false);
+      console.log('Profile updated successfully');
+    } catch (error) {
+      console.error('Error updating profile:', error);
+    }
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
@@ -132,7 +209,14 @@ const UserProfilePage = () => {
       const userId = signUpData.user.id;
       const { error: profileError } = await supabase
         .from('user_profiles')
-        .insert([{ id: userId, first_name: '', last_name: '', phone_number: '' }]);
+        .insert([{ 
+          id: userId, 
+          first_name: signupForm.firstName, 
+          last_name: signupForm.lastName, 
+          phone_number: '',
+          city: signupForm.city,
+          country: signupForm.country
+        }]);
       if (profileError) {
         console.error('Insert error:', profileError);
         setSignupError(profileError.message);
@@ -146,10 +230,30 @@ const UserProfilePage = () => {
   if (!user) {
     return (
       <div className="bg-brand-cream/50 min-h-screen">
-        <div className="max-w-md mx-auto mt-16 p-8 bg-white rounded shadow mb-20">
+        <div className="max-w-lg mx-auto mt-16 p-8 bg-white rounded shadow mb-20">
           <h2 className="text-2xl font-bold mb-4 text-brand-burgundy">{isSignup ? 'Sign Up' : 'Login to your profile'}</h2>
           {isSignup ? (
             <form onSubmit={handleSignup} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input
+                  type="text"
+                  name="firstName"
+                  placeholder="First Name"
+                  value={signupForm.firstName}
+                  onChange={e => setSignupForm({ ...signupForm, firstName: e.target.value })}
+                  className="w-full border p-2 rounded bg-white"
+                  required
+                />
+                <input
+                  type="text"
+                  name="lastName"
+                  placeholder="Last Name"
+                  value={signupForm.lastName}
+                  onChange={e => setSignupForm({ ...signupForm, lastName: e.target.value })}
+                  className="w-full border p-2 rounded bg-white"
+                  required
+                />
+              </div>
               <input
                 type="email"
                 name="email"
@@ -159,6 +263,26 @@ const UserProfilePage = () => {
                 className="w-full border p-2 rounded bg-white"
                 required
               />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input
+                  type="text"
+                  name="city"
+                  placeholder="City"
+                  value={signupForm.city}
+                  onChange={e => setSignupForm({ ...signupForm, city: e.target.value })}
+                  className="w-full border p-2 rounded bg-white"
+                  required
+                />
+                <input
+                  type="text"
+                  name="country"
+                  placeholder="Country"
+                  value={signupForm.country}
+                  onChange={e => setSignupForm({ ...signupForm, country: e.target.value })}
+                  className="w-full border p-2 rounded bg-white"
+                  required
+                />
+              </div>
               <input
                 type="password"
                 name="password"
@@ -278,27 +402,127 @@ const UserProfilePage = () => {
           <TabsContent value="profile">
             <Card className="bg-white border-brand-burgundy/10">
               <div className="p-2 sm:p-4 md:p-6">
-                <h2 className="text-xl font-semibold mb-4">Profile Information</h2>
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-semibold">Profile Information</h2>
+                  {profile && !editingProfile && (
+                    <Button
+                      onClick={() => setEditingProfile(true)}
+                      variant="outline"
+                      className="border-brand-gold text-brand-gold hover:bg-brand-gold/10"
+                    >
+                      Edit Profile
+                    </Button>
+                  )}
+                </div>
                 {profile ? (
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-brand-burgundy/70">Email</label>
-                      <p className="mt-1">{user.email}</p>
-            </div>
-                  <div>
-                      <label className="block text-sm font-medium text-brand-burgundy/70">Name</label>
-                      <p className="mt-1">{profile.first_name} {profile.last_name}</p>
-                  </div>
-                  <div>
-                      <label className="block text-sm font-medium text-brand-burgundy/70">Phone</label>
-                      <p className="mt-1">{profile.phone_number || 'Not set'}</p>
-                  </div>
-                  </div>
+                  editingProfile ? (
+                    <div className="space-y-4 max-w-md">
+                      <div>
+                        <label className="block text-sm font-medium text-brand-burgundy/70 mb-1">Email</label>
+                        <p className="text-sm text-brand-burgundy/50">{user.email} (cannot be changed)</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-brand-burgundy/70 mb-1">First Name</label>
+                        <Input
+                          value={profileForm.first_name}
+                          onChange={(e) => setProfileForm(prev => ({...prev, first_name: e.target.value}))}
+                          placeholder="Enter first name"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-brand-burgundy/70 mb-1">Last Name</label>
+                        <Input
+                          value={profileForm.last_name}
+                          onChange={(e) => setProfileForm(prev => ({...prev, last_name: e.target.value}))}
+                          placeholder="Enter last name"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-brand-burgundy/70 mb-1">Phone Number</label>
+                        <Input
+                          value={profileForm.phone_number}
+                          onChange={(e) => setProfileForm(prev => ({...prev, phone_number: e.target.value}))}
+                          placeholder="Enter phone number"
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-brand-burgundy/70 mb-1">City</label>
+                          <Input
+                            value={profileForm.city}
+                            onChange={(e) => setProfileForm(prev => ({...prev, city: e.target.value}))}
+                            placeholder="Enter city"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-brand-burgundy/70 mb-1">Country</label>
+                          <Input
+                            value={profileForm.country}
+                            onChange={(e) => setProfileForm(prev => ({...prev, country: e.target.value}))}
+                            placeholder="Enter country"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          onClick={updateProfile}
+                          className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90"
+                        >
+                          Save Changes
+                        </Button>
+                        <Button
+                          onClick={() => {
+                            setEditingProfile(false);
+                            setProfileForm({
+                              first_name: profile.first_name || '',
+                              last_name: profile.last_name || '',
+                              phone_number: profile.phone_number || '',
+                              city: profile.city || '',
+                              country: profile.country || ''
+                            });
+                          }}
+                          variant="outline"
+                          className="border-brand-burgundy text-brand-burgundy hover:bg-brand-burgundy/10"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-sm font-medium text-brand-burgundy/70">Email</label>
+                        <p className="mt-1">{user.email}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-brand-burgundy/70">Name</label>
+                        <p className="mt-1">{profile.first_name || profile.last_name ? `${profile.first_name} ${profile.last_name}` : 'Not set'}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-brand-burgundy/70">Phone</label>
+                        <p className="mt-1">{profile.phone_number || 'Not set'}</p>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-brand-burgundy/70">City</label>
+                          <p className="mt-1">{profile.city || 'Not set'}</p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-brand-burgundy/70">Country</label>
+                          <p className="mt-1">{profile.country || 'Not set'}</p>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-brand-burgundy/70">Member Since</label>
+                        <p className="mt-1">{new Date(profile.created_at || user.created_at).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  )
                 ) : (
                   <p>Loading profile...</p>
                 )}
-                </div>
-          </Card>
+              </div>
+            </Card>
           </TabsContent>
 
           <TabsContent value="saved">
