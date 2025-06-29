@@ -24,6 +24,7 @@ import SupabaseTest from './components/SupabaseTest';
 import AuthTestPage from './pages/AuthTestPage';
 import EmailTest from './components/EmailTest';
 import MapTest from './components/MapTest';
+import SplitPaymentPage from './pages/SplitPaymentPage';
 import { AuthProvider } from './contexts/AuthContext';
 import HomePage from './pages/HomePage';
 import RegisterPage from './pages/RegisterPage';
@@ -44,6 +45,7 @@ const App = () => {
             <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/checkout/:id" element={<CheckoutPage />} />
             <Route path="/checkout/deposit" element={<CheckoutPage />} />
+            <Route path="/split-payment/:bookingId/:requestId" element={<SplitPaymentPage />} />
             <Route path="/explore" element={<ExplorePage />} />
 
             {/* Customer Routes */}

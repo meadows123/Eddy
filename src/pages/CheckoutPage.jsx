@@ -7,10 +7,12 @@ import { useToast } from '@/components/ui/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import CheckoutForm from '@/components/checkout/CheckoutForm';
 import OrderSummary from '@/components/checkout/OrderSummary';
-import { validateCheckoutForm } from '@/lib/validation';
+import SplitPaymentForm from '@/components/checkout/SplitPaymentForm';
+import { validateCheckoutForm } from '@/lib/formValidation';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Copy } from 'lucide-react';
@@ -52,6 +54,7 @@ const CheckoutPage = () => {
   const [splitAmounts, setSplitAmounts] = useState([]);
   const [splitLinks, setSplitLinks] = useState([]);
   const [showShareDialog, setShowShareDialog] = useState(false);
+  const [splitPaymentRequests, setSplitPaymentRequests] = useState([]);
   
   // Fetch user profile if authenticated
   useEffect(() => {
@@ -411,6 +414,11 @@ const CheckoutPage = () => {
       description: "Share this link with your friends to collect payment.",
     });
   };
+
+  const handleSplitPaymentCreated = (requests) => {
+    setSplitPaymentRequests(requests);
+    setShowShareDialog(true);
+  };
   
   if (loading) {
     return (
@@ -488,62 +496,12 @@ const CheckoutPage = () => {
               </TabsContent>
 
               <TabsContent value="split">
-                <div className="space-y-6">
-                  <div className="flex items-center gap-4">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => handleSplitCountChange(splitCount - 1)}
-                      disabled={splitCount <= 1}
-                    >
-                      <Minus className="h-4 w-4" />
-                    </Button>
-                    <div className="flex-1">
-                      <Label>Split between {splitCount} people</Label>
-                      <div className="text-sm text-brand-burgundy/70">
-                        ₦{Math.ceil(calculateTotal() / splitCount).toLocaleString()} per person
-                      </div>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => handleSplitCountChange(splitCount + 1)}
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  <div className="space-y-4">
-                    {splitAmounts.map((amount, index) => (
-                      <div key={index} className="flex items-center gap-4">
-                        <div className="flex-1">
-                          <Label>Person {index + 1}</Label>
-                          <div className="text-sm text-brand-burgundy/70">
-                            ₦{amount.toLocaleString()}
-                          </div>
-                        </div>
-                        {splitLinks[index] && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => copyToClipboard(splitLinks[index])}
-                          >
-                            <Copy className="h-4 w-4 mr-2" />
-                            Copy Link
-                          </Button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-
-                  <Button 
-                    className="w-full bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90"
-                    onClick={generateSplitLinks}
-                  >
-                    <Share2 className="h-4 w-4 mr-2" />
-                    Generate Split Links
-                  </Button>
-                </div>
+                <SplitPaymentForm
+                  totalAmount={parseFloat(calculateTotal())}
+                  onSplitCreated={handleSplitPaymentCreated}
+                  user={userProfile || user}
+                  bookingId={selection?.id || 'temp-booking-id'}
+                />
               </TabsContent>
             </Tabs>
           </motion.div>
@@ -601,32 +559,56 @@ const CheckoutPage = () => {
         </DialogContent>
       </Dialog>
 
-      {/* Share Dialog */}
+      {/* Split Payment Requests Dialog */}
       <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
         <DialogContent aria-describedby="checkout-dialog-desc-2">
-          <div id="checkout-dialog-desc-2" className="sr-only">Confirm your booking and review your order details.</div>
+          <div id="checkout-dialog-desc-2" className="sr-only">View and manage your split payment requests.</div>
           <DialogHeader>
-            <DialogTitle>Share Payment Links</DialogTitle>
+            <DialogTitle>Split Payment Requests Sent</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {splitLinks.map((link, index) => (
-              <div key={index} className="flex items-center gap-4">
-                <div className="flex-1">
-                  <Label>Person {index + 1}</Label>
-                  <div className="text-sm text-brand-burgundy/70 break-all">
-                    {link}
+            {splitPaymentRequests.length > 0 ? (
+              splitPaymentRequests.map((request, index) => (
+                <div key={request.id} className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-brand-burgundy/10 rounded-full flex items-center justify-center">
+                        <User className="h-4 w-4 text-brand-burgundy" />
+                      </div>
+                      <div>
+                        <div className="font-medium">Recipient {index + 1}</div>
+                        <div className="text-sm text-muted-foreground">
+                          {request.recipient_phone}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-bold">₦{request.amount.toLocaleString()}</div>
+                      <Badge variant="outline" className="text-xs">
+                        {request.status}
+                      </Badge>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 mt-3">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => copyToClipboard(request.payment_link)}
+                      className="flex-1"
+                    >
+                      <Copy className="h-4 w-4 mr-2" />
+                      Copy Payment Link
+                    </Button>
                   </div>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => copyToClipboard(link)}
-                >
-                  <Copy className="h-4 w-4 mr-2" />
-                  Copy
-                </Button>
+              ))
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No split payment requests created yet.</p>
               </div>
-            ))}
+            )}
+            
             <div className="flex justify-end gap-4 mt-6">
               <Button
                 variant="outline"
@@ -641,7 +623,7 @@ const CheckoutPage = () => {
                   navigate('/bookings');
                 }}
               >
-                Done
+                View All Bookings
               </Button>
             </div>
           </div>
