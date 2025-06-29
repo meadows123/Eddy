@@ -15,12 +15,14 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Copy } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 
 const CheckoutPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
+  const { user } = useAuth();
   
   // Check if this is a deposit flow
   const isDepositFlow = location.pathname.includes('/deposit');
@@ -39,6 +41,7 @@ const CheckoutPage = () => {
     agreeToTerms: false,
     referralCode: ''
   });
+  const [userProfile, setUserProfile] = useState(null);
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
@@ -50,6 +53,38 @@ const CheckoutPage = () => {
   const [splitLinks, setSplitLinks] = useState([]);
   const [showShareDialog, setShowShareDialog] = useState(false);
   
+  // Fetch user profile if authenticated
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (user) {
+        try {
+          const { data, error } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+
+          if (error && error.code !== 'PGRST116') {
+            console.error('Error fetching user profile:', error);
+          } else if (data) {
+            setUserProfile(data);
+            // Pre-fill form with user data
+            setFormData(prev => ({
+              ...prev,
+              fullName: `${data.first_name || ''} ${data.last_name || ''}`.trim() || user.user_metadata?.full_name || '',
+              email: user.email || '',
+              phone: data.phone_number || user.user_metadata?.phone || ''
+            }));
+          }
+        } catch (error) {
+          console.error('Error fetching user profile:', error);
+        }
+      }
+    };
+
+    fetchUserProfile();
+  }, [user]);
+
   useEffect(() => {
     console.log('CheckoutPage useEffect triggered');
     console.log('isDepositFlow:', isDepositFlow);
@@ -150,9 +185,31 @@ const CheckoutPage = () => {
     }
   };
 
-  const createUserAccount = async (userData) => {
+  const createOrUpdateUserAccount = async (userData) => {
     try {
-      // Check if user already exists
+      // If user is already authenticated, just update their profile if needed
+      if (user) {
+        // Update user profile with any new information
+        const { error: profileError } = await supabase
+          .from('user_profiles')
+          .upsert([{
+            id: user.id,
+            first_name: userData.fullName.split(' ')[0] || '',
+            last_name: userData.fullName.split(' ').slice(1).join(' ') || '',
+            phone_number: userData.phone
+          }], {
+            onConflict: 'id'
+          });
+
+        if (profileError) {
+          console.error('Error updating user profile:', profileError);
+        }
+
+        return user;
+      }
+
+      // For new users, create account
+      // First check if user already exists
       const { data: existingUser, error: checkError } = await supabase.auth.signInWithPassword({
         email: userData.email,
         password: userData.password
@@ -197,14 +254,14 @@ const CheckoutPage = () => {
 
       return newUser.user;
     } catch (error) {
-      console.error('Error creating user account:', error);
+      console.error('Error with user account:', error);
       throw error;
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const formErrors = validateCheckoutForm(formData);
+    const formErrors = validateCheckoutForm(formData, !!user);
     setErrors(formErrors);
 
     if (Object.keys(formErrors).length === 0) {
@@ -216,8 +273,8 @@ const CheckoutPage = () => {
           applyReferralCode(formData.referralCode);
         }
 
-        // Create user account
-        const user = await createUserAccount({
+        // Create or update user account
+        const currentUser = await createOrUpdateUserAccount({
           fullName: formData.fullName,
           email: formData.email,
           phone: formData.phone,
@@ -226,7 +283,7 @@ const CheckoutPage = () => {
 
         // Prepare booking data for database
         const bookingData = {
-          user_id: user?.id,
+          user_id: currentUser?.id,
           venue_id: selection.venueId || selection.id,
           table_id: selection.table?.id || null,
           booking_date: selection.date || new Date().toISOString().split('T')[0], // Use selected date or today
@@ -255,7 +312,7 @@ const CheckoutPage = () => {
           customerName: formData.fullName,
           customerEmail: formData.email,
           customerPhone: formData.phone,
-          userId: user?.id,
+          userId: currentUser?.id,
           bookingDate: new Date().toISOString(),
           status: 'confirmed',
           referralCode: formData.referralCode,
@@ -270,32 +327,28 @@ const CheckoutPage = () => {
         localStorage.setItem('lagosvibe_bookings', JSON.stringify(bookings));
         localStorage.removeItem('lagosvibe_booking_selection');
 
-        // Send confirmation email
+        // Send confirmation email (non-blocking)
         const emailSent = await sendBookingConfirmationEmail({
           ...newBooking,
           bookingId: bookingRecord.id,
           venueName: selection.venueName || selection.name
         });
 
-        if (emailSent) {
-          // Unlock VIP perks
-          const unlockedPerks = ["Free Welcome Drink", "Priority Queue"];
-          localStorage.setItem('lagosvibe_vip_perks', JSON.stringify(unlockedPerks));
-          
-          toast({ 
-            title: "Account Created & Booking Confirmed!", 
-            description: "Welcome to VIPClub! Check your email for confirmation.",
-            className: "bg-green-500 text-white"
-          });
+        // Unlock VIP perks
+        const unlockedPerks = ["Free Welcome Drink", "Priority Queue"];
+        localStorage.setItem('lagosvibe_vip_perks', JSON.stringify(unlockedPerks));
+        
+        // Show success message regardless of email status
+        const isNewUser = !user;
+        toast({ 
+          title: isNewUser ? "Account Created & Booking Confirmed!" : "Booking Confirmed!", 
+          description: emailSent 
+            ? (isNewUser ? "Welcome to VIPClub! Check your email for confirmation." : "Your booking is confirmed! Check your email for confirmation.")
+            : (isNewUser ? "Welcome to VIPClub! Your booking is confirmed. Check your profile for details." : "Your booking is confirmed. Check your profile for details."),
+          className: "bg-green-500 text-white"
+        });
 
-          setShowConfirmation(true);
-        } else {
-          toast({
-            title: "Booking Confirmed",
-            description: "Email confirmation failed to send, but your booking is confirmed. Check your profile for booking details.",
-            variant: "default",
-          });
-        }
+        setShowConfirmation(true);
 
       } catch (error) {
         console.error('Error processing booking:', error);
@@ -415,6 +468,7 @@ const CheckoutPage = () => {
                   handleSubmit={handleSubmit}
                   isSubmitting={isSubmitting}
                   totalAmount={calculateTotal()}
+                  isAuthenticated={!!user}
                   icons={{
                     user: <User className="h-5 w-5 mr-2" />
                   }}
