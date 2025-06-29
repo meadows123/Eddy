@@ -173,20 +173,28 @@ const CheckoutPage = () => {
     };
 
     try {
+      const emailServiceAvailable = isEmailServiceAvailable();
+      
+      console.log('Email service debug:', {
+        emailServiceAvailable,
+        willUseFallback: !emailServiceAvailable
+      });
+      
       // Use fallback email service in development
-      if (!isEmailServiceAvailable()) {
+      if (!emailServiceAvailable) {
         const result = await sendEmailFallback(emailData);
-        console.log('Development email simulation:', result.message);
-        return true; // Simulate success in development
+        console.log('Email simulation result:', result.message);
+        return true; // Simulate success
       }
 
-      // Use real email service in production
+      // Use real email service in production (when override is removed)
       const { data, error } = await supabase.functions.invoke('send-email', {
         body: emailData
       });
 
       if (error) {
         console.warn('Email service error:', error.message);
+        console.warn('Email error details:', error);
         return false; // Email failed but don't throw
       }
 
@@ -194,6 +202,13 @@ const CheckoutPage = () => {
       return true; // Email sent successfully
     } catch (error) {
       console.warn('Email service unavailable:', error.message);
+      console.warn('Full error:', error);
+      
+      // Check if it's a 500 error and provide helpful message
+      if (error.message && error.message.includes('500')) {
+        console.warn('Email service configuration issue - likely missing SMTP settings');
+      }
+      
       // Don't block the booking process if email service is unavailable
       return false; // Email failed but don't throw
     }
