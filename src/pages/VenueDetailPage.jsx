@@ -44,10 +44,38 @@ const VenueDetailPage = () => {
           console.error('Error fetching tables:', tablesError);
         }
 
-        // Add tables to venue object
+        // Fetch images for this venue
+        const { data: imagesData, error: imagesError } = await supabase
+          .from('venue_images')
+          .select('*')
+          .eq('venue_id', id)
+          .order('is_primary', { ascending: false });
+
+        if (imagesError) {
+          console.error('Error fetching images:', imagesError);
+        }
+
+        // Process images to ensure primary image is first
+        let processedImages = [];
+        if (imagesData && imagesData.length > 0) {
+          // Find primary image
+          const primaryImage = imagesData.find(img => img.is_primary);
+          const otherImages = imagesData.filter(img => !img.is_primary);
+          
+          // Put primary image first, then other images
+          if (primaryImage) {
+            processedImages = [primaryImage.image_url, ...otherImages.map(img => img.image_url)];
+          } else {
+            // If no primary image, just use all images
+            processedImages = imagesData.map(img => img.image_url);
+          }
+        }
+
+        // Add tables and images to venue object
         const venueWithTables = {
           ...venueData,
           tables: tablesData || [],
+          images: processedImages,
           tickets: [] // For now, no tickets from database
         };
 
@@ -177,7 +205,14 @@ const VenueDetailPage = () => {
         <img   
           className="w-full h-full object-cover" 
           alt={`Interior or exterior of ${venue.name}`}
-         src="https://images.unsplash.com/photo-1632111162953-c58fa2fa1080" />
+          src={venue.images && venue.images.length > 0 
+            ? venue.images[0] 
+            : "https://images.unsplash.com/photo-1632111162953-c58fa2fa1080"
+          }
+          onError={(e) => {
+            e.target.src = "https://images.unsplash.com/photo-1632111162953-c58fa2fa1080";
+          }}
+        />
         <div className="absolute inset-0 bg-gradient-to-t from-brand-burgundy/70 via-brand-burgundy/30 to-transparent"></div>
         <div className="absolute bottom-0 left-0 p-6 md:p-12 container">
           <motion.h1 
@@ -291,17 +326,29 @@ const VenueDetailPage = () => {
                  <Card className="bg-white p-6 md:p-8 rounded-xl shadow-lg border-brand-burgundy/10 mb-8">
                     <h2 className="text-3xl font-heading text-brand-burgundy mb-6">Gallery</h2>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        {venue.images && venue.images.slice(1, 7).map((img, index) => ( // Show up to 6 more images
+                        {venue.images.slice(1, 7).map((img, index) => ( // Show up to 6 more images
                             <motion.div 
                                 key={index}
-                                className="aspect-square rounded-lg overflow-hidden shadow-md"
+                                className="aspect-square rounded-lg overflow-hidden shadow-md cursor-pointer hover:shadow-lg transition-shadow"
                                 whileHover={{ scale: 1.05 }}
                                 transition={{ type: 'spring', stiffness: 300 }}
                             >
-                                <img  className="w-full h-full object-cover" alt={`${venue.name} gallery image ${index + 1}`} src="https://images.unsplash.com/photo-1688046671828-c26b7fd54596" />
+                                <img  
+                                  className="w-full h-full object-cover" 
+                                  alt={`${venue.name} gallery image ${index + 2}`} 
+                                  src={img}
+                                  onError={(e) => {
+                                    e.target.src = "https://images.unsplash.com/photo-1688046671828-c26b7fd54596";
+                                  }}
+                                />
                             </motion.div>
                         ))}
                     </div>
+                    {venue.images.length > 7 && (
+                      <p className="text-center text-brand-burgundy/60 text-sm mt-4">
+                        + {venue.images.length - 7} more photos
+                      </p>
+                    )}
                 </Card>
             )}
 
