@@ -11,7 +11,7 @@ import { Badge } from '../../components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../components/ui/use-toast';
-import { Save, Phone, Mail, MapPin, Clock, Users, Plus, Trash2, UserPlus, Settings, Bell, Calendar } from 'lucide-react';
+import { Save, Phone, Mail, MapPin, Clock, Users, Plus, Trash2, UserPlus, Settings, Bell, Calendar, User } from 'lucide-react';
 
 const VenueOwnerSettings = () => {
   const navigate = useNavigate();

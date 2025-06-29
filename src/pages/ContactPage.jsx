@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { useToast } from '@/components/ui/use-toast';
-import { Mail, Phone, MapPin } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Textarea } from '../components/ui/textarea';
+import { useToast } from '../components/ui/use-toast';
+import { Mail, Phone, MapPin, Clock, Send } from 'lucide-react';
 
 const ContactPage = () => {
   const { toast } = useToast();
@@ -13,132 +13,246 @@ const ContactPage = () => {
     name: '',
     email: '',
     subject: '',
-    message: '',
+    message: ''
   });
-  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    if (errors[name]) {
-      setErrors(prev => ({...prev, [name]: null}));
-    }
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
-  const validateForm = () => {
-    const newErrors = {};
-    if (!formData.name.trim()) newErrors.name = "Name is required.";
-    if (!formData.email.trim()) {
-      newErrors.email = "Email is required.";
-    } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = "Email is invalid.";
-    }
-    if (!formData.subject.trim()) newErrors.subject = "Subject is required.";
-    if (!formData.message.trim()) newErrors.message = "Message is required.";
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  }
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (validateForm()) {
-      // Simulate form submission
-      console.log("Form data submitted:", formData);
+    setLoading(true);
+
+    // Simulate form submission
+    setTimeout(() => {
       toast({
-        title: "Message Sent!",
-        description: "Thanks for reaching out. We'll get back to you soon.",
-        className: "bg-primary text-primary-foreground"
+        title: 'Message Sent!',
+        description: 'Thank you for contacting us. We\'ll get back to you within 24 hours.',
+        className: 'bg-green-500 text-white'
       });
       setFormData({ name: '', email: '', subject: '', message: '' });
-    } else {
-      toast({
-        title: "Oops!",
-        description: "Please fill out all required fields correctly.",
-        variant: "destructive"
-      });
-    }
+      setLoading(false);
+    }, 1000);
   };
 
   return (
-    <div className="py-12 md:py-20 bg-gradient-to-b from-background to-background/90">
-      <div className="container">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6 }}
-          className="text-center mb-12 md:mb-16"
-        >
-          <h1 className="text-4xl md:text-5xl font-bold font-heading mb-4 text-primary glow-text">Get In Touch</h1>
-          <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
-            Have questions, feedback, or partnership inquiries? We'd love to hear from you.
+    <div className="bg-brand-cream/50 min-h-screen py-12">
+      <div className="container mx-auto px-4">
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-heading text-brand-burgundy mb-4">Contact Us</h1>
+          <p className="text-brand-burgundy/70 text-lg max-w-2xl mx-auto">
+            Get in touch with our team. We're here to help with bookings, partnerships, or any questions you may have.
           </p>
-        </motion.div>
+        </div>
 
-        <div className="grid md:grid-cols-2 gap-10 md:gap-16">
-          <motion.div
-            initial={{ opacity: 0, x: -30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.7, delay: 0.2 }}
-            className="space-y-8"
-          >
-            <div>
-              <h2 className="text-2xl font-heading font-semibold mb-4 text-secondary">Contact Information</h2>
-              <div className="space-y-4 text-muted-foreground">
-                <p className="flex items-center"><Mail className="h-5 w-5 mr-3 text-primary" /> support@nightvibe.app</p>
-                <p className="flex items-center"><Phone className="h-5 w-5 mr-3 text-primary" /> +44 20 1234 5678</p>
-                <p className="flex items-center"><MapPin className="h-5 w-5 mr-3 text-primary" /> 123 Party Lane, London, UK</p>
-              </div>
-            </div>
-            <div>
-              <h2 className="text-2xl font-heading font-semibold mb-4 text-secondary">Business Hours</h2>
-              <div className="space-y-1 text-muted-foreground">
-                <p>Monday - Friday: 9:00 AM - 6:00 PM (GMT)</p>
-                <p>Saturday: 10:00 AM - 4:00 PM (GMT)</p>
-                <p>Sunday: Closed</p>
-              </div>
-            </div>
-             <div className="mt-8 md:mt-0">
-                <img  
-                    src="https://images.unsplash.com/photo-1534536281715-e28d76689b4d" 
-                    alt="Modern office with communication theme"
-                    className="rounded-lg shadow-xl object-cover w-full h-auto aspect-[16/9] border-2 border-secondary"
-                />
-            </div>
-          </motion.div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Contact Information */}
+          <div className="lg:col-span-1">
+            <Card className="bg-white border-brand-burgundy/10 h-fit">
+              <CardHeader>
+                <CardTitle className="text-brand-burgundy">Get in Touch</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-start space-x-4">
+                  <div className="p-2 bg-brand-gold/20 rounded-full">
+                    <Mail className="h-5 w-5 text-brand-burgundy" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-brand-burgundy">Email</h3>
+                    <p className="text-brand-burgundy/70">info@vipclub.ng</p>
+                    <p className="text-brand-burgundy/70">support@vipclub.ng</p>
+                  </div>
+                </div>
 
-          <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.7, delay: 0.4 }}
-            className="bg-card p-6 md:p-8 rounded-lg shadow-xl border border-border/70 glass-effect"
-          >
-            <h2 className="text-2xl font-heading font-semibold mb-6 text-secondary">Send Us a Message</h2>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <Label htmlFor="name" className="text-foreground">Full Name</Label>
-                <Input type="text" id="name" name="name" value={formData.name} onChange={handleChange} placeholder="Your Name" className={`mt-1 ${errors.name ? 'border-destructive' : ''}`} />
-                {errors.name && <p className="text-sm text-destructive mt-1">{errors.name}</p>}
-              </div>
-              <div>
-                <Label htmlFor="email" className="text-foreground">Email Address</Label>
-                <Input type="email" id="email" name="email" value={formData.email} onChange={handleChange} placeholder="you@example.com" className={`mt-1 ${errors.email ? 'border-destructive' : ''}`} />
-                {errors.email && <p className="text-sm text-destructive mt-1">{errors.email}</p>}
-              </div>
-              <div>
-                <Label htmlFor="subject" className="text-foreground">Subject</Label>
-                <Input type="text" id="subject" name="subject" value={formData.subject} onChange={handleChange} placeholder="What's this about?" className={`mt-1 ${errors.subject ? 'border-destructive' : ''}`} />
-                {errors.subject && <p className="text-sm text-destructive mt-1">{errors.subject}</p>}
-              </div>
-              <div>
-                <Label htmlFor="message" className="text-foreground">Message</Label>
-                <Textarea id="message" name="message" value={formData.message} onChange={handleChange} placeholder="Your message here..." rows={5} className={`mt-1 ${errors.message ? 'border-destructive' : ''}`} />
-                {errors.message && <p className="text-sm text-destructive mt-1">{errors.message}</p>}
-              </div>
-              <Button type="submit" className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity text-accent-foreground text-lg py-3">
-                Send Message
-              </Button>
-            </form>
-          </motion.div>
+                <div className="flex items-start space-x-4">
+                  <div className="p-2 bg-brand-gold/20 rounded-full">
+                    <Phone className="h-5 w-5 text-brand-burgundy" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-brand-burgundy">Phone</h3>
+                    <p className="text-brand-burgundy/70">+234 (0) 123 456 7890</p>
+                    <p className="text-brand-burgundy/70">+234 (0) 987 654 3210</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-4">
+                  <div className="p-2 bg-brand-gold/20 rounded-full">
+                    <MapPin className="h-5 w-5 text-brand-burgundy" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-brand-burgundy">Address</h3>
+                    <p className="text-brand-burgundy/70">
+                      VIP Club HQ<br />
+                      123 Victoria Island<br />
+                      Lagos, Nigeria
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-4">
+                  <div className="p-2 bg-brand-gold/20 rounded-full">
+                    <Clock className="h-5 w-5 text-brand-burgundy" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-brand-burgundy">Business Hours</h3>
+                    <p className="text-brand-burgundy/70">
+                      Monday - Friday: 9:00 AM - 6:00 PM<br />
+                      Saturday: 10:00 AM - 4:00 PM<br />
+                      Sunday: Closed
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Quick Links */}
+            <Card className="bg-white border-brand-burgundy/10 mt-6">
+              <CardHeader>
+                <CardTitle className="text-brand-burgundy">Quick Links</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div>
+                  <h4 className="font-medium text-brand-burgundy mb-2">For Customers</h4>
+                  <ul className="space-y-1 text-brand-burgundy/70">
+                    <li>• Booking Help & Support</li>
+                    <li>• Payment Issues</li>
+                    <li>• Account Management</li>
+                  </ul>
+                </div>
+                <div>
+                  <h4 className="font-medium text-brand-burgundy mb-2">For Venue Owners</h4>
+                  <ul className="space-y-1 text-brand-burgundy/70">
+                    <li>• Partnership Inquiries</li>
+                    <li>• Technical Support</li>
+                    <li>• Account Setup</li>
+                  </ul>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Contact Form */}
+          <div className="lg:col-span-2">
+            <Card className="bg-white border-brand-burgundy/10">
+              <CardHeader>
+                <CardTitle className="text-brand-burgundy">Send us a Message</CardTitle>
+                <p className="text-brand-burgundy/70">
+                  Fill out the form below and we'll get back to you as soon as possible.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleSubmit} className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <Label htmlFor="name" className="text-brand-burgundy">Full Name</Label>
+                      <Input
+                        id="name"
+                        name="name"
+                        type="text"
+                        required
+                        value={formData.name}
+                        onChange={handleChange}
+                        className="mt-1 border-brand-burgundy/20 focus:border-brand-burgundy"
+                        placeholder="Enter your full name"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="email" className="text-brand-burgundy">Email Address</Label>
+                      <Input
+                        id="email"
+                        name="email"
+                        type="email"
+                        required
+                        value={formData.email}
+                        onChange={handleChange}
+                        className="mt-1 border-brand-burgundy/20 focus:border-brand-burgundy"
+                        placeholder="Enter your email"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="subject" className="text-brand-burgundy">Subject</Label>
+                    <Input
+                      id="subject"
+                      name="subject"
+                      type="text"
+                      required
+                      value={formData.subject}
+                      onChange={handleChange}
+                      className="mt-1 border-brand-burgundy/20 focus:border-brand-burgundy"
+                      placeholder="What is this regarding?"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="message" className="text-brand-burgundy">Message</Label>
+                    <Textarea
+                      id="message"
+                      name="message"
+                      required
+                      value={formData.message}
+                      onChange={handleChange}
+                      className="mt-1 border-brand-burgundy/20 focus:border-brand-burgundy"
+                      placeholder="Tell us more about your inquiry..."
+                      rows={6}
+                    />
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full bg-brand-burgundy text-white hover:bg-brand-burgundy/90"
+                  >
+                    {loading ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4 mr-2" />
+                        Send Message
+                      </>
+                    )}
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+
+            {/* FAQ Section */}
+            <Card className="bg-white border-brand-burgundy/10 mt-6">
+              <CardHeader>
+                <CardTitle className="text-brand-burgundy">Frequently Asked Questions</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div>
+                  <h4 className="font-medium text-brand-burgundy mb-2">How do I make a booking?</h4>
+                  <p className="text-brand-burgundy/70 text-sm">
+                    Simply browse our venues, select your preferred date and time, choose your table or ticket, and complete the payment process.
+                  </p>
+                </div>
+                <div>
+                  <h4 className="font-medium text-brand-burgundy mb-2">Can I cancel my booking?</h4>
+                  <p className="text-brand-burgundy/70 text-sm">
+                    Yes, cancellations are allowed based on each venue's policy. Check your booking confirmation for specific cancellation terms.
+                  </p>
+                </div>
+                <div>
+                  <h4 className="font-medium text-brand-burgundy mb-2">How do I become a venue partner?</h4>
+                  <p className="text-brand-burgundy/70 text-sm">
+                    Visit our venue owner registration page or contact us directly to discuss partnership opportunities.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>

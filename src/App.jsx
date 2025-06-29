@@ -28,6 +28,12 @@ import SplitPaymentPage from './pages/SplitPaymentPage';
 import { AuthProvider } from './contexts/AuthContext';
 import HomePage from './pages/HomePage';
 import RegisterPage from './pages/RegisterPage';
+// New pages for footer links
+import AboutPage from './pages/AboutPage';
+import ContactPage from './pages/ContactPage';
+import TermsPage from './pages/TermsPage';
+import PrivacyPage from './pages/PrivacyPage';
+import FAQPage from './pages/FAQPage';
 
 const App = () => {
 
@@ -52,6 +58,13 @@ const App = () => {
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/bookings" element={<BookingsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+
+            {/* Information Pages */}
+            <Route path="/about" element={<AboutPage />} />
+            <Route path="/contact" element={<ContactPage />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/faq" element={<FAQPage />} />
 
             {/* Venue Owner Routes */}
             <Route path="/venue-owner/login" element={<VenueOwnerLogin />} />
