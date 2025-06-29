@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Map, { Marker, Popup } from 'react-map-gl';
 import { supabase } from '../lib/supabase';
-import { MapPin, Star, DollarSign, Users, Phone, Mail, ExternalLink, Filter, Search } from 'lucide-react';
+import { MapPin, Star, DollarSign, Users, Phone, Mail, ExternalLink, Filter, Search, Navigation, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -14,6 +14,10 @@ const ExplorePage = () => {
   const [selectedVenue, setSelectedVenue] = useState(null);
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState(null);
+  const [mapCenter, setMapCenter] = useState({ lat: 6.5244, lng: 3.3792 }); // Default to Lagos
+  const [mapZoom, setMapZoom] = useState(11);
+  const [locationPermissionDenied, setLocationPermissionDenied] = useState(false);
+  const [gettingLocation, setGettingLocation] = useState(true);
   const [filters, setFilters] = useState({
     search: '',
     type: 'all',
@@ -25,18 +29,77 @@ const ExplorePage = () => {
 
   // Fetch user location
   useEffect(() => {
-    navigator.geolocation?.getCurrentPosition(
-      (position) => {
-        setUserLocation({
-          lat: position.coords.latitude,
-          lng: position.coords.longitude
-        });
-      },
-      () => {
-        // Fallback to Lagos coordinates
-        setUserLocation({ lat: 6.5244, lng: 3.3792 });
+    const getUserLocation = () => {
+      if (!navigator.geolocation) {
+        console.log('Geolocation is not supported by this browser');
+        setUserLocation({ lat: 6.5244, lng: 3.3792 }); // Fallback to Lagos
+        return;
       }
-    );
+
+      // Show loading state while getting location
+      console.log('Getting user location...');
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const userLat = position.coords.latitude;
+          const userLng = position.coords.longitude;
+          console.log('User location detected:', { lat: userLat, lng: userLng });
+          
+          const userLocationData = {
+            lat: userLat,
+            lng: userLng
+          };
+          
+          setUserLocation(userLocationData);
+          setMapCenter(userLocationData);
+          setGettingLocation(false);
+          
+          // Set zoom level based on accuracy
+          const accuracy = position.coords.accuracy;
+          let zoom = 13; // Default zoom for user location
+          
+          if (accuracy > 1000) {
+            zoom = 11; // Less accurate, zoom out more
+          } else if (accuracy < 100) {
+            zoom = 15; // Very accurate, zoom in more
+          }
+          
+          setMapZoom(zoom);
+        },
+        (error) => {
+          console.log('Geolocation error:', error);
+          let fallbackLocation = { lat: 6.5244, lng: 3.3792 }; // Lagos default
+          
+          switch(error.code) {
+            case error.PERMISSION_DENIED:
+              console.log('User denied location permission, using Lagos as default');
+              setLocationPermissionDenied(true);
+              break;
+            case error.POSITION_UNAVAILABLE:
+              console.log('Location information unavailable, using Lagos as default');
+              break;
+            case error.TIMEOUT:
+              console.log('Location request timed out, using Lagos as default');
+              break;
+            default:
+              console.log('Unknown location error, using Lagos as default');
+              break;
+          }
+          
+          setUserLocation(fallbackLocation);
+          setMapCenter(fallbackLocation);
+          setMapZoom(11); // Default zoom for Lagos
+          setGettingLocation(false);
+        },
+        {
+          enableHighAccuracy: true,
+          timeout: 10000, // 10 seconds timeout
+          maximumAge: 300000 // Accept cached position up to 5 minutes old
+        }
+      );
+    };
+
+    getUserLocation();
   }, []);
 
   // Fetch venues from Supabase
@@ -125,28 +188,49 @@ const ExplorePage = () => {
     setFilteredVenues(filtered);
   }, [venues, filters]);
 
-  // Auto-fit map to venues
+  // Fly to user location when detected
   useEffect(() => {
-    if (!mapRef.current || !filteredVenues.length) return;
+    if (!mapRef.current || !userLocation) return;
     
     const map = mapRef.current.getMap();
     
-    if (filteredVenues.length === 1) {
-      map.flyTo({
-        center: [filteredVenues[0].lng, filteredVenues[0].lat],
-        zoom: 14,
-        duration: 1000
-      });
-    } else if (filteredVenues.length > 1) {
-      const lats = filteredVenues.map(v => v.lat);
-      const lngs = filteredVenues.map(v => v.lng);
-      const bounds = [
-        [Math.min(...lngs) - 0.01, Math.min(...lats) - 0.01],
-        [Math.max(...lngs) + 0.01, Math.max(...lats) + 0.01]
-      ];
-      map.fitBounds(bounds, { padding: 50, duration: 1000 });
+    // Only fly to user location if we have it and it's not the default Lagos location
+    if (userLocation.lat !== 6.5244 || userLocation.lng !== 3.3792) {
+      setTimeout(() => {
+        map.flyTo({
+          center: [userLocation.lng, userLocation.lat],
+          zoom: mapZoom,
+          duration: 2000
+        });
+      }, 1000); // Small delay to ensure map is loaded
     }
-  }, [filteredVenues]);
+  }, [userLocation, mapZoom]);
+
+  // Auto-fit map to venues when filtering (but don't override user location)
+  useEffect(() => {
+    if (!mapRef.current || !filteredVenues.length) return;
+    
+    // Only auto-fit if user hasn't set a custom location or if they're searching
+    if (filters.search || filters.type !== 'all' || filters.priceRange !== 'all' || filters.minRating > 0) {
+      const map = mapRef.current.getMap();
+      
+      if (filteredVenues.length === 1) {
+        map.flyTo({
+          center: [filteredVenues[0].lng, filteredVenues[0].lat],
+          zoom: 14,
+          duration: 1000
+        });
+      } else if (filteredVenues.length > 1) {
+        const lats = filteredVenues.map(v => v.lat);
+        const lngs = filteredVenues.map(v => v.lng);
+        const bounds = [
+          [Math.min(...lngs) - 0.01, Math.min(...lats) - 0.01],
+          [Math.max(...lngs) + 0.01, Math.max(...lats) + 0.01]
+        ];
+        map.fitBounds(bounds, { padding: 50, duration: 1000 });
+      }
+    }
+  }, [filteredVenues, filters]);
 
   const getMarkerColor = (venue) => {
     switch (venue.type) {
@@ -175,6 +259,17 @@ const ExplorePage = () => {
     });
   };
 
+  const flyToUserLocation = () => {
+    if (!mapRef.current || !userLocation) return;
+    
+    const map = mapRef.current.getMap();
+    map.flyTo({
+      center: [userLocation.lng, userLocation.lat],
+      zoom: 15,
+      duration: 1000
+    });
+  };
+
   return (
     <div className="bg-brand-cream min-h-screen">
       <div className="container py-8">
@@ -182,6 +277,23 @@ const ExplorePage = () => {
           <h1 className="text-4xl font-heading text-brand-burgundy mb-4">Explore Lagos Venues</h1>
           <p className="text-brand-burgundy/70 text-lg">Discover the best restaurants, clubs, and lounges on our interactive map</p>
         </div>
+
+        {/* Location Permission Notice */}
+        {locationPermissionDenied && (
+          <Card className="mb-4 bg-amber-50 border-amber-200">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="h-5 w-5 text-amber-600" />
+                <div>
+                  <p className="text-sm font-medium text-amber-800">Location access denied</p>
+                  <p className="text-xs text-amber-700">
+                    Enable location permission in your browser to see venues near you
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Filters */}
         <Card className="mb-6 bg-white border-brand-burgundy/10">
@@ -242,9 +354,23 @@ const ExplorePage = () => {
             </div>
             
             <div className="mt-4 flex items-center justify-between">
-              <p className="text-sm text-brand-burgundy/70">
-                Showing {filteredVenues.length} of {venues.length} venues
-              </p>
+              <div className="flex items-center gap-4">
+                <p className="text-sm text-brand-burgundy/70">
+                  Showing {filteredVenues.length} of {venues.length} venues
+                </p>
+                {gettingLocation && (
+                  <div className="flex items-center gap-2 text-xs text-brand-burgundy/60">
+                    <div className="w-3 h-3 border-2 border-brand-burgundy/30 border-t-brand-burgundy rounded-full animate-spin"></div>
+                    <span>Getting your location...</span>
+                  </div>
+                )}
+                {userLocation && !gettingLocation && userLocation.lat !== 6.5244 && (
+                  <div className="flex items-center gap-2 text-xs text-green-600">
+                    <Navigation className="h-3 w-3" />
+                    <span>Location detected</span>
+                  </div>
+                )}
+              </div>
               <div className="flex gap-4 text-xs">
                 <div className="flex items-center gap-1">
                   <div className="w-3 h-3 rounded-full bg-green-500"></div>
@@ -266,6 +392,17 @@ const ExplorePage = () => {
         {/* Map Container */}
         <Card className="overflow-hidden shadow-xl border-brand-burgundy/10">
           <div className="h-[600px] relative">
+            {/* My Location Button */}
+            {userLocation && (
+              <Button
+                onClick={flyToUserLocation}
+                className="absolute top-4 right-4 z-10 bg-white text-brand-burgundy border border-brand-burgundy/20 hover:bg-brand-burgundy hover:text-white shadow-lg"
+                size="sm"
+              >
+                <Navigation className="h-4 w-4 mr-2" />
+                My Location
+              </Button>
+            )}
             {loading ? (
               <div className="flex items-center justify-center h-full bg-brand-cream/50">
                 <div className="text-center">
@@ -277,9 +414,9 @@ const ExplorePage = () => {
               <Map
                 ref={mapRef}
                 initialViewState={{
-                  latitude: userLocation?.lat || 6.5244,
-                  longitude: userLocation?.lng || 3.3792,
-                  zoom: 11
+                  latitude: mapCenter.lat,
+                  longitude: mapCenter.lng,
+                  zoom: mapZoom
                 }}
                 style={{ width: "100%", height: "100%" }}
                 mapboxAccessToken={import.meta.env.VITE_MAPBOX_TOKEN}
