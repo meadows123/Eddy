@@ -49,9 +49,9 @@ const BookingsPage = () => {
             city,
             type
           ),
-          venue_tables (
+          venue_tables!table_id (
             id,
-            name
+            table_number
           )
         `)
         .eq('user_id', userId)
@@ -224,7 +224,7 @@ const BookingsPage = () => {
                     
                     {booking.venue_tables && (
                       <div className="mt-4 pt-4 border-t border-brand-burgundy/10">
-                        <p className="text-sm text-brand-burgundy/70">Table: {booking.venue_tables.name}</p>
+                        <p className="text-sm text-brand-burgundy/70">Table: {booking.venue_tables.table_number}</p>
                       </div>
                     )}
 

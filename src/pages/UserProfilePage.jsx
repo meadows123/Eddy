@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { userApi, savedVenuesApi, bookingsApi } from '../lib/api';
+// Removed API imports - using direct Supabase queries for better error handling
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
@@ -36,16 +36,67 @@ const UserProfilePage = () => {
   const loadUserData = async () => {
     try {
       // Load profile
-      const profileData = await userApi.getProfile(user.id);
-      setProfile(profileData);
+      const { data: profileData, error: profileError } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      
+      if (profileError) {
+        console.error('Profile error:', profileError);
+      } else {
+        setProfile(profileData);
+      }
 
-      // Load saved venues
-      const venuesData = await savedVenuesApi.getSavedVenues(user.id);
-      setSavedVenues(venuesData);
+      // Load saved venues (check if table exists first)
+      const { data: savedVenuesData, error: savedVenuesError } = await supabase
+        .from('saved_venues')
+        .select(`
+          *,
+          venues (
+            id,
+            name,
+            type,
+            city,
+            rating
+          )
+        `)
+        .eq('user_id', user.id);
+      
+      if (savedVenuesError) {
+        console.error('Saved venues error:', savedVenuesError);
+        // If table doesn't exist, set empty array
+        setSavedVenues([]);
+      } else {
+        setSavedVenues(savedVenuesData || []);
+      }
 
-      // Load bookings
-      const bookingsData = await bookingsApi.getUserBookings(user.id);
-      setBookings(bookingsData);
+      // Load bookings with proper relationships
+      const { data: bookingsData, error: bookingsError } = await supabase
+        .from('bookings')
+        .select(`
+          *,
+          venues (
+            id,
+            name,
+            type,
+            city,
+            address
+          ),
+          venue_tables!table_id (
+            id,
+            table_number
+          )
+        `)
+        .eq('user_id', user.id)
+        .order('booking_date', { ascending: false });
+      
+      if (bookingsError) {
+        console.error('Bookings error:', bookingsError);
+        setBookings([]);
+      } else {
+        setBookings(bookingsData || []);
+      }
     } catch (error) {
       console.error('Error loading user data:', error);
     }
@@ -261,7 +312,22 @@ const UserProfilePage = () => {
                         <h3 className="font-semibold">{saved.venues.name}</h3>
                         <p className="text-sm text-brand-burgundy/70">{saved.venues.type}</p>
                         <Button
-                          onClick={() => savedVenuesApi.removeSavedVenue(user.id, saved.venue_id)}
+                          onClick={async () => {
+                            try {
+                              const { error } = await supabase
+                                .from('saved_venues')
+                                .delete()
+                                .eq('user_id', user.id)
+                                .eq('venue_id', saved.venue_id);
+                              
+                              if (error) throw error;
+                              
+                              // Remove from local state
+                              setSavedVenues(prev => prev.filter(v => v.id !== saved.id));
+                            } catch (error) {
+                              console.error('Error removing saved venue:', error);
+                            }
+                          }}
                           variant="outline"
                           className="mt-2 text-red-500 border-red-500 hover:bg-red-50"
                         >
@@ -294,14 +360,42 @@ const UserProfilePage = () => {
                             <p className="text-sm text-brand-burgundy/70">
                               {booking.number_of_guests} guests
                             </p>
+                            {booking.venue_tables && (
+                              <p className="text-sm text-brand-burgundy/70">
+                                Table: {booking.venue_tables.table_number}
+                              </p>
+                            )}
+                            <p className="text-sm text-brand-burgundy/70">
+                              Total: ₦{(booking.total_amount || 0).toLocaleString()}
+                            </p>
                           </div>
                           <div className="text-right">
                             <p className="text-sm font-medium text-brand-burgundy">
                               {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
                             </p>
-                            {booking.status === 'confirmed' && (
+                            {(booking.status === 'confirmed' || booking.status === 'pending') && (
                               <Button
-                                onClick={() => bookingsApi.cancelBooking(booking.id)}
+                                onClick={async () => {
+                                  try {
+                                    const { error } = await supabase
+                                      .from('bookings')
+                                      .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+                                      .eq('id', booking.id);
+                                    
+                                    if (error) throw error;
+                                    
+                                    // Update local state
+                                    setBookings(prev => 
+                                      prev.map(b => 
+                                        b.id === booking.id 
+                                          ? { ...b, status: 'cancelled' }
+                                          : b
+                                      )
+                                    );
+                                  } catch (error) {
+                                    console.error('Error cancelling booking:', error);
+                                  }
+                                }}
                                 variant="outline"
                                 className="mt-2 text-red-500 border-red-500 hover:bg-red-50"
                               >
