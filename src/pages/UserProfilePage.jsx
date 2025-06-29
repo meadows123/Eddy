@@ -59,11 +59,11 @@ const UserProfilePage = () => {
         .single();
       
       if (profileError && profileError.code === 'PGRST116') {
-        // Profile doesn't exist, create one
-        console.log('Creating new user profile...');
+        // Profile doesn't exist, try to create one or update existing
+        console.log('Profile not found, attempting to create or update...');
         const { data: newProfile, error: createError } = await supabase
           .from('user_profiles')
-          .insert([{
+          .upsert([{
             id: user.id,
             first_name: '',
             last_name: '',
@@ -76,7 +76,24 @@ const UserProfilePage = () => {
           .single();
         
         if (createError) {
-          console.error('Error creating profile:', createError);
+          console.error('Error creating/updating profile:', createError);
+          // If upsert fails, try to fetch the existing profile again
+          const { data: existingProfile, error: fetchError } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('id', user.id)
+            .single();
+          
+          if (!fetchError && existingProfile) {
+            setProfile(existingProfile);
+            setProfileForm({
+              first_name: existingProfile.first_name || '',
+              last_name: existingProfile.last_name || '',
+              phone_number: existingProfile.phone_number || '',
+              city: existingProfile.city || '',
+              country: existingProfile.country || ''
+            });
+          }
         } else {
           setProfile(newProfile);
           setProfileForm({
@@ -207,9 +224,10 @@ const UserProfilePage = () => {
       }
 
       const userId = signUpData.user.id;
+      // Use upsert to handle the case where trigger already created a profile
       const { error: profileError } = await supabase
         .from('user_profiles')
-        .insert([{ 
+        .upsert([{ 
           id: userId, 
           first_name: signupForm.firstName, 
           last_name: signupForm.lastName, 
@@ -218,7 +236,7 @@ const UserProfilePage = () => {
           country: signupForm.country
         }]);
       if (profileError) {
-        console.error('Insert error:', profileError);
+        console.error('Upsert error:', profileError);
         setSignupError(profileError.message);
         return;
       }
