@@ -2,6 +2,46 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom styles for map popup */
+.venue-popup .mapboxgl-popup-content {
+  padding: 0;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  border: none;
+  max-width: 320px;
+}
+
+.venue-popup .mapboxgl-popup-close-button {
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: #5B0202;
+  border: none;
+  top: 8px;
+  right: 8px;
+}
+
+.venue-popup .mapboxgl-popup-close-button:hover {
+  background: rgba(255, 255, 255, 1);
+}
+
+.venue-popup .mapboxgl-popup-tip {
+  border-top-color: white;
+}
+
+/* Line clamp utility */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
 @layer base {
   :root {
     --background: 40 33% 97%;
