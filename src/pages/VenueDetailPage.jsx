@@ -322,11 +322,11 @@ const VenueDetailPage = () => {
             </Card>
             
             {/* Gallery Section */}
-            {venue.images && venue.images.length > 1 && (
+            {venue.images && venue.images.length > 0 && (
                  <Card className="bg-white p-6 md:p-8 rounded-xl shadow-lg border-brand-burgundy/10 mb-8">
                     <h2 className="text-3xl font-heading text-brand-burgundy mb-6">Gallery</h2>
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                        {venue.images.slice(1, 7).map((img, index) => ( // Show up to 6 more images
+                        {venue.images.map((img, index) => ( // Show all images
                             <motion.div 
                                 key={index}
                                 className="aspect-square rounded-lg overflow-hidden shadow-md cursor-pointer hover:shadow-lg transition-shadow"
@@ -335,7 +335,7 @@ const VenueDetailPage = () => {
                             >
                                 <img  
                                   className="w-full h-full object-cover" 
-                                  alt={`${venue.name} gallery image ${index + 2}`} 
+                                  alt={`${venue.name} gallery image ${index + 1}`} 
                                   src={img}
                                   onError={(e) => {
                                     e.target.src = "https://images.unsplash.com/photo-1688046671828-c26b7fd54596";
@@ -344,9 +344,9 @@ const VenueDetailPage = () => {
                             </motion.div>
                         ))}
                     </div>
-                    {venue.images.length > 7 && (
+                    {venue.images.length > 6 && (
                       <p className="text-center text-brand-burgundy/60 text-sm mt-4">
-                        + {venue.images.length - 7} more photos
+                        + {venue.images.length - 6} more photos
                       </p>
                     )}
                 </Card>
