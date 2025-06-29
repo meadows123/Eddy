@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from './components/ui/toaster';
 import Navigation from './components/Navigation';
@@ -26,56 +26,9 @@ import EmailTest from './components/EmailTest';
 import MapTest from './components/MapTest';
 import { AuthProvider } from './contexts/AuthContext';
 import HomePage from './pages/HomePage';
-import Map, { Marker } from 'react-map-gl';
 import RegisterPage from './pages/RegisterPage';
 
-const venues = [
-  {
-    id: 1,
-    name: "Club DNA",
-    lat: 6.5242,
-    lng: 3.3789,
-    price: 75000,
-    rating: 4.5,
-    address: "Victoria Island, Lagos",
-    country: "NG"
-  },
-  // ...more venues
-];
-
 const App = () => {
-  // State for filters
-  const [minPrice, setMinPrice] = useState(0);
-  const [minRating, setMinRating] = useState(0);
-  const [search, setSearch] = useState("");
-
-  // Filtered venues
-  const filteredVenues = venues.filter(v =>
-    v.price >= minPrice &&
-    v.rating >= minRating &&
-    v.address.toLowerCase().includes(search.toLowerCase())
-  );
-
-  console.log('filteredVenues:', filteredVenues);
-
-  const [userLocation, setUserLocation] = useState(null);
-
-  useEffect(() => {
-    fetch(`https://ipinfo.io/json?token=${import.meta.env.VITE_IPINFO_TOKEN}`)
-      .then(res => res.json())
-      .then(data => {
-        console.log('IPINFO data:', data);
-        if (data && data.loc) {
-          const [lat, lng] = data.loc.split(',');
-          setUserLocation({ lat: parseFloat(lat), lng: parseFloat(lng) });
-        } else {
-          setUserLocation({ lat: 6.5244, lng: 3.3792 }); // Lagos
-        }
-      })
-      .catch(() => {
-        setUserLocation({ lat: 6.5244, lng: 3.3792 }); // Lagos
-      });
-  }, []);
 
   return (
     <AuthProvider>

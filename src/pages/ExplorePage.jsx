@@ -62,6 +62,13 @@ const ExplorePage = () => {
           return;
         }
 
+        if (!data || data.length === 0) {
+          console.log('No venues found in database');
+          setVenues([]);
+          setFilteredVenues([]);
+          return;
+        }
+
         // Transform venues with proper coordinates and images
         const venuesWithData = data.map(venue => {
           const primaryImage = venue.venue_images?.find(img => img.is_primary)?.image_url || 
@@ -76,12 +83,12 @@ const ExplorePage = () => {
             priceLevel: venue.price_range?.length || 1
           };
         });
-
         setVenues(venuesWithData);
         setFilteredVenues(venuesWithData);
       } catch (error) {
         console.error('Error in fetchVenues:', error);
         setVenues([]);
+        setFilteredVenues([]);
       } finally {
         setLoading(false);
       }
