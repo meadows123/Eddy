@@ -9,11 +9,13 @@ export default defineConfig({
 	},
 	server: {
 		port: 3000,
-		host: 'localhost',
+		host: '0.0.0.0',
 		strictPort: true,
 		hmr: {
 			overlay: false
-		}
+		},
+		cors: true,
+		origin: 'http://localhost:3000'
 	},
 	resolve: {
 		extensions: ['.jsx', '.js', '.tsx', '.ts', '.json'],
@@ -35,6 +37,13 @@ export default defineConfig({
 	preview: {
 		host: '0.0.0.0',
 		port: process.env.PORT || 4173,
-		allowedHosts: ['vipclubapp.onrender.com, oneeddy.com, www.oneeddy.com'],
+		cors: true,
+		allowedHosts: [
+			'vipclubapp.onrender.com', 
+			'oneeddy.com', 
+			'www.oneeddy.com',
+			'localhost',
+			'127.0.0.1'
+		],
 	}
 });
