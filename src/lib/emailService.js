@@ -18,17 +18,21 @@ export const isEmailServiceAvailable = () => {
   // Check if we're in development mode
   const isDevelopment = import.meta.env.DEV;
   
+  // TEMPORARY: Test real email service to debug SMTP issues
+  // Set back to true if you want to use fallback
+  const forceUseFallback = false; // Changed to false for testing
+  
   // For live servers with proper email configuration,
   // we should use the real email service unless explicitly in development
-  const shouldUseEmailService = !isDevelopment;
+  const shouldUseEmailService = !isDevelopment && !forceUseFallback;
   
   console.log('Email service check:', {
     isDevelopment,
     hostname: typeof window !== 'undefined' ? window.location.hostname : 'server',
+    forceUseFallback,
     shouldUseEmailService
   });
   
-  // Use email service if not in development mode
-  // Since you have credentials on your live server, this should work
+  // Use email service if not in development mode and not forcing fallback
   return shouldUseEmailService;
 }; 
