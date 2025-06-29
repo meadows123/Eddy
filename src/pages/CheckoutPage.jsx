@@ -18,6 +18,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Copy } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+import { sendEmailFallback, isEmailServiceAvailable } from '@/lib/emailService';
 
 const CheckoutPage = () => {
   const { id } = useParams();
@@ -156,34 +157,44 @@ const CheckoutPage = () => {
   };
 
   const sendBookingConfirmationEmail = async (bookingData) => {
+    const emailData = {
+      to: bookingData.customerEmail,
+      subject: 'Booking Confirmation - VIPClub',
+      template: 'booking-confirmation',
+      data: {
+        customerName: bookingData.customerName,
+        venueName: bookingData.venueName,
+        bookingDate: new Date(bookingData.bookingDate).toLocaleDateString(),
+        ticketInfo: bookingData.ticket ? `${bookingData.ticket.name} - ₦${bookingData.ticket.price}` : null,
+        tableInfo: bookingData.table ? `${bookingData.table.name} - ₦${bookingData.table.price}` : null,
+        totalAmount: calculateTotal(),
+        bookingId: bookingData.bookingId || bookingData.id
+      }
+    };
+
     try {
-      // Use Supabase's functions.invoke method for Edge Functions
+      // Use fallback email service in development
+      if (!isEmailServiceAvailable()) {
+        const result = await sendEmailFallback(emailData);
+        console.log('Development email simulation:', result.message);
+        return true; // Simulate success in development
+      }
+
+      // Use real email service in production
       const { data, error } = await supabase.functions.invoke('send-email', {
-        body: {
-          to: bookingData.customerEmail,
-          subject: 'Booking Confirmation - VIPClub',
-          template: 'booking-confirmation',
-          data: {
-            customerName: bookingData.customerName,
-            venueName: bookingData.venueName,
-            bookingDate: new Date(bookingData.bookingDate).toLocaleDateString(),
-            ticketInfo: bookingData.ticket ? `${bookingData.ticket.name} - ₦${bookingData.ticket.price}` : null,
-            tableInfo: bookingData.table ? `${bookingData.table.name} - ₦${bookingData.table.price}` : null,
-            totalAmount: calculateTotal(),
-            bookingId: bookingData.bookingId || bookingData.id
-          }
-        }
+        body: emailData
       });
 
       if (error) {
-        throw new Error(`Email service error: ${error.message}`);
+        console.warn('Email service error:', error.message);
+        return false; // Email failed but don't throw
       }
 
       console.log('Booking confirmation email sent successfully', data);
       return true; // Email sent successfully
     } catch (error) {
-      console.error('Error sending confirmation email:', error);
-      // Don't block the booking process if email fails
+      console.warn('Email service unavailable:', error.message);
+      // Don't block the booking process if email service is unavailable
       return false; // Email failed but don't throw
     }
   };
@@ -347,9 +358,20 @@ const CheckoutPage = () => {
           title: isNewUser ? "Account Created & Booking Confirmed!" : "Booking Confirmed!", 
           description: emailSent 
             ? (isNewUser ? "Welcome to VIPClub! Check your email for confirmation." : "Your booking is confirmed! Check your email for confirmation.")
-            : (isNewUser ? "Welcome to VIPClub! Your booking is confirmed. Check your profile for details." : "Your booking is confirmed. Check your profile for details."),
+            : (isNewUser ? "Welcome to VIPClub! Your booking is confirmed. You can view details in your profile." : "Your booking is confirmed. You can view details in your profile."),
           className: "bg-green-500 text-white"
         });
+
+        // If email failed, show a separate notification
+        if (!emailSent) {
+          setTimeout(() => {
+            toast({
+              title: "Email Notification",
+              description: "Confirmation email could not be sent, but your booking is saved. You can view it in your profile.",
+              variant: "default"
+            });
+          }, 3000);
+        }
 
         setShowConfirmation(true);
 
