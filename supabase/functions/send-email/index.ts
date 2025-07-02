@@ -1,6 +1,8 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { SmtpClient } from 'https://deno.land/x/smtp@v0.7.0/mod.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
+import { loadStripe } from 'https://esm.sh/@supabase/stripe@2.39.3'
+import { Stripe } from 'https://esm.sh/@supabase/stripe@2.39.3'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -19,6 +21,13 @@ const supabaseClient = createClient(
     }
   }
 )
+
+// ✅ GOOD - Using environment variables
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+
+// ✅ GOOD - Deno environment variables in Edge Functions  
+const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "");
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -204,7 +213,7 @@ serve(async (req) => {
  * @param {Object} user - The user object (must have 'email')
  */
 export async function notifyAdminOfVenueSubmission(newVenue, userProfile, user) {
-  const EDGE_FUNCTION_URL = "https://agydpkzfucicraedllgl.supabase.co/functions/v1/send-email"; // Replace with your actual project ID
+  const EDGE_FUNCTION_URL = `${Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '.functions.supabase.co')}/send-email`;
   const ADMIN_EMAIL = "sales@oneeddy.com"; // Change to your admin email
 
   try {

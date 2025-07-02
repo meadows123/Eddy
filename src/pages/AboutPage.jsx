@@ -10,7 +10,7 @@ const AboutPage = () => {
         <div className="text-center mb-12">
           <h1 className="text-4xl font-heading text-brand-burgundy mb-4">About VIP Club</h1>
           <p className="text-brand-burgundy/70 text-lg max-w-3xl mx-auto">
-            Your gateway to Nigeria's most exclusive venue experiences. We connect you with premium venues and unforgettable moments across Lagos and beyond.
+            Built in honor of our friend Eddy - your gateway to Nigeria's most exclusive venue experiences. We connect you with premium venues and unforgettable moments across Lagos and beyond.
           </p>
         </div>
 
@@ -31,7 +31,7 @@ const AboutPage = () => {
             </p>
             <p className="text-brand-burgundy/80 leading-relaxed">
               After we lost Eddy, we realized how important it is to create spaces and opportunities for people to connect, celebrate, and make lasting memories. 
-              The name "VIP Club" isn't just about exclusive venues - it's about making every person feel valued, important, and part of something special, just as Eddy envisioned.
+              We named it "VIP Club" in his honor - because to Eddy, VIP wasn't just about exclusive venues, it was about making every person feel valued, important, and part of something special.
             </p>
             <p className="text-brand-burgundy/80 leading-relaxed">
               This platform is our way of ensuring that Eddy's vision lives on - connecting people with amazing venues where they can create the kind of memories he would have loved to be part of.
@@ -128,7 +128,7 @@ const AboutPage = () => {
                 </div>
                 <div>
                   <div className="text-3xl font-bold text-brand-gold mb-2">1000+</div>
-                  <div className="text-brand-cream/80">VIP Moments Created</div>
+                  <div className="text-brand-cream/80">VIP Moments Created<br/><span className="text-xs">In Eddy's Honor</span></div>
                 </div>
                 <div>
                   <div className="text-3xl font-bold text-brand-gold mb-2">24/7</div>
@@ -153,11 +153,13 @@ const AboutPage = () => {
               </h3>
               <div className="space-y-2 text-brand-burgundy/80">
                 <p>VIP Club Headquarters</p>
+                <p>(Founded in Memory of Eddy)</p>
                 <p>123 Victoria Island</p>
                 <p>Lagos, Nigeria</p>
                 <p className="pt-2">
                   <strong>Phone:</strong> +234 (0) 123 456 7890<br />
-                  <strong>Email:</strong> info@vipclub.ng
+                  <strong>Email:</strong> info@vipclub.ng<br />
+                  <em className="text-sm">Continuing Eddy's legacy</em>
                 </p>
               </div>
             </CardContent>
@@ -195,10 +197,10 @@ const AboutPage = () => {
           <Card className="bg-brand-gold/20 border-brand-gold/30">
             <CardContent className="p-8">
               <h3 className="text-2xl font-heading font-bold text-brand-burgundy mb-4">Ready to Create Your VIP Moment?</h3>
-              <p className="text-brand-burgundy/80 mb-6 max-w-2xl mx-auto">
-                Join thousands of people who have discovered their perfect venue through VIP Club. 
-                Every booking helps us carry forward our mission of making everyone feel special and creating unforgettable memories.
-              </p>
+                             <p className="text-brand-burgundy/80 mb-6 max-w-2xl mx-auto">
+                 Join thousands of people who have discovered their perfect venue through VIP Club - Eddy's legacy of bringing people together. 
+                 Every booking helps us carry forward Eddy's mission of making everyone feel special and creating unforgettable memories.
+               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <a
                   href="/venues"

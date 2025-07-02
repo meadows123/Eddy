@@ -166,45 +166,99 @@ export const bookingsApi = {
 // Stripe Elements setup (frontend only)
 export const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
+// Get authentication header for API calls
+const getAuthHeaders = async () => {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session?.access_token) {
+    throw new Error('User not authenticated');
+  }
+  
+  return {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${session.access_token}`
+  };
+};
+
+// Get Supabase function URL
+const getSupabaseFunctionUrl = (functionName) => {
+  const projectUrl = import.meta.env.VITE_SUPABASE_URL;
+  if (!projectUrl) {
+    throw new Error('VITE_SUPABASE_URL environment variable not set');
+  }
+  
+  // Extract project reference from URL
+  const projectRef = projectUrl.split('//')[1].split('.')[0];
+  return `https://${projectRef}.functions.supabase.co/${functionName}`;
+};
+
 // Call your Supabase Edge Function to create a SetupIntent
 export async function createStripeSetupIntent(email) {
-  const res = await fetch('https://agydpkzfucicraedllgl.functions.supabase.co/create-stripe-setup-intent', {
+  const headers = await getAuthHeaders();
+  const url = getSupabaseFunctionUrl('create-stripe-setup-intent');
+  
+  const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ email }),
   });
-  if (!res.ok) throw new Error('Failed to create SetupIntent');
+  
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.error || 'Failed to create SetupIntent');
+  }
+  
   const data = await res.json();
   return data.clientSecret;
 }
 
 // Call your Supabase Edge Function to list payment methods
 export async function listStripePaymentMethods(email) {
-  const res = await fetch('https://agydpkzfucicraedllgl.functions.supabase.co/stripe-payment-methods?email=' + encodeURIComponent(email));
-  if (!res.ok) throw new Error('Failed to fetch payment methods');
+  const headers = await getAuthHeaders();
+  const url = getSupabaseFunctionUrl('stripe-payment-methods');
+  
+  const res = await fetch(`${url}?email=${encodeURIComponent(email)}`, {
+    method: 'GET',
+    headers,
+  });
+  
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.error || 'Failed to fetch payment methods');
+  }
+  
   const data = await res.json();
   return data.paymentMethods;
 }
 
 // Call your Supabase Edge Function to remove a payment method
 export async function removeStripePaymentMethod(id) {
-  const res = await fetch('https://agydpkzfucicraedllgl.functions.supabase.co/stripe-payment-methods', {
+  const headers = await getAuthHeaders();
+  const url = getSupabaseFunctionUrl('stripe-payment-methods');
+  
+  const res = await fetch(url, {
     method: 'DELETE',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify({ id }),
   });
-  if (!res.ok) throw new Error('Failed to remove payment method');
+  
+  if (!res.ok) {
+    const errorData = await res.json();
+    throw new Error(errorData.error || 'Failed to remove payment method');
+  }
+  
   return true;
 }
 
 export async function notifyAdminOfVenueSubmission(newVenue, userProfile, user) {
-  const EDGE_FUNCTION_URL = "https://agydpkzfucicraedllgl.functions.supabase.co/send-email"; // Replace with your actual project ID
+  const url = getSupabaseFunctionUrl('send-email');
   const ADMIN_EMAIL = "sales@oneeddy.com"; // Change to your admin email
 
   try {
-    const response = await fetch(EDGE_FUNCTION_URL, {
+    const headers = await getAuthHeaders();
+    
+    const response = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({
         to: ADMIN_EMAIL,
         subject: "New Venue Submission Pending Approval",

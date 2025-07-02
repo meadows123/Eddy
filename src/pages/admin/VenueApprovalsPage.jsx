@@ -9,7 +9,8 @@ import { Check, X, Clock, Building2, Mail, Phone, MapPin } from 'lucide-react';
 import { useToast } from '../../components/ui/use-toast';
 
 const sendVenueEmail = async ({ to, subject, template, data }) => {
-  await fetch('https://agydpkzfucicraedllgl.functions.supabase.co/send-email', {
+          const functionUrl = `${import.meta.env.VITE_SUPABASE_URL.replace('.supabase.co', '.functions.supabase.co')}/send-email`;
+        await fetch(functionUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ to, subject, template, data })

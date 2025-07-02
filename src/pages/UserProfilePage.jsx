@@ -11,7 +11,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Input } from "../components/ui/input";
 import { useNavigate, useLocation } from 'react-router-dom';
 
-const stripePromise = loadStripe('pk_test_...'); // Replace with your real publishable key
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 const UserProfilePage = () => {
   const { user, signIn, signUp, signOut } = useAuth();

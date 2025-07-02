@@ -25,7 +25,8 @@ const RegisterForm = () => {
     } else {
       setSuccess('Registration successful! Please check your email to confirm your account.');
       // Call Edge Function to send custom welcome email
-      fetch('https://<your-supabase-project-ref>.functions.supabase.co/send-email', {
+      const functionUrl = `${import.meta.env.VITE_SUPABASE_URL.replace('.supabase.co', '.functions.supabase.co')}/send-email`;
+      fetch(functionUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
