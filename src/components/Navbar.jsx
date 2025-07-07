@@ -24,7 +24,7 @@ const Navbar = () => {
       <div className="container flex h-20 items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
           <motion.img
-            src="/images/logos/vip-club-logo.png"
+            src="/images/logos/Logo-Trans.png"
             alt="VIP Club"
             className="h-12 w-auto"
             initial={{ opacity: 0, scale: 0.8 }}
