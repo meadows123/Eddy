@@ -10,8 +10,8 @@ import {
   venueOwnerNotificationTemplate,
   cancellationTemplate,
   generateEmailData
-} from '../lib/emailTemplates';
-import { testEmailService } from '../lib/emailService';
+} from '@/lib/emailTemplates.js';
+import { testEmailService } from '@/lib/emailService.js';
 
 const EmailTemplateTest = () => {
   const { toast } = useToast();
