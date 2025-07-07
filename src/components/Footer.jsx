@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Wine, Facebook, Instagram, Twitter } from 'lucide-react'; // Wine for brand icon
 import { Button } from '@/components/ui/button';
 import { Heart } from 'lucide-react';
+import FooterLogo from '/images/logos/Logo1-Trans.png';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -14,10 +15,17 @@ const Footer = () => {
           <div>
             <div className="mb-4">
               <img 
-                src="/images/logos/Logo1-Trans.png" 
+                src={FooterLogo} 
                 alt="VIP Club" 
                 className="h-16 w-auto"
+                onError={(e) => {
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'block';
+                }}
               />
+              <h3 className="text-xl font-heading font-bold text-white" style={{ display: 'none' }}>
+                VIP Club
+              </h3>
             </div>
             <p className="text-brand-cream/80 mb-4">
               Your premier destination for exclusive venue bookings in Lagos.
