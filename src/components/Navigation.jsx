@@ -49,7 +49,22 @@ const Navigation = () => {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
-            <span className="text-2xl font-heading text-brand-burgundy">Eddy</span>
+            <img
+              src="/logos/Logo1-Trans-big.png"
+              alt="VIP Club"
+              className="h-10 w-auto object-contain"
+              onError={(e) => {
+                console.log('❌ Logo failed to load from:', e.target.src);
+                e.target.style.display = 'none';
+                e.target.nextSibling.style.display = 'flex';
+              }}
+            />
+            <div className="flex items-center space-x-2" style={{ display: 'none' }}>
+              <div className="h-8 w-8 bg-gradient-to-br from-brand-burgundy to-brand-gold rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-sm">V</span>
+              </div>
+              <span className="text-xl font-heading text-brand-burgundy font-bold">VIP Club</span>
+            </div>
           </Link>
 
           {/* Desktop Navigation */}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, CreditCard, Calendar, Clock, User, Check, Share2, Plus, Minus } from 'lucide-react';
+import { ArrowLeft, CreditCard, Calendar, Clock, User, Check, Share2, Plus, Minus, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -15,10 +15,9 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Copy } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { sendEmailFallback, isEmailServiceAvailable } from '@/lib/emailService';
+import { sendBookingConfirmation, sendVenueOwnerNotification } from '@/lib/emailService';
 
 const CheckoutPage = () => {
   const { id } = useParams();
@@ -157,60 +156,54 @@ const CheckoutPage = () => {
   };
 
   const sendBookingConfirmationEmail = async (bookingData) => {
-    const emailData = {
-      to: bookingData.customerEmail,
-      subject: 'Booking Confirmation - VIPClub',
-      template: 'booking-confirmation',
-      data: {
-        customerName: bookingData.customerName,
-        venueName: bookingData.venueName,
-        bookingDate: new Date(bookingData.bookingDate).toLocaleDateString(),
-        ticketInfo: bookingData.ticket ? `${bookingData.ticket.name} - ₦${bookingData.ticket.price}` : null,
-        tableInfo: bookingData.table ? `${bookingData.table.name} - ₦${bookingData.table.price}` : null,
-        totalAmount: calculateTotal(),
-        bookingId: bookingData.bookingId || bookingData.id
-      }
-    };
-
     try {
-      const emailServiceAvailable = isEmailServiceAvailable();
+      // Prepare data for customer email
+      const booking = {
+        id: bookingData.bookingId || bookingData.id,
+        booking_date: bookingData.bookingDate || new Date().toISOString(),
+        booking_time: selection.time || '19:00:00',
+        guest_count: selection.guests || selection.guestCount || 2,
+        table_number: selection.table?.name || selection.table?.table_number,
+        total_amount: bookingData.totalAmount,
+        status: 'confirmed'
+      };
+
+      const venue = {
+        name: bookingData.venueName || selection.venueName,
+        address: selection.venueAddress || 'Lagos, Nigeria',
+        contact_phone: selection.venuePhone || '+234 XXX XXX XXXX',
+        contact_email: selection.venueEmail || 'info@vipclub.com',
+        images: selection.venueImage ? [selection.venueImage] : [],
+        dress_code: 'Smart casual'
+      };
+
+      const customer = {
+        full_name: bookingData.customerName,
+        email: bookingData.customerEmail,
+        phone: bookingData.customerPhone || formData.phone
+      };
+
+      // Send customer confirmation email
+      const customerEmailResult = await sendBookingConfirmation(booking, venue, customer);
       
-      console.log('Email service debug:', {
-        emailServiceAvailable,
-        willUseFallback: !emailServiceAvailable
-      });
-      
-      // Use fallback email service in development
-      if (!emailServiceAvailable) {
-        const result = await sendEmailFallback(emailData);
-        console.log('Email simulation result:', result.message);
-        return true; // Simulate success
+      // Get venue owner info if available for notification
+      const venueOwnerEmail = selection.ownerEmail || 'owner@vipclub.com';
+      if (venueOwnerEmail) {
+        const venueOwner = {
+          full_name: 'Venue Owner',
+          email: venueOwnerEmail
+        };
+        
+        // Send venue owner notification (non-blocking)
+        sendVenueOwnerNotification(booking, venue, customer, venueOwner)
+          .catch(error => console.log('Venue owner notification failed:', error));
       }
 
-      // Use real email service in production (when override is removed)
-      const { data, error } = await supabase.functions.invoke('send-email', {
-        body: emailData
-      });
-
-      if (error) {
-        console.warn('Email service error:', error.message);
-        console.warn('Email error details:', error);
-        return false; // Email failed but don't throw
-      }
-
-      console.log('Booking confirmation email sent successfully', data);
-      return true; // Email sent successfully
+      console.log('✅ Email service result:', customerEmailResult);
+      return customerEmailResult.success;
     } catch (error) {
-      console.warn('Email service unavailable:', error.message);
-      console.warn('Full error:', error);
-      
-      // Check if it's a 500 error and provide helpful message
-      if (error.message && error.message.includes('500')) {
-        console.warn('Email service configuration issue - likely missing SMTP settings');
-      }
-      
-      // Don't block the booking process if email service is unavailable
-      return false; // Email failed but don't throw
+      console.error('❌ Failed to send booking emails:', error);
+      return false;
     }
   };
 

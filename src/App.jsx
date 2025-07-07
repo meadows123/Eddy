@@ -34,6 +34,7 @@ import ContactPage from './pages/ContactPage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
 import FAQPage from './pages/FAQPage';
+import EmailTemplateTest from './components/EmailTemplateTest';
 
 const App = () => {
 
@@ -83,6 +84,7 @@ const App = () => {
             <Route path="/test" element={<SupabaseTest />} />
             <Route path="/auth-test" element={<AuthTestPage />} />
             <Route path="/email-test" element={<EmailTest />} />
+            <Route path="/email-templates" element={<EmailTemplateTest />} />
             <Route path="/map-test" element={<MapTest />} />
 
             {/* Register Route */}
