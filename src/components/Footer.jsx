@@ -1,99 +1,114 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { Wine, Facebook, Instagram, Twitter } from 'lucide-react'; // Wine for brand icon
+import React, { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { Menu, X, Home, Compass, MapPin, CalendarDays, UserCircle, Wine } from 'lucide-react'; // Wine for brand icon
 import { Button } from '@/components/ui/button';
-import { Heart } from 'lucide-react';
-import FooterLogo from '/images/logos/Logo1-Trans.png';
 
-const Footer = () => {
-  const currentYear = new Date().getFullYear();
+const Navbar = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const location = useLocation();
+
+  const navLinks = [
+    { name: 'Home', path: '/home', icon: <Home className="h-4 w-4 mr-1" /> },
+    { name: 'Venues', path: '/venues', icon: <MapPin className="h-4 w-4 mr-1" /> },
+    { name: 'Explore', path: '/explore', icon: <Compass className="h-4 w-4 mr-1" /> },
+    { name: 'Events', path: '/events', icon: <CalendarDays className="h-4 w-4 mr-1" /> },
+    { name: 'Profile', path: '/profile', icon: <UserCircle className="h-4 w-4 mr-1" /> },
+    // { name: 'Admin', path: '/admin', icon: <ShieldCheck className="h-4 w-4 mr-1" /> }, // Admin link removed for now
+  ];
+
+  const toggleMenu = () => setIsOpen(!isOpen);
 
   return (
-    <footer className="bg-brand-burgundy text-brand-cream py-12">
-      <div className="container mx-auto px-4">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-          <div>
-            <div className="mb-4">
-              <img 
-                src={FooterLogo} 
-                alt="VIP Club" 
-                className="h-16 w-auto"
-                onError={(e) => {
-                  e.target.style.display = 'none';
-                  e.target.nextSibling.style.display = 'block';
-                }}
-              />
-              <h3 className="text-xl font-heading font-bold text-white" style={{ display: 'none' }}>
-                VIP Club
-              </h3>
-            </div>
-            <p className="text-brand-cream/80 mb-4">
-              Your premier destination for exclusive venue bookings in Lagos.
-            </p>
-            <div className="flex gap-4">
-              <a 
-                href="https://facebook.com" 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="text-brand-cream/80 hover:text-white transition-colors"
-              >
-                <Facebook className="w-5 h-5" />
-              </a>
-              <a 
-                href="https://instagram.com" 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="text-brand-cream/80 hover:text-white transition-colors"
-              >
-                <Instagram className="w-5 h-5" />
-              </a>
-              <a 
-                href="https://tiktok.com" 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="text-brand-cream/80 hover:text-white transition-colors"
-              >
-                <svg 
-                  className="w-5 h-5" 
-                  viewBox="0 0 24 24" 
-                  fill="currentColor"
+    <header className="sticky top-0 z-50 w-full border-b border-brand-burgundy/20 bg-brand-cream/90 backdrop-blur supports-[backdrop-filter]:bg-brand-cream/70">
+      <div className="container flex h-20 items-center justify-between">
+        <Link to="/" className="flex items-center gap-2">
+          <motion.img
+            src="/logos/Logo-Trans.png"
+            alt="VIP Club"
+            className="h-12 w-auto"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5 }}
+            onError={(e) => {
+              e.target.style.display = 'none';
+              e.target.nextSibling.style.display = 'block';
+            }}
+          />
+          <motion.div
+            className="font-heading font-bold text-2xl tracking-tight text-brand-burgundy"
+            style={{ display: 'none' }}
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5 }}
+          >
+            VIP Club
+          </motion.div>
+        </Link>
+
+        <nav className="hidden md:flex items-center gap-x-6 lg:gap-x-8">
+          {navLinks.map((link) => (
+            <Link
+              key={link.name}
+              to={link.path}
+              className={`text-sm font-medium transition-colors hover:text-secondary flex items-center ${
+                location.pathname === link.path // Simplified active state check
+                  ? 'text-secondary font-semibold'
+                  : 'text-primary/80 hover:text-secondary'
+              }`}
+            >
+              {link.icon}
+              {link.name}
+            </Link>
+          ))}
+           <Button asChild size="sm" className="bg-[#5B0202] text-white hover:bg-[#5B0202]/90 transition-opacity rounded-full px-6 py-2.5">
+            <Link to="/venues">Book Now</Link>
+          </Button>
+        </nav>
+
+        <Button
+          variant="ghost"
+          size="icon"
+          className="md:hidden text-primary hover:text-secondary"
+          onClick={toggleMenu}
+          aria-label="Toggle menu"
+        >
+          {isOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+        </Button>
+
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.2 }}
+            className="absolute top-20 left-0 right-0 bg-background border-b border-primary/20 p-4 md:hidden shadow-lg"
+          >
+            <nav className="flex flex-col space-y-4">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.name}
+                  to={link.path}
+                  className={`text-base font-medium transition-colors hover:text-secondary flex items-center py-2 ${
+                    location.pathname === link.path
+                      ? 'text-secondary font-semibold'
+                      : 'text-primary/80 hover:text-secondary'
+                  }`}
+                  onClick={() => setIsOpen(false)}
                 >
-                  <path d="M19.59 6.69a4.83 4.83 0 0 1-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 0 1-5.2 1.74 2.89 2.89 0 0 1 2.31-4.64 2.93 2.93 0 0 1 .88.13V9.4a6.84 6.84 0 0 0-1-.05A6.33 6.33 0 0 0 5 20.1a6.34 6.34 0 0 0 10.86-4.43v-7a8.16 8.16 0 0 0 4.77 1.52v-3.4a4.85 4.85 0 0 1-1-.1z"/>
-                </svg>
-              </a>
-            </div>
-          </div>
-          <div>
-            <h4 className="text-lg font-semibold mb-4 text-white">Quick Links</h4>
-            <ul className="space-y-2">
-              <li><Link to="/venues" className="text-brand-cream/80 hover:text-white">Venues</Link></li>
-              <li><Link to="/about" className="text-brand-cream/80 hover:text-white">About Us</Link></li>
-              <li><Link to="/contact" className="text-brand-cream/80 hover:text-white">Contact</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="text-lg font-semibold mb-4 text-white">For Venues</h4>
-            <ul className="space-y-2">
-              <li><Link to="/venue-owner/login" className="text-brand-cream/80 hover:text-white">Login</Link></li>
-              <li><Link to="/venue-owner/register" className="text-brand-cream/80 hover:text-white">Register</Link></li>
-              <li><Link to="/venue-owner/features" className="text-brand-cream/80 hover:text-white">Features</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="text-lg font-semibold mb-4 text-white">Legal</h4>
-            <ul className="space-y-2">
-              <li><Link to="/privacy" className="text-brand-cream/80 hover:text-white">Privacy Policy</Link></li>
-              <li><Link to="/terms" className="text-brand-cream/80 hover:text-white">Terms of Service</Link></li>
-              <li><Link to="/faq" className="text-brand-cream/80 hover:text-white">FAQ</Link></li>
-            </ul>
-          </div>
-        </div>
-        <div className="border-t border-brand-cream/10 mt-8 pt-8 text-center text-brand-cream/60">
-          <p>&copy; {currentYear} VIP Club. All rights reserved.</p>
-        </div>
+                  {link.icon}
+                  {link.name}
+                </Link>
+              ))}
+              <Button asChild size="sm" className="w-full bg-brand-burgundy text-brand-cream hover:bg-brand-burgundy/90 transition-opacity rounded-full py-3">
+                <Link to="/venues" onClick={() => setIsOpen(false)}>Book Now</Link>
+              </Button>
+            </nav>
+          </motion.div>
+        )}
       </div>
-    </footer>
+    </header>
   );
 };
 
-export default Footer;
+export default Navbar;

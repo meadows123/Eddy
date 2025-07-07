@@ -3,7 +3,6 @@ import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Menu, X, Home, Compass, MapPin, CalendarDays, UserCircle, Wine } from 'lucide-react'; // Wine for brand icon
 import { Button } from '@/components/ui/button';
-import LogoImage from '../assets/Logo-Trans.png';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -25,7 +24,7 @@ const Navbar = () => {
       <div className="container flex h-20 items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
           <motion.img
-            src={LogoImage}
+            src="/logos/Logo-Trans.png"
             alt="VIP Club"
             className="h-12 w-auto"
             initial={{ opacity: 0, scale: 0.8 }}
