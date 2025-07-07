@@ -23,15 +23,14 @@ const Navbar = () => {
     <header className="sticky top-0 z-50 w-full border-b border-brand-burgundy/20 bg-brand-cream/90 backdrop-blur supports-[backdrop-filter]:bg-brand-cream/70">
       <div className="container flex h-20 items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
-          <Wine className="h-8 w-8 text-brand-burgundy" />
-          <motion.div
+          <motion.img
+            src="/images/logos/vip-club-logo.png"
+            alt="VIP Club"
+            className="h-12 w-auto"
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
-            className="font-heading font-bold text-3xl tracking-tight text-brand-burgundy"
-          >
-            Eddy
-          </motion.div>
+          />
         </Link>
 
         <nav className="hidden md:flex items-center gap-x-6 lg:gap-x-8">

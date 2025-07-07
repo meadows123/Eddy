@@ -12,7 +12,13 @@ const Footer = () => {
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
-            <h3 className="text-xl font-heading font-bold mb-4 text-white">Eddy</h3>
+            <div className="mb-4">
+              <img 
+                src="/images/logos/Logo1-Trans.png" 
+                alt="VIP Club" 
+                className="h-16 w-auto"
+              />
+            </div>
             <p className="text-brand-cream/80 mb-4">
               Your premier destination for exclusive venue bookings in Lagos.
             </p>
