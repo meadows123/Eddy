@@ -75,14 +75,25 @@ const EmailTestPage = () => {
         to_email: testEmail,
         to_name: 'Test Customer',
         from_name: 'VIP Club',
-        subject: 'Booking Confirmation - Test Venue',
-        message: 'Your booking has been confirmed!',
-        venue_name: 'Test Venue',
-        booking_id: 'TEST123',
-        booking_date: new Date().toLocaleDateString(),
-        booking_time: '19:00',
-        guests: '2',
-        total_amount: '5000'
+        reply_to: 'support@vipclub.com',
+        message: `
+Dear Test Customer,
+
+Your booking at Test Venue has been confirmed!
+
+Booking Details:
+- Booking ID: TEST123
+- Venue: Test Venue
+- Date: ${new Date().toLocaleDateString()}
+- Time: 19:00
+- Guests: 2
+- Total: ₦5,000
+
+Thank you for choosing VIP Club!
+
+Best regards,
+The VIP Club Team
+        `.trim()
       };
 
       try {

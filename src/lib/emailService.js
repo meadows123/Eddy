@@ -32,36 +32,45 @@ export const sendBookingConfirmation = async (booking, venue, customer) => {
       throw new Error('EmailJS configuration incomplete');
     }
 
-    // Use simpler template parameters that match standard EmailJS templates
+    // Use minimal template parameters that work with most EmailJS templates
     const templateParams = {
       to_email: customer.email || customer.full_name,
       to_name: customer.full_name || customer.name || 'Valued Customer',
       from_name: 'VIP Club',
       reply_to: 'support@vipclub.com',
-      subject: `Booking Confirmation - ${venue.name}`,
-      message: `Your booking at ${venue.name} has been confirmed!`,
-      venue_name: venue.name,
-      booking_id: booking.id,
-      booking_date: new Date(booking.booking_date).toLocaleDateString(),
-      booking_time: booking.booking_time,
-      guests: booking.guest_count || booking.guests,
-      total_amount: booking.total_amount
+      message: `
+Dear ${customer.full_name || customer.name || 'Valued Customer'},
+
+Your booking at ${venue.name} has been confirmed!
+
+Booking Details:
+- Booking ID: ${booking.id}
+- Venue: ${venue.name}
+- Date: ${new Date(booking.booking_date).toLocaleDateString()}
+- Time: ${booking.booking_time}
+- Guests: ${booking.guest_count || booking.guests}
+- Total: ₦${booking.total_amount}
+
+Thank you for choosing VIP Club!
+
+Best regards,
+The VIP Club Team
+      `.trim()
     };
 
-    // Fix email fallback
+    // Ensure email is valid
     if (!templateParams.to_email || !templateParams.to_email.includes('@')) {
-      console.warn('⚠️ Invalid email address, using fallback');
-      templateParams.to_email = 'test@example.com';
+      console.warn('⚠️ Invalid email address:', templateParams.to_email);
+      throw new Error('Invalid customer email address');
     }
 
-    console.log('🔄 Sending booking confirmation email with params:', {
+    console.log('🔄 Sending booking confirmation email with minimal params:', {
       to_email: templateParams.to_email,
       to_name: templateParams.to_name,
-      venue_name: templateParams.venue_name,
-      booking_id: templateParams.booking_id
+      from_name: templateParams.from_name
     });
     
-    // Send to customer using simpler parameters
+    // Send to customer using minimal parameters
     const result = await emailjs.send(
       EMAILJS_CONFIG.serviceId,
       EMAILJS_CONFIG.templateId,
