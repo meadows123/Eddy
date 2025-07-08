@@ -18,7 +18,7 @@ const AboutPage = () => {
         <div className="grid md:grid-cols-2 gap-12 items-center mb-16">
           <div>
             <img  
-              src="/images/logos/WhatsApp Image 2025-07-07 at 21.57.25_f1c2e60e.jpg" 
+              src="/images/logos/calum.jpg" 
               alt="Eddy - Our beloved friend who inspired VIP Club"
               className="rounded-lg shadow-xl object-cover w-full h-auto aspect-[4/3] border-4 border-brand-gold" 
             />
@@ -54,7 +54,7 @@ const AboutPage = () => {
               <div className="flex justify-center mb-6">
                 <div className="relative">
                   <img 
-                    src="/images/logos/WhatsApp Image 2025-07-07 at 21.57.25_f1c2e60e.jpg"
+                    src="/images/logos/WhatsApp%20Image%202025-07-07%20at%2021.57.25_f1c2e60e.jpg"
                     alt="Eddy - Forever in our hearts"
                     className="w-24 h-24 rounded-full object-cover border-4 border-brand-gold shadow-lg"
                   />
