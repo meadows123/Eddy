@@ -32,27 +32,51 @@ export const sendBookingConfirmation = async (booking, venue, customer) => {
       throw new Error('EmailJS configuration incomplete');
     }
 
-    const emailData = generateEmailData(booking, venue, customer);
-    const customerTemplate = bookingConfirmationTemplate(emailData);
+    // Use simpler template parameters that match standard EmailJS templates
+    const templateParams = {
+      to_email: customer.email || customer.full_name,
+      to_name: customer.full_name || customer.name || 'Valued Customer',
+      from_name: 'VIP Club',
+      reply_to: 'support@vipclub.com',
+      subject: `Booking Confirmation - ${venue.name}`,
+      message: `Your booking at ${venue.name} has been confirmed!`,
+      venue_name: venue.name,
+      booking_id: booking.id,
+      booking_date: new Date(booking.booking_date).toLocaleDateString(),
+      booking_time: booking.booking_time,
+      guests: booking.guest_count || booking.guests,
+      total_amount: booking.total_amount
+    };
+
+    // Fix email fallback
+    if (!templateParams.to_email || !templateParams.to_email.includes('@')) {
+      console.warn('⚠️ Invalid email address, using fallback');
+      templateParams.to_email = 'test@example.com';
+    }
+
+    console.log('🔄 Sending booking confirmation email with params:', {
+      to_email: templateParams.to_email,
+      to_name: templateParams.to_name,
+      venue_name: templateParams.venue_name,
+      booking_id: templateParams.booking_id
+    });
     
-    // Send to customer
+    // Send to customer using simpler parameters
     const result = await emailjs.send(
       EMAILJS_CONFIG.serviceId,
       EMAILJS_CONFIG.templateId,
-      {
-        to_email: customer.email,
-        to_name: customer.name,
-        subject: `Booking Confirmation - ${venue.name}`,
-        html_content: customerTemplate,
-        from_name: 'VIP Club',
-        reply_to: 'support@vipclub.com'
-      }
+      templateParams
     );
 
-    console.log('✅ Booking confirmation email sent successfully');
+    console.log('✅ Booking confirmation email sent successfully:', result);
     return result;
   } catch (error) {
     console.error('❌ Failed to send booking confirmation:', error);
+    console.error('Error details:', {
+      message: error.message,
+      status: error.status,
+      text: error.text
+    });
     throw error;
   }
 };
@@ -247,3 +271,40 @@ export const testBasicEmail = async (userEmail = 'test@example.com') => {
     return { success: false, error: error.text || error.message };
   }
 }; 
+
+// Quick test function for browser console debugging
+export const quickEmailTest = async (testEmail = 'test@example.com') => {
+  console.log('🔄 Starting quick email test...');
+  
+  try {
+    const result = await emailjs.send(
+      EMAILJS_CONFIG.serviceId,
+      EMAILJS_CONFIG.templateId,
+      {
+        to_email: testEmail,
+        to_name: 'Test User',
+        from_name: 'VIP Club',
+        subject: 'VIP Club Test Email',
+        message: 'This is a test email from VIP Club',
+        venue_name: 'Test Venue',
+        booking_id: '12345',
+        booking_date: new Date().toLocaleDateString(),
+        booking_time: '19:00',
+        guests: '2',
+        total_amount: '5000'
+      }
+    );
+    
+    console.log('✅ Quick email test successful!', result);
+    return { success: true, result };
+  } catch (error) {
+    console.error('❌ Quick email test failed:', error);
+    return { success: false, error };
+  }
+};
+
+// Make test function available globally for debugging
+if (typeof window !== 'undefined') {
+  window.quickEmailTest = quickEmailTest;
+  window.testEmailService = testEmailService;
+} 

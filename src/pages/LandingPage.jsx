@@ -209,7 +209,7 @@ const LandingPage = () => {
                 {/* Logo/Brand Animation */}
                 <motion.div
                   variants={itemVariants}
-                  className="mb-8"
+                  className="mb-8 pt-8 pb-4 md:pt-0 md:pb-0"
                 >
                   <motion.div
                     className="inline-flex items-center gap-3 mb-6"
@@ -328,7 +328,7 @@ const LandingPage = () => {
                 {/* Trust Indicators */}
                 <motion.div
                   variants={itemVariants}
-                  className="flex flex-wrap justify-center items-center gap-8 text-white/60 text-sm"
+                  className="flex flex-wrap justify-center items-center gap-6 md:gap-8 text-white/60 text-sm pt-4 pb-8 md:pt-0 md:pb-0"
                 >
                   <div className="flex items-center gap-2">
                     <Star className="w-4 h-4 text-brand-gold fill-brand-gold" />
