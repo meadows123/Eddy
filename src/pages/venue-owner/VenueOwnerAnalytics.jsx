@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
@@ -39,8 +39,28 @@ const VenueOwnerAnalytics = () => {
     recentBookings: []
   });
 
+  // Refs for cleanup
+  const subscriptionRef = useRef(null);
+  const autoRefreshRef = useRef(null);
+
   useEffect(() => {
     checkAuthAndFetchData();
+    
+    // Set up auto-refresh every 30 seconds as fallback
+    autoRefreshRef.current = setInterval(() => {
+      if (currentUser && !refreshing) {
+        console.log('Auto-refreshing analytics data...');
+        fetchBookingsData(currentUser, true); // silent refresh
+      }
+    }, 30000);
+
+    // Cleanup on unmount
+    return () => {
+      cleanupSubscriptions();
+      if (autoRefreshRef.current) {
+        clearInterval(autoRefreshRef.current);
+      }
+    };
   }, []);
 
   useEffect(() => {
@@ -48,6 +68,93 @@ const VenueOwnerAnalytics = () => {
       calculateAnalytics();
     }
   }, [bookings, timeRange, currentUser]);
+
+  const cleanupSubscriptions = () => {
+    if (subscriptionRef.current) {
+      console.log('Cleaning up real-time subscription...');
+      subscriptionRef.current.unsubscribe();
+      subscriptionRef.current = null;
+    }
+  };
+
+  const setupRealtimeSubscription = async (venueIds) => {
+    // Clean up existing subscription first
+    cleanupSubscriptions();
+
+    if (!venueIds || venueIds.length === 0) {
+      console.log('No venue IDs provided for subscription');
+      return;
+    }
+
+    console.log('Setting up real-time subscription for venues:', venueIds);
+
+    try {
+      // Subscribe to bookings changes for this venue owner's venues
+      subscriptionRef.current = supabase
+        .channel('venue-bookings-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
+            schema: 'public',
+            table: 'bookings',
+            filter: `venue_id=in.(${venueIds.join(',')})` // Filter by venue IDs
+          },
+          (payload) => {
+            console.log('Real-time booking change detected:', payload);
+            
+            // Show a toast notification for new bookings
+            if (payload.eventType === 'INSERT') {
+              toast({
+                title: 'New Booking!',
+                description: `A new booking has been received for ₦${payload.new.total_amount?.toLocaleString() || 0}`,
+                className: 'bg-green-50 border-green-200',
+              });
+            } else if (payload.eventType === 'UPDATE' && payload.new.status !== payload.old.status) {
+              toast({
+                title: 'Booking Updated',
+                description: `Booking status changed to ${payload.new.status}`,
+                className: 'bg-blue-50 border-blue-200',
+              });
+            }
+
+            // Refresh data after a short delay to allow DB changes to propagate
+            setTimeout(() => {
+              if (currentUser) {
+                fetchBookingsData(currentUser, true);
+              }
+            }, 1000);
+          }
+        )
+        .subscribe((status) => {
+          console.log('Subscription status:', status);
+          if (status === 'SUBSCRIBED') {
+            console.log('Successfully subscribed to real-time updates');
+            toast({
+              title: 'Live Updates Enabled',
+              description: 'Analytics will update automatically when new bookings arrive',
+              className: 'bg-green-50 border-green-200',
+            });
+          } else if (status === 'CLOSED') {
+            console.log('Real-time subscription closed');
+          } else if (status === 'CHANNEL_ERROR') {
+            console.error('Real-time subscription error');
+            toast({
+              title: 'Real-time Updates Unavailable',
+              description: 'Analytics will refresh every 30 seconds instead',
+              variant: 'destructive',
+            });
+          }
+        });
+    } catch (error) {
+      console.error('Error setting up real-time subscription:', error);
+      toast({
+        title: 'Real-time Setup Failed',
+        description: 'Using automatic refresh instead',
+        variant: 'destructive',
+      });
+    }
+  };
 
   const checkAuthAndFetchData = async () => {
     try {
@@ -75,9 +182,11 @@ const VenueOwnerAnalytics = () => {
     }
   };
 
-  const fetchBookingsData = async (user) => {
+  const fetchBookingsData = async (user, silentRefresh = false) => {
     try {
-      setLoading(true);
+      if (!silentRefresh) {
+        setLoading(true);
+      }
 
       // First get venues owned by this user
       const { data: venues, error: venuesError } = await supabase
@@ -93,6 +202,11 @@ const VenueOwnerAnalytics = () => {
       }
 
       const venueIds = venues.map(v => v.id);
+
+      // Set up real-time subscription for these venues (only if not already set up)
+      if (!subscriptionRef.current) {
+        await setupRealtimeSubscription(venueIds);
+      }
 
       // Fetch bookings for the last 6 months to calculate trends
       const sixMonthsAgo = subMonths(new Date(), 6);
@@ -122,15 +236,23 @@ const VenueOwnerAnalytics = () => {
       if (bookingsError) throw bookingsError;
 
       setBookings(bookingsData || []);
+      
+      if (!silentRefresh) {
+        console.log('Analytics data refreshed successfully');
+      }
     } catch (error) {
       console.error('Error fetching bookings:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load analytics data',
-        variant: 'destructive',
-      });
+      if (!silentRefresh) {
+        toast({
+          title: 'Error',
+          description: 'Failed to load analytics data',
+          variant: 'destructive',
+        });
+      }
     } finally {
-      setLoading(false);
+      if (!silentRefresh) {
+        setLoading(false);
+      }
     }
   };
 

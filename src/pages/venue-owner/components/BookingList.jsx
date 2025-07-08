@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { format } from 'date-fns';
 import { 
   Table, 
@@ -17,16 +17,86 @@ import { toast } from '@/components/ui/use-toast';
 const BookingList = ({ currentUser }) => {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // Ref for cleanup
+  const subscriptionRef = useRef(null);
 
   useEffect(() => {
     if (currentUser) {
       fetchBookings();
     }
+    
+    // Cleanup on unmount
+    return () => {
+      cleanupSubscriptions();
+    };
   }, [currentUser]);
 
-  const fetchBookings = async () => {
+  const cleanupSubscriptions = () => {
+    if (subscriptionRef.current) {
+      console.log('Cleaning up BookingList real-time subscription...');
+      subscriptionRef.current.unsubscribe();
+      subscriptionRef.current = null;
+    }
+  };
+
+  const setupRealtimeSubscription = async (venueIds) => {
+    // Clean up existing subscription first
+    cleanupSubscriptions();
+
+    if (!venueIds || venueIds.length === 0) {
+      console.log('No venue IDs provided for BookingList subscription');
+      return;
+    }
+
+    console.log('Setting up BookingList real-time subscription for venues:', venueIds);
+
     try {
-      setLoading(true);
+      // Subscribe to bookings changes for this venue owner's venues
+      subscriptionRef.current = supabase
+        .channel('booking-list-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
+            schema: 'public',
+            table: 'bookings',
+            filter: `venue_id=in.(${venueIds.join(',')})` // Filter by venue IDs
+          },
+          (payload) => {
+            console.log('Real-time booking change detected in BookingList:', payload);
+            
+            // Show notification for new bookings
+            if (payload.eventType === 'INSERT') {
+              toast({
+                title: 'New Booking Received!',
+                description: `A new booking has been received`,
+                className: 'bg-green-50 border-green-200',
+              });
+            }
+            
+            // Refresh data after a short delay to allow DB changes to propagate
+            setTimeout(() => {
+              fetchBookings(true); // silent refresh
+            }, 1000);
+          }
+        )
+        .subscribe((status) => {
+          console.log('BookingList subscription status:', status);
+          if (status === 'SUBSCRIBED') {
+            console.log('Successfully subscribed to BookingList real-time updates');
+          }
+        });
+    } catch (error) {
+      console.error('Error setting up BookingList real-time subscription:', error);
+    }
+  };
+
+  const fetchBookings = async (silentRefresh = false) => {
+    try {
+      if (!silentRefresh) {
+        setLoading(true);
+      }
       
       // Get venues owned by current user
       const { data: venues, error: venuesError } = await supabase
@@ -38,11 +108,18 @@ const BookingList = ({ currentUser }) => {
 
       if (!venues || venues.length === 0) {
         setBookings([]);
-        setLoading(false);
+        if (!silentRefresh) {
+          setLoading(false);
+        }
         return;
       }
 
       const venueIds = venues.map(v => v.id);
+
+      // Set up real-time subscription for these venues (only if not already set up)
+      if (!subscriptionRef.current) {
+        await setupRealtimeSubscription(venueIds);
+      }
 
       // Fetch bookings for these venues with related data
       const { data: bookingsData, error: bookingsError } = await supabase
@@ -87,13 +164,17 @@ const BookingList = ({ currentUser }) => {
       setBookings(bookingsWithProfiles);
     } catch (error) {
       console.error('Error fetching bookings:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to load bookings',
-        variant: 'destructive'
-      });
+      if (!silentRefresh) {
+        toast({
+          title: 'Error',
+          description: 'Failed to load bookings',
+          variant: 'destructive'
+        });
+      }
     } finally {
-      setLoading(false);
+      if (!silentRefresh) {
+        setLoading(false);
+      }
     }
   };
 
