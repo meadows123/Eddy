@@ -54,7 +54,7 @@ const AboutPage = () => {
               <div className="flex justify-center mb-6">
                 <div className="relative">
                   <img 
-                    src="/images/logos/WhatsApp%20Image%202025-07-07%20at%2021.57.25_f1c2e60e.jpg"
+                    src="/images/logos/callum.jpg"
                     alt="Eddy - Forever in our hearts"
                     className="w-24 h-24 rounded-full object-cover border-4 border-brand-gold shadow-lg"
                   />
