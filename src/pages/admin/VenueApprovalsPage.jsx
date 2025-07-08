@@ -45,61 +45,59 @@ const VenueApprovalsPage = () => {
       console.log('📊 All venues in database:', allVenues);
       console.log('❌ All venues error:', allVenuesError);
       
-      // Now try the pending venues query
-      const { data, error } = await supabase
+      // Get pending venues first
+      const { data: venuesData, error: venuesError } = await supabase
         .from('venues')
-        .select(`
-          *,
-          venue_owners:venue_owners!venue_owners_user_id_fkey (
-            id,
-            full_name,
-            email,
-            phone,
-            created_at
-          )
-        `)
+        .select('*')
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
-      console.log('🏢 Pending venues query result:', {
-        data: data,
-        error: error,
-        dataLength: data?.length,
-        firstVenue: data?.[0]
+      if (venuesError) {
+        console.error('❌ Error fetching pending venues:', venuesError);
+        throw venuesError;
+      }
+
+      console.log('🏢 Pending venues found:', venuesData?.length || 0);
+
+      if (!venuesData || venuesData.length === 0) {
+        console.log('ℹ️ No pending venues found');
+        setPendingVenues([]);
+        toast({
+          title: 'No Pending Venues',
+          description: 'There are currently no venues pending approval.',
+        });
+        return;
+      }
+
+      // Get the owner IDs from the venues
+      const ownerIds = venuesData.map(venue => venue.owner_id).filter(Boolean);
+      console.log('👥 Owner IDs to fetch:', ownerIds);
+
+      // Fetch venue owners separately
+      const { data: ownersData, error: ownersError } = await supabase
+        .from('venue_owners')
+        .select('id, user_id, full_name, email, phone, created_at')
+        .in('user_id', ownerIds);
+
+      if (ownersError) {
+        console.error('❌ Error fetching venue owners:', ownersError);
+        // Continue without owner data rather than failing completely
+      }
+
+      console.log('👤 Venue owners fetched:', ownersData?.length || 0);
+
+      // Join the data in JavaScript
+      const venuesWithOwners = venuesData.map(venue => {
+        const owner = ownersData?.find(owner => owner.user_id === venue.owner_id);
+        return {
+          ...venue,
+          venue_owners: owner ? [owner] : []
+        };
       });
 
-      if (error) {
-        console.error('❌ Error fetching pending venues:', error);
-        
-        // Try a simpler query without the join to isolate the issue
-        const { data: simpleData, error: simpleError } = await supabase
-          .from('venues')
-          .select('*')
-          .eq('status', 'pending');
-          
-        console.log('🔍 Simple query without join:', {
-          data: simpleData,
-          error: simpleError,
-          count: simpleData?.length
-        });
-        
-        toast({
-          title: 'Error',
-          description: `Failed to load pending venues: ${error.message}`,
-          variant: 'destructive',
-        });
-        setPendingVenues([]);
-      } else {
-        console.log('✅ Successfully fetched pending venues:', data?.length || 0);
-        setPendingVenues(data || []);
-        
-        if (!data || data.length === 0) {
-          toast({
-            title: 'No Pending Venues',
-            description: 'There are currently no venues pending approval.',
-          });
-        }
-      }
+      console.log('✅ Successfully joined venues with owners:', venuesWithOwners);
+      setPendingVenues(venuesWithOwners);
+
     } catch (error) {
       console.error('💥 Unexpected error:', error);
       toast({
