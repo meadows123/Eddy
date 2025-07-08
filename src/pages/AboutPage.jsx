@@ -18,10 +18,13 @@ const AboutPage = () => {
         <div className="grid md:grid-cols-2 gap-12 items-center mb-16">
           <div>
             <img  
-              src="https://images.unsplash.com/photo-1566737236500-c8ac43014a8e?ixlib=rb-4.0.3" 
-              alt="Elegant restaurant interior with ambient lighting"
+              src="/images/logos/WhatsApp Image 2025-07-07 at 21.57.25_f1c2e60e.jpg" 
+              alt="Eddy - Our beloved friend who inspired VIP Club"
               className="rounded-lg shadow-xl object-cover w-full h-auto aspect-[4/3] border-4 border-brand-gold" 
             />
+            <p className="text-center text-brand-burgundy/60 text-sm mt-2 italic">
+              Eddy - The inspiration behind VIP Club
+            </p>
           </div>
           <div className="space-y-6">
             <h2 className="text-3xl font-heading font-bold text-brand-burgundy">Our Story</h2>
@@ -48,18 +51,27 @@ const AboutPage = () => {
         <div className="mb-16">
           <Card className="bg-gradient-to-r from-brand-burgundy/5 to-brand-gold/5 border-brand-gold/30">
             <CardContent className="p-8 text-center">
-              <div className="flex justify-center mb-4">
-                <Heart className="h-8 w-8 text-brand-burgundy" />
+              <div className="flex justify-center mb-6">
+                <div className="relative">
+                  <img 
+                    src="/images/logos/WhatsApp Image 2025-07-07 at 21.57.25_f1c2e60e.jpg"
+                    alt="Eddy - Forever in our hearts"
+                    className="w-24 h-24 rounded-full object-cover border-4 border-brand-gold shadow-lg"
+                  />
+                  <div className="absolute -bottom-2 -right-2 bg-brand-burgundy rounded-full p-2">
+                    <Heart className="h-4 w-4 text-white fill-current" />
+                  </div>
+                </div>
               </div>
-                             <h3 className="text-2xl font-heading font-bold text-brand-burgundy mb-4">In Loving Memory of Eddy</h3>
-               <p className="text-brand-burgundy/80 max-w-2xl mx-auto leading-relaxed">
-                 "Everyone deserves their VIP moment" - these words from our beloved friend Eddy inspire everything we do. 
-                 Though he's no longer with us, his spirit of bringing people together and making everyone feel special 
-                 lives on through every booking, every celebration, and every connection made on our platform.
-               </p>
-               <p className="text-brand-burgundy/70 mt-4 italic">
-                 This one's for you, Eddy. Thank you for showing us that the real VIP experience is about the people we share it with.
-               </p>
+              <h3 className="text-2xl font-heading font-bold text-brand-burgundy mb-4">In Loving Memory of Eddy</h3>
+              <p className="text-brand-burgundy/80 max-w-2xl mx-auto leading-relaxed">
+                "Everyone deserves their VIP moment" - these words from our beloved friend Eddy inspire everything we do. 
+                Though he's no longer with us, his spirit of bringing people together and making everyone feel special 
+                lives on through every booking, every celebration, and every connection made on our platform.
+              </p>
+              <p className="text-brand-burgundy/70 mt-4 italic">
+                This one's for you, Eddy. Thank you for showing us that the real VIP experience is about the people we share it with.
+              </p>
             </CardContent>
           </Card>
         </div>
