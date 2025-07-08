@@ -129,7 +129,7 @@ const LandingPage = () => {
     {
       id: 'club',
       name: 'Clubs',
-      description: 'Experience the vibrant nightlife of Lagos',
+      description: 'Experience the vibrant nightlife and premium entertainment',
       icon: Music,
       color: 'from-purple-600 to-pink-600',
       count: '30+ venues',
@@ -254,7 +254,7 @@ const LandingPage = () => {
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 1, delay: 0.8 }}
                   >
-                    <span className="bg-clip-text text-transparent bg-gradient-to-r from-brand-gold via-yellow-300 to-brand-gold">
+                    <span className="text-brand-gold font-extrabold drop-shadow-2xl">
                       <TypewriterText text="Eddys'" delay={1200} />
                     </span>
                   </motion.span>
@@ -426,7 +426,7 @@ const LandingPage = () => {
                     className="relative inline-block"
                     whileHover={{ scale: 1.05 }}
                   >
-                    <span className="bg-gradient-to-r from-brand-gold via-yellow-400 to-brand-gold bg-clip-text text-transparent">
+                    <span className="text-brand-gold font-extrabold">
                       Category
                     </span>
                     <motion.div

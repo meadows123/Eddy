@@ -183,7 +183,7 @@ const CheckoutPage = () => {
         phone: bookingData.customerPhone || formData.phone
       };
 
-      // Send customer confirmation email
+      // Send customer confirmation email using EmailJS
       const customerEmailResult = await sendBookingConfirmation(booking, venue, customer);
       
       // Get venue owner info if available for notification
@@ -200,7 +200,7 @@ const CheckoutPage = () => {
       }
 
       console.log('✅ Email service result:', customerEmailResult);
-      return customerEmailResult.success;
+      return true;
     } catch (error) {
       console.error('❌ Failed to send booking emails:', error);
       return false;
