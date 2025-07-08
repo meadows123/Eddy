@@ -32,45 +32,68 @@ export const sendBookingConfirmation = async (booking, venue, customer) => {
       throw new Error('EmailJS configuration incomplete');
     }
 
-    // Use minimal template parameters that work with most EmailJS templates
+    // Use exact parameter names that match the EmailJS template
     const templateParams = {
-      to_email: customer.email || customer.full_name,
-      to_name: customer.full_name || customer.name || 'Valued Customer',
-      from_name: 'VIP Club',
-      reply_to: 'support@vipclub.com',
-      message: `
-Dear ${customer.full_name || customer.name || 'Valued Customer'},
-
-Your booking at ${venue.name} has been confirmed!
-
-Booking Details:
-- Booking ID: ${booking.id}
-- Venue: ${venue.name}
-- Date: ${new Date(booking.booking_date).toLocaleDateString()}
-- Time: ${booking.booking_time}
-- Guests: ${booking.guest_count || booking.guests}
-- Total: ₦${booking.total_amount}
-
-Thank you for choosing VIP Club!
-
-Best regards,
-The VIP Club Team
-      `.trim()
+      // Customer Information
+      customerName: customer.full_name || customer.name || 'Valued Customer',
+      customerEmail: customer.email || customer.full_name,
+      customerPhone: customer.phone || customer.phone_number || 'N/A',
+      
+      // Booking Information
+      bookingReference: `VIP-${booking.id}`,
+      partySize: booking.guest_count || booking.guests || '2',
+      bookingDate: new Date(booking.booking_date).toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      }),
+      bookingTime: booking.booking_time || '7:00 PM',
+      bookingDuration: '4',
+      
+      // Table Information
+      tableNumber: booking.table_number || 'VIP-001',
+      tableType: 'VIP Table',
+      tableCapacity: booking.guest_count || booking.guests || '2',
+      tableLocation: 'Prime Location',
+      tableFeatures: 'Premium seating with excellent view',
+      
+      // Venue Information
+      venueName: venue.name || 'Premium Venue',
+      venueDescription: venue.description || 'Experience luxury dining and entertainment in Lagos\' most exclusive venue.',
+      venueAddress: venue.address || 'Lagos, Nigeria',
+      venuePhone: venue.contact_phone || '+234 XXX XXX XXXX',
+      venueDressCode: venue.dress_code || 'Smart Casual',
+      venueParking: 'Valet parking available',
+      venueCuisine: 'International cuisine',
+      venueHours: '6:00 PM - 2:00 AM',
+      
+      // Special Information
+      specialRequests: 'None specified',
+      
+      // Action URLs (you can update these later)
+      viewBookingUrl: `${window.location.origin}/profile`,
+      modifyBookingUrl: `${window.location.origin}/profile`,
+      cancelBookingUrl: `${window.location.origin}/profile`,
+      websiteUrl: window.location.origin,
+      supportUrl: 'mailto:support@vipclub.com',
+      unsubscribeUrl: `${window.location.origin}/settings`
     };
 
     // Ensure email is valid
-    if (!templateParams.to_email || !templateParams.to_email.includes('@')) {
-      console.warn('⚠️ Invalid email address:', templateParams.to_email);
+    if (!templateParams.customerEmail || !templateParams.customerEmail.includes('@')) {
+      console.warn('⚠️ Invalid email address:', templateParams.customerEmail);
       throw new Error('Invalid customer email address');
     }
 
-    console.log('🔄 Sending booking confirmation email with minimal params:', {
-      to_email: templateParams.to_email,
-      to_name: templateParams.to_name,
-      from_name: templateParams.from_name
+    console.log('🔄 Sending booking confirmation with template parameters:', {
+      customerName: templateParams.customerName,
+      customerEmail: templateParams.customerEmail,
+      bookingReference: templateParams.bookingReference,
+      venueName: templateParams.venueName
     });
     
-    // Send to customer using minimal parameters
+    // Send to customer using template parameters
     const result = await emailjs.send(
       EMAILJS_CONFIG.serviceId,
       EMAILJS_CONFIG.templateId,

@@ -68,38 +68,83 @@ const EmailTestPage = () => {
         addResult(`Error status: ${error.status}`, 'error');
       }
 
-      // Test 2: Booking-like parameters
-      addResult('Testing with booking parameters...', 'info');
+      // Test 2: Alternative parameter names
+      addResult('Testing with alternative parameter names...', 'info');
       
-      const bookingParams = {
-        to_email: testEmail,
-        to_name: 'Test Customer',
+      const alternativeParams = {
+        user_email: testEmail,      // Common alternative
+        email: testEmail,           // Another common name
+        to: testEmail,              // Simple "to"
+        recipient: testEmail,       // Another variant
+        user_name: 'Test User',
+        name: 'Test User',
         from_name: 'VIP Club',
-        reply_to: 'support@vipclub.com',
-        message: `
-Dear Test Customer,
-
-Your booking at Test Venue has been confirmed!
-
-Booking Details:
-- Booking ID: TEST123
-- Venue: Test Venue
-- Date: ${new Date().toLocaleDateString()}
-- Time: 19:00
-- Guests: 2
-- Total: ₦5,000
-
-Thank you for choosing VIP Club!
-
-Best regards,
-The VIP Club Team
-        `.trim()
+        message: 'Testing alternative parameter names for EmailJS template.'
       };
 
       try {
-        const result2 = await emailjs.send(config.serviceId, config.templateId, bookingParams);
-        addResult('✅ Booking test successful!', 'success');
+        const result2 = await emailjs.send(config.serviceId, config.templateId, alternativeParams);
+        addResult('✅ Alternative parameters test successful!', 'success');
         addResult(`Response: ${result2.text}`, 'success');
+      } catch (error) {
+        addResult(`❌ Alternative parameters test failed: ${error.text || error.message}`, 'error');
+        addResult(`Error status: ${error.status}`, 'error');
+      }
+
+      // Test 3: Booking-like parameters (matching your template)
+      addResult('Testing with your template parameters...', 'info');
+      
+      const bookingParams = {
+        // Customer Information
+        customerName: 'Test Customer',
+        customerEmail: testEmail,
+        customerPhone: '+234 XXX XXX XXXX',
+        
+        // Booking Information
+        bookingReference: 'VIP-TEST123',
+        partySize: '2',
+        bookingDate: new Date().toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        }),
+        bookingTime: '7:00 PM',
+        bookingDuration: '4',
+        
+        // Table Information
+        tableNumber: 'VIP-001',
+        tableType: 'VIP Table',
+        tableCapacity: '2',
+        tableLocation: 'Prime Location',
+        tableFeatures: 'Premium seating with excellent view',
+        
+        // Venue Information
+        venueName: 'Test Venue',
+        venueDescription: 'Experience luxury dining and entertainment in Lagos\' most exclusive venue.',
+        venueAddress: 'Lagos, Nigeria',
+        venuePhone: '+234 XXX XXX XXXX',
+        venueDressCode: 'Smart Casual',
+        venueParking: 'Valet parking available',
+        venueCuisine: 'International cuisine',
+        venueHours: '6:00 PM - 2:00 AM',
+        
+        // Special Information
+        specialRequests: 'None specified',
+        
+        // Action URLs
+        viewBookingUrl: window.location.origin + '/profile',
+        modifyBookingUrl: window.location.origin + '/profile',
+        cancelBookingUrl: window.location.origin + '/profile',
+        websiteUrl: window.location.origin,
+        supportUrl: 'mailto:support@vipclub.com',
+        unsubscribeUrl: window.location.origin + '/settings'
+      };
+
+      try {
+        const result3 = await emailjs.send(config.serviceId, config.templateId, bookingParams);
+        addResult('✅ Booking test successful!', 'success');
+        addResult(`Response: ${result3.text}`, 'success');
       } catch (error) {
         addResult(`❌ Booking test failed: ${error.text || error.message}`, 'error');
         addResult(`Error status: ${error.status}`, 'error');
