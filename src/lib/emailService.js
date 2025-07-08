@@ -272,7 +272,7 @@ export const testBasicEmail = async (userEmail = 'test@example.com') => {
 
   // Minimal test data
   const testData = {
-    to_email: userEmail,
+    customerEmail: userEmail, // Updated to match template's To field
     to_name: 'Test User',
     from_name: 'VIP Club',
     message: 'This is a simple test email.',
