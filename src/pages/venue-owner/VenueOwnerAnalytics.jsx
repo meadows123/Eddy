@@ -219,9 +219,10 @@ const VenueOwnerAnalytics = () => {
           user_id,
           status,
           total_amount,
-          guest_count,
+          number_of_guests,
           booking_date,
-          booking_time,
+          start_time,
+          end_time,
           created_at,
           updated_at,
           venues (
