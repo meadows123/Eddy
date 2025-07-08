@@ -1,5 +1,5 @@
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Home, 
   Building2, 
@@ -11,7 +11,7 @@ import {
   X,
   Compass
 } from 'lucide-react';
-import { Button } from "/src/components/ui/button";
+import { Button } from './ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,16 +19,32 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "/src/components/ui/dropdown-menu";
+} from './ui/dropdown-menu';
+import { useAuth } from '../contexts/AuthContext';
 
 const Navigation = () => {
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { signOut, user } = useAuth();
   const isOwner = location.pathname.includes('/venue-owner');
 
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      // Close mobile menu if open
+      setIsMobileMenuOpen(false);
+      // Redirect to home page after logout
+      navigate('/');
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
+  };
+
   const customerNavItems = [
-    { name: 'Home', path: '/', icon: Home },
-    { name: 'Venues', path: '/venues', icon: Building2 },
+    { name: 'Home', path: '/home', icon: Home },
     { name: 'Explore', path: '/explore', icon: Compass },
+    { name: 'Venues', path: '/venues', icon: Building2 },
     { name: 'My Bookings', path: '/bookings', icon: Calendar },
     { name: 'Profile', path: '/profile', icon: User },
   ];
@@ -42,13 +58,33 @@ const Navigation = () => {
 
   const navItems = isOwner ? ownerNavItems : customerNavItems;
 
+  // Don't show navigation if user is not logged in
+  if (!user) {
+    return null;
+  }
+
   return (
     <nav className="bg-white border-b border-brand-burgundy/10">
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
-            <span className="text-2xl font-heading text-brand-burgundy">LagosVibe</span>
+            <img
+              src="/logos/Logo1-Trans.png"
+              alt="VIP Club"
+              className="h-10 w-auto object-contain"
+              onError={(e) => {
+                console.log('❌ Logo failed to load from:', e.target.src);
+                e.target.style.display = 'none';
+                e.target.nextSibling.style.display = 'flex';
+              }}
+            />
+            <div className="flex items-center space-x-2" style={{ display: 'none' }}>
+              <div className="h-8 w-8 bg-gradient-to-br from-brand-burgundy to-brand-gold rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-sm">V</span>
+              </div>
+              <span className="text-xl font-heading text-brand-burgundy font-bold">VIP Club</span>
+            </div>
           </Link>
 
           {/* Desktop Navigation */}
@@ -94,7 +130,10 @@ const Navigation = () => {
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>
-                  <button className="flex items-center w-full text-red-600">
+                  <button 
+                    onClick={handleLogout}
+                    className="flex items-center w-full text-red-600"
+                  >
                     <LogOut className="mr-2 h-4 w-4" />
                     Log out
                   </button>
@@ -102,7 +141,67 @@ const Navigation = () => {
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
+
+          {/* Mobile Menu Button */}
+          <button
+            className="md:hidden p-2 text-brand-burgundy"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          >
+            {isMobileMenuOpen ? (
+              <X className="h-6 w-6" />
+            ) : (
+              <Menu className="h-6 w-6" />
+            )}
+          </button>
         </div>
+
+        {/* Mobile Menu */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden py-4 border-t border-brand-burgundy/10">
+            <div className="flex flex-col space-y-4">
+              {navItems.map((item) => (
+                <Link
+                  key={item.path}
+                  to={item.path}
+                  className={`flex items-center space-x-2 text-sm font-medium transition-colors
+                    ${location.pathname === item.path 
+                      ? 'text-brand-gold' 
+                      : 'text-brand-burgundy/70 hover:text-brand-gold'
+                    }`}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <item.icon className="h-4 w-4" />
+                  <span>{item.name}</span>
+                </Link>
+              ))}
+              <div className="pt-4 border-t border-brand-burgundy/10">
+                <Link
+                  to="/profile"
+                  className="flex items-center space-x-2 text-sm font-medium text-brand-burgundy/70 hover:text-brand-gold"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <User className="h-4 w-4" />
+                  <span>Profile</span>
+                </Link>
+                <Link
+                  to="/settings"
+                  className="flex items-center space-x-2 text-sm font-medium text-brand-burgundy/70 hover:text-brand-gold mt-4"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <Settings className="h-4 w-4" />
+                  <span>Settings</span>
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center space-x-2 text-sm font-medium text-red-600 mt-4"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span>Log out</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </nav>
   );

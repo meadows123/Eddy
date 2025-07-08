@@ -354,6 +354,33 @@ const UserProfilePage = () => {
               />
               {error && <div className="text-red-500">{error}</div>}
               <Button type="submit" className="w-full bg-brand-burgundy text-white">Login</Button>
+              
+              {/* Forgot Password Link */}
+              <div className="text-center mt-2">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!form.email) {
+                      setError('Please enter your email address first');
+                      return;
+                    }
+                    try {
+                      const { error } = await supabase.auth.resetPasswordForEmail(form.email, {
+                        redirectTo: `${window.location.origin}/reset-password`
+                      });
+                      if (error) throw error;
+                      setSuccess('Password reset email sent! Check your inbox.');
+                      setError(''); // Clear any previous errors
+                    } catch (err) {
+                      setError(err.message || 'Failed to send password reset email');
+                    }
+                  }}
+                  className="text-sm text-brand-burgundy hover:text-brand-gold transition-colors"
+                >
+                  Forgot Password?
+                </button>
+              </div>
+
               <div className="text-center mt-4">
                 <span className="text-brand-burgundy/70">Don't have an account? </span>
                 <button 
@@ -764,10 +791,7 @@ function ChangePasswordForm({ user }) {
       // Update password
       const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
       if (updateError) throw updateError;
-      // Send password reset email
-      const { error: resetError } = await supabase.auth.resetPasswordForEmail(user.email);
-      if (resetError) throw resetError;
-      setSuccess('Password updated and reset email sent!');
+      setSuccess('Password updated successfully!');
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
@@ -898,9 +922,179 @@ function PaymentDetailsSection({ user }) {
 }
 
 function ReferralCodesSection({ user }) {
-  // Implementation of ReferralCodesSection component
+  const [friendEmail, setFriendEmail] = useState('');
+  const [personalMessage, setPersonalMessage] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [sentInvitations, setSentInvitations] = useState([]);
+  const [availableCodes, setAvailableCodes] = useState([]);
+
+  useEffect(() => {
+    // Load referral codes from localStorage
+    const codes = JSON.parse(localStorage.getItem('nightvibe_referral_codes') || '[]');
+    setAvailableCodes(codes);
+    
+    // Load sent invitations from localStorage
+    const invitations = JSON.parse(localStorage.getItem('lagosvibe_sent_invitations') || '[]');
+    setSentInvitations(invitations.filter(inv => inv.senderEmail === user.email));
+  }, [user.email]);
+
+  const sendReferralInvitation = async (e) => {
+    e.preventDefault();
+    if (!friendEmail || !friendEmail.includes('@')) {
+      alert('Please enter a valid email address');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Check if already invited
+      const existingInvitation = sentInvitations.find(inv => inv.email === friendEmail);
+      if (existingInvitation) {
+        alert('You have already sent an invitation to this email address');
+        setLoading(false);
+        return;
+      }
+
+      // Use Supabase admin function to invite user by email
+      const { data, error } = await supabase.auth.admin.inviteUserByEmail(friendEmail, {
+        redirectTo: `${window.location.origin}/register?referred_by=${user.id}`,
+        data: {
+          referred_by: user.id,
+          referrer_name: user.email.split('@')[0], // Simple name extraction
+          personal_message: personalMessage,
+          invitation_type: 'member_referral'
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      // Record the invitation
+      const newInvitation = {
+        id: Date.now(),
+        email: friendEmail,
+        personalMessage,
+        senderEmail: user.email,
+        sentAt: new Date().toISOString(),
+        status: 'sent'
+      };
+
+      const updatedInvitations = [...sentInvitations, newInvitation];
+      setSentInvitations(updatedInvitations);
+      
+      // Save to localStorage
+      const allInvitations = JSON.parse(localStorage.getItem('lagosvibe_sent_invitations') || '[]');
+      allInvitations.push(newInvitation);
+      localStorage.setItem('lagosvibe_sent_invitations', JSON.stringify(allInvitations));
+
+      setFriendEmail('');
+      setPersonalMessage('');
+      alert('Referral invitation sent successfully!');
+    } catch (error) {
+      console.error('Error sending referral:', error);
+      alert('Failed to send referral invitation. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copyReferralCode = (code) => {
+    navigator.clipboard.writeText(code);
+    alert(`Referral code "${code}" copied to clipboard!`);
+  };
+
   return (
-    <p>Referral Codes Section</p>
+    <div className="space-y-6">
+      {/* Send Invitation Form */}
+      <div className="bg-brand-cream/30 p-4 rounded-lg border border-brand-burgundy/10">
+        <h3 className="text-lg font-semibold text-brand-burgundy mb-3">Invite a Friend</h3>
+        <form onSubmit={sendReferralInvitation} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-brand-burgundy/70">Friend's Email</label>
+            <input
+              type="email"
+              className="w-full border p-2 rounded bg-white border-brand-burgundy/30 focus:border-brand-gold"
+              value={friendEmail}
+              onChange={e => setFriendEmail(e.target.value)}
+              placeholder="friend@example.com"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-brand-burgundy/70">Personal Message (Optional)</label>
+            <textarea
+              className="w-full border p-2 rounded bg-white border-brand-burgundy/30 focus:border-brand-gold"
+              rows="3"
+              value={personalMessage}
+              onChange={e => setPersonalMessage(e.target.value)}
+              placeholder="Tell your friend why they should join VIP Club..."
+            />
+          </div>
+          <button
+            type="submit"
+            className="bg-brand-gold text-brand-burgundy px-4 py-2 rounded hover:bg-brand-gold/90 font-medium"
+            disabled={loading}
+          >
+            {loading ? 'Sending...' : 'Send Invitation'}
+          </button>
+        </form>
+      </div>
+
+      {/* Available Referral Codes */}
+      {availableCodes.length > 0 && (
+        <div className="bg-brand-cream/30 p-4 rounded-lg border border-brand-burgundy/10">
+          <h3 className="text-lg font-semibold text-brand-burgundy mb-3">Available Referral Codes</h3>
+          <div className="space-y-2">
+            {availableCodes.map(code => (
+              <div key={code.id} className="flex items-center justify-between bg-white p-3 rounded border border-brand-burgundy/20">
+                <div>
+                  <span className="font-mono font-bold text-brand-burgundy">{code.code}</span>
+                  <span className="text-sm text-brand-burgundy/70 ml-2">({code.discount})</span>
+                  {code.perks && <div className="text-xs text-brand-burgundy/60">{code.perks}</div>}
+                </div>
+                <button
+                  onClick={() => copyReferralCode(code.code)}
+                  className="text-brand-gold hover:text-brand-burgundy text-sm font-medium"
+                >
+                  Copy
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Sent Invitations */}
+      {sentInvitations.length > 0 && (
+        <div className="bg-brand-cream/30 p-4 rounded-lg border border-brand-burgundy/10">
+          <h3 className="text-lg font-semibold text-brand-burgundy mb-3">Sent Invitations</h3>
+          <div className="space-y-2">
+            {sentInvitations.map(invitation => (
+              <div key={invitation.id} className="bg-white p-3 rounded border border-brand-burgundy/20">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-brand-burgundy">{invitation.email}</span>
+                  <span className="text-xs text-brand-burgundy/60">
+                    {new Date(invitation.sentAt).toLocaleDateString()}
+                  </span>
+                </div>
+                {invitation.personalMessage && (
+                  <div className="text-sm text-brand-burgundy/70 mt-1">
+                    "{invitation.personalMessage}"
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {sentInvitations.length === 0 && (
+        <div className="text-center text-brand-burgundy/60 py-4">
+          <p>No referral invitations sent yet. Invite your friends to earn rewards!</p>
+        </div>
+      )}
+    </div>
   );
 }
 

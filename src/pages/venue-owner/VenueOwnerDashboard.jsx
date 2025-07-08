@@ -49,22 +49,39 @@ const VenueOwnerDashboard = () => {
 
   useEffect(() => {
     const fetchMembers = async () => {
-      const { data, error } = await supabase
-        .from('venues')
-        .select('*')
-        .eq('owner_id', currentUser?.id);
+      try {
+        // Fetch VIP members who have deposited money (credit_balance > 0)
+        const { data, error } = await supabase
+          .from('user_profiles')
+          .select(`
+            id,
+            first_name,
+            last_name,
+            credit_balance,
+            phone_number,
+            city,
+            country,
+            created_at
+          `)
+          .gt('credit_balance', 0)
+          .order('credit_balance', { ascending: false });
 
-      if (error) {
-        console.error('Error fetching members:', error);
-      } else {
-        // Deduplicate by user id
-        const unique = Array.from(new Map(data.map(m => [m.id, m])).values());
-        setMembers(unique);
+        if (error) {
+          console.error('Error fetching VIP members:', error);
+        } else {
+          console.log('VIP members fetched:', data);
+          setMembers(data || []);
+        }
+      } catch (err) {
+        console.error('Error in fetchMembers:', err);
       }
     };
 
-    if (venueId) fetchMembers();
-  }, [venueId, currentUser?.id]);
+    // Fetch members when component mounts or user changes
+    if (currentUser) {
+      fetchMembers();
+    }
+  }, [currentUser]);
 
   const checkAuth = async () => {
     try {
@@ -596,31 +613,135 @@ const VenueOwnerDashboard = () => {
           </TabsContent>
         </Tabs>
 
-        {/* Eddy Members */}
+        {/* Eddy VIP Members */}
         <Card className="bg-white border-brand-burgundy/10 mt-8">
-          <div className="p-6">
-            <h2 className="text-xl font-semibold mb-4">Eddy Members</h2>
+          <CardHeader>
+            <CardTitle className="text-brand-burgundy flex items-center">
+              <Users className="h-5 w-5 mr-2" />
+              Eddy VIP Members
+            </CardTitle>
+            <p className="text-sm text-brand-burgundy/70">
+              VIP members who have deposited funds and are eligible for exclusive perks
+            </p>
+          </CardHeader>
+          <CardContent>
             {members && members.length > 0 ? (
-              <table className="w-full">
-                <thead>
-                  <tr>
-                    <th className="text-left py-2">Name</th>
-                    <th className="text-left py-2">Credit Balance</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {members.map(member => (
-                    <tr key={member.id}>
-                      <td className="py-2">{member.first_name} {member.last_name}</td>
-                      <td className="py-2">${(member.credit_balance ?? 0).toLocaleString()}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <div className="space-y-4">
+                {/* Summary Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                  <div className="bg-brand-cream/30 p-4 rounded-lg text-center">
+                    <div className="text-2xl font-bold text-brand-burgundy">{members.length}</div>
+                    <div className="text-sm text-brand-burgundy/70">Total VIP Members</div>
+                  </div>
+                  <div className="bg-brand-cream/30 p-4 rounded-lg text-center">
+                    <div className="text-2xl font-bold text-brand-gold">
+                      ${members.reduce((sum, member) => sum + (member.credit_balance || 0), 0).toLocaleString()}
+                    </div>
+                    <div className="text-sm text-brand-burgundy/70">Total Deposits</div>
+                  </div>
+                  <div className="bg-brand-cream/30 p-4 rounded-lg text-center">
+                    <div className="text-2xl font-bold text-brand-burgundy">
+                      {members.filter(m => (m.credit_balance || 0) >= 10000).length}
+                    </div>
+                    <div className="text-sm text-brand-burgundy/70">Premium Members</div>
+                  </div>
+                </div>
+
+                {/* Members Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="border-b border-brand-burgundy/20">
+                        <th className="text-left py-3 px-2 font-semibold text-brand-burgundy">Member</th>
+                        <th className="text-left py-3 px-2 font-semibold text-brand-burgundy">VIP Status</th>
+                        <th className="text-left py-3 px-2 font-semibold text-brand-burgundy">Credit Balance</th>
+                        <th className="text-left py-3 px-2 font-semibold text-brand-burgundy">Location</th>
+                        <th className="text-left py-3 px-2 font-semibold text-brand-burgundy">Joined</th>
+                        <th className="text-left py-3 px-2 font-semibold text-brand-burgundy">Contact</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {members.map(member => {
+                        const isVIP = (member.credit_balance || 0) >= 1000;
+                        const isPremium = (member.credit_balance || 0) >= 10000;
+                        const memberName = `${member.first_name || ''} ${member.last_name || ''}`.trim() || 'Unknown Member';
+                        const location = [member.city, member.country].filter(Boolean).join(', ') || 'Not specified';
+                        const joinDate = member.created_at ? new Date(member.created_at).toLocaleDateString() : 'Unknown';
+                        
+                        return (
+                          <tr key={member.id} className="border-b border-brand-burgundy/10 hover:bg-brand-cream/20 transition-colors">
+                            <td className="py-3 px-2">
+                              <div>
+                                <div className="font-medium text-brand-burgundy">{memberName}</div>
+                                <div className="text-xs text-brand-burgundy/60">ID: {member.id.slice(0, 8)}...</div>
+                              </div>
+                            </td>
+                            <td className="py-3 px-2">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                isPremium 
+                                  ? 'bg-gradient-to-r from-brand-gold to-yellow-400 text-brand-burgundy'
+                                  : isVIP 
+                                  ? 'bg-brand-burgundy text-white'
+                                  : 'bg-gray-100 text-gray-800'
+                              }`}>
+                                {isPremium ? '👑 Premium VIP' : isVIP ? '⭐ VIP Member' : '📱 Basic Member'}
+                              </span>
+                            </td>
+                            <td className="py-3 px-2">
+                              <div className="font-semibold text-brand-gold">
+                                ${(member.credit_balance || 0).toLocaleString()}
+                              </div>
+                              {isPremium && (
+                                <div className="text-xs text-brand-burgundy/60">Premium Perks Active</div>
+                              )}
+                            </td>
+                            <td className="py-3 px-2">
+                              <div className="text-sm text-brand-burgundy/80">{location}</div>
+                            </td>
+                            <td className="py-3 px-2">
+                              <div className="text-sm text-brand-burgundy/80">{joinDate}</div>
+                            </td>
+                            <td className="py-3 px-2">
+                              <div className="text-sm text-brand-burgundy/80">
+                                {member.phone_number || 'Not provided'}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* VIP Tiers Info */}
+                <div className="mt-6 p-4 bg-brand-cream/30 rounded-lg">
+                  <h4 className="font-semibold text-brand-burgundy mb-2">VIP Membership Tiers</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                    <div className="flex items-center space-x-2">
+                      <span className="w-3 h-3 bg-gray-100 rounded-full"></span>
+                      <span className="text-brand-burgundy/70">Basic Member: $0 - $999</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className="w-3 h-3 bg-brand-burgundy rounded-full"></span>
+                      <span className="text-brand-burgundy/70">VIP Member: $1,000 - $9,999</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <span className="w-3 h-3 bg-brand-gold rounded-full"></span>
+                      <span className="text-brand-burgundy/70">Premium VIP: $10,000+</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             ) : (
-              <p>No Eddy Members yet.</p>
+              <div className="text-center py-12">
+                <Users className="h-12 w-12 mx-auto text-brand-burgundy/30 mb-4" />
+                <h3 className="text-lg font-medium text-brand-burgundy mb-2">No VIP Members Yet</h3>
+                <p className="text-brand-burgundy/70">
+                  VIP members will appear here once they make their first deposit through the app.
+                </p>
+              </div>
             )}
-          </div>
+          </CardContent>
         </Card>
 
         {/* Add Table Dialog */}

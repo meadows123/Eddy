@@ -1,23 +1,81 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch'; // Assuming Switch component exists
+import { Switch } from '@/components/ui/switch';
 import { Bell, Lock, Palette } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
 
 const AdminSettingsPage = () => {
-  // Mock settings state
-  const [settings, setSettings] = React.useState({
+  const { user } = useAuth();
+  
+  // Settings state
+  const [settings, setSettings] = useState({
     notifications: true,
-    darkMode: true, // Assuming this would control admin panel dark mode specifically
+    darkMode: true,
     adminEmail: 'owner@nightvibe.com',
   });
+
+  // Password change state
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordSuccess, setPasswordSuccess] = useState('');
+  const [passwordError, setPasswordError] = useState('');
 
   const handleSettingChange = (key, value) => {
     setSettings(prev => ({ ...prev, [key]: value }));
     // In a real app, save to backend/localStorage
+  };
+
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+    setPasswordError('');
+    setPasswordSuccess('');
+    
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordError('All password fields are required.');
+      return;
+    }
+    
+    if (newPassword !== confirmPassword) {
+      setPasswordError('New passwords do not match.');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setPasswordError('New password must be at least 8 characters long.');
+      return;
+    }
+
+    setPasswordLoading(true);
+    try {
+      // Re-authenticate user with current password
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword,
+      });
+      if (signInError) throw signInError;
+
+      // Update password
+      const { error: updateError } = await supabase.auth.updateUser({ 
+        password: newPassword 
+      });
+      if (updateError) throw updateError;
+
+      setPasswordSuccess('Password updated successfully!');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      setPasswordError(err.message || 'Failed to update password.');
+    } finally {
+      setPasswordLoading(false);
+    }
   };
 
   return (
@@ -62,19 +120,50 @@ const AdminSettingsPage = () => {
           <CardDescription>Manage your account security settings.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div>
-            <Label htmlFor="currentPassword">Current Password</Label>
-            <Input id="currentPassword" type="password" placeholder="••••••••" />
-          </div>
-          <div>
-            <Label htmlFor="newPassword">New Password</Label>
-            <Input id="newPassword" type="password" placeholder="••••••••" />
-          </div>
-          <div>
-            <Label htmlFor="confirmPassword">Confirm New Password</Label>
-            <Input id="confirmPassword" type="password" placeholder="••••••••" />
-          </div>
-          <Button variant="outline">Change Password</Button>
+          <form onSubmit={handlePasswordChange} className="space-y-4">
+            <div>
+              <Label htmlFor="currentPassword">Current Password</Label>
+              <Input 
+                id="currentPassword" 
+                type="password" 
+                placeholder="••••••••"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="newPassword">New Password</Label>
+              <Input 
+                id="newPassword" 
+                type="password" 
+                placeholder="••••••••"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="confirmPassword">Confirm New Password</Label>
+              <Input 
+                id="confirmPassword" 
+                type="password" 
+                placeholder="••••••••"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+              />
+            </div>
+            {passwordError && <div className="text-red-500 text-sm">{passwordError}</div>}
+            {passwordSuccess && <div className="text-green-600 text-sm">{passwordSuccess}</div>}
+            <Button 
+              type="submit" 
+              variant="outline"
+              disabled={passwordLoading}
+            >
+              {passwordLoading ? 'Changing...' : 'Change Password'}
+            </Button>
+          </form>
         </CardContent>
       </Card>
       

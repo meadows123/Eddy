@@ -1,11 +1,24 @@
 import React, { useState } from 'react';
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutDashboard, Ticket, Users, Settings, Menu, X, LogOut, ShieldCheck, LayoutGrid, QrCode as QrCodeIcon } from 'lucide-react';
+import { LayoutDashboard, Ticket, Users, Settings, Menu, X, LogOut, ShieldCheck, LayoutGrid, QrCode as QrCodeIcon, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '../../contexts/AuthContext';
 
 const AdminSidebar = ({ isOpen, toggleSidebar }) => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { signOut } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      navigate('/');
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
+  };
+
   const navLinks = [
     { name: 'Dashboard', path: '/admin/dashboard', icon: <LayoutDashboard className="h-5 w-5" /> },
     { name: 'Bookings', path: '/admin/bookings', icon: <Ticket className="h-5 w-5" /> },
@@ -67,14 +80,21 @@ const AdminSidebar = ({ isOpen, toggleSidebar }) => {
             </Link>
           ))}
         </nav>
-        <div className="p-4 border-t border-border/50">
+        <div className="p-4 border-t border-border/50 space-y-2">
           <Link
             to="/"
             className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-muted-foreground hover:bg-primary/10 hover:text-primary transition-colors"
           >
-            <LogOut className="h-5 w-5" />
+            <Home className="h-5 w-5" />
             Exit Admin
           </Link>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium text-red-600 hover:bg-red-50 hover:text-red-700 transition-colors w-full text-left"
+          >
+            <LogOut className="h-5 w-5" />
+            Logout
+          </button>
         </div>
       </motion.aside>
     </>
