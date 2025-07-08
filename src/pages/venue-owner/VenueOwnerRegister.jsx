@@ -81,6 +81,7 @@ const VenueOwnerRegister = () => {
         .from('venues')
         .insert([{
           name: formData.venue_name,
+          description: formData.venue_description,
           type: formData.venue_type,
           price_range: formData.price_range,
           address: formData.venue_address,
@@ -88,6 +89,8 @@ const VenueOwnerRegister = () => {
           country: formData.venue_country,
           contact_phone: formData.venue_phone,
           contact_email: formData.venue_email,
+          capacity: formData.capacity ? parseInt(formData.capacity) : null,
+          opening_hours: formData.opening_hours,
           owner_id: user.id,
           status: 'pending'
         }])
@@ -129,7 +132,27 @@ const VenueOwnerRegister = () => {
           email: formData.email,
           phone: formData.phone
         };
-        await notifyAdminOfVenueSubmission(newVenue, venueOwnerData, user);
+        const templateData = {
+          // Owner information
+          ownerName: venueOwnerData.full_name,
+          ownerEmail: venueOwnerData.email,
+          ownerPhone: venueOwnerData.phone || 'Not provided',
+          
+          // Venue information  
+          venueName: newVenue.name,
+          venueDescription: newVenue.description || 'No description provided',
+          venueType: newVenue.type || 'Not specified',
+          venueCapacity: newVenue.capacity || 'Not specified',
+          venueAddress: `${newVenue.address}, ${newVenue.city}, ${newVenue.country}`,
+          venuePhone: newVenue.contact_phone || 'Not provided',
+          priceRange: newVenue.price_range || 'Not specified',
+          openingHours: newVenue.opening_hours || 'Not provided',
+          
+          // Application metadata
+          applicationDate: new Date().toLocaleDateString(),
+          viewUrl: 'http://localhost:5173/admin/venue-approvals'
+        };
+        await notifyAdminOfVenueSubmission(newVenue, venueOwnerData, user, templateData);
         console.log('✅ Admin notification sent successfully');
       } catch (adminError) {
         console.error('❌ Admin notification failed:', adminError);
@@ -334,6 +357,40 @@ const VenueOwnerRegister = () => {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="venue_city" className="text-brand-burgundy">
+                    City
+                  </Label>
+                  <Input
+                    id="venue_city"
+                    name="venue_city"
+                    type="text"
+                    required
+                    value={formData.venue_city}
+                    onChange={handleChange}
+                    className="mt-1 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
+                    placeholder="e.g., Lagos"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="venue_country" className="text-brand-burgundy">
+                    Country
+                  </Label>
+                  <Input
+                    id="venue_country"
+                    name="venue_country"
+                    type="text"
+                    required
+                    value={formData.venue_country}
+                    onChange={handleChange}
+                    className="mt-1 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
+                    placeholder="e.g., Nigeria"
+                  />
+                </div>
+              </div>
+
               <div>
                 <Label htmlFor="venue_phone" className="text-brand-burgundy">
                   Venue Phone
@@ -376,6 +433,56 @@ const VenueOwnerRegister = () => {
                 </div>
               </div>
 
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="capacity" className="text-brand-burgundy">
+                    Capacity (guests)
+                  </Label>
+                  <Input
+                    id="capacity"
+                    name="capacity"
+                    type="number"
+                    value={formData.capacity}
+                    onChange={handleChange}
+                    className="mt-1 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
+                    placeholder="e.g., 100"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="price_range" className="text-brand-burgundy">
+                    Price Range
+                  </Label>
+                  <select
+                    id="price_range"
+                    name="price_range"
+                    value={formData.price_range}
+                    onChange={handleChange}
+                    className="mt-1 w-full px-3 py-2 bg-white border border-brand-burgundy/20 rounded-md focus:border-brand-burgundy focus:ring-1 focus:ring-brand-burgundy"
+                  >
+                    <option value="$">$ (Budget)</option>
+                    <option value="$$">$$ (Moderate)</option>
+                    <option value="$$$">$$$ (Expensive)</option>
+                    <option value="$$$$">$$$$ (Very Expensive)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <Label htmlFor="opening_hours" className="text-brand-burgundy">
+                  Opening Hours
+                </Label>
+                <Input
+                  id="opening_hours"
+                  name="opening_hours"
+                  type="text"
+                  value={formData.opening_hours}
+                  onChange={handleChange}
+                  className="mt-1 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
+                  placeholder="e.g., Mon-Sun 9AM-11PM"
+                />
+              </div>
+
               <div>
                 <Label htmlFor="venue_type" className="text-brand-burgundy">
                   Venue Type
@@ -399,103 +506,6 @@ const VenueOwnerRegister = () => {
                     <option value="other">Other</option>
                   </select>
                 </div>
-              </div>
-
-              <div>
-                <Label htmlFor="price_range" className="text-brand-burgundy">
-                  Price Range
-                </Label>
-                <div className="mt-1 relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Store className="h-5 w-5 text-brand-burgundy/50" />
-                  </div>
-                  <select
-                    id="price_range"
-                    name="price_range"
-                    required
-                    value={formData.price_range}
-                    onChange={handleChange}
-                    className="w-full pl-10 pr-3 py-2 bg-white border border-brand-burgundy/20 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-burgundy focus:border-transparent"
-                  >
-                    <option value="$">$</option>
-                    <option value="$$">$$</option>
-                    <option value="$$$">$$$</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="capacity" className="text-brand-burgundy">
-                  Capacity
-                </Label>
-                <div className="mt-1 relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Store className="h-5 w-5 text-brand-burgundy/50" />
-                  </div>
-                  <Input
-                    id="capacity"
-                    name="capacity"
-                    type="number"
-                    required
-                    value={formData.capacity}
-                    onChange={handleChange}
-                    className="pl-10 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
-                    placeholder="Enter venue capacity"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="opening_hours" className="text-brand-burgundy">
-                  Opening Hours
-                </Label>
-                <div className="mt-1 relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Store className="h-5 w-5 text-brand-burgundy/50" />
-                  </div>
-                  <Input
-                    id="opening_hours"
-                    name="opening_hours"
-                    type="text"
-                    required
-                    value={formData.opening_hours}
-                    onChange={handleChange}
-                    className="pl-10 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
-                    placeholder="Enter venue opening hours"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="venue_city" className="text-brand-burgundy">
-                  City
-                </Label>
-                <Input
-                  id="venue_city"
-                  name="venue_city"
-                  type="text"
-                  required
-                  value={formData.venue_city || ''}
-                  onChange={handleChange}
-                  className="pl-10 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
-                  placeholder="Enter city"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="venue_country" className="text-brand-burgundy">
-                  Country
-                </Label>
-                <Input
-                  id="venue_country"
-                  name="venue_country"
-                  type="text"
-                  required
-                  value={formData.venue_country || ''}
-                  onChange={handleChange}
-                  className="pl-10 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
-                  placeholder="Enter country"
-                />
               </div>
             </div>
 

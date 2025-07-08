@@ -250,43 +250,29 @@ export async function removeStripePaymentMethod(id) {
 }
 
 export async function notifyAdminOfVenueSubmission(newVenue, venueOwner, user) {
+  console.log("🔔 [ADMIN EMAIL] Starting venue submission notification...");
+  
   const ADMIN_EMAIL = "sales@oneeddy.com";
-  const CACHE_BUSTER = Date.now(); // Force cache refresh
+  
+  const EMAILJS_CONFIG = {
+    serviceId: import.meta.env.VITE_EMAILJS_SERVICE_ID,
+    templateId: import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
+    publicKey: import.meta.env.VITE_EMAILJS_PUBLIC_KEY,
+  };
 
   try {
-    console.log('🔄 [CACHE REFRESH] Sending admin notification via EmailJS for venue:', newVenue.name, 'Time:', CACHE_BUSTER);
-    console.log('👤 Venue owner:', venueOwner);
-    console.log('📧 Admin email:', ADMIN_EMAIL);
-    
-    // Import EmailJS dynamically
-    let emailjs;
-    try {
-      emailjs = (await import('@emailjs/browser')).default;
-      console.log('✅ EmailJS imported successfully');
-    } catch (importError) {
-      console.error('❌ Failed to import EmailJS:', importError);
-      throw new Error('Failed to import EmailJS library');
-    }
-    
-    // EmailJS configuration
-    const EMAILJS_CONFIG = {
-      serviceId: import.meta.env.VITE_EMAILJS_SERVICE_ID,
-      templateId: import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
-      publicKey: import.meta.env.VITE_EMAILJS_PUBLIC_KEY,
-    };
-
-    console.log('📋 EmailJS Config check:', {
+    console.log('📧 EmailJS config check:', {
       serviceId: EMAILJS_CONFIG.serviceId ? 'SET' : 'MISSING',
-      templateId: EMAILJS_CONFIG.templateId ? 'SET' : 'MISSING',
+      templateId: EMAILJS_CONFIG.templateId ? 'SET' : 'MISSING', 
       publicKey: EMAILJS_CONFIG.publicKey ? 'SET' : 'MISSING'
     });
 
-    // Check configuration
     if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.templateId || !EMAILJS_CONFIG.publicKey) {
-      throw new Error('EmailJS configuration incomplete. Check your .env file.');
+      throw new Error('EmailJS configuration incomplete');
     }
 
-    // Initialize EmailJS
+    // Import and initialize EmailJS
+    const emailjs = (await import('@emailjs/browser')).default;
     try {
       emailjs.init(EMAILJS_CONFIG.publicKey);
       console.log('✅ EmailJS initialized successfully');
@@ -295,72 +281,43 @@ export async function notifyAdminOfVenueSubmission(newVenue, venueOwner, user) {
       throw new Error('Failed to initialize EmailJS');
     }
     
-    // ENHANCED: Create comprehensive venue notification email with all registration details
-    const venueNotificationEmail = `
-🏢 NEW VENUE SUBMISSION PENDING APPROVAL
-
-A new venue "${newVenue.name}" has been submitted and requires your approval.
-
-═══════════════════════════════════════
-VENUE DETAILS
-═══════════════════════════════════════
-Name: ${newVenue.name}
-Type: ${newVenue.type || 'Not specified'}
-Description: ${newVenue.description || 'Not provided'}
-
-📍 LOCATION
-Address: ${newVenue.address || 'Not provided'}
-City: ${newVenue.city || 'Not provided'}
-Country: ${newVenue.country || 'Not provided'}
-
-📞 CONTACT INFORMATION
-Venue Phone: ${newVenue.contact_phone || 'Not provided'}
-Venue Email: ${newVenue.contact_email || 'Not provided'}
-
-🏪 OPERATIONAL DETAILS
-Capacity: ${newVenue.capacity ? `${newVenue.capacity} guests` : 'Not specified'}
-Price Range: ${newVenue.price_range || 'Not specified'}
-Opening Hours: ${newVenue.opening_hours || 'Not provided'}
-
-═══════════════════════════════════════
-VENUE OWNER DETAILS
-═══════════════════════════════════════
-Name: ${venueOwner.full_name}
-Email: ${venueOwner.email}
-Phone: ${venueOwner.phone || 'Not provided'}
-
-═══════════════════════════════════════
-ACTION REQUIRED
-═══════════════════════════════════════
-Please review and approve or reject this venue submission.
-
-👉 REVIEW VENUE: https://oneeddy.com/venue-approvals
-
-The venue owner will be automatically notified of your decision.
-
-═══════════════════════════════════════
-VENUE STATUS: ${newVenue.status?.toUpperCase() || 'PENDING'}
-═══════════════════════════════════════
-
----
-This is an automated notification from VIP Club.
-If you have questions, contact the development team.
-Timestamp: ${new Date().toISOString()}
-    `;
-    
-    // Create admin notification email content using the working field names
-    const adminEmailData = {
-      email: ADMIN_EMAIL,
-      name: 'VIP Club Admin',
-      subject: `🏢 New Venue Submission: ${newVenue.name}`,
-      message: venueNotificationEmail
+    // Map data to match EmailJS template variables exactly
+    const templateData = {
+      // Owner information
+      ownerName: venueOwner.full_name,
+      ownerEmail: venueOwner.email,
+      ownerPhone: venueOwner.phone || 'Not provided',
+      
+      // Venue information
+      venueName: newVenue.name,
+      venueDescription: newVenue.description || 'No description provided',
+      venueType: newVenue.type || 'Not specified',
+      venueCapacity: newVenue.capacity || 'Not specified',
+      venueAddress: `${newVenue.address || 'Not provided'}, ${newVenue.city || 'Not provided'}, ${newVenue.country || 'Not provided'}`,
+      venuePhone: newVenue.contact_phone || 'Not provided',
+      priceRange: newVenue.price_range || 'Not specified',
+      openingHours: newVenue.opening_hours || 'Not provided',
+      
+      // Application metadata
+      applicationDate: new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      }),
+      viewUrl: 'http://localhost:5173/admin/venue-approvals',
+      
+      // Email routing (for EmailJS)
+      to_email: ADMIN_EMAIL,
+      to_name: 'VIP Club Admin',
+      from_name: 'VIP Club System',
+      reply_to: venueOwner.email
     };
     
-    console.log('🔥 [LATEST] Sending venue notification email with data:', {
-      email: adminEmailData.email,
-      name: adminEmailData.name,
-      subject: adminEmailData.subject,
-      messageLength: venueNotificationEmail.length,
+    console.log('🔥 [VENUE EMAIL] Sending with template data:', {
+      ownerName: templateData.ownerName,
+      venueName: templateData.venueName,
+      ownerEmail: templateData.ownerEmail,
+      viewUrl: templateData.viewUrl,
       timestamp: new Date().toISOString()
     });
     
@@ -368,7 +325,7 @@ Timestamp: ${new Date().toISOString()}
     const emailPromise = emailjs.send(
       EMAILJS_CONFIG.serviceId,
       EMAILJS_CONFIG.templateId,
-      adminEmailData
+      templateData
     );
     
     // Add timeout to prevent hanging

@@ -8,7 +8,8 @@ import {
   Table2,
   Settings,
   QrCode,
-  Image
+  Image,
+  LogOut
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -21,9 +22,11 @@ import { supabase } from '../../lib/supabase';
 import { toast } from '../../components/ui/use-toast';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
+import { useAuth } from '../../contexts/AuthContext';
 
 const VenueOwnerDashboard = () => {
   const navigate = useNavigate();
+  const { signOut } = useAuth();
   const [venue, setVenue] = useState(null);
   const [stats, setStats] = useState({
     totalBookings: 0,
@@ -334,6 +337,24 @@ const VenueOwnerDashboard = () => {
     }
   };
 
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      toast({
+        title: 'Success',
+        description: 'Successfully logged out',
+      });
+      navigate('/');
+    } catch (error) {
+      console.error('Error logging out:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to log out',
+        variant: 'destructive',
+      });
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -401,6 +422,10 @@ const VenueOwnerDashboard = () => {
             <Button className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90">
               <QrCode className="h-4 w-4 mr-2" />
               Generate QR Code
+            </Button>
+            <Button variant="outline" className="border-red-500 text-red-500 hover:bg-red-50" onClick={handleLogout}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Log Out
             </Button>
           </div>
         </div>

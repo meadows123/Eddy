@@ -21,15 +21,6 @@ import {
 } from 'lucide-react';
 import { useToast } from '../../components/ui/use-toast';
 
-const sendVenueEmail = async ({ to, subject, template, data }) => {
-  const functionUrl = `${import.meta.env.VITE_SUPABASE_URL.replace('.supabase.co', '.functions.supabase.co')}/send-email`;
-  await fetch(functionUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ to, subject, template, data })
-  });
-};
-
 const VenueApprovalsPage = () => {
   const [pendingVenues, setPendingVenues] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -43,7 +34,18 @@ const VenueApprovalsPage = () => {
   const fetchPendingVenues = async () => {
     setLoading(true);
     try {
-      // Enhanced query with venue owner information
+      console.log('🔍 Fetching pending venues...');
+      
+      // First, let's try to get ALL venues to see if there are any venues at all
+      const { data: allVenues, error: allVenuesError } = await supabase
+        .from('venues')
+        .select('id, name, status, created_at')
+        .order('created_at', { ascending: false });
+      
+      console.log('📊 All venues in database:', allVenues);
+      console.log('❌ All venues error:', allVenuesError);
+      
+      // Now try the pending venues query
       const { data, error } = await supabase
         .from('venues')
         .select(`
@@ -59,20 +61,52 @@ const VenueApprovalsPage = () => {
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
+      console.log('🏢 Pending venues query result:', {
+        data: data,
+        error: error,
+        dataLength: data?.length,
+        firstVenue: data?.[0]
+      });
+
       if (error) {
-        console.error('Error fetching pending venues:', error);
+        console.error('❌ Error fetching pending venues:', error);
+        
+        // Try a simpler query without the join to isolate the issue
+        const { data: simpleData, error: simpleError } = await supabase
+          .from('venues')
+          .select('*')
+          .eq('status', 'pending');
+          
+        console.log('🔍 Simple query without join:', {
+          data: simpleData,
+          error: simpleError,
+          count: simpleData?.length
+        });
+        
         toast({
           title: 'Error',
-          description: 'Failed to load pending venues',
+          description: `Failed to load pending venues: ${error.message}`,
           variant: 'destructive',
         });
         setPendingVenues([]);
       } else {
-        console.log('Fetched pending venues with owners:', data);
+        console.log('✅ Successfully fetched pending venues:', data?.length || 0);
         setPendingVenues(data || []);
+        
+        if (!data || data.length === 0) {
+          toast({
+            title: 'No Pending Venues',
+            description: 'There are currently no venues pending approval.',
+          });
+        }
       }
     } catch (error) {
-      console.error('Unexpected error:', error);
+      console.error('💥 Unexpected error:', error);
+      toast({
+        title: 'Unexpected Error',
+        description: error.message,
+        variant: 'destructive',
+      });
       setPendingVenues([]);
     } finally {
       setLoading(false);
@@ -94,25 +128,6 @@ const VenueApprovalsPage = () => {
         .eq('id', venue.id);
 
       if (venueError) throw venueError;
-
-      // Send approval email using venue owner data
-      const venueOwner = venue.venue_owners?.[0] || venue.venue_owners;
-      if (venueOwner?.email && venueOwner?.full_name) {
-        try {
-          await sendVenueEmail({
-            to: venueOwner.email,
-            subject: '🎉 Your Venue Has Been Approved!',
-            template: 'venue-approved',
-            data: {
-              ownerName: venueOwner.full_name,
-              venueName: venue.name,
-            }
-          });
-        } catch (emailError) {
-          console.error('Email sending failed:', emailError);
-          // Don't fail the approval if email fails
-        }
-      }
 
       // Refresh the list
       await fetchPendingVenues();
@@ -149,26 +164,6 @@ const VenueApprovalsPage = () => {
         .eq('id', venue.id);
 
       if (venueError) throw venueError;
-
-      // Send rejection email using venue owner data
-      const venueOwner = venue.venue_owners?.[0] || venue.venue_owners;
-      if (venueOwner?.email && venueOwner?.full_name) {
-        try {
-          await sendVenueEmail({
-            to: venueOwner.email,
-            subject: 'Venue Submission Update',
-            template: 'venue-rejected',
-            data: {
-              ownerName: venueOwner.full_name,
-              venueName: venue.name,
-              reason: rejectionReason[venue.id] || 'No specific reason provided',
-            }
-          });
-        } catch (emailError) {
-          console.error('Email sending failed:', emailError);
-          // Don't fail the rejection if email fails
-        }
-      }
 
       // Refresh the list
       await fetchPendingVenues();
