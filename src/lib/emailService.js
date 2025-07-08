@@ -146,14 +146,35 @@ export const sendBasicEmail = async (to, subject, htmlContent) => {
 
 // Test function to verify EmailJS setup
 export const testEmailService = async () => {
+  // Check configuration first
+  if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.templateId || !EMAILJS_CONFIG.publicKey) {
+    console.error('❌ EmailJS configuration incomplete:');
+    console.error('   Service ID:', EMAILJS_CONFIG.serviceId ? '✅ Set' : '❌ Missing');
+    console.error('   Template ID:', EMAILJS_CONFIG.templateId ? '✅ Set' : '❌ Missing');
+    console.error('   Public Key:', EMAILJS_CONFIG.publicKey ? '✅ Set' : '❌ Missing');
+    
+    return { 
+      success: false, 
+      error: 'EmailJS configuration incomplete. Check your .env file.' 
+    };
+  }
+
+  // Use minimal, standard template parameters
   const testData = {
-    to_email: 'test@example.com',
     to_name: 'Test User',
-    subject: 'VIP Club Email Service Test',
-    html_content: '<h1>Test Email</h1><p>EmailJS is working correctly!</p>',
+    to_email: 'test@example.com',
+    from_name: 'VIP Club',
+    message: 'This is a test email to verify EmailJS configuration.',
+    subject: 'VIP Club Email Service Test'
   };
 
   try {
+    console.log('🔄 Testing EmailJS with config:', {
+      serviceId: EMAILJS_CONFIG.serviceId,
+      templateId: EMAILJS_CONFIG.templateId,
+      publicKey: EMAILJS_CONFIG.publicKey ? '***' : 'missing'
+    });
+
     const result = await emailjs.send(
       EMAILJS_CONFIG.serviceId,
       EMAILJS_CONFIG.templateId,
@@ -164,6 +185,65 @@ export const testEmailService = async () => {
     return { success: true, result };
   } catch (error) {
     console.error('❌ Email service test failed:', error);
-    return { success: false, error: error.message };
+    console.error('Error details:', {
+      message: error.message,
+      status: error.status,
+      text: error.text
+    });
+    
+    let errorMessage = 'Email service test failed';
+    if (error.status === 422) {
+      errorMessage = 'Template parameters mismatch. Please check your EmailJS template configuration.';
+    } else if (error.status === 400) {
+      errorMessage = 'Invalid request. Check your Service ID and Template ID.';
+    } else if (error.status === 401) {
+      errorMessage = 'Unauthorized. Check your Public Key.';
+    }
+    
+    return { success: false, error: errorMessage };
+  }
+}; 
+
+// Simple test to verify template configuration
+export const testBasicEmail = async (userEmail = 'test@example.com') => {
+  // Check configuration first
+  if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.templateId || !EMAILJS_CONFIG.publicKey) {
+    return { 
+      success: false, 
+      error: 'EmailJS configuration incomplete. Check your .env file.' 
+    };
+  }
+
+  // Minimal test data
+  const testData = {
+    to_email: userEmail,
+    to_name: 'Test User',
+    from_name: 'VIP Club',
+    message: 'This is a simple test email.',
+    subject: 'VIP Club Test'
+  };
+
+  try {
+    console.log('🔄 Testing basic email with data:', testData);
+
+    const result = await emailjs.send(
+      EMAILJS_CONFIG.serviceId,
+      EMAILJS_CONFIG.templateId,
+      testData
+    );
+    
+    console.log('✅ Basic email test successful:', result);
+    return { success: true, result };
+  } catch (error) {
+    console.error('❌ Basic email test failed:', error);
+    
+    if (error.text === 'The recipients address is empty') {
+      return { 
+        success: false, 
+        error: 'EmailJS template missing "To" field. Add {{to_email}} to your template\'s "To" field.' 
+      };
+    }
+    
+    return { success: false, error: error.text || error.message };
   }
 }; 

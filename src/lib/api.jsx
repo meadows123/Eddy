@@ -249,35 +249,251 @@ export async function removeStripePaymentMethod(id) {
   return true;
 }
 
-export async function notifyAdminOfVenueSubmission(newVenue, userProfile, user) {
-  const url = getSupabaseFunctionUrl('send-email');
-  const ADMIN_EMAIL = "sales@oneeddy.com"; // Change to your admin email
+export async function notifyAdminOfVenueSubmission(newVenue, venueOwner, user) {
+  const ADMIN_EMAIL = "sales@oneeddy.com";
+  const CACHE_BUSTER = Date.now(); // Force cache refresh
 
   try {
-    const headers = await getAuthHeaders();
+    console.log('🔄 [CACHE REFRESH] Sending admin notification via EmailJS for venue:', newVenue.name, 'Time:', CACHE_BUSTER);
+    console.log('👤 Venue owner:', venueOwner);
+    console.log('📧 Admin email:', ADMIN_EMAIL);
     
-    const response = await fetch(url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({
-        to: ADMIN_EMAIL,
-        subject: "New Venue Submission Pending Approval",
-        template: "admin-venue-submitted",
-        data: {
-          venueName: newVenue.name,
-          ownerName: `${userProfile.first_name} ${userProfile.last_name}`,
-          ownerEmail: user.email
-        }
-      })
+    // Import EmailJS dynamically
+    let emailjs;
+    try {
+      emailjs = (await import('@emailjs/browser')).default;
+      console.log('✅ EmailJS imported successfully');
+    } catch (importError) {
+      console.error('❌ Failed to import EmailJS:', importError);
+      throw new Error('Failed to import EmailJS library');
+    }
+    
+    // EmailJS configuration
+    const EMAILJS_CONFIG = {
+      serviceId: import.meta.env.VITE_EMAILJS_SERVICE_ID,
+      templateId: import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
+      publicKey: import.meta.env.VITE_EMAILJS_PUBLIC_KEY,
+    };
+
+    console.log('📋 EmailJS Config check:', {
+      serviceId: EMAILJS_CONFIG.serviceId ? 'SET' : 'MISSING',
+      templateId: EMAILJS_CONFIG.templateId ? 'SET' : 'MISSING',
+      publicKey: EMAILJS_CONFIG.publicKey ? 'SET' : 'MISSING'
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || "Failed to send admin notification email.");
+    // Check configuration
+    if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.templateId || !EMAILJS_CONFIG.publicKey) {
+      throw new Error('EmailJS configuration incomplete. Check your .env file.');
     }
-    console.log("Admin notification email sent!");
-  } catch (err) {
-    console.error("Error sending admin notification:", err.message);
+
+    // Initialize EmailJS
+    try {
+      emailjs.init(EMAILJS_CONFIG.publicKey);
+      console.log('✅ EmailJS initialized successfully');
+    } catch (initError) {
+      console.error('❌ EmailJS initialization failed:', initError);
+      throw new Error('Failed to initialize EmailJS');
+    }
+    
+    // ENHANCED: Create comprehensive venue notification email with all registration details
+    const venueNotificationEmail = `
+🏢 NEW VENUE SUBMISSION PENDING APPROVAL
+
+A new venue "${newVenue.name}" has been submitted and requires your approval.
+
+═══════════════════════════════════════
+VENUE DETAILS
+═══════════════════════════════════════
+Name: ${newVenue.name}
+Type: ${newVenue.type || 'Not specified'}
+Description: ${newVenue.description || 'Not provided'}
+
+📍 LOCATION
+Address: ${newVenue.address || 'Not provided'}
+City: ${newVenue.city || 'Not provided'}
+Country: ${newVenue.country || 'Not provided'}
+
+📞 CONTACT INFORMATION
+Venue Phone: ${newVenue.contact_phone || 'Not provided'}
+Venue Email: ${newVenue.contact_email || 'Not provided'}
+
+🏪 OPERATIONAL DETAILS
+Capacity: ${newVenue.capacity ? `${newVenue.capacity} guests` : 'Not specified'}
+Price Range: ${newVenue.price_range || 'Not specified'}
+Opening Hours: ${newVenue.opening_hours || 'Not provided'}
+
+═══════════════════════════════════════
+VENUE OWNER DETAILS
+═══════════════════════════════════════
+Name: ${venueOwner.full_name}
+Email: ${venueOwner.email}
+Phone: ${venueOwner.phone || 'Not provided'}
+
+═══════════════════════════════════════
+ACTION REQUIRED
+═══════════════════════════════════════
+Please review and approve or reject this venue submission.
+
+👉 REVIEW VENUE: https://oneeddy.com/venue-approvals
+
+The venue owner will be automatically notified of your decision.
+
+═══════════════════════════════════════
+VENUE STATUS: ${newVenue.status?.toUpperCase() || 'PENDING'}
+═══════════════════════════════════════
+
+---
+This is an automated notification from VIP Club.
+If you have questions, contact the development team.
+Timestamp: ${new Date().toISOString()}
+    `;
+    
+    // Create admin notification email content using the working field names
+    const adminEmailData = {
+      email: ADMIN_EMAIL,
+      name: 'VIP Club Admin',
+      subject: `🏢 New Venue Submission: ${newVenue.name}`,
+      message: venueNotificationEmail
+    };
+    
+    console.log('🔥 [LATEST] Sending venue notification email with data:', {
+      email: adminEmailData.email,
+      name: adminEmailData.name,
+      subject: adminEmailData.subject,
+      messageLength: venueNotificationEmail.length,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Send email via EmailJS with timeout
+    const emailPromise = emailjs.send(
+      EMAILJS_CONFIG.serviceId,
+      EMAILJS_CONFIG.templateId,
+      adminEmailData
+    );
+    
+    // Add timeout to prevent hanging
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('EmailJS request timed out after 30 seconds')), 30000);
+    });
+    
+    const result = await Promise.race([emailPromise, timeoutPromise]);
+
+    console.log("✅ Admin notification sent successfully via EmailJS:", result);
+    return { success: true, result };
+    
+  } catch (error) {
+    console.error("❌ Error sending admin notification via EmailJS:", error);
+    console.error("❌ Full error details:", {
+      name: error.name,
+      message: error.message,
+      stack: error.stack
+    });
+    throw error;
+  }
+}
+
+// Simple test function for EmailJS connectivity
+export async function testEmailJSConnection() {
+  try {
+    console.log('🧪 Testing EmailJS connectivity...');
+    
+    // Import EmailJS
+    const emailjs = (await import('@emailjs/browser')).default;
+    
+    // Check config
+    const config = {
+      serviceId: import.meta.env.VITE_EMAILJS_SERVICE_ID,
+      templateId: import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
+      publicKey: import.meta.env.VITE_EMAILJS_PUBLIC_KEY,
+    };
+    
+    console.log('📋 Config check:', {
+      serviceId: config.serviceId ? 'SET' : 'MISSING',
+      templateId: config.templateId ? 'SET' : 'MISSING',
+      publicKey: config.publicKey ? 'SET' : 'MISSING'
+    });
+    
+    if (!config.serviceId || !config.templateId || !config.publicKey) {
+      throw new Error('EmailJS configuration incomplete');
+    }
+    
+    // Initialize
+    emailjs.init(config.publicKey);
+    
+    // Try multiple common field name variations
+    const commonFieldVariations = [
+      // Variation 1: Most common EmailJS fields
+      {
+        name: 'Common EmailJS fields',
+        data: {
+          email: 'sales@oneeddy.com',
+          name: 'VIP Club Admin',
+          subject: 'EmailJS Connection Test',
+          message: 'This is a test message to verify EmailJS connectivity.'
+        }
+      },
+      // Variation 2: Standard to/from fields
+      {
+        name: 'Standard to/from fields',
+        data: {
+          to: 'sales@oneeddy.com',
+          from: 'VIP Club Test',
+          subject: 'EmailJS Connection Test',
+          message: 'This is a test message to verify EmailJS connectivity.'
+        }
+      },
+      // Variation 3: User-based fields
+      {
+        name: 'User-based fields',
+        data: {
+          user_email: 'sales@oneeddy.com',
+          user_name: 'VIP Club Admin',
+          subject: 'EmailJS Connection Test',
+          message: 'This is a test message to verify EmailJS connectivity.'
+        }
+      },
+      // Variation 4: Our current approach
+      {
+        name: 'Current approach',
+        data: {
+          to_name: 'VIP Club Admin',
+          to_email: 'sales@oneeddy.com',
+          from_name: 'VIP Club Test',
+          reply_to: 'noreply@oneeddy.com',
+          subject: 'EmailJS Connection Test',
+          message: 'This is a test message to verify EmailJS connectivity.',
+          html_message: '<p>This is a <strong>test message</strong> to verify EmailJS connectivity.</p>'
+        }
+      }
+    ];
+    
+    // Try each variation
+    for (const variation of commonFieldVariations) {
+      try {
+        console.log(`📤 Trying ${variation.name}:`, variation.data);
+        
+        const result = await emailjs.send(config.serviceId, config.templateId, variation.data);
+        console.log(`✅ SUCCESS with ${variation.name}:`, result);
+        
+        return { 
+          success: true, 
+          result, 
+          workingFields: variation.name,
+          workingData: variation.data 
+        };
+        
+      } catch (error) {
+        console.log(`❌ Failed with ${variation.name}:`, error.message);
+        // Continue to next variation
+      }
+    }
+    
+    // If all variations failed
+    throw new Error('All common field variations failed. Check your EmailJS template configuration.');
+    
+  } catch (error) {
+    console.error('❌ EmailJS connection test failed:', error);
+    return { success: false, error: error.message };
   }
 }
 

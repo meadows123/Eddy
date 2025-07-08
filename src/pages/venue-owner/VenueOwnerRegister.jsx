@@ -95,14 +95,49 @@ const VenueOwnerRegister = () => {
         .single();
       if (venueError) throw venueError;
 
-      // 5. Notify admin
-      await notifyAdminOfVenueSubmission(newVenue, {
+      // 5. Create user profile
+      const userProfile = {
         id: user.id,
         first_name: formData.full_name.split(' ')[0],
-        last_name: formData.full_name.split(' ')[1] || '',
+        last_name: formData.full_name.split(' ').slice(1).join(' ') || '',
         phone: formData.phone,
         email: formData.email,
-      }, user);
+      };
+
+      // Insert user profile into database
+      const { error: profileError } = await supabase
+        .from('user_profiles')
+        .insert([{
+          id: user.id,
+          first_name: userProfile.first_name,
+          last_name: userProfile.last_name,
+          phone_number: userProfile.phone,
+          email: userProfile.email
+        }]);
+
+      if (profileError) {
+        console.warn('Could not create user profile:', profileError);
+        // Don't throw error, as this is not critical for venue registration
+      }
+
+      // 6. Notify admin
+      console.log('🔄 About to send admin notification...');
+      try {
+        // Create venue owner object for notification
+        const venueOwnerData = {
+          full_name: formData.full_name,
+          email: formData.email,
+          phone: formData.phone
+        };
+        await notifyAdminOfVenueSubmission(newVenue, venueOwnerData, user);
+        console.log('✅ Admin notification sent successfully');
+      } catch (adminError) {
+        console.error('❌ Admin notification failed:', adminError);
+        // Don't throw error, as venue registration was successful
+      }
+
+      // Clear saved form data on successful registration
+      localStorage.removeItem('venueRegistrationData');
 
       toast({
         title: 'Registration Successful',
