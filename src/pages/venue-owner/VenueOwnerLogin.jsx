@@ -5,7 +5,7 @@ import { Store, Mail, Lock, ArrowRight } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
-  import { supabase } from '../../lib/supabase';
+import { supabase } from '../../lib/supabase';
 import { useToast } from '../../components/ui/use-toast';
 
 const VenueOwnerLogin = () => {
@@ -21,86 +21,28 @@ const VenueOwnerLogin = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-
+    setError(null);
     try {
-      console.log('Attempting to sign in...');
-      const { data: { user, session }, error: signInError } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
       });
-
-      if (signInError) {
-        console.error('Sign in error:', signInError);
-        throw signInError;
-      }
-
-      if (!user) {
-        throw new Error('No user found');
-      }
-
-      console.log('User signed in successfully:', user);
-
+      if (error) throw error;
       // Check if user is a venue owner
-      console.log('Checking venue owner status...');
-      const { data: venueOwner, error: venueOwnerError } = await supabase
+      const { data: owner, error: ownerError } = await supabase
         .from('venue_owners')
-        .select('*')
-        .eq('user_id', user.id)
+        .select('id')
+        .eq('user_id', data.user.id)
         .single();
-
-      if (venueOwnerError) {
-        console.error('Error checking venue owner status:', venueOwnerError);
-        throw new Error('Failed to verify venue owner status');
-      }
-
-      if (!venueOwner) {
-        console.error('No venue owner profile found');
-        throw new Error('This account is not registered as a venue owner');
-      }
-
-      console.log('Venue owner verified:', venueOwner);
-
-      // Check if user has any venues
-      const { data: venues, error: venuesError } = await supabase
-        .from('venues')
-        .select('*')
-        .eq('owner_id', user.id);
-
-      if (venuesError) {
-        console.error('Error checking venues:', venuesError);
-        throw new Error('Failed to check venue status');
-      }
-
-      // If user has no venues, redirect to registration
-      if (!venues || venues.length === 0) {
+      if (ownerError || !owner) {
+        // Not a venue owner yet, redirect to registration
         navigate('/venue-owner/register');
-        return;
+      } else {
+        // Already a venue owner, redirect to dashboard
+        navigate('/venue-owner/dashboard');
       }
-
-      // Check if any venue is pending approval
-      const hasPendingVenue = venues.some(venue => venue.status === 'pending');
-      if (hasPendingVenue) {
-        navigate('/venue-owner/pending');
-        return;
-      }
-
-      // If all venues are rejected, redirect to registration
-      const allVenuesRejected = venues.every(venue => venue.status === 'rejected');
-      if (allVenuesRejected) {
-        navigate('/venue-owner/register');
-        return;
-      }
-
-      // If we get here, user has at least one approved venue
-      navigate('/venue-owner/dashboard');
-
     } catch (error) {
-      console.error('Login error:', error);
-      toast({
-        title: 'Login Failed',
-        description: error.message || 'An error occurred during login',
-        variant: 'destructive',
-      });
+      setError(error.message || 'Login failed');
     } finally {
       setLoading(false);
     }

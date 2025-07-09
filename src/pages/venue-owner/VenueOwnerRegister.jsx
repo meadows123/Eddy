@@ -63,111 +63,15 @@ const VenueOwnerRegister = () => {
         password: formData.password,
       });
       if (signUpError) throw signUpError;
-      const user = signUpData.user;
 
-      // 3. Create venue owner record
-      const { error: ownerError } = await supabase
-        .from('venue_owners')
-        .insert([{
-          user_id: user.id,
-          full_name: formData.full_name,
-          phone: formData.phone,
-          email: formData.email,
-        }]);
-      if (ownerError) throw ownerError;
-
-      // 4. Create venue
-      const { data: newVenue, error: venueError } = await supabase
-        .from('venues')
-        .insert([{
-          name: formData.venue_name,
-          description: formData.venue_description,
-          type: formData.venue_type,
-          price_range: formData.price_range,
-          address: formData.venue_address,
-          city: formData.venue_city,
-          country: formData.venue_country,
-          contact_phone: formData.venue_phone,
-          contact_email: formData.venue_email,
-          capacity: formData.capacity ? parseInt(formData.capacity) : null,
-          opening_hours: formData.opening_hours,
-          owner_id: user.id,
-          status: 'pending'
-        }])
-        .select()
-        .single();
-      if (venueError) throw venueError;
-
-      // 5. Create user profile
-      const userProfile = {
-        id: user.id,
-        first_name: formData.full_name.split(' ')[0],
-        last_name: formData.full_name.split(' ').slice(1).join(' ') || '',
-        phone: formData.phone,
-        email: formData.email,
-      };
-
-      // Insert user profile into database
-      const { error: profileError } = await supabase
-        .from('user_profiles')
-        .insert([{
-          id: user.id,
-          first_name: userProfile.first_name,
-          last_name: userProfile.last_name,
-          phone_number: userProfile.phone,
-          email: userProfile.email
-        }]);
-
-      if (profileError) {
-        console.warn('Could not create user profile:', profileError);
-        // Don't throw error, as this is not critical for venue registration
-      }
-
-      // 6. Notify admin
-      console.log('🔄 About to send admin notification...');
-      try {
-        // Create venue owner object for notification
-        const venueOwnerData = {
-          full_name: formData.full_name,
-          email: formData.email,
-          phone: formData.phone
-        };
-        const templateData = {
-          // Owner information
-          ownerName: venueOwnerData.full_name,
-          ownerEmail: venueOwnerData.email,
-          ownerPhone: venueOwnerData.phone || 'Not provided',
-          
-          // Venue information  
-          venueName: newVenue.name,
-          venueDescription: newVenue.description || 'No description provided',
-          venueType: newVenue.type || 'Not specified',
-          venueCapacity: newVenue.capacity || 'Not specified',
-          venueAddress: `${newVenue.address}, ${newVenue.city}, ${newVenue.country}`,
-          venuePhone: newVenue.contact_phone || 'Not provided',
-          priceRange: newVenue.price_range || 'Not specified',
-          openingHours: newVenue.opening_hours || 'Not provided',
-          
-          // Application metadata
-          applicationDate: new Date().toLocaleDateString(),
-          viewUrl: 'http://localhost:5173/admin/venue-approvals'
-        };
-        await notifyAdminOfVenueSubmission(newVenue, venueOwnerData, user, templateData);
-        console.log('✅ Admin notification sent successfully');
-      } catch (adminError) {
-        console.error('❌ Admin notification failed:', adminError);
-        // Don't throw error, as venue registration was successful
-      }
-
-      // Clear saved form data on successful registration
-      localStorage.removeItem('venueRegistrationData');
-
+      // 2. Prompt user to confirm email and log in
       toast({
-        title: 'Registration Successful',
-        description: 'Your venue is pending approval. We will notify you once approved.',
+        title: 'Check your email',
+        description: 'Please confirm your email address to complete registration. Then log in to finish setting up your venue.',
       });
-
-      navigate('/venue-owner/pending');
+      setLoading(false);
+      navigate('/venue-owner/login');
+      return;
     } catch (error) {
       console.error('Registration error:', error);
       toast({

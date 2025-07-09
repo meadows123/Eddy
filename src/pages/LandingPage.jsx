@@ -230,7 +230,7 @@ const LandingPage = () => {
                     >
                       <Sparkles className="w-8 h-8 text-brand-burgundy" />
                     </motion.div>
-                    <span className="text-2xl font-bold tracking-wider text-brand-gold">VIP CLUB</span>
+                    <span className="text-2xl font-bold tracking-wider text-brand-gold">Eddys members</span>
                   </motion.div>
                 </motion.div>
 
