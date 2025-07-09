@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
-import { Heart, Calendar, Settings } from 'lucide-react';
+import { Heart, Calendar, Settings, Clipboard, XCircle, CheckCircle, Send, Link as LinkIcon } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { CardElement, useStripe, useElements, Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
@@ -41,12 +41,51 @@ const UserProfilePage = () => {
     city: '',
     country: ''
   });
+  const [splitPaymentsSent, setSplitPaymentsSent] = useState([]);
+  const [splitPaymentsReceived, setSplitPaymentsReceived] = useState([]);
+  const [splitPaymentsLoading, setSplitPaymentsLoading] = useState(true);
+  const [splitPaymentsError, setSplitPaymentsError] = useState(null);
+  const [splitPaymentNotification, setSplitPaymentNotification] = useState(null);
 
   // Load user data when logged in
   useEffect(() => {
     if (user) {
       loadUserData();
     }
+  }, [user]);
+
+  // Load split payment requests (sent and received)
+  useEffect(() => {
+    if (!user) return;
+    setSplitPaymentsLoading(true);
+    const fetchSplitPayments = async () => {
+      try {
+        // Sent requests
+        const { data: sent, error: sentError } = await supabase
+          .from('split_payment_requests')
+          .select('*')
+          .eq('requester_id', user.id)
+          .order('created_at', { ascending: false });
+        // Received requests
+        const { data: received, error: receivedError } = await supabase
+          .from('split_payment_requests')
+          .select('*')
+          .eq('recipient_id', user.id)
+          .order('created_at', { ascending: false });
+        if (sentError || receivedError) throw sentError || receivedError;
+        setSplitPaymentsSent(sent || []);
+        setSplitPaymentsReceived(received || []);
+        setSplitPaymentsError(null);
+        // Notification for new received requests
+        const newRequest = (received || []).find(r => r.status === 'pending' && !r.seen_by_recipient);
+        if (newRequest) setSplitPaymentNotification('You have a new split payment request!');
+      } catch (err) {
+        setSplitPaymentsError('Failed to load split payment requests.');
+      } finally {
+        setSplitPaymentsLoading(false);
+      }
+    };
+    fetchSplitPayments();
   }, [user]);
 
   const loadUserData = async () => {
@@ -416,7 +455,7 @@ const UserProfilePage = () => {
               </div>
 
         <Tabs defaultValue="profile" className="space-y-4">
-          <TabsList className="bg-white p-1 rounded-lg border border-brand-burgundy/10 grid grid-cols-2 md:grid-cols-5 h-auto">
+          <TabsList className="bg-white p-1 rounded-lg border border-brand-burgundy/10 grid grid-cols-2 md:grid-cols-6 h-auto">
             <TabsTrigger value="profile" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 p-2 md:p-3 text-xs md:text-sm">
               <Settings className="h-3 w-3 md:h-4 md:w-4" />
               <span className="hidden sm:inline">Profile</span>
@@ -441,6 +480,11 @@ const UserProfilePage = () => {
               <span role="img" aria-label="VIP" className="h-3 w-3 md:h-4 md:w-4 text-xs md:text-sm">👑</span>
               <span className="hidden sm:inline">Member</span>
               <span className="sm:hidden">VIP</span>
+            </TabsTrigger>
+            <TabsTrigger value="split-payments" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 p-2 md:p-3 text-xs md:text-sm">
+              <Send className="h-3 w-3 md:h-4 md:w-4" />
+              <span className="hidden sm:inline">Split Payments</span>
+              <span className="sm:hidden">Split</span>
             </TabsTrigger>
           </TabsList>
 
@@ -751,6 +795,79 @@ const UserProfilePage = () => {
                   <Button type="submit" className="w-full bg-brand-burgundy text-white">Deposit</Button>
                 </form>
                 {/* Optionally: Transaction history, perks list, etc. */}
+              </div>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="split-payments">
+            <Card className="bg-white border-brand-burgundy/10">
+              <div className="p-2 sm:p-4 md:p-6">
+                <h2 className="text-xl font-semibold mb-4">Split Payments</h2>
+                {splitPaymentNotification && (
+                  <div className="mb-4 p-3 rounded bg-brand-gold/20 text-brand-burgundy flex items-center gap-2">
+                    <Send className="h-4 w-4" />
+                    {splitPaymentNotification}
+                  </div>
+                )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div>
+                    <h3 className="font-semibold mb-2">Requests You've Sent</h3>
+                    {splitPaymentsLoading ? <p>Loading...</p> : splitPaymentsSent.length === 0 ? <p>No sent requests.</p> : (
+                      <div className="space-y-3">
+                        {splitPaymentsSent.map(req => (
+                          <Card key={req.id} className="p-3 flex flex-col gap-2 border border-brand-burgundy/10">
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <div className="font-medium">To: {req.recipient_phone || req.recipient_id}</div>
+                                <div className="text-sm text-brand-burgundy/70">Amount: ₦{req.amount?.toLocaleString()}</div>
+                                <div className="text-xs text-brand-burgundy/50">Status: {req.status}</div>
+                              </div>
+                              <div className="flex gap-2">
+                                <Button size="icon" variant="outline" onClick={() => navigator.clipboard.writeText(req.payment_link)} title="Copy Payment Link"><Clipboard className="h-4 w-4" /></Button>
+                                {req.status === 'pending' && (
+                                  <Button size="icon" variant="outline" onClick={async () => {
+                                    // Cancel request
+                                    await supabase.from('split_payment_requests').update({ status: 'cancelled' }).eq('id', req.id);
+                                    setSplitPaymentsSent(prev => prev.map(r => r.id === req.id ? { ...r, status: 'cancelled' } : r));
+                                  }} title="Cancel"><XCircle className="h-4 w-4 text-red-500" /></Button>
+                                )}
+                              </div>
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold mb-2">Requests You've Received</h3>
+                    {splitPaymentsLoading ? <p>Loading...</p> : splitPaymentsReceived.length === 0 ? <p>No received requests.</p> : (
+                      <div className="space-y-3">
+                        {splitPaymentsReceived.map(req => (
+                          <Card key={req.id} className="p-3 flex flex-col gap-2 border border-brand-burgundy/10">
+                            <div className="flex justify-between items-center">
+                              <div>
+                                <div className="font-medium">From: {req.requester_id}</div>
+                                <div className="text-sm text-brand-burgundy/70">Amount: ₦{req.amount?.toLocaleString()}</div>
+                                <div className="text-xs text-brand-burgundy/50">Status: {req.status}</div>
+                              </div>
+                              <div className="flex gap-2">
+                                <Button size="icon" variant="outline" onClick={() => navigator.clipboard.writeText(req.payment_link)} title="Copy Payment Link"><LinkIcon className="h-4 w-4" /></Button>
+                                {req.status === 'pending' && (
+                                  <Button size="icon" variant="outline" onClick={async () => {
+                                    // Mark as paid
+                                    await supabase.from('split_payment_requests').update({ status: 'paid' }).eq('id', req.id);
+                                    setSplitPaymentsReceived(prev => prev.map(r => r.id === req.id ? { ...r, status: 'paid' } : r));
+                                  }} title="Mark as Paid"><CheckCircle className="h-4 w-4 text-green-600" /></Button>
+                                )}
+                              </div>
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {splitPaymentsError && <div className="text-red-500 mt-4">{splitPaymentsError}</div>}
               </div>
             </Card>
           </TabsContent>
