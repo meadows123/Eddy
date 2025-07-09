@@ -18,7 +18,7 @@ const AboutPage = () => {
         <div className="grid md:grid-cols-2 gap-12 items-center mb-16">
           <div>
             <img  
-              src="/images/logos/calum.jpg" 
+              src="/images/logos/callum.jpg" 
               alt="Eddy - Our beloved friend who inspired VIP Club"
               className="rounded-lg shadow-xl object-cover w-full h-auto aspect-[4/3] border-4 border-brand-gold" 
             />

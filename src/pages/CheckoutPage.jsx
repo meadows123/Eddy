@@ -530,7 +530,32 @@ const CheckoutPage = () => {
                   totalAmount={parseFloat(calculateTotal())}
                   onSplitCreated={handleSplitPaymentCreated}
                   user={userProfile || user}
-                  bookingId={selection?.id || 'temp-booking-id'}
+                  bookingId={selection?.id}
+                  createBookingIfNeeded={async () => {
+                    // If booking already exists, return its ID
+                    if (selection?.id) return selection.id;
+                    // Otherwise, create a pending booking in the DB
+                    const bookingData = {
+                      user_id: (userProfile || user)?.id,
+                      venue_id: selection.venueId || selection.id,
+                      table_id: selection.table?.id || null,
+                      booking_date: selection.date || new Date().toISOString().split('T')[0],
+                      start_time: selection.time || '19:00:00',
+                      end_time: selection.endTime || '23:00:00',
+                      number_of_guests: selection.guests || selection.guestCount || 2,
+                      status: 'pending',
+                      total_amount: parseFloat(calculateTotal())
+                    };
+                    const { data: bookingRecord, error: bookingError } = await supabase
+                      .from('bookings')
+                      .insert([bookingData])
+                      .select()
+                      .single();
+                    if (bookingError) throw new Error(`Failed to create booking: ${bookingError.message}`);
+                    // Update selection state with new booking ID
+                    setSelection(prev => ({ ...prev, id: bookingRecord.id }));
+                    return bookingRecord.id;
+                  }}
                 />
               </TabsContent>
             </Tabs>

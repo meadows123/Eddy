@@ -29,15 +29,7 @@ const Footer = () => {
             </p>
             <div className="flex gap-4">
               <a 
-                href="https://facebook.com" 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="text-brand-cream/80 hover:text-white transition-colors"
-              >
-                <Facebook className="w-5 h-5" />
-              </a>
-              <a 
-                href="https://instagram.com" 
+                href="https://www.instagram.com/eddy.members?igsh=aXZmNXBocTE2Mmxx" 
                 target="_blank" 
                 rel="noopener noreferrer" 
                 className="text-brand-cream/80 hover:text-white transition-colors"

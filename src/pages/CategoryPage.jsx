@@ -13,7 +13,8 @@ const CategoryPage = () => {
       description: 'Discover exquisite dining experiences with diverse cuisines and elegant atmospheres.',
       icon: <Utensils className="h-12 w-12" />,
       image: 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4',
-      color: 'from-red-500/90 to-red-700/90'
+      // Use brand gradient
+      color: 'from-brand-burgundy/95 to-brand-gold/90'
     },
     {
       id: 'club',
@@ -21,7 +22,7 @@ const CategoryPage = () => {
       description: 'Dance the night away in Lagos\' most vibrant clubs with world-class DJs and entertainment.',
       icon: <Music2 className="h-12 w-12" />,
       image: 'https://images.unsplash.com/photo-1632111162953-c58fa2fa1080',
-      color: 'from-purple-500/90 to-purple-700/90'
+      color: 'from-brand-burgundy/95 to-brand-gold/90'
     },
     {
       id: 'lounge',
@@ -29,7 +30,7 @@ const CategoryPage = () => {
       description: 'Experience sophisticated lounges with premium ambiance and exclusive VIP areas.',
       icon: <Wine className="h-12 w-12" />,
       image: 'https://images.unsplash.com/photo-1575429198097-0414ec08e8cd',
-      color: 'from-amber-500/90 to-amber-700/90'
+      color: 'from-brand-burgundy/95 to-brand-gold/90'
     }
   ];
 
@@ -89,15 +90,15 @@ const CategoryPage = () => {
                     alt={category.title}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                   />
-                  <div className={`absolute inset-0 bg-gradient-to-b ${category.color} opacity-90`}></div>
+                  <div className={`absolute inset-0 bg-gradient-to-b ${category.color} opacity-95`}></div>
                   
                   <div className="absolute inset-0 p-8 flex flex-col justify-end">
-                    <div className="mb-4 text-white">
+                    <div className="mb-4 text-brand-cream">
                       {category.icon}
                     </div>
-                    <h2 className="text-3xl font-heading text-white mb-2">{category.title}</h2>
-                    <p className="text-white/90 mb-4">{category.description}</p>
-                    <div className="flex items-center text-white group-hover:translate-x-2 transition-transform">
+                    <h2 className="text-3xl font-heading text-brand-cream mb-2">{category.title}</h2>
+                    <p className="text-brand-cream/90 mb-4">{category.description}</p>
+                    <div className="flex items-center text-brand-cream group-hover:translate-x-2 transition-transform">
                       <span className="font-medium">Explore {category.title}</span>
                       <svg 
                         className="w-5 h-5 ml-2" 
@@ -124,4 +125,4 @@ const CategoryPage = () => {
   );
 };
 
-export default CategoryPage;
+export default CategoryPage; 

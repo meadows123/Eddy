@@ -26,23 +26,30 @@ const Navbar = () => {
           <motion.img
             src="/logos/Logo-Trans.png"
             alt="VIP Club"
-            className="h-12 w-auto"
+            className="h-12 w-auto object-contain"
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
+            onLoad={() => console.log('✅ Logo loaded successfully')}
             onError={(e) => {
+              console.log('❌ Logo failed to load from:', e.target.src);
               e.target.style.display = 'none';
-              e.target.nextSibling.style.display = 'block';
+              e.target.nextSibling.style.display = 'flex';
             }}
           />
           <motion.div
-            className="font-heading font-bold text-2xl tracking-tight text-brand-burgundy"
+            className="flex items-center gap-2"
             style={{ display: 'none' }}
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
           >
-            VIP Club
+            <div className="h-10 w-10 bg-gradient-to-br from-brand-burgundy to-brand-gold rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-lg">V</span>
+            </div>
+            <span className="font-heading font-bold text-xl tracking-tight text-brand-burgundy">
+              VIP Club
+            </span>
           </motion.div>
         </Link>
 

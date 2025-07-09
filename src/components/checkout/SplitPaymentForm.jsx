@@ -25,7 +25,8 @@ const SplitPaymentForm = ({
   totalAmount, 
   onSplitCreated, 
   user, 
-  bookingId 
+  bookingId, 
+  createBookingIfNeeded // new prop
 }) => {
   const { toast } = useToast();
   const [splitCount, setSplitCount] = useState(2);
@@ -136,13 +137,19 @@ const SplitPaymentForm = ({
 
     setIsCreating(true);
     try {
+      let realBookingId = bookingId;
+      if (!realBookingId && typeof createBookingIfNeeded === 'function') {
+        realBookingId = await createBookingIfNeeded();
+      }
+      if (!realBookingId) throw new Error('Booking could not be created.');
+
       const splitRequests = splitRecipients.map((recipient, index) => ({
-        booking_id: bookingId,
+        booking_id: realBookingId,
         requester_id: user.id,
         recipient_id: recipient.id,
         recipient_phone: recipient.phone_number || null,
         amount: splitAmounts[index],
-        payment_link: `${window.location.origin}/split-payment/${bookingId}/${index}`,
+        payment_link: `${window.location.origin}/split-payment/${realBookingId}/${index}`,
         status: 'pending'
       }));
 
