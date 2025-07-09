@@ -6,7 +6,7 @@ import { Card } from '../components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
 import { Heart, Calendar, Settings, Clipboard, XCircle, CheckCircle, Send, Link as LinkIcon } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { CardElement, useStripe, useElements, Elements } from '@stripe/react-stripe-js';
+import { Elements, useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import { Input } from "../components/ui/input";
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -46,6 +46,10 @@ const UserProfilePage = () => {
   const [splitPaymentsLoading, setSplitPaymentsLoading] = useState(true);
   const [splitPaymentsError, setSplitPaymentsError] = useState(null);
   const [splitPaymentNotification, setSplitPaymentNotification] = useState(null);
+  const [payingRequest, setPayingRequest] = useState(null);
+  const [stripeError, setStripeError] = useState(null);
+  const [stripeSuccess, setStripeSuccess] = useState(null);
+  const [bookingRef, setBookingRef] = useState(null);
 
   // Load user data when logged in
   useEffect(() => {
@@ -853,11 +857,10 @@ const UserProfilePage = () => {
                               <div className="flex gap-2">
                                 <Button size="icon" variant="outline" onClick={() => navigator.clipboard.writeText(req.payment_link)} title="Copy Payment Link"><LinkIcon className="h-4 w-4" /></Button>
                                 {req.status === 'pending' && (
-                                  <Button size="icon" variant="outline" onClick={async () => {
-                                    // Mark as paid
-                                    await supabase.from('split_payment_requests').update({ status: 'paid' }).eq('id', req.id);
-                                    setSplitPaymentsReceived(prev => prev.map(r => r.id === req.id ? { ...r, status: 'paid' } : r));
-                                  }} title="Mark as Paid"><CheckCircle className="h-4 w-4 text-green-600" /></Button>
+                                  <Button size="icon" variant="outline" onClick={() => setPayingRequest(req)} title="Pay"><Send className="h-4 w-4 text-brand-gold" /></Button>
+                                )}
+                                {req.status === 'paid' && bookingRef && (
+                                  <Button size="sm" variant="outline" onClick={() => {/* View booking logic */}} title="View Booking">View Booking</Button>
                                 )}
                               </div>
                             </div>
@@ -868,6 +871,34 @@ const UserProfilePage = () => {
                   </div>
                 </div>
                 {splitPaymentsError && <div className="text-red-500 mt-4">{splitPaymentsError}</div>}
+                {/* Stripe Payment Modal */}
+                {payingRequest && (
+                  <Elements stripe={stripePromise}>
+                    <SplitPaymentStripeModal
+                      request={payingRequest}
+                      onClose={() => setPayingRequest(null)}
+                      onSuccess={async (paymentIntent) => {
+                        setStripeSuccess('Payment successful!');
+                        setPayingRequest(null);
+                        // Update split_payment_requests row
+                        await supabase.from('split_payment_requests').update({ status: 'paid', stripe_payment_id: paymentIntent.id }).eq('id', payingRequest.id);
+                        setSplitPaymentsReceived(prev => prev.map(r => r.id === payingRequest.id ? { ...r, status: 'paid' } : r));
+                        // Check if all requests for this booking are paid
+                        const { data: allRequests } = await supabase.from('split_payment_requests').select('*').eq('booking_id', payingRequest.booking_id);
+                        if (allRequests && allRequests.every(r => r.status === 'paid')) {
+                          // Update booking status
+                          await supabase.from('bookings').update({ status: 'confirmed' }).eq('id', payingRequest.booking_id);
+                          // Optionally fetch booking ref
+                          const { data: booking } = await supabase.from('bookings').select('id, booking_reference').eq('id', payingRequest.booking_id).single();
+                          setBookingRef(booking?.booking_reference || booking?.id);
+                        }
+                      }}
+                    />
+                  </Elements>
+                )}
+                {stripeSuccess && (
+                  <div className="mt-4 p-3 rounded bg-green-100 text-green-800">{stripeSuccess} {bookingRef && (<span>Booking Ref: <span className="font-bold">{bookingRef}</span></span>)}</div>
+                )}
               </div>
             </Card>
           </TabsContent>
@@ -1211,6 +1242,59 @@ function ReferralCodesSection({ user }) {
           <p>No referral invitations sent yet. Invite your friends to earn rewards!</p>
         </div>
       )}
+    </div>
+  );
+}
+
+// Stripe payment handler for split payments
+function SplitPaymentStripeModal({ request, onClose, onSuccess }) {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      // Call your backend to create a PaymentIntent
+      const res = await fetch('/api/create-split-payment-intent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: request.amount, requestId: request.id })
+      });
+      const { clientSecret } = await res.json();
+      if (!clientSecret) throw new Error('Failed to get payment secret');
+      const result = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: {
+          card: elements.getElement(CardElement),
+        },
+      });
+      if (result.error) {
+        setError(result.error.message);
+      } else if (result.paymentIntent.status === 'succeeded') {
+        onSuccess(result.paymentIntent);
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 max-w-md w-full relative">
+        <button className="absolute top-2 right-2" onClick={onClose}><XCircle className="h-5 w-5 text-red-500" /></button>
+        <h2 className="text-lg font-bold mb-4">Pay Split Payment</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>Amount: <span className="font-semibold">₦{request.amount?.toLocaleString()}</span></div>
+          <CardElement className="p-2 border rounded" />
+          {error && <div className="text-red-500 text-sm">{error}</div>}
+          <Button type="submit" className="w-full bg-brand-burgundy text-white" disabled={loading}>{loading ? 'Processing...' : 'Pay Now'}</Button>
+        </form>
+      </div>
     </div>
   );
 }
