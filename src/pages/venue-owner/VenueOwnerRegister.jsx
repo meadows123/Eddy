@@ -11,6 +11,7 @@ import { supabase } from '/src/lib/supabase';
 import { useToast } from '../../components/ui/use-toast';
 import { notifyAdminOfVenueSubmission } from '../../lib/api'; // Adjust path if needed
 import { sendBasicEmail } from '@/lib/emailService';
+import emailjs from '@emailjs/browser';
 
 const VenueOwnerRegister = () => {
   const navigate = useNavigate();
