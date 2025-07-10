@@ -104,15 +104,23 @@ const VenueOwnerRegister = () => {
           to_name: 'Admin',
           from_name: 'Eddys Members',
           subject: 'New Venue Owner Application',
-          contact_name: formData.full_name,
-          contact_email: formData.email,
-          contact_phone: formData.phone,
-          venue_name: formData.venue_name,
-          venue_description: formData.venue_description,
-          venue_address: formData.venue_address,
-          venue_city: formData.venue_city,
-          venue_type: formData.venue_type,
-          message: `New venue owner application received from ${formData.full_name} for ${formData.venue_name}`
+          ownerName: formData.full_name,
+          ownerEmail: formData.email,
+          ownerPhone: formData.phone,
+          applicationDate: new Date().toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          }),
+          venueName: formData.venue_name,
+          venueDescription: formData.venue_description,
+          venueType: formData.venue_type || 'Not specified',
+          venueCapacity: formData.capacity || 'Not specified',
+          venueAddress: formData.venue_address,
+          priceRange: formData.price_range || 'Not specified',
+          openingHours: formData.opening_hours || 'Not specified',
+          venuePhone: formData.phone
         }
       );
       // Optionally clear the form or redirect
