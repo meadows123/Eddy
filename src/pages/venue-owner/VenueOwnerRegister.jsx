@@ -85,20 +85,13 @@ const VenueOwnerRegister = () => {
       }
       setSuccess('Your request has been submitted and is pending admin approval.');
 
+      const VENUE_OWNER_REQUEST_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_VENUE_OWNER_REQUEST_TEMPLATE;
+
       await sendBasicEmail(
-        'admin@yourdomain.com', // Replace with your admin email
+        'admin@yourdomain.com',
         'New Venue Owner Application',
-        `
-          <h2>New Venue Owner Application</h2>
-          <p><strong>Name:</strong> ${formData.full_name}</p>
-          <p><strong>Email:</strong> ${formData.email}</p>
-          <p><strong>Venue Name:</strong> ${formData.venue_name}</p>
-          <p><strong>Venue Address:</strong> ${formData.venue_address}</p>
-          <p><strong>City:</strong> ${formData.venue_city}</p>
-          <p><strong>Country:</strong> ${formData.venue_country}</p>
-          <p><strong>Phone:</strong> ${formData.phone}</p>
-          <p><strong>Description:</strong> ${formData.venue_description}</p>
-        `
+        `<h2>New Venue Owner Application</h2> ...`,
+        VENUE_OWNER_REQUEST_TEMPLATE_ID
       );
       // Optionally clear the form or redirect
     } catch (err) {
