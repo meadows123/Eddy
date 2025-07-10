@@ -10,6 +10,7 @@ import { toast } from '/src/components/ui/use-toast';
 import { supabase } from '/src/lib/supabase';
 import { useToast } from '../../components/ui/use-toast';
 import { notifyAdminOfVenueSubmission } from '../../lib/api'; // Adjust path if needed
+import { sendBasicEmail } from '@/lib/emailService';
 
 const VenueOwnerRegister = () => {
   const navigate = useNavigate();
@@ -83,6 +84,22 @@ const VenueOwnerRegister = () => {
         return;
       }
       setSuccess('Your request has been submitted and is pending admin approval.');
+
+      await sendBasicEmail(
+        'admin@yourdomain.com', // Replace with your admin email
+        'New Venue Owner Application',
+        `
+          <h2>New Venue Owner Application</h2>
+          <p><strong>Name:</strong> ${formData.full_name}</p>
+          <p><strong>Email:</strong> ${formData.email}</p>
+          <p><strong>Venue Name:</strong> ${formData.venue_name}</p>
+          <p><strong>Venue Address:</strong> ${formData.venue_address}</p>
+          <p><strong>City:</strong> ${formData.venue_city}</p>
+          <p><strong>Country:</strong> ${formData.venue_country}</p>
+          <p><strong>Phone:</strong> ${formData.phone}</p>
+          <p><strong>Description:</strong> ${formData.venue_description}</p>
+        `
+      );
       // Optionally clear the form or redirect
     } catch (err) {
       setError(err.message || 'An unexpected error occurred.');

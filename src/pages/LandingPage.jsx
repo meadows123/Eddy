@@ -188,7 +188,7 @@ const LandingPage = () => {
         {!showCategories ? (
           <motion.section 
             key="hero"
-            className="relative bg-brand-burgundy flex items-center justify-center overflow-hidden min-h-screen"
+            className="relative bg-brand-burgundy flex items-center justify-center overflow-hidden min-h-screen pt-16 pb-16 md:pt-32 md:pb-32"
             initial={{ opacity: 1 }}
             exit={{ 
               opacity: 0,
@@ -349,7 +349,7 @@ const LandingPage = () => {
         ) : (
           <motion.section 
             key="categories"
-            className="relative bg-brand-cream py-20 min-h-screen flex items-center overflow-hidden"
+            className="relative bg-brand-cream min-h-screen flex items-center overflow-hidden pt-16 pb-16 md:pt-32 md:pb-32"
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
