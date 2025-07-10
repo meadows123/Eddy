@@ -62,19 +62,81 @@ const VenueOwnerRegister = () => {
     setError(null);
     setSuccess(null);
 
-    const requestData = {
-      email: formData.email,
-      venue_name: formData.venue_name,
-      venue_address: formData.venue_address,
-      venue_city: formData.venue_city,
-      venue_country: formData.venue_country,
-      contact_name: formData.full_name,
-      contact_phone: formData.phone,
-      additional_info: formData.venue_description,
-      status: 'pending'
-    };
-
     try {
+      // First, check if there's an existing approved venue owner record for this email
+      const { data: existingVenue, error: venueCheckError } = await supabase
+        .from('venue_owners')
+        .select('*')
+        .eq('owner_email', formData.email)
+        .eq('status', 'pending_owner_signup')
+        .single();
+
+      if (venueCheckError && venueCheckError.code !== 'PGRST116') {
+        throw venueCheckError;
+      }
+
+      if (existingVenue) {
+        // Venue owner has been approved, create user account and link it
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: formData.email,
+          password: formData.password,
+        });
+
+        if (signUpError) throw signUpError;
+
+        // Update the venue owner record with the user ID and mark as active
+        const { error: updateError } = await supabase
+          .from('venue_owners')
+          .update({ 
+            user_id: signUpData.user.id,
+            status: 'active',
+            owner_name: formData.full_name,
+            owner_phone: formData.phone
+          })
+          .eq('id', existingVenue.id);
+
+        if (updateError) throw updateError;
+
+        setSuccess('Account created successfully! You can now log in to manage your venue.');
+        // Clear form data
+        setFormData({
+          full_name: '',
+          email: '',
+          phone: '',
+          password: '',
+          venue_name: '',
+          venue_description: '',
+          venue_address: '',
+          venue_city: '',
+          venue_country: '',
+          venue_phone: '',
+          venue_email: '',
+          venue_type: 'restaurant',
+          opening_hours: '',
+          capacity: '',
+          price_range: '$$',
+        });
+        localStorage.removeItem('venueRegistrationData');
+        return;
+      }
+
+      // No existing approved record, create a new pending request
+      const requestData = {
+        email: formData.email,
+        venue_name: formData.venue_name,
+        venue_address: formData.venue_address,
+        venue_city: formData.venue_city,
+        venue_country: formData.venue_country,
+        contact_name: formData.full_name,
+        contact_phone: formData.phone,
+        additional_info: formData.venue_description,
+        venue_type: formData.venue_type,
+        opening_hours: formData.opening_hours,
+        capacity: formData.capacity,
+        price_range: formData.price_range,
+        status: 'pending'
+      };
+
       const { data, error } = await supabase
         .from('pending_venue_owner_requests')
         .insert([requestData]);
@@ -84,7 +146,7 @@ const VenueOwnerRegister = () => {
         console.error('Supabase error:', error);
         return;
       }
-      setSuccess('Your request has been submitted and is pending admin approval.');
+      setSuccess('Your venue application has been submitted successfully! Our team will review it within 48 hours. You will receive an email notification once your application is approved.');
 
       const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
       const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_VENUE_OWNER_REQUEST_TEMPLATE;
@@ -155,6 +217,12 @@ const VenueOwnerRegister = () => {
             <p className="mt-2 text-sm text-brand-burgundy/70">
               Create your venue profile to start managing bookings
             </p>
+            <div className="mt-4 p-4 bg-brand-gold/10 border border-brand-gold/20 rounded-lg">
+              <p className="text-sm text-brand-burgundy/80">
+                <strong>How it works:</strong> Submit your venue application below. Our team will review it within 48 hours. 
+                If approved, you'll receive an email invitation to complete your registration and access your venue dashboard.
+              </p>
+            </div>
           </div>
 
           <form className="mt-8 space-y-6" onSubmit={handleSubmit}>

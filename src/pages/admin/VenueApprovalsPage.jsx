@@ -52,19 +52,8 @@ export default function VenueApprovalsPage() {
   const handleApprove = async (req) => {
     setProcessing(true);
     try {
-      // 1. Create Supabase user (invite)
-      const { data: invite, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(req.email, {
-        data: {
-          role: 'venue_owner',
-          venue_name: req.venue_name
-        }
-      });
-      
-      if (inviteError) throw new Error('Failed to invite user: ' + inviteError.message);
-
-      // 2. Create venue_owners record
+      // 1. Create venue_owners record directly (user will sign up later)
       const { error: venueError } = await supabase.from('venue_owners').insert([{
-        user_id: invite.user.id,
         venue_name: req.venue_name,
         venue_description: req.additional_info,
         venue_address: req.venue_address,
@@ -77,18 +66,63 @@ export default function VenueApprovalsPage() {
         venue_type: req.venue_type || 'restaurant',
         opening_hours: req.opening_hours || '',
         capacity: req.capacity || '',
-        price_range: req.price_range || '$$'
+        price_range: req.price_range || '$$',
+        status: 'pending_owner_signup' // Will be updated when user signs up
       }]);
 
       if (venueError) throw venueError;
 
-      // 3. Update request status
+      // 2. Update request status
       await supabase.from('pending_venue_owner_requests').update({ status: 'approved' }).eq('id', req.id);
+
+      // 3. Send approval email to the venue owner
+      try {
+        const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+        const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_VENUE_OWNER_REQUEST_TEMPLATE;
+        const PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+        
+        if (SERVICE_ID && TEMPLATE_ID && PUBLIC_KEY) {
+          const emailjs = (await import('@emailjs/browser')).default;
+          emailjs.init(PUBLIC_KEY);
+          
+          await emailjs.send(
+            SERVICE_ID,
+            TEMPLATE_ID,
+            {
+              email: req.email,
+              to_name: req.contact_name,
+              from_name: 'Eddys Members',
+              subject: 'Venue Application Approved - Complete Your Registration',
+              ownerName: req.contact_name,
+              ownerEmail: req.email,
+              ownerPhone: req.contact_phone,
+              applicationDate: new Date().toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              }),
+              venueName: req.venue_name,
+              venueDescription: req.additional_info || 'No description provided',
+              venueType: req.venue_type || 'Restaurant',
+              venueCapacity: req.capacity || 'Not specified',
+              venueAddress: req.venue_address,
+              priceRange: req.price_range || 'Not specified',
+              openingHours: req.opening_hours || 'Not specified',
+              venuePhone: req.contact_phone,
+              message: `Congratulations! Your venue application for ${req.venue_name} has been approved. Please complete your registration by signing up at ${window.location.origin}/venue-owner/register`
+            }
+          );
+        }
+      } catch (emailError) {
+        console.error('Error sending approval email:', emailError);
+        // Don't fail the approval if email fails
+      }
 
       // 4. Refresh the list
       await loadRequests();
       
-      alert('Venue owner approved and invited successfully!');
+      alert('Venue owner approved successfully! An invitation email has been sent to complete registration.');
     } catch (error) {
       console.error('Error approving request:', error);
       alert('Error approving request: ' + error.message);
