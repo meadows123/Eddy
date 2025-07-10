@@ -168,6 +168,41 @@ serve(async (req) => {
         `
         break
 
+      case 'venue-owner-invitation':
+        // Use Supabase's built-in inviteUserByEmail function to trigger "Confirm signup" template
+        try {
+          const { data: inviteData, error: inviteError } = await supabaseClient.auth.admin.inviteUserByEmail(data.email, {
+            redirectTo: `${Deno.env.get('APP_URL')}/venue-owner/register`,
+            data: {
+              venue_name: data.venueName,
+              contact_name: data.contactName,
+              venue_type: data.venueType || 'Restaurant',
+              approval_date: new Date().toISOString(),
+              message: `Your venue application for ${data.venueName} has been approved! Please complete your registration to access your venue dashboard.`
+            }
+          });
+
+          if (inviteError) {
+            throw new Error(`Failed to send invitation: ${inviteError.message}`);
+          }
+
+          console.log('Supabase invitation email sent successfully:', inviteData);
+          return new Response(
+            JSON.stringify({ 
+              success: true, 
+              message: 'Invitation email sent via Supabase Confirm signup template',
+              data: inviteData 
+            }),
+            {
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 200,
+            }
+          );
+        } catch (inviteError) {
+          console.error('Error sending Supabase invitation:', inviteError);
+          throw new Error(`Failed to send Supabase invitation: ${inviteError.message}`);
+        }
+
       default:
         throw new Error('Invalid template')
     }

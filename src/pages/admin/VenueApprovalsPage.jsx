@@ -22,6 +22,7 @@ import {
   FileText
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import emailjs from '@emailjs/browser';
 
 export default function VenueApprovalsPage() {
   const [requests, setRequests] = useState([]);
@@ -79,47 +80,29 @@ export default function VenueApprovalsPage() {
       // Update request status
       await supabase.from('pending_venue_owner_requests').update({ status: 'approved' }).eq('id', req.id);
 
-      // Send approval email to the venue owner
+      // Send approval email to the venue owner using Supabase Edge Function
       try {
-        const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
-        const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_VENUE_OWNER_REQUEST_TEMPLATE;
-        const PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
-        
-        if (SERVICE_ID && TEMPLATE_ID && PUBLIC_KEY) {
-          const emailjs = (await import('@emailjs/browser')).default;
-          emailjs.init(PUBLIC_KEY);
-          
-          await emailjs.send(
-            SERVICE_ID,
-            TEMPLATE_ID,
-            {
+        const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
+          body: {
+            template: 'venue-owner-invitation',
+            data: {
               email: req.email,
-              to_name: req.contact_name,
-              from_name: 'Eddys Members',
-              subject: 'Venue Application Approved - Complete Your Registration',
-              ownerName: req.contact_name,
-              ownerEmail: req.email,
-              ownerPhone: req.contact_phone,
-              applicationDate: new Date().toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-              }),
               venueName: req.venue_name,
-              venueDescription: req.additional_info || 'No description provided',
-              venueType: req.venue_type || 'Restaurant',
-              venueCapacity: req.capacity || 'Not specified',
-              venueAddress: req.venue_address,
-              priceRange: req.price_range || 'Not specified',
-              openingHours: req.opening_hours || 'Not specified',
-              venuePhone: req.contact_phone,
-              message: `Congratulations! Your venue application for ${req.venue_name} has been approved. Please complete your registration by signing up at ${window.location.origin}/venue-owner/register`
+              contactName: req.contact_name,
+              venueType: req.venue_type || 'Restaurant'
             }
-          );
+          }
+        });
+
+        if (emailError) {
+          console.error('Error sending invitation email:', emailError);
+          alert(`Warning: Failed to send invitation email: ${emailError.message}`);
+        } else {
+          console.log('Invitation email sent successfully:', emailData);
         }
       } catch (emailError) {
         console.error('Error sending approval email:', emailError);
+        alert(`Warning: Failed to send approval email: ${emailError.message}`);
         // Don't fail the approval if email fails
       }
 
