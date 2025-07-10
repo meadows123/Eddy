@@ -86,9 +86,10 @@ const VenueOwnerRegister = () => {
       setSuccess('Your request has been submitted and is pending admin approval.');
 
       const VENUE_OWNER_REQUEST_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_VENUE_OWNER_REQUEST_TEMPLATE;
+      console.log('Using template ID:', VENUE_OWNER_REQUEST_TEMPLATE_ID);
 
       await sendBasicEmail(
-        'admin@yourdomain.com',
+        'info@oneeddy.com',
         'New Venue Owner Application',
         `<h2>New Venue Owner Application</h2> ...`,
         VENUE_OWNER_REQUEST_TEMPLATE_ID
