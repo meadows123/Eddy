@@ -56,8 +56,8 @@ const VenueOwnerRegister = () => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setSuccess(null);
 
-    // Gather form data
     const requestData = {
       email: formData.email,
       venue_name: formData.venue_name,
@@ -70,18 +70,24 @@ const VenueOwnerRegister = () => {
       status: 'pending'
     };
 
-    // Insert into pending_venue_owner_requests
-    const { data, error } = await supabase
-      .from('pending_venue_owner_requests')
-      .insert([requestData]);
+    try {
+      const { data, error } = await supabase
+        .from('pending_venue_owner_requests')
+        .insert([requestData]);
 
-    if (error) {
-      setError(error.message);
-    } else {
+      if (error) {
+        setError(error.message);
+        console.error('Supabase error:', error);
+        return;
+      }
       setSuccess('Your request has been submitted and is pending admin approval.');
       // Optionally clear the form or redirect
+    } catch (err) {
+      setError(err.message || 'An unexpected error occurred.');
+      console.error('Unexpected error:', err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
