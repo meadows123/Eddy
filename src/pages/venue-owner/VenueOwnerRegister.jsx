@@ -55,33 +55,33 @@ const VenueOwnerRegister = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError(null);
 
-    try {
-      // 1. Register the user
-      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-      });
-      if (signUpError) throw signUpError;
+    // Gather form data
+    const requestData = {
+      email: formData.email,
+      venue_name: formData.venue_name,
+      venue_address: formData.venue_address,
+      venue_city: formData.venue_city,
+      venue_country: formData.venue_country,
+      contact_name: formData.full_name,
+      contact_phone: formData.phone,
+      additional_info: formData.venue_description,
+      status: 'pending'
+    };
 
-      // 2. Prompt user to confirm email and log in
-      toast({
-        title: 'Check your email',
-        description: 'Please confirm your email address to complete registration. Then log in to finish setting up your venue.',
-      });
-      setLoading(false);
-      navigate('/venue-owner/login');
-      return;
-    } catch (error) {
-      console.error('Registration error:', error);
-      toast({
-        title: 'Registration Failed',
-        description: error.message || 'An error occurred during registration',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
+    // Insert into pending_venue_owner_requests
+    const { data, error } = await supabase
+      .from('pending_venue_owner_requests')
+      .insert([requestData]);
+
+    if (error) {
+      setError(error.message);
+    } else {
+      setSuccess('Your request has been submitted and is pending admin approval.');
+      // Optionally clear the form or redirect
     }
+    setLoading(false);
   };
 
   return (

@@ -1,466 +1,90 @@
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
-import { Button } from '../../components/ui/button';
-import { Textarea } from '../../components/ui/textarea';
-import { Badge } from '../../components/ui/badge';
-import { supabase } from '../../lib/supabase';
-import { 
-  Check, 
-  X, 
-  Clock, 
-  Building2, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Users, 
-  DollarSign,
-  Calendar,
-  User,
-  Globe,
-  Utensils
-} from 'lucide-react';
-import { useToast } from '../../components/ui/use-toast';
+import React, { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import { Button } from '@/components/ui/button';
 
-const VenueApprovalsPage = () => {
-  const [pendingVenues, setPendingVenues] = useState([]);
+export default function VenueApprovalsPage() {
+  const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [rejectionReason, setRejectionReason] = useState({});
-  const { toast } = useToast();
 
   useEffect(() => {
-    fetchPendingVenues();
+    supabase.from('pending_venue_owner_requests').select('*').order('created_at', { ascending: false })
+      .then(({ data }) => {
+        setRequests(data || []);
+        setLoading(false);
+      });
   }, []);
 
-  const fetchPendingVenues = async () => {
-    setLoading(true);
-    try {
-      console.log('🔍 Fetching pending venues...');
-      
-      // First, let's try to get ALL venues to see if there are any venues at all
-      const { data: allVenues, error: allVenuesError } = await supabase
-        .from('venues')
-        .select('id, name, status, created_at')
-        .order('created_at', { ascending: false });
-      
-      console.log('📊 All venues in database:', allVenues);
-      console.log('❌ All venues error:', allVenuesError);
-      
-      // Get pending venues first
-      const { data: venuesData, error: venuesError } = await supabase
-        .from('venues')
-        .select('*')
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
-
-      if (venuesError) {
-        console.error('❌ Error fetching pending venues:', venuesError);
-        throw venuesError;
+  const handleApprove = async (req) => {
+    // 1. Create Supabase user (invite)
+    const { data: invite, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(req.email, {
+      data: {
+        role: 'venue_owner',
+        venue_name: req.venue_name
       }
-
-      console.log('🏢 Pending venues found:', venuesData?.length || 0);
-
-      if (!venuesData || venuesData.length === 0) {
-        console.log('ℹ️ No pending venues found');
-        setPendingVenues([]);
-        toast({
-          title: 'No Pending Venues',
-          description: 'There are currently no venues pending approval.',
-        });
-        return;
-      }
-
-      // Get the owner IDs from the venues
-      const ownerIds = venuesData.map(venue => venue.owner_id).filter(Boolean);
-      console.log('👥 Owner IDs to fetch:', ownerIds);
-
-      // Fetch venue owners separately
-      const { data: ownersData, error: ownersError } = await supabase
-        .from('venue_owners')
-        .select('id, user_id, full_name, email, phone, created_at')
-        .in('user_id', ownerIds);
-
-      if (ownersError) {
-        console.error('❌ Error fetching venue owners:', ownersError);
-        // Continue without owner data rather than failing completely
-      }
-
-      console.log('👤 Venue owners fetched:', ownersData?.length || 0);
-
-      // Join the data in JavaScript
-      const venuesWithOwners = venuesData.map(venue => {
-        const owner = ownersData?.find(owner => owner.user_id === venue.owner_id);
-        return {
-          ...venue,
-          venue_owners: owner ? [owner] : []
-        };
-      });
-
-      console.log('✅ Successfully joined venues with owners:', venuesWithOwners);
-      setPendingVenues(venuesWithOwners);
-
-    } catch (error) {
-      console.error('💥 Unexpected error:', error);
-      toast({
-        title: 'Unexpected Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-      setPendingVenues([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const approveVenue = async (venue) => {
-    try {
-      setLoading(true);
-
-      // Update venue status
-      const { error: venueError } = await supabase
-        .from('venues')
-        .update({ 
-          status: 'approved',
-          rejection_reason: null,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', venue.id);
-
-      if (venueError) throw venueError;
-
-      // Refresh the list
-      await fetchPendingVenues();
-
-      toast({
-        title: 'Venue Approved! 🎉',
-        description: `${venue.name} has been approved successfully`,
-        className: 'bg-green-500 text-white',
-      });
-    } catch (error) {
-      console.error('Error approving venue:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to approve venue',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const rejectVenue = async (venue) => {
-    try {
-      setLoading(true);
-
-      // Update venue status
-      const { error: venueError } = await supabase
-        .from('venues')
-        .update({ 
-          status: 'rejected',
-          rejection_reason: rejectionReason[venue.id] || 'No reason provided',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', venue.id);
-
-      if (venueError) throw venueError;
-
-      // Refresh the list
-      await fetchPendingVenues();
-
-      toast({
-        title: 'Venue Rejected',
-        description: `${venue.name} has been rejected`,
-        variant: 'destructive',
-      });
-    } catch (error) {
-      console.error('Error rejecting venue:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to reject venue',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
     });
+    if (inviteError) return alert('Failed to invite user: ' + inviteError.message);
+
+    // 2. Create venue_owners record
+    await supabase.from('venue_owners').insert([{
+      user_id: invite.user.id,
+      venue_name: req.venue_name,
+      venue_address: req.venue_address,
+      venue_city: req.venue_city,
+      venue_country: req.venue_country,
+      venue_phone: req.venue_phone,
+      owner_first_name: req.owner_first_name,
+      owner_last_name: req.owner_last_name,
+      owner_phone: req.owner_phone
+    }]);
+
+    // 3. Update request status
+    await supabase.from('pending_venue_owner_requests').update({ status: 'approved' }).eq('id', req.id);
+
+    // 4. Optionally: Send custom email (see below)
+    alert('Venue owner approved and invited!');
+    setRequests(requests.map(r => r.id === req.id ? { ...r, status: 'approved' } : r));
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-burgundy"></div>
-      </div>
-    );
-  }
+  const handleReject = async (req) => {
+    await supabase.from('pending_venue_owner_requests').update({ status: 'rejected' }).eq('id', req.id);
+    setRequests(requests.map(r => r.id === req.id ? { ...r, status: 'rejected' } : r));
+  };
+
+  if (loading) return <div>Loading...</div>;
 
   return (
-    <div className="bg-brand-cream/50 min-h-screen">
-      <div className="container py-8">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-heading text-brand-burgundy mb-2">
-              Venue Approvals
-            </h1>
-            <p className="text-brand-burgundy/70">
-              Review and manage pending venue registrations ({pendingVenues.length} pending)
-            </p>
-          </div>
-        </div>
-
-        <div className="space-y-8">
-          {pendingVenues.length === 0 ? (
-            <Card className="bg-white border-brand-burgundy/10">
-              <CardContent className="pt-6 text-center py-12">
-                <Clock className="h-12 w-12 text-brand-burgundy/50 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-brand-burgundy mb-2">
-                  No Pending Approvals
-                </h3>
-                <p className="text-brand-burgundy/70">
-                  There are no venues waiting for approval.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            pendingVenues.map((venue) => {
-              const venueOwner = venue.venue_owners?.[0] || venue.venue_owners;
-              
-              return (
-                <Card key={venue.id} className="bg-white border-brand-burgundy/10 shadow-lg">
-                  <CardHeader className="bg-brand-burgundy/5 border-b border-brand-burgundy/10">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle className="text-2xl text-brand-burgundy mb-2">
-                          {venue.name}
-                        </CardTitle>
-                        <div className="flex items-center space-x-4 text-sm text-brand-burgundy/70">
-                          <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">
-                            <Clock className="h-3 w-3 mr-1" />
-                            Pending Review
-                          </Badge>
-                          <span>Submitted: {formatDate(venue.created_at)}</span>
-                        </div>
-                      </div>
-                      
-                      {/* Action Buttons */}
-                      <div className="flex flex-col space-y-3">
-                        <div className="flex space-x-2">
-                          <Button
-                            onClick={() => approveVenue(venue)}
-                            className="bg-green-600 hover:bg-green-700 text-white"
-                            size="sm"
-                          >
-                            <Check className="h-4 w-4 mr-2" />
-                            Approve
-                          </Button>
-                          <Button
-                            onClick={() => rejectVenue(venue)}
-                            variant="destructive"
-                            size="sm"
-                          >
-                            <X className="h-4 w-4 mr-2" />
-                            Reject
-                          </Button>
-                        </div>
-                        
-                        {/* Rejection Reason */}
-                        <Textarea
-                          placeholder="Rejection reason (optional)"
-                          value={rejectionReason[venue.id] || ''}
-                          onChange={(e) => setRejectionReason({ 
-                            ...rejectionReason, 
-                            [venue.id]: e.target.value 
-                          })}
-                          className="text-sm h-20 resize-none"
-                          rows={2}
-                        />
-                      </div>
-                    </div>
-                  </CardHeader>
-
-                  <CardContent className="p-6">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                      
-                      {/* VENUE INFORMATION */}
-                      <div className="space-y-6">
-                        <div>
-                          <h3 className="text-lg font-semibold text-brand-burgundy mb-4 flex items-center">
-                            <Building2 className="h-5 w-5 mr-2" />
-                            Venue Information
-                          </h3>
-                          
-                          <div className="space-y-4">
-                            <div className="flex items-start space-x-3">
-                              <Utensils className="h-4 w-4 text-brand-burgundy/50 mt-1" />
-                              <div>
-                                <p className="text-sm font-medium text-brand-burgundy">Type & Description</p>
-                                <p className="text-sm text-brand-burgundy/80 font-medium">{venue.type}</p>
-                                <p className="text-sm text-brand-burgundy/70 mt-1">
-                                  {venue.description || 'No description provided'}
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="flex items-start space-x-3">
-                              <MapPin className="h-4 w-4 text-brand-burgundy/50 mt-1" />
-                              <div>
-                                <p className="text-sm font-medium text-brand-burgundy">Location</p>
-                                <p className="text-sm text-brand-burgundy/70">{venue.address}</p>
-                                <p className="text-sm text-brand-burgundy/70">{venue.city}, {venue.country}</p>
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-4">
-                              <div className="flex items-start space-x-3">
-                                <Users className="h-4 w-4 text-brand-burgundy/50 mt-1" />
-                                <div>
-                                  <p className="text-sm font-medium text-brand-burgundy">Capacity</p>
-                                  <p className="text-sm text-brand-burgundy/70">
-                                    {venue.capacity ? `${venue.capacity} guests` : 'Not specified'}
-                                  </p>
-                                </div>
-                              </div>
-
-                              <div className="flex items-start space-x-3">
-                                <DollarSign className="h-4 w-4 text-brand-burgundy/50 mt-1" />
-                                <div>
-                                  <p className="text-sm font-medium text-brand-burgundy">Price Range</p>
-                                  <p className="text-sm text-brand-burgundy/70">
-                                    {venue.price_range || 'Not specified'}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="flex items-start space-x-3">
-                              <Calendar className="h-4 w-4 text-brand-burgundy/50 mt-1" />
-                              <div>
-                                <p className="text-sm font-medium text-brand-burgundy">Opening Hours</p>
-                                <p className="text-sm text-brand-burgundy/70">
-                                  {venue.opening_hours || 'Not provided'}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* VENUE CONTACT */}
-                        <div>
-                          <h4 className="text-md font-semibold text-brand-burgundy mb-3 flex items-center">
-                            <Phone className="h-4 w-4 mr-2" />
-                            Venue Contact Information
-                          </h4>
-                          
-                          <div className="space-y-3">
-                            <div className="flex items-center space-x-3">
-                              <Phone className="h-4 w-4 text-brand-burgundy/50" />
-                              <div>
-                                <p className="text-sm font-medium text-brand-burgundy">Venue Phone</p>
-                                <p className="text-sm text-brand-burgundy/70">
-                                  {venue.contact_phone || 'Not provided'}
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center space-x-3">
-                              <Mail className="h-4 w-4 text-brand-burgundy/50" />
-                              <div>
-                                <p className="text-sm font-medium text-brand-burgundy">Venue Email</p>
-                                <p className="text-sm text-brand-burgundy/70">
-                                  {venue.contact_email || 'Not provided'}
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* VENUE OWNER INFORMATION */}
-                      <div className="space-y-6">
-                        <div>
-                          <h3 className="text-lg font-semibold text-brand-burgundy mb-4 flex items-center">
-                            <User className="h-5 w-5 mr-2" />
-                            Venue Owner Information
-                          </h3>
-                          
-                          <div className="space-y-4">
-                            <div className="flex items-start space-x-3">
-                              <User className="h-4 w-4 text-brand-burgundy/50 mt-1" />
-                              <div>
-                                <p className="text-sm font-medium text-brand-burgundy">Owner Name</p>
-                                <p className="text-sm text-brand-burgundy/70">
-                                  {venueOwner?.full_name || 'No owner information'}
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="flex items-start space-x-3">
-                              <Mail className="h-4 w-4 text-brand-burgundy/50 mt-1" />
-                              <div>
-                                <p className="text-sm font-medium text-brand-burgundy">Owner Email</p>
-                                <p className="text-sm text-brand-burgundy/70">
-                                  {venueOwner?.email || 'No email provided'}
-                                </p>
-                              </div>
-                            </div>
-
-                            <div className="flex items-start space-x-3">
-                              <Phone className="h-4 w-4 text-brand-burgundy/50 mt-1" />
-                              <div>
-                                <p className="text-sm font-medium text-brand-burgundy">Owner Phone</p>
-                                <p className="text-sm text-brand-burgundy/70">
-                                  {venueOwner?.phone || 'No phone provided'}
-                                </p>
-                              </div>
-                            </div>
-
-                            {venueOwner?.created_at && (
-                              <div className="flex items-start space-x-3">
-                                <Calendar className="h-4 w-4 text-brand-burgundy/50 mt-1" />
-                                <div>
-                                  <p className="text-sm font-medium text-brand-burgundy">Registration Date</p>
-                                  <p className="text-sm text-brand-burgundy/70">
-                                    {formatDate(venueOwner.created_at)}
-                                  </p>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* TECHNICAL DETAILS */}
-                        <div className="bg-brand-burgundy/5 p-4 rounded-lg">
-                          <h4 className="text-md font-semibold text-brand-burgundy mb-3">
-                            Technical Details
-                          </h4>
-                          
-                          <div className="space-y-2 text-xs text-brand-burgundy/60">
-                            <p><strong>Venue ID:</strong> {venue.id}</p>
-                            <p><strong>Owner ID:</strong> {venue.owner_id}</p>
-                            <p><strong>Status:</strong> {venue.status}</p>
-                            {venue.updated_at && venue.updated_at !== venue.created_at && (
-                              <p><strong>Last Updated:</strong> {formatDate(venue.updated_at)}</p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })
-          )}
-        </div>
-      </div>
+    <div className="p-8">
+      <h2 className="text-2xl font-bold mb-4">Venue Owner Requests</h2>
+      <table className="w-full border">
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Venue</th>
+            <th>Owner</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {requests.map(req => (
+            <tr key={req.id}>
+              <td>{req.email}</td>
+              <td>{req.venue_name}</td>
+              <td>{req.owner_first_name} {req.owner_last_name}</td>
+              <td>{req.status}</td>
+              <td>
+                {req.status === 'pending' && (
+                  <>
+                    <Button onClick={() => handleApprove(req)} className="mr-2 bg-green-600 text-white">Approve</Button>
+                    <Button onClick={() => handleReject(req)} className="bg-red-600 text-white">Reject</Button>
+                  </>
+                )}
+                {req.status !== 'pending' && <span>{req.status}</span>}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
-};
-
-export default VenueApprovalsPage; 
+} 

@@ -6,6 +6,9 @@ import {
   cancellationTemplate,
   generateEmailData 
 } from './emailTemplates';
+import { supabase } from '@/lib/supabase';
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
 
 // EmailJS configuration from environment variables
 const EMAILJS_CONFIG = {
