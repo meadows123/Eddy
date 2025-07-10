@@ -97,6 +97,19 @@ const VenueOwnerRegister = () => {
 
         if (updateError) throw updateError;
 
+        // Also update the venues table to link the venue to the user
+        const { error: venueUpdateError } = await supabase
+          .from('venues')
+          .update({ 
+            owner_id: signUpData.user.id
+          })
+          .eq('contact_email', formData.email);
+
+        if (venueUpdateError) {
+          console.error('Error updating venue owner_id:', venueUpdateError);
+          // Don't fail the registration if venue update fails
+        }
+
         setSuccess('Account created successfully! You can now log in to manage your venue.');
         // Clear form data
         setFormData({
