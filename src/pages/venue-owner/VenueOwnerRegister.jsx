@@ -15,6 +15,8 @@ const VenueOwnerRegister = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [success, setSuccess] = useState(null);
   const [formData, setFormData] = useState(() => {
     // Try to load saved form data from localStorage
     const savedData = localStorage.getItem('venueRegistrationData');
@@ -429,6 +431,8 @@ const VenueOwnerRegister = () => {
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
+            {error && <div className="text-red-500 mb-2">{error}</div>}
+            {success && <div className="text-green-600 mb-2">{success}</div>}
           </form>
 
           <div className="text-center mt-6">
