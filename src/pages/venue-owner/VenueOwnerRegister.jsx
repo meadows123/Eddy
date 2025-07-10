@@ -64,18 +64,17 @@ const VenueOwnerRegister = () => {
 
     try {
       // First, check if there's an existing approved venue owner record for this email
-      const { data: existingVenue, error: venueCheckError } = await supabase
+      const { data: existingVenues, error: venueCheckError } = await supabase
         .from('venue_owners')
         .select('*')
         .eq('owner_email', formData.email)
-        .eq('status', 'pending_owner_signup')
-        .single();
+        .eq('status', 'pending_owner_signup');
 
-      if (venueCheckError && venueCheckError.code !== 'PGRST116') {
+      if (venueCheckError) {
         throw venueCheckError;
       }
 
-      if (existingVenue) {
+      if (existingVenues && existingVenues.length > 0) {
         // Venue owner has been approved, create user account and link it
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email: formData.email,
@@ -84,7 +83,7 @@ const VenueOwnerRegister = () => {
 
         if (signUpError) throw signUpError;
 
-        // Update the venue owner record with the user ID and mark as active
+        // Update all pending venue owner records with the user ID and mark as active
         const { error: updateError } = await supabase
           .from('venue_owners')
           .update({ 
@@ -93,7 +92,8 @@ const VenueOwnerRegister = () => {
             owner_name: formData.full_name,
             owner_phone: formData.phone
           })
-          .eq('id', existingVenue.id);
+          .eq('owner_email', formData.email)
+          .eq('status', 'pending_owner_signup');
 
         if (updateError) throw updateError;
 

@@ -52,30 +52,34 @@ export default function VenueApprovalsPage() {
   const handleApprove = async (req) => {
     setProcessing(true);
     try {
-      // 1. Create venue_owners record directly (user will sign up later)
-      const { error: venueError } = await supabase.from('venue_owners').insert([{
-        venue_name: req.venue_name,
-        venue_description: req.additional_info,
-        venue_address: req.venue_address,
-        venue_city: req.venue_city,
-        venue_country: req.venue_country,
-        venue_phone: req.contact_phone,
-        owner_name: req.contact_name,
-        owner_email: req.email,
-        owner_phone: req.contact_phone,
-        venue_type: req.venue_type || 'restaurant',
-        opening_hours: req.opening_hours || '',
-        capacity: req.capacity || '',
-        price_range: req.price_range || '$$',
-        status: 'pending_owner_signup' // Will be updated when user signs up
-      }]);
+      // Create a new venue owner record (allows multiple venues per owner)
+      const { data: newVenueOwner, error: venueError } = await supabase
+        .from('venue_owners')
+        .insert([{
+          venue_name: req.venue_name,
+          venue_description: req.additional_info,
+          venue_address: req.venue_address,
+          venue_city: req.venue_city,
+          venue_country: req.venue_country,
+          venue_phone: req.contact_phone,
+          owner_name: req.contact_name,
+          owner_email: req.email,
+          owner_phone: req.contact_phone,
+          venue_type: req.venue_type || 'restaurant',
+          opening_hours: req.opening_hours || '',
+          capacity: req.capacity || '',
+          price_range: req.price_range || '$$',
+          status: 'pending_owner_signup' // Will be updated when user signs up
+        }])
+        .select()
+        .single();
 
       if (venueError) throw venueError;
 
-      // 2. Update request status
+      // Update request status
       await supabase.from('pending_venue_owner_requests').update({ status: 'approved' }).eq('id', req.id);
 
-      // 3. Send approval email to the venue owner
+      // Send approval email to the venue owner
       try {
         const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
         const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_VENUE_OWNER_REQUEST_TEMPLATE;
@@ -119,7 +123,7 @@ export default function VenueApprovalsPage() {
         // Don't fail the approval if email fails
       }
 
-      // 4. Refresh the list
+      // Refresh the list
       await loadRequests();
       
       alert('Venue owner approved successfully! An invitation email has been sent to complete registration.');
