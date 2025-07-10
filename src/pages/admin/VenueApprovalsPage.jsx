@@ -1,90 +1,458 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { 
+  Building2, 
+  User, 
+  Mail, 
+  Phone, 
+  MapPin, 
+  Clock, 
+  Users, 
+  DollarSign, 
+  Calendar,
+  CheckCircle,
+  XCircle,
+  Eye,
+  Store,
+  Globe,
+  FileText
+} from 'lucide-react';
+import { motion } from 'framer-motion';
 
 export default function VenueApprovalsPage() {
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
-    supabase.from('pending_venue_owner_requests').select('*').order('created_at', { ascending: false })
-      .then(({ data }) => {
-        setRequests(data || []);
-        setLoading(false);
-      });
+    loadRequests();
   }, []);
 
+  const loadRequests = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('pending_venue_owner_requests')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setRequests(data || []);
+    } catch (error) {
+      console.error('Error loading requests:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleApprove = async (req) => {
-    // 1. Create Supabase user (invite)
-    const { data: invite, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(req.email, {
-      data: {
-        role: 'venue_owner',
-        venue_name: req.venue_name
-      }
-    });
-    if (inviteError) return alert('Failed to invite user: ' + inviteError.message);
+    setProcessing(true);
+    try {
+      // 1. Create Supabase user (invite)
+      const { data: invite, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(req.email, {
+        data: {
+          role: 'venue_owner',
+          venue_name: req.venue_name
+        }
+      });
+      
+      if (inviteError) throw new Error('Failed to invite user: ' + inviteError.message);
 
-    // 2. Create venue_owners record
-    await supabase.from('venue_owners').insert([{
-      user_id: invite.user.id,
-      venue_name: req.venue_name,
-      venue_address: req.venue_address,
-      venue_city: req.venue_city,
-      venue_country: req.venue_country,
-      venue_phone: req.venue_phone,
-      owner_first_name: req.owner_first_name,
-      owner_last_name: req.owner_last_name,
-      owner_phone: req.owner_phone
-    }]);
+      // 2. Create venue_owners record
+      const { error: venueError } = await supabase.from('venue_owners').insert([{
+        user_id: invite.user.id,
+        venue_name: req.venue_name,
+        venue_description: req.additional_info,
+        venue_address: req.venue_address,
+        venue_city: req.venue_city,
+        venue_country: req.venue_country,
+        venue_phone: req.contact_phone,
+        owner_name: req.contact_name,
+        owner_email: req.email,
+        owner_phone: req.contact_phone,
+        venue_type: req.venue_type || 'restaurant',
+        opening_hours: req.opening_hours || '',
+        capacity: req.capacity || '',
+        price_range: req.price_range || '$$'
+      }]);
 
-    // 3. Update request status
-    await supabase.from('pending_venue_owner_requests').update({ status: 'approved' }).eq('id', req.id);
+      if (venueError) throw venueError;
 
-    // 4. Optionally: Send custom email (see below)
-    alert('Venue owner approved and invited!');
-    setRequests(requests.map(r => r.id === req.id ? { ...r, status: 'approved' } : r));
+      // 3. Update request status
+      await supabase.from('pending_venue_owner_requests').update({ status: 'approved' }).eq('id', req.id);
+
+      // 4. Refresh the list
+      await loadRequests();
+      
+      alert('Venue owner approved and invited successfully!');
+    } catch (error) {
+      console.error('Error approving request:', error);
+      alert('Error approving request: ' + error.message);
+    } finally {
+      setProcessing(false);
+    }
   };
 
   const handleReject = async (req) => {
-    await supabase.from('pending_venue_owner_requests').update({ status: 'rejected' }).eq('id', req.id);
-    setRequests(requests.map(r => r.id === req.id ? { ...r, status: 'rejected' } : r));
+    setProcessing(true);
+    try {
+      await supabase.from('pending_venue_owner_requests').update({ status: 'rejected' }).eq('id', req.id);
+      await loadRequests();
+      alert('Request rejected successfully!');
+    } catch (error) {
+      console.error('Error rejecting request:', error);
+      alert('Error rejecting request: ' + error.message);
+    } finally {
+      setProcessing(false);
+    }
   };
 
-  if (loading) return <div>Loading...</div>;
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'pending':
+        return <Badge variant="outline" className="border-yellow-500 text-yellow-700">Pending</Badge>;
+      case 'approved':
+        return <Badge variant="outline" className="border-green-500 text-green-700">Approved</Badge>;
+      case 'rejected':
+        return <Badge variant="outline" className="border-red-500 text-red-700">Rejected</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-brand-cream/50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-burgundy mx-auto"></div>
+          <p className="mt-4 text-brand-burgundy">Loading venue applications...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-8">
-      <h2 className="text-2xl font-bold mb-4">Venue Owner Requests</h2>
-      <table className="w-full border">
-        <thead>
-          <tr>
-            <th>Email</th>
-            <th>Venue</th>
-            <th>Owner</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {requests.map(req => (
-            <tr key={req.id}>
-              <td>{req.email}</td>
-              <td>{req.venue_name}</td>
-              <td>{req.owner_first_name} {req.owner_last_name}</td>
-              <td>{req.status}</td>
-              <td>
-                {req.status === 'pending' && (
-                  <>
-                    <Button onClick={() => handleApprove(req)} className="mr-2 bg-green-600 text-white">Approve</Button>
-                    <Button onClick={() => handleReject(req)} className="bg-red-600 text-white">Reject</Button>
-                  </>
-                )}
-                {req.status !== 'pending' && <span>{req.status}</span>}
-              </td>
-            </tr>
+    <div className="min-h-screen bg-brand-cream/50">
+      <div className="container mx-auto py-8 px-4">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-3 bg-brand-burgundy/10 rounded-full">
+              <Store className="h-8 w-8 text-brand-burgundy" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold text-brand-burgundy">Venue Owner Applications</h1>
+              <p className="text-brand-burgundy/70">Review and manage venue partnership requests</p>
+            </div>
+          </div>
+          
+          <div className="flex gap-4 text-sm">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+              <span>Pending: {requests.filter(r => r.status === 'pending').length}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+              <span>Approved: {requests.filter(r => r.status === 'approved').length}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+              <span>Rejected: {requests.filter(r => r.status === 'rejected').length}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Applications Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+          {requests.map((request, index) => (
+            <motion.div
+              key={request.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+            >
+              <Card className="h-full hover:shadow-lg transition-shadow">
+                <CardHeader className="pb-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <CardTitle className="text-lg text-brand-burgundy mb-2">
+                        {request.venue_name}
+                      </CardTitle>
+                      <div className="flex items-center gap-2 text-sm text-brand-burgundy/70">
+                        <Building2 className="h-4 w-4" />
+                        <span>{request.venue_type || 'Restaurant'}</span>
+                      </div>
+                    </div>
+                    {getStatusBadge(request.status)}
+                  </div>
+                </CardHeader>
+
+                <CardContent className="space-y-4">
+                  {/* Owner Information */}
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-brand-burgundy flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      Owner Details
+                    </h4>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-3 w-3 text-brand-burgundy/50" />
+                        <span>{request.email}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-3 w-3 text-brand-burgundy/50" />
+                        <span>{request.contact_phone}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <User className="h-3 w-3 text-brand-burgundy/50" />
+                        <span>{request.contact_name}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Venue Location */}
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-brand-burgundy flex items-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      Location
+                    </h4>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-3 w-3 text-brand-burgundy/50" />
+                        <span>{request.venue_address}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Globe className="h-3 w-3 text-brand-burgundy/50" />
+                        <span>{request.venue_city}, {request.venue_country}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Additional Details */}
+                  {request.additional_info && (
+                    <div className="space-y-2">
+                      <h4 className="font-semibold text-brand-burgundy flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        Description
+                      </h4>
+                      <p className="text-sm text-brand-burgundy/70 line-clamp-3">
+                        {request.additional_info}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Application Date */}
+                  <div className="flex items-center gap-2 text-sm text-brand-burgundy/60">
+                    <Calendar className="h-3 w-3" />
+                    <span>Applied: {formatDate(request.created_at)}</span>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-2 pt-4 border-t border-brand-burgundy/10">
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="flex-1 border-brand-burgundy text-brand-burgundy hover:bg-brand-burgundy/10"
+                          onClick={() => setSelectedRequest(request)}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          View Details
+                        </Button>
+                      </DialogTrigger>
+                    </Dialog>
+
+                    {request.status === 'pending' && (
+                      <>
+                        <Button 
+                          size="sm" 
+                          className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                          onClick={() => handleApprove(request)}
+                          disabled={processing}
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          {processing ? 'Processing...' : 'Approve'}
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="destructive"
+                          className="flex-1"
+                          onClick={() => handleReject(request)}
+                          disabled={processing}
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          {processing ? 'Processing...' : 'Reject'}
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
           ))}
-        </tbody>
-      </table>
+        </div>
+
+        {/* Empty State */}
+        {requests.length === 0 && (
+          <div className="text-center py-12">
+            <Store className="h-16 w-16 text-brand-burgundy/30 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-brand-burgundy mb-2">No Applications Yet</h3>
+            <p className="text-brand-burgundy/70">When venue owners submit applications, they will appear here for review.</p>
+          </div>
+        )}
+
+        {/* Detailed View Dialog */}
+        {selectedRequest && (
+          <Dialog open={!!selectedRequest} onOpenChange={() => setSelectedRequest(null)}>
+            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="text-xl text-brand-burgundy">
+                  {selectedRequest.venue_name} - Application Details
+                </DialogTitle>
+              </DialogHeader>
+              
+              <div className="space-y-6">
+                {/* Owner Information */}
+                <div className="bg-brand-cream/30 p-4 rounded-lg">
+                  <h3 className="font-semibold text-brand-burgundy mb-3 flex items-center gap-2">
+                    <User className="h-5 w-5" />
+                    Owner Information
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Full Name</label>
+                      <p className="text-brand-burgundy">{selectedRequest.contact_name}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Email Address</label>
+                      <p className="text-brand-burgundy">{selectedRequest.email}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Phone Number</label>
+                      <p className="text-brand-burgundy">{selectedRequest.contact_phone}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Application Date</label>
+                      <p className="text-brand-burgundy">{formatDate(selectedRequest.created_at)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Venue Information */}
+                <div className="bg-brand-cream/30 p-4 rounded-lg">
+                  <h3 className="font-semibold text-brand-burgundy mb-3 flex items-center gap-2">
+                    <Building2 className="h-5 w-5" />
+                    Venue Information
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Venue Name</label>
+                      <p className="text-brand-burgundy font-semibold">{selectedRequest.venue_name}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Venue Type</label>
+                      <p className="text-brand-burgundy">{selectedRequest.venue_type || 'Restaurant'}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Description</label>
+                      <p className="text-brand-burgundy">{selectedRequest.additional_info || 'No description provided'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Location Information */}
+                <div className="bg-brand-cream/30 p-4 rounded-lg">
+                  <h3 className="font-semibold text-brand-burgundy mb-3 flex items-center gap-2">
+                    <MapPin className="h-5 w-5" />
+                    Location Details
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Address</label>
+                      <p className="text-brand-burgundy">{selectedRequest.venue_address}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">City</label>
+                      <p className="text-brand-burgundy">{selectedRequest.venue_city}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Country</label>
+                      <p className="text-brand-burgundy">{selectedRequest.venue_country}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Additional Details */}
+                <div className="bg-brand-cream/30 p-4 rounded-lg">
+                  <h3 className="font-semibold text-brand-burgundy mb-3 flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Additional Details
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Opening Hours</label>
+                      <p className="text-brand-burgundy">{selectedRequest.opening_hours || 'Not specified'}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Capacity</label>
+                      <p className="text-brand-burgundy">{selectedRequest.capacity || 'Not specified'}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Price Range</label>
+                      <p className="text-brand-burgundy">{selectedRequest.price_range || 'Not specified'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                {selectedRequest.status === 'pending' && (
+                  <div className="flex gap-3 pt-4 border-t border-brand-burgundy/10">
+                    <Button 
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                      onClick={() => {
+                        handleApprove(selectedRequest);
+                        setSelectedRequest(null);
+                      }}
+                      disabled={processing}
+                    >
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      {processing ? 'Processing...' : 'Approve Application'}
+                    </Button>
+                    <Button 
+                      variant="destructive"
+                      className="flex-1"
+                      onClick={() => {
+                        handleReject(selectedRequest);
+                        setSelectedRequest(null);
+                      }}
+                      disabled={processing}
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      {processing ? 'Processing...' : 'Reject Application'}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
     </div>
   );
 } 
