@@ -85,14 +85,21 @@ const VenueOwnerRegister = () => {
       }
       setSuccess('Your request has been submitted and is pending admin approval.');
 
-      const VENUE_OWNER_REQUEST_TEMPLATE_ID = import.meta.env.VITE_EMAILJS_VENUE_OWNER_REQUEST_TEMPLATE;
-      console.log('Using template ID:', VENUE_OWNER_REQUEST_TEMPLATE_ID);
+      const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+      const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_VENUE_OWNER_REQUEST_TEMPLATE;
+      const PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
 
-      await sendBasicEmail(
-        'info@oneeddy.com',
-        'New Venue Owner Application',
-        `<h2>New Venue Owner Application</h2> ...`,
-        VENUE_OWNER_REQUEST_TEMPLATE_ID
+      emailjs.init(PUBLIC_KEY);
+
+      await emailjs.send(
+        SERVICE_ID,
+        TEMPLATE_ID,
+        {
+          // your template variables here
+          to_email: 'info@oneeddy.com',
+          subject: 'New Venue Owner Application',
+          html_content: `<h2>New Venue Owner Application</h2> ...`
+        }
       );
       // Optionally clear the form or redirect
     } catch (err) {
