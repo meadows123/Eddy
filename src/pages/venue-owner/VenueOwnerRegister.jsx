@@ -100,10 +100,19 @@ const VenueOwnerRegister = () => {
         SERVICE_ID,
         TEMPLATE_ID,
         {
-          // your template variables here
-          to_email: 'info@oneeddy.com',
+          email: 'info@oneeddy.com',
+          to_name: 'Admin',
+          from_name: 'Eddys Members',
           subject: 'New Venue Owner Application',
-          html_content: `<h2>New Venue Owner Application</h2> ...`
+          contact_name: formData.full_name,
+          contact_email: formData.email,
+          contact_phone: formData.phone,
+          venue_name: formData.venue_name,
+          venue_description: formData.venue_description,
+          venue_address: formData.venue_address,
+          venue_city: formData.venue_city,
+          venue_type: formData.venue_type,
+          message: `New venue owner application received from ${formData.full_name} for ${formData.venue_name}`
         }
       );
       // Optionally clear the form or redirect
