@@ -104,25 +104,23 @@ const VenueApprovalsPage = () => {
       // Update request status
       await supabase.from('pending_venue_owner_requests').update({ status: 'approved' }).eq('id', req.id);
 
-      // Send approval email to the venue owner using Supabase Edge Function
+      // Send approval email to the venue owner using Supabase built-in auth email
       try {
-        const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
-          body: {
-            template: 'venue-owner-invitation',
-            data: {
-              email: req.email,
-              venueName: req.venue_name,
-              contactName: req.contact_name,
-              venueType: req.venue_type || 'Restaurant'
-            }
+        const { data, error } = await supabase.auth.admin.inviteUserByEmail(req.email, {
+          redirectTo: `${window.location.origin}/venue-owner/register?approved=true&venue=${encodeURIComponent(req.venue_name)}`,
+          data: {
+            venue_name: req.venue_name,
+            contact_name: req.contact_name,
+            venue_type: req.venue_type || 'Restaurant',
+            approval_date: new Date().toISOString()
           }
         });
 
-        if (emailError) {
-          console.error('Error sending invitation email:', emailError);
-          alert(`Warning: Failed to send invitation email: ${emailError.message}`);
+        if (error) {
+          console.error('Error sending invitation email:', error);
+          alert(`Warning: Failed to send invitation email: ${error.message}`);
         } else {
-          console.log('Invitation email sent successfully:', emailData);
+          console.log('Invitation email sent successfully:', data);
         }
       } catch (emailError) {
         console.error('Error sending approval email:', emailError);
