@@ -525,7 +525,7 @@ export const sendVenueOwnerSignupEmail = async (venueOwnerData) => {
     console.error('❌ Error in sendVenueOwnerSignupEmail:', error);
     throw error;
   }
-}; 
+};
 
 // Test function to debug Edge Function email sending
 export const testEdgeFunctionEmail = async (template = 'venue-owner-invitation', testData = {}) => {
@@ -569,4 +569,4 @@ export const testEdgeFunctionEmail = async (template = 'venue-owner-invitation',
 // Make test function available globally for debugging
 if (typeof window !== 'undefined') {
   window.testEdgeFunctionEmail = testEdgeFunctionEmail;
-} 
+}
