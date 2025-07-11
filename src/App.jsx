@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from './components/ui/toaster';
 import Navigation from './components/Navigation';
 import Footer from './components/Footer';
+import ScrollToTop from './components/ScrollToTop';
 import LandingPage from './pages/LandingPage';
 import VenuesPage from './pages/VenuesPage';
 import VenueDetailPage from './pages/VenueDetailPage';
@@ -42,6 +43,7 @@ const App = () => {
   return (
     <AuthProvider>
       <div className="min-h-screen bg-gray-50 flex flex-col">
+        <ScrollToTop />
         <Navigation />
         <main className="flex-grow">
           <Routes>

@@ -1,9 +1,15 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Facebook, Instagram, Twitter } from 'lucide-react';
+import { useScrollToTop } from '@/lib/useScrollToTop';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
+  const scrollToTop = useScrollToTop();
+
+  const handleLinkClick = () => {
+    scrollToTop();
+  };
 
   return (
     <footer className="bg-brand-burgundy text-brand-cream py-12">
@@ -55,25 +61,25 @@ const Footer = () => {
           <div>
             <h4 className="text-lg font-semibold mb-4 text-white">Quick Links</h4>
             <ul className="space-y-2">
-              <li><Link to="/venues" className="text-brand-cream/80 hover:text-white">Venues</Link></li>
-              <li><Link to="/about" className="text-brand-cream/80 hover:text-white">About Us</Link></li>
-              <li><Link to="/contact" className="text-brand-cream/80 hover:text-white">Contact</Link></li>
+              <li><Link to="/venues" onClick={handleLinkClick} className="text-brand-cream/80 hover:text-white transition-colors">Venues</Link></li>
+              <li><Link to="/about" onClick={handleLinkClick} className="text-brand-cream/80 hover:text-white transition-colors">About Us</Link></li>
+              <li><Link to="/contact" onClick={handleLinkClick} className="text-brand-cream/80 hover:text-white transition-colors">Contact</Link></li>
             </ul>
           </div>
           <div>
             <h4 className="text-lg font-semibold mb-4 text-white">For Venues</h4>
             <ul className="space-y-2">
-              <li><Link to="/venue-owner/login" className="text-brand-cream/80 hover:text-white">Login</Link></li>
-              <li><Link to="/venue-owner/register" className="text-brand-cream/80 hover:text-white">Register</Link></li>
-              <li><Link to="/venue-owner/features" className="text-brand-cream/80 hover:text-white">Features</Link></li>
+              <li><Link to="/venue-owner/login" onClick={handleLinkClick} className="text-brand-cream/80 hover:text-white transition-colors">Login</Link></li>
+              <li><Link to="/venue-owner/register" onClick={handleLinkClick} className="text-brand-cream/80 hover:text-white transition-colors">Register</Link></li>
+              <li><Link to="/venue-owner/features" onClick={handleLinkClick} className="text-brand-cream/80 hover:text-white transition-colors">Features</Link></li>
             </ul>
           </div>
           <div>
             <h4 className="text-lg font-semibold mb-4 text-white">Legal</h4>
             <ul className="space-y-2">
-              <li><Link to="/privacy" className="text-brand-cream/80 hover:text-white">Privacy Policy</Link></li>
-              <li><Link to="/terms" className="text-brand-cream/80 hover:text-white">Terms of Service</Link></li>
-              <li><Link to="/faq" className="text-brand-cream/80 hover:text-white">FAQ</Link></li>
+              <li><Link to="/privacy" onClick={handleLinkClick} className="text-brand-cream/80 hover:text-white transition-colors">Privacy Policy</Link></li>
+              <li><Link to="/terms" onClick={handleLinkClick} className="text-brand-cream/80 hover:text-white transition-colors">Terms of Service</Link></li>
+              <li><Link to="/faq" onClick={handleLinkClick} className="text-brand-cream/80 hover:text-white transition-colors">FAQ</Link></li>
             </ul>
           </div>
         </div>

@@ -37,6 +37,10 @@ export const sendBookingConfirmation = async (booking, venue, customer) => {
 
     // Use exact parameter names that match the EmailJS template
     const templateParams = {
+      // EmailJS required fields
+      to_email: customer.email || customer.full_name,
+      to_name: customer.full_name || customer.name || 'Valued Customer',
+      
       // Customer Information
       customerName: customer.full_name || customer.name || 'Valued Customer',
       customerEmail: customer.email || customer.full_name,
@@ -84,14 +88,14 @@ export const sendBookingConfirmation = async (booking, venue, customer) => {
     };
 
     // Ensure email is valid
-    if (!templateParams.customerEmail || !templateParams.customerEmail.includes('@')) {
-      console.warn('⚠️ Invalid email address:', templateParams.customerEmail);
+    if (!templateParams.to_email || !templateParams.to_email.includes('@')) {
+      console.warn('⚠️ Invalid email address:', templateParams.to_email);
       throw new Error('Invalid customer email address');
     }
 
     console.log('🔄 Sending booking confirmation with template parameters:', {
+      to_email: templateParams.to_email,
       customerName: templateParams.customerName,
-      customerEmail: templateParams.customerEmail,
       bookingReference: templateParams.bookingReference,
       venueName: templateParams.venueName
     });

@@ -122,7 +122,7 @@ const LandingPage = () => {
       name: 'Restaurants',
       description: 'Discover the finest dining experiences in Lagos',
       icon: Utensils,
-      color: 'from-orange-600 to-red-600',
+      color: 'from-brand-burgundy to-brand-burgundy/90',
       count: '50+ venues',
       features: ['Fine Dining', 'Private Rooms', 'Chef\'s Table']
     },
@@ -131,7 +131,7 @@ const LandingPage = () => {
       name: 'Clubs',
       description: 'Experience the vibrant nightlife and premium entertainment',
       icon: Music,
-      color: 'from-purple-600 to-pink-600',
+      color: 'from-brand-burgundy/90 to-brand-burgundy/80',
       count: '30+ venues',
       features: ['VIP Tables', 'Premium Sound', 'Top DJs']
     },
@@ -140,7 +140,7 @@ const LandingPage = () => {
       name: 'Lounges',
       description: 'Relax in sophisticated lounges across the city',
       icon: Building2,
-      color: 'from-blue-600 to-indigo-600',
+      color: 'from-brand-burgundy/80 to-brand-burgundy/70',
       count: '25+ venues',
       features: ['Cocktail Bar', 'Sky Views', 'Premium Service']
     },
@@ -476,38 +476,38 @@ const LandingPage = () => {
                     style={{ perspective: '1000px' }}
                   >
                     <div className="relative bg-white rounded-3xl shadow-2xl overflow-hidden border-2 border-brand-burgundy/10 group-hover:border-brand-gold/50 group-hover:shadow-3xl transition-all duration-500 transform-gpu">
-                      {/* Animated Background with 3D effect */}
+                      {/* Clean Background with subtle burgundy accent */}
                       <motion.div 
-                        className={`relative h-80 bg-gradient-to-br ${category.color} flex items-center justify-center overflow-hidden`}
+                        className="relative h-80 bg-gradient-to-br from-brand-burgundy/5 to-brand-burgundy/10 flex items-center justify-center overflow-hidden"
                         whileHover={{ scale: 1.02 }}
                         transition={{ duration: 0.4 }}
                       >
-                        {/* Animated mesh gradient overlay */}
+                        {/* Subtle pattern overlay */}
                         <motion.div
-                          className="absolute inset-0 opacity-20"
+                          className="absolute inset-0 opacity-10"
                           animate={{
                             background: [
-                              'radial-gradient(circle at 0% 0%, rgba(255,255,255,0.3) 0%, transparent 50%)',
-                              'radial-gradient(circle at 100% 100%, rgba(255,255,255,0.3) 0%, transparent 50%)',
-                              'radial-gradient(circle at 0% 0%, rgba(255,255,255,0.3) 0%, transparent 50%)'
+                              'radial-gradient(circle at 0% 0%, rgba(128, 0, 32, 0.1) 0%, transparent 50%)',
+                              'radial-gradient(circle at 100% 100%, rgba(128, 0, 32, 0.1) 0%, transparent 50%)',
+                              'radial-gradient(circle at 0% 0%, rgba(128, 0, 32, 0.1) 0%, transparent 50%)'
                             ]
                           }}
                           transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                         />
                         
-                        {/* Floating particles specific to each category */}
-                        {Array.from({ length: 12 }).map((_, i) => (
+                        {/* Subtle floating elements */}
+                        {Array.from({ length: 6 }).map((_, i) => (
                           <motion.div
                             key={i}
-                            className="absolute w-2 h-2 bg-white/30 rounded-full"
+                            className="absolute w-1 h-1 bg-brand-burgundy/20 rounded-full"
                             style={{
                               left: `${Math.random() * 100}%`,
                               top: `${Math.random() * 100}%`,
                             }}
                             animate={{
-                              y: [0, -20, 0],
-                              x: [0, 10, 0],
-                              opacity: [0.3, 0.8, 0.3],
+                              y: [0, -15, 0],
+                              x: [0, 5, 0],
+                              opacity: [0.2, 0.4, 0.2],
                               scale: [0.5, 1, 0.5],
                             }}
                             transition={{
@@ -519,7 +519,7 @@ const LandingPage = () => {
                           />
                         ))}
                         
-                        {/* Main Icon with enhanced animations */}
+                        {/* Main Icon with burgundy color */}
                         <motion.div
                           className="relative z-10"
                           whileHover={{ 
@@ -536,34 +536,34 @@ const LandingPage = () => {
                             className="relative"
                             animate={{
                               filter: [
-                                'drop-shadow(0 0 20px rgba(255,255,255,0.5))',
-                                'drop-shadow(0 0 30px rgba(255,255,255,0.8))',
-                                'drop-shadow(0 0 20px rgba(255,255,255,0.5))'
+                                'drop-shadow(0 0 20px rgba(128, 0, 32, 0.3))',
+                                'drop-shadow(0 0 30px rgba(128, 0, 32, 0.5))',
+                                'drop-shadow(0 0 20px rgba(128, 0, 32, 0.3))'
                               ]
                             }}
                             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                           >
-                            <category.icon className="w-28 h-28 text-white drop-shadow-2xl" />
+                            <category.icon className="w-28 h-28 text-brand-burgundy drop-shadow-2xl" />
                           </motion.div>
                         </motion.div>
                         
-                        {/* Enhanced floating elements */}
+                        {/* Venue count badge */}
                         <motion.div
-                          className="absolute top-6 right-6 bg-white/25 backdrop-blur-sm rounded-2xl px-4 py-2 border border-white/30"
+                          className="absolute top-6 right-6 bg-brand-burgundy/10 backdrop-blur-sm rounded-2xl px-4 py-2 border border-brand-burgundy/20"
                           initial={{ opacity: 0, x: 30, scale: 0.8 }}
                           animate={{ opacity: 1, x: 0, scale: 1 }}
                           transition={{ delay: 0.8 + index * 0.1, duration: 0.5 }}
                           whileHover={{ scale: 1.05, y: -2 }}
                         >
-                          <span className="text-white text-sm font-bold">{category.count}</span>
+                          <span className="text-brand-burgundy text-sm font-bold">{category.count}</span>
                         </motion.div>
 
-                        {/* Animated corner decorations */}
+                        {/* Subtle corner decoration */}
                         <motion.div
-                          className="absolute bottom-6 left-6 w-8 h-8 border-l-2 border-b-2 border-white/40"
+                          className="absolute bottom-6 left-6 w-8 h-8 border-l-2 border-b-2 border-brand-burgundy/30"
                           animate={{ 
                             scale: [1, 1.1, 1],
-                            opacity: [0.4, 0.8, 0.4]
+                            opacity: [0.3, 0.6, 0.3]
                           }}
                           transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                         />
