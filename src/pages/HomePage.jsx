@@ -221,25 +221,25 @@ const HomePage = () => {
       icon: Zap,
       title: "Instant Booking",
       description: "Book your table in seconds with our lightning-fast booking system",
-      color: "from-yellow-400 to-orange-500"
+      color: "from-brand-burgundy to-brand-burgundy/90"
     },
     {
       icon: Shield,
       title: "Secure Payments",
       description: "Your payments are protected with bank-level security encryption",
-      color: "from-green-400 to-emerald-500"
+      color: "from-brand-burgundy/90 to-brand-burgundy/80"
     },
     {
       icon: Award,
       title: "VIP Treatment",
       description: "Enjoy exclusive perks and priority service at all partner venues",
-      color: "from-purple-400 to-pink-500"
+      color: "from-brand-burgundy/80 to-brand-burgundy/70"
     },
     {
       icon: TrendingUp,
       title: "Best Prices",
       description: "Get the best deals and exclusive discounts on premium venues",
-      color: "from-blue-400 to-indigo-500"
+      color: "from-brand-burgundy/70 to-brand-burgundy/60"
     }
   ];
 

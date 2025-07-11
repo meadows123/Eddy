@@ -17,7 +17,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { sendBookingConfirmation, sendVenueOwnerNotification } from '@/lib/emailService';
+import { sendBookingConfirmation, sendVenueOwnerNotification, debugBookingEmail } from '@/lib/emailService';
 
 const CheckoutPage = () => {
   const { id } = useParams();
@@ -203,6 +203,17 @@ const CheckoutPage = () => {
       return true;
     } catch (error) {
       console.error('❌ Failed to send booking emails:', error);
+      
+      // If it's the "recipients address is empty" error, run debug function
+      if (error.text === 'The recipients address is empty' || error.message?.includes('recipients address is empty')) {
+        console.log('🔍 Running email debug function...');
+        try {
+          await debugBookingEmail(booking, venue, customer);
+        } catch (debugError) {
+          console.error('❌ Debug function also failed:', debugError);
+        }
+      }
+      
       return false;
     }
   };

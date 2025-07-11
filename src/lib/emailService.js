@@ -35,33 +35,40 @@ export const sendBookingConfirmation = async (booking, venue, customer) => {
       throw new Error('EmailJS configuration incomplete');
     }
 
+    // Validate customer email
+    const customerEmail = customer.email || customer.customerEmail || customer.full_name;
+    if (!customerEmail || !customerEmail.includes('@')) {
+      console.error('❌ Invalid or missing customer email:', customerEmail);
+      throw new Error('Invalid customer email address');
+    }
+
     // Use exact parameter names that match the EmailJS template
     const templateParams = {
-      // EmailJS required fields
-      to_email: customer.email || customer.full_name,
-      to_name: customer.full_name || customer.name || 'Valued Customer',
+      // EmailJS required fields - these MUST match your template exactly
+      customerEmail: customerEmail, // This matches the template's "To" field
+      to_name: customer.full_name || customer.customerName || customer.name || 'Valued Customer',
       
       // Customer Information
-      customerName: customer.full_name || customer.name || 'Valued Customer',
-      customerEmail: customer.email || customer.full_name,
-      customerPhone: customer.phone || customer.phone_number || 'N/A',
+      customerName: customer.full_name || customer.customerName || customer.name || 'Valued Customer',
+      to_email: customerEmail, // Keep this for backward compatibility
+      customerPhone: customer.phone || customer.customerPhone || customer.phone_number || 'N/A',
       
       // Booking Information
       bookingReference: `VIP-${booking.id}`,
-      partySize: booking.guest_count || booking.guests || '2',
+      partySize: booking.guest_count || booking.guests || booking.number_of_guests || '2',
       bookingDate: new Date(booking.booking_date).toLocaleDateString('en-US', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
         day: 'numeric'
       }),
-      bookingTime: booking.booking_time || '7:00 PM',
+      bookingTime: booking.booking_time || booking.start_time || '7:00 PM',
       bookingDuration: '4',
       
       // Table Information
       tableNumber: booking.table_number || 'VIP-001',
       tableType: 'VIP Table',
-      tableCapacity: booking.guest_count || booking.guests || '2',
+      tableCapacity: booking.guest_count || booking.guests || booking.number_of_guests || '2',
       tableLocation: 'Prime Location',
       tableFeatures: 'Premium seating with excellent view',
       
@@ -87,12 +94,6 @@ export const sendBookingConfirmation = async (booking, venue, customer) => {
       unsubscribeUrl: `${window.location.origin}/settings`
     };
 
-    // Ensure email is valid
-    if (!templateParams.to_email || !templateParams.to_email.includes('@')) {
-      console.warn('⚠️ Invalid email address:', templateParams.to_email);
-      throw new Error('Invalid customer email address');
-    }
-
     console.log('🔄 Sending booking confirmation with template parameters:', {
       to_email: templateParams.to_email,
       customerName: templateParams.customerName,
@@ -116,6 +117,13 @@ export const sendBookingConfirmation = async (booking, venue, customer) => {
       status: error.status,
       text: error.text
     });
+    
+    // Provide more specific error messages
+    if (error.text === 'The recipients address is empty') {
+      console.error('❌ EmailJS template issue: The "To" field in your EmailJS template is missing or incorrectly configured.');
+      console.error('   Please ensure your EmailJS template has {{to_email}} in the "To" field.');
+    }
+    
     throw error;
   }
 };
@@ -339,6 +347,66 @@ export const quickEmailTest = async (testEmail = 'test@example.com') => {
   } catch (error) {
     console.error('❌ Quick email test failed:', error);
     return { success: false, error };
+  }
+};
+
+// Debug function for booking confirmation email issues
+export const debugBookingEmail = async (booking, venue, customer) => {
+  console.log('🔍 Debugging booking email issue...');
+  console.log('📧 Customer data:', customer);
+  console.log('🏢 Venue data:', venue);
+  console.log('📅 Booking data:', booking);
+  
+  // Check EmailJS configuration
+  console.log('⚙️ EmailJS config:', {
+    serviceId: EMAILJS_CONFIG.serviceId ? '✅ Set' : '❌ Missing',
+    templateId: EMAILJS_CONFIG.templateId ? '✅ Set' : '❌ Missing',
+    publicKey: EMAILJS_CONFIG.publicKey ? '✅ Set' : '❌ Missing'
+  });
+  
+  // Validate customer email
+  const customerEmail = customer.email || customer.customerEmail || customer.full_name;
+  console.log('📧 Customer email found:', customerEmail);
+  
+  if (!customerEmail || !customerEmail.includes('@')) {
+    console.error('❌ Invalid customer email:', customerEmail);
+    return { success: false, error: 'Invalid customer email' };
+  }
+  
+  // Test with minimal data
+  const testParams = {
+    customerEmail: customerEmail, // This matches the template's "To" field
+    to_name: customer.full_name || customer.customerName || 'Test User',
+    customerName: customer.full_name || customer.customerName || 'Test User',
+    to_email: customerEmail, // Keep for backward compatibility
+    bookingReference: 'TEST-123',
+    venueName: venue.name || 'Test Venue'
+  };
+  
+  console.log('🧪 Testing with minimal params:', testParams);
+  
+  try {
+    const result = await emailjs.send(
+      EMAILJS_CONFIG.serviceId,
+      EMAILJS_CONFIG.templateId,
+      testParams
+    );
+    
+    console.log('✅ Debug test successful:', result);
+    return { success: true, result };
+  } catch (error) {
+    console.error('❌ Debug test failed:', error);
+    
+    if (error.text === 'The recipients address is empty') {
+      console.error('🔧 SOLUTION: Your EmailJS template is missing the "To" field configuration.');
+      console.error('   Please go to your EmailJS dashboard and:');
+      console.error('   1. Open your email template');
+      console.error('   2. In the "To" field, add: {{customerEmail}}');
+      console.error('   3. Save the template');
+      console.error('   4. Try again');
+    }
+    
+    return { success: false, error: error.text || error.message };
   }
 };
 
