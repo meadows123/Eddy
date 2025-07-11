@@ -495,8 +495,7 @@ const VenueOwnerRegister = () => {
                   >
                     <option value="$">$ (Budget)</option>
                     <option value="$$">$$ (Moderate)</option>
-                    <option value="$$$">$$$ (Expensive)</option>
-                    <option value="$$$$">$$$$ (Very Expensive)</option>
+                    <option value="$$$">$$$ (Premium)</option>
                   </select>
                 </div>
               </div>
