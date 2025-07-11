@@ -7,8 +7,6 @@ import {
   generateEmailData 
 } from './emailTemplates';
 import { supabase } from '@/lib/supabase';
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
 
 // EmailJS configuration from environment variables
 const EMAILJS_CONFIG = {
@@ -23,6 +21,16 @@ if (EMAILJS_CONFIG.publicKey) {
 } else {
   console.warn('⚠️ EmailJS not configured: Missing VITE_EMAILJS_PUBLIC_KEY in environment variables');
 }
+
+// Function to optimize email delivery and reduce spam filtering
+const optimizeEmailDelivery = (params) => {
+  return {
+    ...params,
+    subject: params.subject || 'VIP Club Booking Confirmation',
+    from_name: 'VIP Club',
+    reply_to: 'support@vipclub.com'
+  };
+};
 
 export const sendBookingConfirmation = async (booking, venue, customer) => {
   try {
@@ -94,21 +102,32 @@ export const sendBookingConfirmation = async (booking, venue, customer) => {
       unsubscribeUrl: `${window.location.origin}/settings`
     };
 
-    console.log('🔄 Sending booking confirmation with template parameters:', {
-      to_email: templateParams.to_email,
-      customerName: templateParams.customerName,
-      bookingReference: templateParams.bookingReference,
-      venueName: templateParams.venueName
+    // Optimize email delivery to reduce spam filtering
+    const optimizedParams = optimizeEmailDelivery(templateParams);
+
+    console.log('🔄 Sending booking confirmation with optimized parameters:', {
+      to_email: optimizedParams.to_email,
+      customerName: optimizedParams.customerName,
+      bookingReference: optimizedParams.bookingReference,
+      venueName: optimizedParams.venueName,
+      subject: optimizedParams.subject
     });
     
-    // Send to customer using template parameters
+    // Send to customer using optimized template parameters
     const result = await emailjs.send(
       EMAILJS_CONFIG.serviceId,
       EMAILJS_CONFIG.templateId,
-      templateParams
+      optimizedParams
     );
 
     console.log('✅ Booking confirmation email sent successfully:', result);
+    
+    // Log delivery optimization tips
+    console.log('📧 Email Delivery Tips:');
+    console.log('   - Check spam/junk folder if email not received');
+    console.log('   - Mark as "Not Spam" to improve future delivery');
+    console.log('   - Add support@vipclub.com to contacts');
+    
     return result;
   } catch (error) {
     console.error('❌ Failed to send booking confirmation:', error);
@@ -473,4 +492,81 @@ if (typeof window !== 'undefined') {
   window.quickEmailTest = quickEmailTest;
   window.testEmailService = testEmailService;
   window.testEmailJSNow = testEmailJSNow;
+} 
+
+export const sendVenueOwnerSignupEmail = async (venueOwnerData) => {
+  try {
+    console.log('🔄 Sending venue owner signup email to:', venueOwnerData.email);
+    
+    // Use Supabase Edge Function to send the signup email
+    const { data, error } = await supabase.functions.invoke('send-email', {
+      body: {
+        template: 'venue-owner-signup',
+        data: {
+          email: venueOwnerData.email,
+          ownerName: venueOwnerData.owner_name || venueOwnerData.contact_name,
+          venueName: venueOwnerData.venue_name,
+          venueType: venueOwnerData.venue_type || 'Restaurant',
+          venueAddress: venueOwnerData.venue_address,
+          venueCity: venueOwnerData.venue_city,
+          dashboardUrl: `${window.location.origin}/venue-owner/dashboard`
+        }
+      }
+    });
+
+    if (error) {
+      console.error('❌ Failed to send venue owner signup email:', error);
+      throw error;
+    }
+
+    console.log('✅ Venue owner signup email sent successfully:', data);
+    return data;
+  } catch (error) {
+    console.error('❌ Error in sendVenueOwnerSignupEmail:', error);
+    throw error;
+  }
+}; 
+
+// Test function to debug Edge Function email sending
+export const testEdgeFunctionEmail = async (template = 'venue-owner-invitation', testData = {}) => {
+  try {
+    console.log('🔄 Testing Edge Function email with template:', template);
+    console.log('📧 Test data:', testData);
+    
+    const { data, error } = await supabase.functions.invoke('send-email', {
+      body: {
+        template: template,
+        data: {
+          email: testData.email || 'test@example.com',
+          venueName: testData.venueName || 'Test Venue',
+          contactName: testData.contactName || 'Test Owner',
+          venueType: testData.venueType || 'Restaurant',
+          ownerName: testData.ownerName || 'Test Owner',
+          venueAddress: testData.venueAddress || 'Test Address',
+          venueCity: testData.venueCity || 'Lagos'
+        }
+      }
+    });
+
+    if (error) {
+      console.error('❌ Edge Function error:', error);
+      console.error('Error details:', {
+        message: error.message,
+        status: error.status,
+        name: error.name
+      });
+      return { success: false, error: error.message };
+    }
+
+    console.log('✅ Edge Function email test successful:', data);
+    return { success: true, data };
+  } catch (error) {
+    console.error('❌ Error testing Edge Function email:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Make test function available globally for debugging
+if (typeof window !== 'undefined') {
+  window.testEdgeFunctionEmail = testEdgeFunctionEmail;
 } 
