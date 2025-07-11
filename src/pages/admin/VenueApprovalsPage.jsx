@@ -93,6 +93,7 @@ const VenueApprovalsPage = () => {
       const { data: newVenueOwner, error: venueOwnerError } = await supabase
         .from('venue_owners')
         .insert([{
+          venue_id: newVenue.id, // Link to the venue we just created
           venue_name: req.venue_name,
           venue_description: req.additional_info,
           venue_address: req.venue_address,

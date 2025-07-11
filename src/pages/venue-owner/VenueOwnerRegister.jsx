@@ -1,572 +1,527 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { 
+  Building2, 
+  User, 
+  Mail, 
+  Phone, 
+  MapPin, 
+  Clock, 
+  Users, 
+  DollarSign, 
+  Calendar,
+  CheckCircle,
+  XCircle,
+  Eye,
+  Store,
+  Globe,
+  FileText
+} from 'lucide-react';
 import { motion } from 'framer-motion';
-import { Store, Mail, Lock, User, Building2, Phone, MapPin, ArrowRight } from 'lucide-react';
-import { Button } from '/src/components/ui/button';
-import { Input } from '../../components/ui/input';
-import { Label } from '../../components/ui/label';
-import { Textarea } from '../../components/ui/textarea';
-import { toast } from '/src/components/ui/use-toast';
-import { supabase } from '/src/lib/supabase';
-import { useToast } from '../../components/ui/use-toast';
-import { notifyAdminOfVenueSubmission } from '../../lib/api'; // Adjust path if needed
-import { sendBasicEmail } from '@/lib/emailService';
 import emailjs from '@emailjs/browser';
 
-const VenueOwnerRegister = () => {
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [success, setSuccess] = useState(null);
-  const [formData, setFormData] = useState(() => {
-    // Try to load saved form data from localStorage
-    const savedData = localStorage.getItem('venueRegistrationData');
-    return savedData ? JSON.parse(savedData) : {
-      full_name: '',
-      email: '',
-      phone: '',
-      password: '',
-      venue_name: '',
-      venue_description: '',
-      venue_address: '',
-      venue_city: '',
-      venue_country: '',
-      venue_phone: '',
-      venue_email: '',
-      venue_type: 'restaurant',
-      opening_hours: '',
-      capacity: '',
-      price_range: '$$',
-    };
-  });
+const VenueApprovalsPage = () => {
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [processing, setProcessing] = useState(false);
 
-  const ADMIN_EMAIL = "sales@oneeddy.com"; // Replace with your admin's email
-
-  // Save form data to localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem('venueRegistrationData', JSON.stringify(formData));
-  }, [formData]);
+    loadRequests();
+  }, []);
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    setSuccess(null);
-
+  const loadRequests = async () => {
     try {
-      // First, check if there's an existing approved venue owner record for this email
-      const { data: existingVenues, error: venueCheckError } = await supabase
-        .from('venue_owners')
-        .select('*')
-        .eq('owner_email', formData.email)
-        .eq('status', 'pending_owner_signup');
-
-      if (venueCheckError) {
-        throw venueCheckError;
-      }
-
-      if (existingVenues && existingVenues.length > 0) {
-        // Venue owner has been approved, create user account and link it
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email: formData.email,
-          password: formData.password,
-        });
-
-        if (signUpError) throw signUpError;
-
-        // Update all pending venue owner records with the user ID and mark as active
-        const { error: updateError } = await supabase
-          .from('venue_owners')
-          .update({ 
-            user_id: signUpData.user.id,
-            status: 'active',
-            owner_name: formData.full_name,
-            owner_phone: formData.phone
-          })
-          .eq('owner_email', formData.email)
-          .eq('status', 'pending_owner_signup');
-
-        if (updateError) throw updateError;
-
-        // Also update the venues table to link the venue to the user
-        const { error: venueUpdateError } = await supabase
-          .from('venues')
-          .update({ 
-            owner_id: signUpData.user.id
-          })
-          .eq('contact_email', formData.email);
-
-        if (venueUpdateError) {
-          console.error('Error updating venue owner_id:', venueUpdateError);
-          // Don't fail the registration if venue update fails
-        }
-
-        setSuccess('Account created successfully! You can now log in to manage your venue.');
-        // Clear form data
-        setFormData({
-          full_name: '',
-          email: '',
-          phone: '',
-          password: '',
-          venue_name: '',
-          venue_description: '',
-          venue_address: '',
-          venue_city: '',
-          venue_country: '',
-          venue_phone: '',
-          venue_email: '',
-          venue_type: 'restaurant',
-          opening_hours: '',
-          capacity: '',
-          price_range: '$$',
-        });
-        localStorage.removeItem('venueRegistrationData');
-        return;
-      }
-
-      // No existing approved record, create a new pending request
-      const requestData = {
-        email: formData.email,
-        venue_name: formData.venue_name,
-        venue_address: formData.venue_address,
-        venue_city: formData.venue_city,
-        venue_country: formData.venue_country,
-        contact_name: formData.full_name,
-        contact_phone: formData.phone,
-        additional_info: formData.venue_description,
-        venue_type: formData.venue_type,
-        opening_hours: formData.opening_hours,
-        capacity: formData.capacity,
-        price_range: formData.price_range,
-        status: 'pending'
-      };
-
       const { data, error } = await supabase
         .from('pending_venue_owner_requests')
-        .insert([requestData]);
-
-      if (error) {
-        setError(error.message);
-        console.error('Supabase error:', error);
-        return;
-      }
-      setSuccess('Your venue application has been submitted successfully! Our team will review it within 48 hours. You will receive an email notification once your application is approved.');
-
-      const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
-      const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_VENUE_OWNER_REQUEST_TEMPLATE;
-      const PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+        .select('*')
+        .order('created_at', { ascending: false });
       
-      console.log('Debug - SERVICE_ID:', SERVICE_ID);
-      console.log('Debug - TEMPLATE_ID:', TEMPLATE_ID);
-      console.log('Debug - PUBLIC_KEY:', PUBLIC_KEY);
-      
-      emailjs.init(PUBLIC_KEY);
-
-      await emailjs.send(
-        SERVICE_ID,
-        TEMPLATE_ID,
-        {
-          email: 'info@oneeddy.com',
-          to_name: 'Admin',
-          from_name: 'Eddys Members',
-          subject: 'New Venue Owner Application',
-          ownerName: formData.full_name,
-          ownerEmail: formData.email,
-          ownerPhone: formData.phone,
-          applicationDate: new Date().toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-          }),
-          venueName: formData.venue_name,
-          venueDescription: formData.venue_description,
-          venueType: formData.venue_type || 'Not specified',
-          venueCapacity: formData.capacity || 'Not specified',
-          venueAddress: formData.venue_address,
-          priceRange: formData.price_range || 'Not specified',
-          openingHours: formData.opening_hours || 'Not specified',
-          venuePhone: formData.phone
-        }
-      );
-      // Optionally clear the form or redirect
-    } catch (err) {
-      setError(err.message || 'An unexpected error occurred.');
-      console.error('Unexpected error:', err);
+      if (error) throw error;
+      setRequests(data || []);
+    } catch (error) {
+      console.error('Error loading requests:', error);
     } finally {
       setLoading(false);
     }
   };
 
+  const handleApprove = async (req) => {
+    setProcessing(true);
+    try {
+      // Validate and normalize venue type
+      const validVenueTypes = ['restaurant', 'club', 'lounge'];
+      const normalizedVenueType = validVenueTypes.includes(req.venue_type?.toLowerCase()) 
+        ? req.venue_type.toLowerCase() 
+        : 'restaurant'; // Default to restaurant if invalid
+
+      console.log('🏢 Venue type validation:', {
+        original: req.venue_type,
+        normalized: normalizedVenueType,
+        validTypes: validVenueTypes
+      });
+
+      // First, create a venue record in the venues table
+      const { data: newVenue, error: venueError } = await supabase
+        .from('venues')
+        .insert([{
+          name: req.venue_name,
+          description: req.additional_info,
+          type: normalizedVenueType, // Use normalized venue type
+          price_range: req.price_range || '$$',
+          address: req.venue_address,
+          city: req.venue_city,
+          state: req.venue_city, // Using city as state for now
+          country: req.venue_country,
+          latitude: 6.5244, // Default Lagos coordinates - can be updated later
+          longitude: 3.3792,
+          contact_phone: req.contact_phone,
+          contact_email: req.email,
+          status: 'approved',
+          is_active: true
+        }])
+        .select()
+        .single();
+
+      if (venueError) throw venueError;
+
+      // Then, create a venue owner record (allows multiple venues per owner)
+      const { data: newVenueOwner, error: venueOwnerError } = await supabase
+        .from('venue_owners')
+        .insert([{
+          venue_id: newVenue.id, // Link to the venue we just created
+          venue_name: req.venue_name,
+          venue_description: req.additional_info,
+          venue_address: req.venue_address,
+          venue_city: req.venue_city,
+          venue_country: req.venue_country,
+          venue_phone: req.contact_phone,
+          owner_name: req.contact_name,
+          owner_email: req.email,
+          owner_phone: req.contact_phone,
+          venue_type: normalizedVenueType, // Use normalized venue type
+          opening_hours: req.opening_hours || '',
+          capacity: req.capacity || '',
+          price_range: req.price_range || '$$',
+          status: 'pending_owner_signup' // Will be updated when user signs up
+        }])
+        .select()
+        .single();
+
+      if (venueOwnerError) throw venueOwnerError;
+
+      // Update request status
+      await supabase.from('pending_venue_owner_requests').update({ status: 'approved' }).eq('id', req.id);
+
+      // Send approval email to the venue owner using Edge Function
+      try {
+        console.log('🔄 Attempting to send invitation email via Edge Function...');
+        console.log('📧 Email data:', {
+          email: req.email,
+          venueName: req.venue_name,
+          contactName: req.contact_name,
+          venueType: normalizedVenueType // Use normalized venue type
+        });
+
+        const { data, error } = await supabase.functions.invoke('invite-venue-owner', {
+          body: {
+            email: req.email,
+            venueName: req.venue_name,
+            contactName: req.contact_name,
+            venueType: normalizedVenueType, // Use normalized venue type
+            approvalDate: new Date().toISOString()
+          }
+        });
+
+        console.log('📤 Edge Function response:', { data, error });
+
+        if (error) {
+          console.error('❌ Error sending invitation email:', error);
+          alert(`Warning: Failed to send invitation email: ${error.message}`);
+        } else {
+          console.log('✅ Invitation email sent successfully:', data);
+        }
+      } catch (emailError) {
+        console.error('❌ Exception sending approval email:', emailError);
+        console.error('Error details:', {
+          message: emailError.message,
+          stack: emailError.stack,
+          name: emailError.name
+        });
+        alert(`Warning: Failed to send approval email: ${emailError.message}`);
+        // Don't fail the approval if email fails
+      }
+
+      // Refresh the list
+      await loadRequests();
+      
+      alert('Venue owner approved successfully! An invitation email has been sent to complete registration.');
+    } catch (error) {
+      console.error('Error approving request:', error);
+      alert('Error approving request: ' + error.message);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleReject = async (req) => {
+    setProcessing(true);
+    try {
+      await supabase.from('pending_venue_owner_requests').update({ status: 'rejected' }).eq('id', req.id);
+      await loadRequests();
+      alert('Request rejected successfully!');
+    } catch (error) {
+      console.error('Error rejecting request:', error);
+      alert('Error rejecting request: ' + error.message);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'pending':
+        return <Badge variant="outline" className="border-yellow-500 text-yellow-700">Pending</Badge>;
+      case 'approved':
+        return <Badge variant="outline" className="border-green-500 text-green-700">Approved</Badge>;
+      case 'rejected':
+        return <Badge variant="outline" className="border-red-500 text-red-700">Rejected</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-brand-cream/50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-burgundy mx-auto"></div>
+          <p className="mt-4 text-brand-burgundy">Loading venue applications...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="bg-brand-cream/50 min-h-screen">
-      <div className="container py-8">
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="max-w-2xl w-full space-y-8 bg-white p-8 rounded-xl shadow-lg"
-        >
-          <div className="text-center">
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: 0.2 }}
-              className="mx-auto h-12 w-12 bg-brand-burgundy/10 rounded-full flex items-center justify-center"
-            >
-              <Store className="h-6 w-6 text-brand-burgundy" />
-            </motion.div>
-            <h2 className="mt-6 text-3xl font-heading text-brand-burgundy">
-              Register Your Venue
-            </h2>
-            <p className="mt-2 text-sm text-brand-burgundy/70">
-              Create your venue profile to start managing bookings
-            </p>
-            <div className="mt-4 p-4 bg-brand-gold/10 border border-brand-gold/20 rounded-lg">
-              <p className="text-sm text-brand-burgundy/80">
-                <strong>How it works:</strong> Submit your venue application below. Our team will review it within 48 hours. 
-                If approved, you'll receive an email invitation to complete your registration and access your venue dashboard.
-              </p>
+    <div className="min-h-screen bg-brand-cream/50">
+      <div className="container mx-auto py-8 px-4">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-3 bg-brand-burgundy/10 rounded-full">
+              <Store className="h-8 w-8 text-brand-burgundy" />
             </div>
-          </div>
-
-          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-            {/* User Details Section */}
-            <div className="space-y-4">
-              <h3 className="text-xl font-semibold text-brand-burgundy mb-4">Your Details</h3>
-              
-              <div>
-                <Label htmlFor="full_name" className="text-brand-burgundy">
-                  Full Name
-                </Label>
-                <div className="mt-1 relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <User className="h-5 w-5 text-brand-burgundy/50" />
-                  </div>
-                  <Input
-                    id="full_name"
-                    name="full_name"
-                    type="text"
-                    required
-                    value={formData.full_name}
-                    onChange={handleChange}
-                    className="pl-10 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
-                    placeholder="Enter your full name"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="email" className="text-brand-burgundy">
-                  Email Address
-                </Label>
-                <div className="mt-1 relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Mail className="h-5 w-5 text-brand-burgundy/50" />
-                  </div>
-                  <Input
-                    id="email"
-                    name="email"
-                    type="email"
-                    required
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="pl-10 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
-                    placeholder="Enter your email"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="password" className="text-brand-burgundy">
-                  Password
-                </Label>
-                <div className="mt-1 relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="h-5 w-5 text-brand-burgundy/50" />
-                  </div>
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    required
-                    value={formData.password}
-                    onChange={handleChange}
-                    className="pl-10 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
-                    placeholder="Create a password"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="phone" className="text-brand-burgundy">
-                  Phone Number
-                </Label>
-                <div className="mt-1 relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Phone className="h-5 w-5 text-brand-burgundy/50" />
-                  </div>
-                  <Input
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    required
-                    value={formData.phone}
-                    onChange={handleChange}
-                    className="pl-10 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
-                    placeholder="Enter contact number"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Venue Details Section */}
-            <div className="space-y-4 pt-6 border-t border-brand-burgundy/10">
-              <h3 className="text-xl font-semibold text-brand-burgundy mb-4">Venue Details</h3>
-              
-              <div>
-                <Label htmlFor="venue_name" className="text-brand-burgundy">
-                  Venue Name
-                </Label>
-                <div className="mt-1 relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Building2 className="h-5 w-5 text-brand-burgundy/50" />
-                  </div>
-                  <Input
-                    id="venue_name"
-                    name="venue_name"
-                    type="text"
-                    required
-                    value={formData.venue_name}
-                    onChange={handleChange}
-                    className="pl-10 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
-                    placeholder="Enter your venue name"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="venue_description" className="text-brand-burgundy">
-                  Venue Description
-                </Label>
-                <Textarea
-                  id="venue_description"
-                  name="venue_description"
-                  required
-                  value={formData.venue_description}
-                  onChange={handleChange}
-                  className="mt-1 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
-                  placeholder="Describe your venue..."
-                  rows={4}
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="venue_address" className="text-brand-burgundy">
-                  Address
-                </Label>
-                <div className="mt-1 relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <MapPin className="h-5 w-5 text-brand-burgundy/50" />
-                  </div>
-                  <Input
-                    id="venue_address"
-                    name="venue_address"
-                    type="text"
-                    required
-                    value={formData.venue_address}
-                    onChange={handleChange}
-                    className="pl-10 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
-                    placeholder="Enter venue address"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="venue_city" className="text-brand-burgundy">
-                    City
-                  </Label>
-                  <Input
-                    id="venue_city"
-                    name="venue_city"
-                    type="text"
-                    required
-                    value={formData.venue_city}
-                    onChange={handleChange}
-                    className="mt-1 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
-                    placeholder="e.g., Lagos"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="venue_country" className="text-brand-burgundy">
-                    Country
-                  </Label>
-                  <Input
-                    id="venue_country"
-                    name="venue_country"
-                    type="text"
-                    required
-                    value={formData.venue_country}
-                    onChange={handleChange}
-                    className="mt-1 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
-                    placeholder="e.g., Nigeria"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="venue_phone" className="text-brand-burgundy">
-                  Venue Phone
-                </Label>
-                <div className="mt-1 relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Phone className="h-5 w-5 text-brand-burgundy/50" />
-                  </div>
-                  <Input
-                    id="venue_phone"
-                    name="venue_phone"
-                    type="tel"
-                    required
-                    value={formData.venue_phone}
-                    onChange={handleChange}
-                    className="pl-10 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
-                    placeholder="Enter venue phone"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="venue_email" className="text-brand-burgundy">
-                  Venue Email
-                </Label>
-                <div className="mt-1 relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Mail className="h-5 w-5 text-brand-burgundy/50" />
-                  </div>
-                  <Input
-                    id="venue_email"
-                    name="venue_email"
-                    type="email"
-                    required
-                    value={formData.venue_email}
-                    onChange={handleChange}
-                    className="pl-10 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
-                    placeholder="Enter venue email"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="capacity" className="text-brand-burgundy">
-                    Capacity (guests)
-                  </Label>
-                  <Input
-                    id="capacity"
-                    name="capacity"
-                    type="number"
-                    value={formData.capacity}
-                    onChange={handleChange}
-                    className="mt-1 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
-                    placeholder="e.g., 100"
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="price_range" className="text-brand-burgundy">
-                    Price Range
-                  </Label>
-                  <select
-                    id="price_range"
-                    name="price_range"
-                    value={formData.price_range}
-                    onChange={handleChange}
-                    className="mt-1 w-full px-3 py-2 bg-white border border-brand-burgundy/20 rounded-md focus:border-brand-burgundy focus:ring-1 focus:ring-brand-burgundy"
-                  >
-                    <option value="$">$ (Budget)</option>
-                    <option value="$$">$$ (Moderate)</option>
-                    <option value="$$$">$$$ (Premium)</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="opening_hours" className="text-brand-burgundy">
-                  Opening Hours
-                </Label>
-                <Input
-                  id="opening_hours"
-                  name="opening_hours"
-                  type="text"
-                  value={formData.opening_hours}
-                  onChange={handleChange}
-                  className="mt-1 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
-                  placeholder="e.g., Mon-Sun 9AM-11PM"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="venue_type" className="text-brand-burgundy">
-                  Venue Type
-                </Label>
-                <div className="mt-1 relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Store className="h-5 w-5 text-brand-burgundy/50" />
-                  </div>
-                  <select
-                    id="venue_type"
-                    name="venue_type"
-                    required
-                    value={formData.venue_type}
-                    onChange={handleChange}
-                    className="w-full pl-10 pr-3 py-2 bg-white border border-brand-burgundy/20 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-burgundy focus:border-transparent"
-                  >
-                    <option value="restaurant">Restaurant</option>
-                    <option value="bar">Bar</option>
-                    <option value="club">Club</option>
-                    <option value="lounge">Lounge</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-
             <div>
-              <Button
-                type="submit"
-                disabled={loading}
-                className="w-full bg-brand-burgundy text-white hover:bg-brand-burgundy/90"
-              >
-                {loading ? 'Registering...' : 'Register Venue'}
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
+              <h1 className="text-3xl font-bold text-brand-burgundy">Venue Owner Applications</h1>
+              <p className="text-brand-burgundy/70">Review and manage venue partnership requests</p>
             </div>
-            {error && <div className="text-red-500 mb-2">{error}</div>}
-            {success && <div className="text-green-600 mb-2">{success}</div>}
-          </form>
-
-          <div className="text-center mt-6">
-            <p className="text-sm text-brand-burgundy/70">
-              Already have a venue account?{' '}
-              <Link to="/venue-owner/login" className="text-brand-burgundy hover:text-brand-gold font-medium">
-                Sign in
-              </Link>
-            </p>
           </div>
-        </motion.div>
+          
+          <div className="flex gap-4 text-sm">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+              <span>Pending: {requests.filter(r => r.status === 'pending').length}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+              <span>Approved: {requests.filter(r => r.status === 'approved').length}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+              <span>Rejected: {requests.filter(r => r.status === 'rejected').length}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Applications Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+          {requests.map((request, index) => (
+            <motion.div
+              key={request.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+            >
+              <Card className="h-full hover:shadow-lg transition-shadow">
+                <CardHeader className="pb-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <CardTitle className="text-lg text-brand-burgundy mb-2">
+                        {request.venue_name}
+                      </CardTitle>
+                      <div className="flex items-center gap-2 text-sm text-brand-burgundy/70">
+                        <Building2 className="h-4 w-4" />
+                        <span>{request.venue_type || 'Restaurant'}</span>
+                      </div>
+                    </div>
+                    {getStatusBadge(request.status)}
+                  </div>
+                </CardHeader>
+
+                <CardContent className="space-y-4">
+                  {/* Owner Information */}
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-brand-burgundy flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      Owner Details
+                    </h4>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-3 w-3 text-brand-burgundy/50" />
+                        <span>{request.email}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-3 w-3 text-brand-burgundy/50" />
+                        <span>{request.contact_phone}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <User className="h-3 w-3 text-brand-burgundy/50" />
+                        <span>{request.contact_name}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Venue Location */}
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-brand-burgundy flex items-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      Location
+                    </h4>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-3 w-3 text-brand-burgundy/50" />
+                        <span>{request.venue_address}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Globe className="h-3 w-3 text-brand-burgundy/50" />
+                        <span>{request.venue_city}, {request.venue_country}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Additional Details */}
+                  {request.additional_info && (
+                    <div className="space-y-2">
+                      <h4 className="font-semibold text-brand-burgundy flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        Description
+                      </h4>
+                      <p className="text-sm text-brand-burgundy/70 line-clamp-3">
+                        {request.additional_info}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Application Date */}
+                  <div className="flex items-center gap-2 text-sm text-brand-burgundy/60">
+                    <Calendar className="h-3 w-3" />
+                    <span>Applied: {formatDate(request.created_at)}</span>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-2 pt-4 border-t border-brand-burgundy/10">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex-1 border-brand-burgundy text-brand-burgundy hover:bg-brand-burgundy/10"
+                      onClick={() => setSelectedRequest(request)}
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      View Details
+                    </Button>
+
+                    {request.status === 'pending' && (
+                      <>
+                        <Button 
+                          size="sm" 
+                          className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                          onClick={() => handleApprove(request)}
+                          disabled={processing}
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          {processing ? 'Processing...' : 'Approve'}
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="destructive"
+                          className="flex-1"
+                          onClick={() => handleReject(request)}
+                          disabled={processing}
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          {processing ? 'Processing...' : 'Reject'}
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Empty State */}
+        {requests.length === 0 && (
+          <div className="text-center py-12">
+            <Store className="h-16 w-16 text-brand-burgundy/30 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-brand-burgundy mb-2">No Applications Yet</h3>
+            <p className="text-brand-burgundy/70">When venue owners submit applications, they will appear here for review.</p>
+          </div>
+        )}
+
+        {/* Detailed View Dialog */}
+        {selectedRequest && (
+          <Dialog open={!!selectedRequest} onOpenChange={() => setSelectedRequest(null)}>
+            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="text-xl text-brand-burgundy">
+                  {selectedRequest.venue_name} - Application Details
+                </DialogTitle>
+              </DialogHeader>
+              
+              <div className="space-y-6">
+                {/* Owner Information */}
+                <div className="bg-brand-cream/30 p-4 rounded-lg">
+                  <h3 className="font-semibold text-brand-burgundy mb-3 flex items-center gap-2">
+                    <User className="h-5 w-5" />
+                    Owner Information
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Full Name</label>
+                      <p className="text-brand-burgundy">{selectedRequest.contact_name}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Email Address</label>
+                      <p className="text-brand-burgundy">{selectedRequest.email}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Phone Number</label>
+                      <p className="text-brand-burgundy">{selectedRequest.contact_phone}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Application Date</label>
+                      <p className="text-brand-burgundy">{formatDate(selectedRequest.created_at)}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Venue Information */}
+                <div className="bg-brand-cream/30 p-4 rounded-lg">
+                  <h3 className="font-semibold text-brand-burgundy mb-3 flex items-center gap-2">
+                    <Building2 className="h-5 w-5" />
+                    Venue Information
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Venue Name</label>
+                      <p className="text-brand-burgundy font-semibold">{selectedRequest.venue_name}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Venue Type</label>
+                      <p className="text-brand-burgundy">{selectedRequest.venue_type || 'Restaurant'}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Description</label>
+                      <p className="text-brand-burgundy">{selectedRequest.additional_info || 'No description provided'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Location Information */}
+                <div className="bg-brand-cream/30 p-4 rounded-lg">
+                  <h3 className="font-semibold text-brand-burgundy mb-3 flex items-center gap-2">
+                    <MapPin className="h-5 w-5" />
+                    Location Details
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Address</label>
+                      <p className="text-brand-burgundy">{selectedRequest.venue_address}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">City</label>
+                      <p className="text-brand-burgundy">{selectedRequest.venue_city}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Country</label>
+                      <p className="text-brand-burgundy">{selectedRequest.venue_country}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Additional Details */}
+                <div className="bg-brand-cream/30 p-4 rounded-lg">
+                  <h3 className="font-semibold text-brand-burgundy mb-3 flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Additional Details
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Opening Hours</label>
+                      <p className="text-brand-burgundy">{selectedRequest.opening_hours || 'Not specified'}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Capacity</label>
+                      <p className="text-brand-burgundy">{selectedRequest.capacity || 'Not specified'}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Price Range</label>
+                      <p className="text-brand-burgundy">{selectedRequest.price_range || 'Not specified'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                {selectedRequest.status === 'pending' && (
+                  <div className="flex gap-3 pt-4 border-t border-brand-burgundy/10">
+                    <Button 
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                      onClick={() => {
+                        handleApprove(selectedRequest);
+                        setSelectedRequest(null);
+                      }}
+                      disabled={processing}
+                    >
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      {processing ? 'Processing...' : 'Approve Application'}
+                    </Button>
+                    <Button 
+                      variant="destructive"
+                      className="flex-1"
+                      onClick={() => {
+                        handleReject(selectedRequest);
+                        setSelectedRequest(null);
+                      }}
+                      disabled={processing}
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      {processing ? 'Processing...' : 'Reject Application'}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
     </div>
   );
 };
 
-export default VenueOwnerRegister; 
+export default VenueApprovalsPage; 
