@@ -53,13 +53,25 @@ const VenueApprovalsPage = () => {
   const handleApprove = async (req) => {
     setProcessing(true);
     try {
+      // Validate and normalize venue type
+      const validVenueTypes = ['restaurant', 'club', 'lounge'];
+      const normalizedVenueType = validVenueTypes.includes(req.venue_type?.toLowerCase()) 
+        ? req.venue_type.toLowerCase() 
+        : 'restaurant'; // Default to restaurant if invalid
+
+      console.log('🏢 Venue type validation:', {
+        original: req.venue_type,
+        normalized: normalizedVenueType,
+        validTypes: validVenueTypes
+      });
+
       // First, create a venue record in the venues table
       const { data: newVenue, error: venueError } = await supabase
         .from('venues')
         .insert([{
           name: req.venue_name,
           description: req.additional_info,
-          type: req.venue_type || 'restaurant',
+          type: normalizedVenueType, // Use normalized venue type
           price_range: req.price_range || '$$',
           address: req.venue_address,
           city: req.venue_city,
@@ -90,7 +102,7 @@ const VenueApprovalsPage = () => {
           owner_name: req.contact_name,
           owner_email: req.email,
           owner_phone: req.contact_phone,
-          venue_type: req.venue_type || 'restaurant',
+          venue_type: normalizedVenueType, // Use normalized venue type
           opening_hours: req.opening_hours || '',
           capacity: req.capacity || '',
           price_range: req.price_range || '$$',
@@ -111,7 +123,7 @@ const VenueApprovalsPage = () => {
           email: req.email,
           venueName: req.venue_name,
           contactName: req.contact_name,
-          venueType: req.venue_type || 'Restaurant'
+          venueType: normalizedVenueType // Use normalized venue type
         });
 
         const { data, error } = await supabase.functions.invoke('invite-venue-owner', {
@@ -119,7 +131,7 @@ const VenueApprovalsPage = () => {
             email: req.email,
             venueName: req.venue_name,
             contactName: req.contact_name,
-            venueType: req.venue_type || 'Restaurant',
+            venueType: normalizedVenueType, // Use normalized venue type
             approvalDate: new Date().toISOString()
           }
         });
