@@ -1,280 +1,501 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { SmtpClient } from 'https://deno.land/x/smtp@v0.7.0/mod.ts'
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
-import { loadStripe } from 'https://esm.sh/@supabase/stripe@2.39.3'
-import { Stripe } from 'https://esm.sh/@supabase/stripe@2.39.3'
+import React, { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { 
+  Building2, 
+  User, 
+  Mail, 
+  Phone, 
+  MapPin, 
+  Clock, 
+  Users, 
+  DollarSign, 
+  Calendar,
+  CheckCircle,
+  XCircle,
+  Eye,
+  Store,
+  Globe,
+  FileText
+} from 'lucide-react';
+import { motion } from 'framer-motion';
+import emailjs from '@emailjs/browser';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': '*',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-}
+const VenueApprovalsPage = () => {
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedRequest, setSelectedRequest] = useState(null);
+  const [processing, setProcessing] = useState(false);
 
-// Initialize Supabase client with service_role key
-const supabaseClient = createClient(
-  Deno.env.get('SUPABASE_URL') ?? '',
-  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
+  useEffect(() => {
+    loadRequests();
+  }, []);
+
+  const loadRequests = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('pending_venue_owner_requests')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setRequests(data || []);
+    } catch (error) {
+      console.error('Error loading requests:', error);
+    } finally {
+      setLoading(false);
     }
+  };
+
+  const handleApprove = async (req) => {
+    setProcessing(true);
+    try {
+      // First, create a venue record in the venues table
+      const { data: newVenue, error: venueError } = await supabase
+        .from('venues')
+        .insert([{
+          name: req.venue_name,
+          description: req.additional_info,
+          type: req.venue_type || 'restaurant',
+          price_range: req.price_range || '$$',
+          address: req.venue_address,
+          city: req.venue_city,
+          state: req.venue_city, // Using city as state for now
+          country: req.venue_country,
+          latitude: 6.5244, // Default Lagos coordinates - can be updated later
+          longitude: 3.3792,
+          contact_phone: req.contact_phone,
+          contact_email: req.email,
+          status: 'approved',
+          is_active: true
+        }])
+        .select()
+        .single();
+
+      if (venueError) throw venueError;
+
+      // Then, create a venue owner record (allows multiple venues per owner)
+      const { data: newVenueOwner, error: venueOwnerError } = await supabase
+        .from('venue_owners')
+        .insert([{
+          venue_name: req.venue_name,
+          venue_description: req.additional_info,
+          venue_address: req.venue_address,
+          venue_city: req.venue_city,
+          venue_country: req.venue_country,
+          venue_phone: req.contact_phone,
+          owner_name: req.contact_name,
+          owner_email: req.email,
+          owner_phone: req.contact_phone,
+          venue_type: req.venue_type || 'restaurant',
+          opening_hours: req.opening_hours || '',
+          capacity: req.capacity || '',
+          price_range: req.price_range || '$$',
+          status: 'pending_owner_signup' // Will be updated when user signs up
+        }])
+        .select()
+        .single();
+
+      if (venueOwnerError) throw venueOwnerError;
+
+      // Update request status
+      await supabase.from('pending_venue_owner_requests').update({ status: 'approved' }).eq('id', req.id);
+
+      // Send approval email to the venue owner using Supabase Edge Function
+      try {
+        const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
+          body: {
+            template: 'venue-owner-invitation',
+            data: {
+              email: req.email,
+              venueName: req.venue_name,
+              contactName: req.contact_name,
+              venueType: req.venue_type || 'Restaurant'
+            }
+          }
+        });
+
+        if (emailError) {
+          console.error('Error sending invitation email:', emailError);
+          alert(`Warning: Failed to send invitation email: ${emailError.message}`);
+        } else {
+          console.log('Invitation email sent successfully:', emailData);
+        }
+      } catch (emailError) {
+        console.error('Error sending approval email:', emailError);
+        alert(`Warning: Failed to send approval email: ${emailError.message}`);
+        // Don't fail the approval if email fails
+      }
+
+      // Refresh the list
+      await loadRequests();
+      
+      alert('Venue owner approved successfully! An invitation email has been sent to complete registration.');
+    } catch (error) {
+      console.error('Error approving request:', error);
+      alert('Error approving request: ' + error.message);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleReject = async (req) => {
+    setProcessing(true);
+    try {
+      await supabase.from('pending_venue_owner_requests').update({ status: 'rejected' }).eq('id', req.id);
+      await loadRequests();
+      alert('Request rejected successfully!');
+    } catch (error) {
+      console.error('Error rejecting request:', error);
+      alert('Error rejecting request: ' + error.message);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const getStatusBadge = (status) => {
+    switch (status) {
+      case 'pending':
+        return <Badge variant="outline" className="border-yellow-500 text-yellow-700">Pending</Badge>;
+      case 'approved':
+        return <Badge variant="outline" className="border-green-500 text-green-700">Approved</Badge>;
+      case 'rejected':
+        return <Badge variant="outline" className="border-red-500 text-red-700">Rejected</Badge>;
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
+  };
+
+  const formatDate = (dateString) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-brand-cream/50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-burgundy mx-auto"></div>
+          <p className="mt-4 text-brand-burgundy">Loading venue applications...</p>
+        </div>
+      </div>
+    );
   }
-)
 
-// ✅ GOOD - Using environment variables
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-
-// ✅ GOOD - Deno environment variables in Edge Functions  
-const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "");
-
-serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
-
-  if (req.headers.get("content-type") !== "application/json") {
-    return new Response(JSON.stringify({ error: "Invalid content type" }), { status: 400 });
-  }
-
-  let body;
-  try {
-    body = await req.json();
-  } catch (e) {
-    return new Response(JSON.stringify({ error: "Invalid JSON" }), { status: 400 });
-  }
-
-  try {
-    console.log('Received request:', req.method)
-    console.log('Request data:', body)
-
-    const { to, subject, template, data } = body
-
-    const client = new SmtpClient()
-
-    console.log('Connecting to SMTP server...')
-    await client.connectTLS({
-      hostname: Deno.env.get('SMTP_HOSTNAME') || '',
-      port: parseInt(Deno.env.get('SMTP_PORT') || '587'),
-      username: Deno.env.get('SMTP_USERNAME') || '',
-      password: Deno.env.get('SMTP_PASSWORD') || '',
-    })
-    console.log('Connected to SMTP server')
-
-    let html = ''
-    switch (template) {
-      case 'venue-approved':
-        html = `
-          <h1>Your Venue Has Been Approved!</h1>
-          <p>Dear ${data.ownerName},</p>
-          <p>Great news! Your venue "${data.venueName}" has been approved and is now live on our platform.</p>
-          <p>You can now:</p>
-          <ul>
-            <li>Access your venue dashboard</li>
-            <li>Manage your tables and bookings</li>
-            <li>Update your venue information</li>
-          </ul>
-          <p>Login to your account to get started: <a href="${Deno.env.get('APP_URL')}/venue-owner/login">Login Here</a></p>
-          <p>Best regards,<br>The Eddy Team</p>
-        `
-        break
-
-      case 'venue-rejected':
-        html = `
-          <h1>Venue Registration Update</h1>
-          <p>Dear ${data.ownerName},</p>
-          <p>We have reviewed your venue "${data.venueName}" and unfortunately, we cannot approve it at this time.</p>
-          <p>Reason for rejection:</p>
-          <p><em>${data.reason}</em></p>
-          <p>You can update your venue information and submit it again for review.</p>
-          <p>If you have any questions, please contact our support team.</p>
-          <p>Best regards,<br>The Eddy Team</p>
-        `
-        break
-
-      case 'welcome':
-        html = `
-          <h1>Welcome to VIPClub!</h1>
-          <p>Hi${data?.email ? `, ${data.email}` : ''}!</p>
-          <p>Thank you for signing up. We're excited to have you join our community.</p>
-          <p>Start exploring and booking your favorite venues today!</p>
-          <p>Best regards,<br>The Eddy Team</p>
-        `
-        break
-
-      case 'booking-confirmation':
-        html = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="background: linear-gradient(135deg, #8B1538, #D4AF37); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-              <h1 style="color: white; margin: 0; font-size: 28px;">Booking Confirmed!</h1>
-              <p style="color: #F5F5DC; margin: 10px 0 0 0; font-size: 16px;">Your VIPClub experience awaits</p>
+  return (
+    <div className="min-h-screen bg-brand-cream/50">
+      <div className="container mx-auto py-8 px-4">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="p-3 bg-brand-burgundy/10 rounded-full">
+              <Store className="h-8 w-8 text-brand-burgundy" />
             </div>
-            
-            <div style="background: white; padding: 30px; border: 1px solid #ddd; border-top: none;">
-              <p style="font-size: 18px; color: #333; margin-bottom: 20px;">Dear ${data.customerName},</p>
-              
-              <p style="color: #333; line-height: 1.6;">Thank you for choosing VIPClub! Your booking has been confirmed and we're excited to welcome you.</p>
-              
-              <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                <h2 style="color: #8B1538; margin-top: 0;">Booking Details</h2>
-                <p><strong>Venue:</strong> ${data.venueName}</p>
-                <p><strong>Booking Date:</strong> ${data.bookingDate}</p>
-                <p><strong>Booking ID:</strong> #${data.bookingId}</p>
-                ${data.ticketInfo ? `<p><strong>Ticket:</strong> ${data.ticketInfo}</p>` : ''}
-                ${data.tableInfo ? `<p><strong>Table:</strong> ${data.tableInfo}</p>` : ''}
-                <p><strong>Total Amount:</strong> ₦${data.totalAmount}</p>
-              </div>
-              
-              <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                <h3 style="color: #2e7d32; margin-top: 0;">What's Next?</h3>
-                <ul style="color: #333; margin: 0; padding-left: 20px;">
-                  <li>Arrive at the venue on your booking date</li>
-                  <li>Show this email or your booking ID at the entrance</li>
-                  <li>Present a valid ID for verification</li>
-                  <li>Enjoy your VIP experience!</li>
-                </ul>
-              </div>
-              
-              <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #D4AF37;">
-                <p style="margin: 0; color: #856404;"><strong>Important:</strong> Please save this email as your booking confirmation. You may be asked to present it at the venue.</p>
-              </div>
-              
-              <p style="color: #333; line-height: 1.6;">If you have any questions or need to make changes to your booking, please contact our support team.</p>
-              
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="${Deno.env.get('APP_URL')}/profile" style="background: linear-gradient(135deg, #8B1538, #D4AF37); color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-weight: bold;">View My Bookings</a>
-              </div>
-              
-              <p style="color: #333;">Thank you for choosing VIPClub!</p>
-              <p style="color: #666; font-size: 14px;">Best regards,<br>The VIPClub Team</p>
-            </div>
-            
-            <div style="background: #f8f9fa; padding: 20px; text-align: center; border-radius: 0 0 10px 10px; border: 1px solid #ddd; border-top: none;">
-              <p style="color: #666; font-size: 12px; margin: 0;">This is an automated message. Please do not reply to this email.</p>
+            <div>
+              <h1 className="text-3xl font-bold text-brand-burgundy">Venue Owner Applications</h1>
+              <p className="text-brand-burgundy/70">Review and manage venue partnership requests</p>
             </div>
           </div>
-        `
-        break
+          
+          <div className="flex gap-4 text-sm">
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-yellow-500 rounded-full"></div>
+              <span>Pending: {requests.filter(r => r.status === 'pending').length}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+              <span>Approved: {requests.filter(r => r.status === 'approved').length}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+              <span>Rejected: {requests.filter(r => r.status === 'rejected').length}</span>
+            </div>
+          </div>
+        </div>
 
-      case 'admin-venue-submitted':
-        html = `
-          <h1>New Venue Submission</h1>
-          <p>A new venue <strong>"${data.venueName}"</strong> has been submitted and is pending approval.</p>
-          <p>Submitted by: ${data.ownerName} (${data.ownerEmail})</p>
-          <p>Please review and approve or reject the venue in the admin dashboard.</p>
-          <p>Best regards,<br>The Eddy Team</p>
-        `
-        break
+        {/* Applications Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+          {requests.map((request, index) => (
+            <motion.div
+              key={request.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.1 }}
+            >
+              <Card className="h-full hover:shadow-lg transition-shadow">
+                <CardHeader className="pb-4">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <CardTitle className="text-lg text-brand-burgundy mb-2">
+                        {request.venue_name}
+                      </CardTitle>
+                      <div className="flex items-center gap-2 text-sm text-brand-burgundy/70">
+                        <Building2 className="h-4 w-4" />
+                        <span>{request.venue_type || 'Restaurant'}</span>
+                      </div>
+                    </div>
+                    {getStatusBadge(request.status)}
+                  </div>
+                </CardHeader>
 
-      case 'venue-owner-invitation':
-        // Use Supabase's built-in inviteUserByEmail function to trigger "Confirm signup" template
-        try {
-          const { data: inviteData, error: inviteError } = await supabaseClient.auth.admin.inviteUserByEmail(data.email, {
-            redirectTo: `${Deno.env.get('APP_URL')}/venue-owner/register`,
-            data: {
-              venue_name: data.venueName,
-              contact_name: data.contactName,
-              venue_type: data.venueType || 'Restaurant',
-              approval_date: new Date().toISOString(),
-              message: `Your venue application for ${data.venueName} has been approved! Please complete your registration to access your venue dashboard.`
-            }
-          });
+                <CardContent className="space-y-4">
+                  {/* Owner Information */}
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-brand-burgundy flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      Owner Details
+                    </h4>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex items-center gap-2">
+                        <Mail className="h-3 w-3 text-brand-burgundy/50" />
+                        <span>{request.email}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Phone className="h-3 w-3 text-brand-burgundy/50" />
+                        <span>{request.contact_phone}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <User className="h-3 w-3 text-brand-burgundy/50" />
+                        <span>{request.contact_name}</span>
+                      </div>
+                    </div>
+                  </div>
 
-          if (inviteError) {
-            throw new Error(`Failed to send invitation: ${inviteError.message}`);
-          }
+                  {/* Venue Location */}
+                  <div className="space-y-2">
+                    <h4 className="font-semibold text-brand-burgundy flex items-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      Location
+                    </h4>
+                    <div className="space-y-1 text-sm">
+                      <div className="flex items-center gap-2">
+                        <MapPin className="h-3 w-3 text-brand-burgundy/50" />
+                        <span>{request.venue_address}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Globe className="h-3 w-3 text-brand-burgundy/50" />
+                        <span>{request.venue_city}, {request.venue_country}</span>
+                      </div>
+                    </div>
+                  </div>
 
-          console.log('Supabase invitation email sent successfully:', inviteData);
-          return new Response(
-            JSON.stringify({ 
-              success: true, 
-              message: 'Invitation email sent via Supabase Confirm signup template',
-              data: inviteData 
-            }),
-            {
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-              status: 200,
-            }
-          );
-        } catch (inviteError) {
-          console.error('Error sending Supabase invitation:', inviteError);
-          throw new Error(`Failed to send Supabase invitation: ${inviteError.message}`);
-        }
+                  {/* Additional Details */}
+                  {request.additional_info && (
+                    <div className="space-y-2">
+                      <h4 className="font-semibold text-brand-burgundy flex items-center gap-2">
+                        <FileText className="h-4 w-4" />
+                        Description
+                      </h4>
+                      <p className="text-sm text-brand-burgundy/70 line-clamp-3">
+                        {request.additional_info}
+                      </p>
+                    </div>
+                  )}
 
-      default:
-        throw new Error('Invalid template')
-    }
+                  {/* Application Date */}
+                  <div className="flex items-center gap-2 text-sm text-brand-burgundy/60">
+                    <Calendar className="h-3 w-3" />
+                    <span>Applied: {formatDate(request.created_at)}</span>
+                  </div>
 
-    console.log('Sending email...')
-    await client.send({
-      from: Deno.env.get('SMTP_FROM') || '',
-      to: to,
-      subject: subject,
-      content: html,
-      html: html,
-    })
-    console.log('Email sent successfully')
+                  {/* Actions */}
+                  <div className="flex gap-2 pt-4 border-t border-brand-burgundy/10">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex-1 border-brand-burgundy text-brand-burgundy hover:bg-brand-burgundy/10"
+                      onClick={() => setSelectedRequest(request)}
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      View Details
+                    </Button>
 
-    await client.close()
+                    {request.status === 'pending' && (
+                      <>
+                        <Button 
+                          size="sm" 
+                          className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                          onClick={() => handleApprove(request)}
+                          disabled={processing}
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          {processing ? 'Processing...' : 'Approve'}
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="destructive"
+                          className="flex-1"
+                          onClick={() => handleReject(request)}
+                          disabled={processing}
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          {processing ? 'Processing...' : 'Reject'}
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+        </div>
 
-    return new Response(
-      JSON.stringify({ success: true }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      },
-    )
-  } catch (error) {
-    console.error('Error:', error.message)
-    return new Response(
-      JSON.stringify({ 
-        error: error.message,
-        details: error.stack
-      }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      },
-    )
-  }
-}) 
+        {/* Empty State */}
+        {requests.length === 0 && (
+          <div className="text-center py-12">
+            <Store className="h-16 w-16 text-brand-burgundy/30 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-brand-burgundy mb-2">No Applications Yet</h3>
+            <p className="text-brand-burgundy/70">When venue owners submit applications, they will appear here for review.</p>
+          </div>
+        )}
 
-/**
- * Sends an admin notification email after a new venue is submitted.
- * @param {Object} newVenue - The new venue object (must have a 'name' property)
- * @param {Object} userProfile - The user profile object (must have 'first_name' and 'last_name')
- * @param {Object} user - The user object (must have 'email')
- */
-export async function notifyAdminOfVenueSubmission(newVenue, userProfile, user) {
-  const EDGE_FUNCTION_URL = `${Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '.functions.supabase.co')}/send-email`;
-  const ADMIN_EMAIL = "sales@oneeddy.com"; // Change to your admin email
+        {/* Detailed View Dialog */}
+        {selectedRequest && (
+          <Dialog open={!!selectedRequest} onOpenChange={() => setSelectedRequest(null)}>
+            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle className="text-xl text-brand-burgundy">
+                  {selectedRequest.venue_name} - Application Details
+                </DialogTitle>
+              </DialogHeader>
+              
+              <div className="space-y-6">
+                {/* Owner Information */}
+                <div className="bg-brand-cream/30 p-4 rounded-lg">
+                  <h3 className="font-semibold text-brand-burgundy mb-3 flex items-center gap-2">
+                    <User className="h-5 w-5" />
+                    Owner Information
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Full Name</label>
+                      <p className="text-brand-burgundy">{selectedRequest.contact_name}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Email Address</label>
+                      <p className="text-brand-burgundy">{selectedRequest.email}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Phone Number</label>
+                      <p className="text-brand-burgundy">{selectedRequest.contact_phone}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Application Date</label>
+                      <p className="text-brand-burgundy">{formatDate(selectedRequest.created_at)}</p>
+                    </div>
+                  </div>
+                </div>
 
-  try {
-    const response = await fetch(EDGE_FUNCTION_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        to: ADMIN_EMAIL,
-        subject: "New Venue Submission Pending Approval",
-        template: "admin-venue-submitted",
-        data: {
-          venueName: newVenue.name,
-          ownerName: `${userProfile.first_name} ${userProfile.last_name}`,
-          ownerEmail: user.email
-        }
-      })
-    });
+                {/* Venue Information */}
+                <div className="bg-brand-cream/30 p-4 rounded-lg">
+                  <h3 className="font-semibold text-brand-burgundy mb-3 flex items-center gap-2">
+                    <Building2 className="h-5 w-5" />
+                    Venue Information
+                  </h3>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Venue Name</label>
+                      <p className="text-brand-burgundy font-semibold">{selectedRequest.venue_name}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Venue Type</label>
+                      <p className="text-brand-burgundy">{selectedRequest.venue_type || 'Restaurant'}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Description</label>
+                      <p className="text-brand-burgundy">{selectedRequest.additional_info || 'No description provided'}</p>
+                    </div>
+                  </div>
+                </div>
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || "Failed to send admin notification email.");
-    }
-    // Optionally, show a toast or log success
-    console.log("Admin notification email sent!");
-  } catch (err) {
-    // Optionally, show a toast or log error
-    console.error("Error sending admin notification:", err.message);
-  }
-} 
+                {/* Location Information */}
+                <div className="bg-brand-cream/30 p-4 rounded-lg">
+                  <h3 className="font-semibold text-brand-burgundy mb-3 flex items-center gap-2">
+                    <MapPin className="h-5 w-5" />
+                    Location Details
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Address</label>
+                      <p className="text-brand-burgundy">{selectedRequest.venue_address}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">City</label>
+                      <p className="text-brand-burgundy">{selectedRequest.venue_city}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Country</label>
+                      <p className="text-brand-burgundy">{selectedRequest.venue_country}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Additional Details */}
+                <div className="bg-brand-cream/30 p-4 rounded-lg">
+                  <h3 className="font-semibold text-brand-burgundy mb-3 flex items-center gap-2">
+                    <FileText className="h-5 w-5" />
+                    Additional Details
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Opening Hours</label>
+                      <p className="text-brand-burgundy">{selectedRequest.opening_hours || 'Not specified'}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Capacity</label>
+                      <p className="text-brand-burgundy">{selectedRequest.capacity || 'Not specified'}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-brand-burgundy/70">Price Range</label>
+                      <p className="text-brand-burgundy">{selectedRequest.price_range || 'Not specified'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                {selectedRequest.status === 'pending' && (
+                  <div className="flex gap-3 pt-4 border-t border-brand-burgundy/10">
+                    <Button 
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                      onClick={() => {
+                        handleApprove(selectedRequest);
+                        setSelectedRequest(null);
+                      }}
+                      disabled={processing}
+                    >
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      {processing ? 'Processing...' : 'Approve Application'}
+                    </Button>
+                    <Button 
+                      variant="destructive"
+                      className="flex-1"
+                      onClick={() => {
+                        handleReject(selectedRequest);
+                        setSelectedRequest(null);
+                      }}
+                      disabled={processing}
+                    >
+                      <XCircle className="h-4 w-4 mr-2" />
+                      {processing ? 'Processing...' : 'Reject Application'}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default VenueApprovalsPage; 
