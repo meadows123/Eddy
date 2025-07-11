@@ -674,12 +674,12 @@ const UserProfilePage = () => {
                       <Card key={booking.id} className="p-4">
                           <div className="flex justify-between items-start">
                             <div>
-                            <h3 className="font-semibold">{booking.venues.name}</h3>
+                            <h3 className="font-semibold">{booking.venues?.name || 'Venue not found'}</h3>
                             <p className="text-sm text-brand-burgundy/70">
-                              {new Date(booking.booking_date).toLocaleDateString()} at {booking.start_time}
+                              {booking.booking_date ? new Date(booking.booking_date).toLocaleDateString() : 'Date not set'} at {booking.start_time || 'Time not set'}
                             </p>
                             <p className="text-sm text-brand-burgundy/70">
-                              {booking.number_of_guests} guests
+                              {booking.number_of_guests || booking.guest_count || 0} guests
                             </p>
                             {booking.venue_tables && (
                               <p className="text-sm text-brand-burgundy/70">
@@ -692,7 +692,7 @@ const UserProfilePage = () => {
                           </div>
                           <div className="text-right">
                             <p className="text-sm font-medium text-brand-burgundy">
-                              {booking.status.charAt(0).toUpperCase() + booking.status.slice(1)}
+                              {booking.status ? booking.status.charAt(0).toUpperCase() + booking.status.slice(1) : 'Unknown'}
                             </p>
                             {(booking.status === 'confirmed' || booking.status === 'pending') && (
                               <Button
