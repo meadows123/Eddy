@@ -104,26 +104,41 @@ const VenueApprovalsPage = () => {
       // Update request status
       await supabase.from('pending_venue_owner_requests').update({ status: 'approved' }).eq('id', req.id);
 
-      // Send approval email to the venue owner using Supabase built-in auth email
+      // Send approval email to the venue owner using Edge Function
       try {
-        const { data, error } = await supabase.auth.admin.inviteUserByEmail(req.email, {
-          redirectTo: `${window.location.origin}/venue-owner/register?approved=true&venue=${encodeURIComponent(req.venue_name)}`,
-          data: {
-            venue_name: req.venue_name,
-            contact_name: req.contact_name,
-            venue_type: req.venue_type || 'Restaurant',
-            approval_date: new Date().toISOString()
+        console.log('🔄 Attempting to send invitation email via Edge Function...');
+        console.log('📧 Email data:', {
+          email: req.email,
+          venueName: req.venue_name,
+          contactName: req.contact_name,
+          venueType: req.venue_type || 'Restaurant'
+        });
+
+        const { data, error } = await supabase.functions.invoke('invite-venue-owner', {
+          body: {
+            email: req.email,
+            venueName: req.venue_name,
+            contactName: req.contact_name,
+            venueType: req.venue_type || 'Restaurant',
+            approvalDate: new Date().toISOString()
           }
         });
 
+        console.log('📤 Edge Function response:', { data, error });
+
         if (error) {
-          console.error('Error sending invitation email:', error);
+          console.error('❌ Error sending invitation email:', error);
           alert(`Warning: Failed to send invitation email: ${error.message}`);
         } else {
-          console.log('Invitation email sent successfully:', data);
+          console.log('✅ Invitation email sent successfully:', data);
         }
       } catch (emailError) {
-        console.error('Error sending approval email:', emailError);
+        console.error('❌ Exception sending approval email:', emailError);
+        console.error('Error details:', {
+          message: emailError.message,
+          stack: emailError.stack,
+          name: emailError.name
+        });
         alert(`Warning: Failed to send approval email: ${emailError.message}`);
         // Don't fail the approval if email fails
       }
