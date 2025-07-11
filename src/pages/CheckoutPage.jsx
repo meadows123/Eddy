@@ -159,29 +159,59 @@ const CheckoutPage = () => {
     let booking, venue, customer;
     
     try {
-      // Prepare data for customer email
-      booking = {
-        id: bookingData.bookingId || bookingData.id,
-        booking_date: bookingData.bookingDate || new Date().toISOString(),
-        booking_time: selection.time || '19:00:00',
-        guest_count: selection.guests || selection.guestCount || 2,
-        table_number: selection.table?.name || selection.table?.table_number,
-        total_amount: bookingData.totalAmount,
-        status: 'confirmed'
-      };
+      // Use the actual database booking record if available
+      if (bookingData.dbRecord) {
+        booking = bookingData.dbRecord;
+      } else {
+        // Fallback to constructed data
+        booking = {
+          id: bookingData.bookingId || bookingData.id,
+          booking_date: bookingData.bookingDate || new Date().toISOString(),
+          booking_time: selection.time || '19:00:00',
+          guest_count: selection.guests || selection.guestCount || 2,
+          table_number: selection.table?.name || selection.table?.table_number,
+          total_amount: bookingData.totalAmount,
+          status: 'confirmed'
+        };
+      }
 
-      venue = {
-        name: bookingData.venueName || selection.venueName,
-        address: selection.venueAddress || 'Lagos, Nigeria',
-        contact_phone: selection.venuePhone || '+234 XXX XXX XXXX',
-        contact_email: selection.venueEmail || 'info@vipclub.com',
-        images: selection.venueImage ? [selection.venueImage] : [],
-        dress_code: 'Smart casual'
-      };
+      // Fetch actual venue data from database if venue_id is available
+      if (booking.venue_id) {
+        const { data: venueData, error: venueError } = await supabase
+          .from('venues')
+          .select('*')
+          .eq('id', booking.venue_id)
+          .single();
+        
+        if (!venueError && venueData) {
+          venue = venueData;
+        } else {
+          console.warn('Could not fetch venue data, using fallback:', venueError);
+          venue = {
+            name: bookingData.venueName || selection.venueName,
+            address: selection.venueAddress || 'Lagos, Nigeria',
+            contact_phone: selection.venuePhone || '+234 XXX XXX XXXX',
+            contact_email: selection.venueEmail || 'info@vipclub.com',
+            images: selection.venueImage ? [selection.venueImage] : [],
+            dress_code: 'Smart casual'
+          };
+        }
+      } else {
+        // Fallback venue data
+        venue = {
+          name: bookingData.venueName || selection.venueName,
+          address: selection.venueAddress || 'Lagos, Nigeria',
+          contact_phone: selection.venuePhone || '+234 XXX XXX XXXX',
+          contact_email: selection.venueEmail || 'info@vipclub.com',
+          images: selection.venueImage ? [selection.venueImage] : [],
+          dress_code: 'Smart casual'
+        };
+      }
 
+      // Use actual customer data from form or user profile
       customer = {
-        full_name: bookingData.customerName,
-        email: bookingData.customerEmail,
+        full_name: bookingData.customerName || formData.fullName,
+        email: bookingData.customerEmail || formData.email,
         phone: bookingData.customerPhone || formData.phone
       };
 
@@ -189,7 +219,7 @@ const CheckoutPage = () => {
       const customerEmailResult = await sendBookingConfirmation(booking, venue, customer);
       
       // Get venue owner info if available for notification
-      const venueOwnerEmail = selection.ownerEmail || 'owner@vipclub.com';
+      const venueOwnerEmail = venue.contact_email || selection.ownerEmail || 'owner@vipclub.com';
       if (venueOwnerEmail) {
         const venueOwner = {
           full_name: 'Venue Owner',

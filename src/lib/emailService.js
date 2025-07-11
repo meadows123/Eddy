@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 // EmailJS configuration from environment variables
 const EMAILJS_CONFIG = {
   serviceId: import.meta.env.VITE_EMAILJS_SERVICE_ID,
-  templateId: import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
+  templateId: import.meta.env.VITE_EMAILJS_BOOKING_CONFIRMATION_TEMPLATE,
   publicKey: import.meta.env.VITE_EMAILJS_PUBLIC_KEY,
 };
 
@@ -53,8 +53,8 @@ export const sendBookingConfirmation = async (booking, venue, customer) => {
       to_email: customerEmail, // Keep this for backward compatibility
       customerPhone: customer.phone || customer.customerPhone || customer.phone_number || 'N/A',
       
-      // Booking Information
-      bookingReference: `VIP-${booking.id}`,
+      // Booking Information - Use actual booking data
+      bookingReference: booking.booking_reference || `VIP-${booking.id}`,
       partySize: booking.guest_count || booking.guests || booking.number_of_guests || '2',
       bookingDate: new Date(booking.booking_date).toLocaleDateString('en-US', {
         weekday: 'long',
@@ -63,27 +63,27 @@ export const sendBookingConfirmation = async (booking, venue, customer) => {
         day: 'numeric'
       }),
       bookingTime: booking.booking_time || booking.start_time || '7:00 PM',
-      bookingDuration: '4',
+      bookingDuration: booking.duration || booking.booking_duration || '4',
       
-      // Table Information
-      tableNumber: booking.table_number || 'VIP-001',
-      tableType: 'VIP Table',
+      // Table Information - Use actual table data
+      tableNumber: booking.table_number || booking.table_id || 'VIP-001',
+      tableType: booking.table_type || venue.table_type || 'VIP Table',
       tableCapacity: booking.guest_count || booking.guests || booking.number_of_guests || '2',
-      tableLocation: 'Prime Location',
-      tableFeatures: 'Premium seating with excellent view',
+      tableLocation: booking.table_location || venue.table_location || 'Prime Location',
+      tableFeatures: booking.table_features || venue.table_features || 'Premium seating with excellent view',
       
-      // Venue Information
+      // Venue Information - Use actual venue data
       venueName: venue.name || 'Premium Venue',
-      venueDescription: venue.description || 'Experience luxury dining and entertainment in Lagos\' most exclusive venue.',
-      venueAddress: venue.address || 'Lagos, Nigeria',
-      venuePhone: venue.contact_phone || '+234 XXX XXX XXXX',
-      venueDressCode: venue.dress_code || 'Smart Casual',
-      venueParking: 'Valet parking available',
-      venueCuisine: 'International cuisine',
-      venueHours: '6:00 PM - 2:00 AM',
+      venueDescription: venue.description || venue.about || 'Experience luxury dining and entertainment in Lagos\' most exclusive venue.',
+      venueAddress: venue.address || venue.location || 'Lagos, Nigeria',
+      venuePhone: venue.contact_phone || venue.phone || venue.contact_number || '+234 XXX XXX XXXX',
+      venueDressCode: venue.dress_code || venue.dresscode || 'Smart Casual',
+      venueParking: venue.parking || venue.parking_info || 'Valet parking available',
+      venueCuisine: venue.cuisine || venue.cuisine_type || 'International cuisine',
+      venueHours: venue.hours || venue.opening_hours || venue.business_hours || '6:00 PM - 2:00 AM',
       
-      // Special Information
-      specialRequests: 'None specified',
+      // Special Information - Use actual booking notes
+      specialRequests: booking.special_requests || booking.notes || booking.additional_notes || 'None specified',
       
       // Action URLs (you can update these later)
       viewBookingUrl: `${window.location.origin}/profile`,
@@ -121,7 +121,7 @@ export const sendBookingConfirmation = async (booking, venue, customer) => {
     // Provide more specific error messages
     if (error.text === 'The recipients address is empty') {
       console.error('❌ EmailJS template issue: The "To" field in your EmailJS template is missing or incorrectly configured.');
-      console.error('   Please ensure your EmailJS template has {{to_email}} in the "To" field.');
+      console.error('   Please ensure your EmailJS template has {{customerEmail}} in the "To" field.');
     }
     
     throw error;
