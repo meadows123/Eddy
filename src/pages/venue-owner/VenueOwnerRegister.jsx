@@ -9,7 +9,7 @@ import { Textarea } from '../../components/ui/textarea';
 import { useToast } from '../../components/ui/use-toast';
 import { supabase } from '../../lib/supabase';
 import { notifyAdminOfVenueSubmission } from '../../lib/api'; // Adjust path if needed
-import { sendBasicEmail, sendVenueOwnerSignupEmail } from '../../lib/emailService.js';
+import { sendBasicEmail } from '../../lib/emailService.js';
 import emailjs from '@emailjs/browser';
 
 const VenueOwnerRegister = () => {
@@ -136,8 +136,8 @@ const VenueOwnerRegister = () => {
             venue_city: existingVenues[0].venue_city
           };
           
-          await sendVenueOwnerSignupEmail(venueOwnerData);
-          console.log('✅ Venue owner signup email sent successfully');
+          // await sendVenueOwnerSignupEmail(venueOwnerData); // Temporarily removed
+          console.log('✅ Venue owner signup email functionality temporarily disabled');
         } catch (emailError) {
           console.error('❌ Failed to send venue owner signup email:', emailError);
           // Don't fail the registration if email fails
