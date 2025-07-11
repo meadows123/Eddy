@@ -28,6 +28,7 @@ const UserProfilePage = () => {
   });
   const [error, setError] = useState(null);
   const [signupError, setSignupError] = useState(null);
+  const [success, setSuccess] = useState(null);
   const [profile, setProfile] = useState(null);
   const [savedVenues, setSavedVenues] = useState([]);
   const [bookings, setBookings] = useState([]);
@@ -396,6 +397,7 @@ const UserProfilePage = () => {
                 required
               />
               {error && <div className="text-red-500">{error}</div>}
+              {success && <div className="text-green-600">{success}</div>}
               <Button type="submit" className="w-full bg-brand-burgundy text-white">Login</Button>
               
               {/* Forgot Password Link */}
