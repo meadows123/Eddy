@@ -14,7 +14,9 @@ import { useNavigate, useLocation } from 'react-router-dom';
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 const UserProfilePage = () => {
+  console.log('🔍 UserProfilePage component is rendering');
   const { user, signIn, signUp, signOut } = useAuth();
+  console.log('👤 Current user:', user);
   const [isSignup, setIsSignup] = useState(false);
   const [form, setForm] = useState({ email: '', password: '' });
   const [signupForm, setSignupForm] = useState({ 
