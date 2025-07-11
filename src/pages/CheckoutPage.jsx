@@ -156,9 +156,11 @@ const CheckoutPage = () => {
   };
 
   const sendBookingConfirmationEmail = async (bookingData) => {
+    let booking, venue, customer;
+    
     try {
       // Prepare data for customer email
-      const booking = {
+      booking = {
         id: bookingData.bookingId || bookingData.id,
         booking_date: bookingData.bookingDate || new Date().toISOString(),
         booking_time: selection.time || '19:00:00',
@@ -168,7 +170,7 @@ const CheckoutPage = () => {
         status: 'confirmed'
       };
 
-      const venue = {
+      venue = {
         name: bookingData.venueName || selection.venueName,
         address: selection.venueAddress || 'Lagos, Nigeria',
         contact_phone: selection.venuePhone || '+234 XXX XXX XXXX',
@@ -177,7 +179,7 @@ const CheckoutPage = () => {
         dress_code: 'Smart casual'
       };
 
-      const customer = {
+      customer = {
         full_name: bookingData.customerName,
         email: bookingData.customerEmail,
         phone: bookingData.customerPhone || formData.phone
@@ -205,7 +207,7 @@ const CheckoutPage = () => {
       console.error('❌ Failed to send booking emails:', error);
       
       // If it's the "recipients address is empty" error, run debug function
-      if (error.text === 'The recipients address is empty' || error.message?.includes('recipients address is empty')) {
+      if ((error.text === 'The recipients address is empty' || error.message?.includes('recipients address is empty')) && booking && venue && customer) {
         console.log('🔍 Running email debug function...');
         try {
           await debugBookingEmail(booking, venue, customer);

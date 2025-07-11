@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Home, 
   Building2, 
@@ -20,17 +20,32 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
+import { useAuth } from '../contexts/AuthContext';
 
 const Navigation = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { signOut, user } = useAuth();
   const isOwner = location.pathname.includes('/venue-owner');
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      // Close mobile menu if open
+      setIsMobileMenuOpen(false);
+      // Redirect to home page after logout
+      navigate('/');
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
+  };
 
   const customerNavItems = [
     { name: 'Home', path: '/home', icon: Home },
     { name: 'Explore', path: '/explore', icon: Compass },
     { name: 'Venues', path: '/venues', icon: Building2 },
-    { name: 'My Bookings', path: '/bookings', icon: Calendar },
+    ...(user ? [{ name: 'My Bookings', path: '/bookings', icon: Calendar }] : []),
     { name: 'Profile', path: '/profile', icon: User },
   ];
 
@@ -50,7 +65,7 @@ const Navigation = () => {
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
             <img
-              src="/logos/Logo1-Trans-big.png"
+              src="/logos/Logo1-Trans.png"
               alt="VIP Club"
               className="h-10 w-auto object-contain"
               onError={(e) => {
@@ -87,36 +102,49 @@ const Navigation = () => {
 
           {/* User Menu */}
           <div className="hidden md:flex items-center space-x-4">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  <User className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end">
-                <DropdownMenuLabel>My Account</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <Link to="/profile" className="flex items-center w-full">
-                    <User className="mr-2 h-4 w-4" />
-                    Profile
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <Link to="/settings" className="flex items-center w-full">
-                    <Settings className="mr-2 h-4 w-4" />
-                    Settings
-                  </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem>
-                  <button className="flex items-center w-full text-red-600">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Log out
-                  </button>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                    <User className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end">
+                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem>
+                    <Link to="/profile" className="flex items-center w-full">
+                      <User className="mr-2 h-4 w-4" />
+                      Profile
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem>
+                    <Link to="/settings" className="flex items-center w-full">
+                      <Settings className="mr-2 h-4 w-4" />
+                      Settings
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem>
+                    <button 
+                      onClick={handleLogout}
+                      className="flex items-center w-full text-red-600"
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Log out
+                    </button>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <div className="flex items-center space-x-2">
+                <Link to="/profile">
+                  <Button variant="outline" size="sm" className="border-brand-burgundy text-brand-burgundy hover:bg-brand-burgundy/10">
+                    Sign In
+                  </Button>
+                </Link>
+              </div>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -151,31 +179,44 @@ const Navigation = () => {
                   <span>{item.name}</span>
                 </Link>
               ))}
-              <div className="pt-4 border-t border-brand-burgundy/10">
-                <Link
-                  to="/profile"
-                  className="flex items-center space-x-2 text-sm font-medium text-brand-burgundy/70 hover:text-brand-gold"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  <User className="h-4 w-4" />
-                  <span>Profile</span>
-                </Link>
-                <Link
-                  to="/settings"
-                  className="flex items-center space-x-2 text-sm font-medium text-brand-burgundy/70 hover:text-brand-gold mt-4"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  <Settings className="h-4 w-4" />
-                  <span>Settings</span>
-                </Link>
-                <button
-                  className="flex items-center space-x-2 text-sm font-medium text-red-600 mt-4"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  <LogOut className="h-4 w-4" />
-                  <span>Log out</span>
-                </button>
-              </div>
+              {user ? (
+                <div className="pt-4 border-t border-brand-burgundy/10">
+                  <Link
+                    to="/profile"
+                    className="flex items-center space-x-2 text-sm font-medium text-brand-burgundy/70 hover:text-brand-gold"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <User className="h-4 w-4" />
+                    <span>Profile</span>
+                  </Link>
+                  <Link
+                    to="/settings"
+                    className="flex items-center space-x-2 text-sm font-medium text-brand-burgundy/70 hover:text-brand-gold mt-4"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <Settings className="h-4 w-4" />
+                    <span>Settings</span>
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="flex items-center space-x-2 text-sm font-medium text-red-600 mt-4"
+                  >
+                    <LogOut className="h-4 w-4" />
+                    <span>Log out</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="pt-4 border-t border-brand-burgundy/10">
+                  <Link
+                    to="/profile"
+                    className="flex items-center space-x-2 text-sm font-medium text-brand-burgundy/70 hover:text-brand-gold"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    <User className="h-4 w-4" />
+                    <span>Sign In</span>
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
         )}

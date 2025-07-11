@@ -410,8 +410,67 @@ export const debugBookingEmail = async (booking, venue, customer) => {
   }
 };
 
+// Simple console test function for immediate debugging
+export const testEmailJSNow = async (testEmail = 'test@example.com') => {
+  console.log('🧪 Testing EmailJS configuration...');
+  
+  // Check configuration
+  console.log('📋 EmailJS Config:', {
+    serviceId: EMAILJS_CONFIG.serviceId ? '✅ Set' : '❌ Missing',
+    templateId: EMAILJS_CONFIG.templateId ? '✅ Set' : '❌ Missing',
+    publicKey: EMAILJS_CONFIG.publicKey ? '✅ Set' : '❌ Missing'
+  });
+  
+  if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.templateId || !EMAILJS_CONFIG.publicKey) {
+    console.error('❌ EmailJS not fully configured. Check your .env file.');
+    return false;
+  }
+  
+  // Test with the exact parameter name your template expects
+  const testParams = {
+    customerEmail: testEmail, // This should match your template's "To" field
+    to_name: 'Test User',
+    customerName: 'Test User',
+    bookingReference: 'TEST-123',
+    venueName: 'Test Venue',
+    bookingDate: new Date().toLocaleDateString(),
+    bookingTime: '19:00',
+    partySize: '2',
+    totalAmount: '5000'
+  };
+  
+  console.log('📧 Sending test with params:', testParams);
+  
+  try {
+    const result = await emailjs.send(
+      EMAILJS_CONFIG.serviceId,
+      EMAILJS_CONFIG.templateId,
+      testParams
+    );
+    
+    console.log('✅ Test email sent successfully!', result);
+    return true;
+  } catch (error) {
+    console.error('❌ Test email failed:', error);
+    console.error('Error details:', {
+      status: error.status,
+      text: error.text,
+      message: error.message
+    });
+    
+    if (error.text === 'The recipients address is empty') {
+      console.error('🔧 SOLUTION: Your EmailJS template needs {{customerEmail}} in the "To" field');
+      console.error('   Go to EmailJS Dashboard → Templates → Edit your template');
+      console.error('   In the "To" field, make sure it says: {{customerEmail}}');
+    }
+    
+    return false;
+  }
+};
+
 // Make test function available globally for debugging
 if (typeof window !== 'undefined') {
   window.quickEmailTest = quickEmailTest;
   window.testEmailService = testEmailService;
+  window.testEmailJSNow = testEmailJSNow;
 } 
