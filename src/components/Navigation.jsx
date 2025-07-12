@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   Home, 
@@ -24,10 +24,20 @@ import { useAuth } from '../contexts/AuthContext';
 
 const Navigation = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [logoLoaded, setLogoLoaded] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
   const isOwner = location.pathname.includes('/venue-owner');
+
+  // Debug logging
+  useEffect(() => {
+    console.log('🔍 Navigation Debug Info:');
+    console.log('📍 Current path:', location.pathname);
+    console.log('👤 User:', user);
+    console.log('🏢 Is Owner:', isOwner);
+    console.log('🖼️ Logo loaded:', logoLoaded);
+  }, [location.pathname, user, isOwner, logoLoaded]);
 
   const handleLogout = async () => {
     try {
@@ -65,13 +75,24 @@ const Navigation = () => {
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
             <img
-              src="/logos/Logo1-Trans.png"
+              src="/images/logos/Logo1-Trans.png"
               alt="VIP Club"
               className="h-10 w-auto object-contain"
               onError={(e) => {
                 console.log('❌ Logo failed to load from:', e.target.src);
-                e.target.style.display = 'none';
-                e.target.nextSibling.style.display = 'flex';
+                // Try alternative logo
+                if (e.target.src.includes('Logo1-Trans.png')) {
+                  e.target.src = '/images/logos/Logo-Trans.png';
+                } else if (e.target.src.includes('Logo-Trans.png')) {
+                  e.target.src = '/images/logos/Logo1-Trans-new.png';
+                } else {
+                  // Show fallback if all logos fail
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'flex';
+                }
+              }}
+              onLoad={(e) => {
+                console.log('✅ Logo loaded successfully from:', e.target.src);
               }}
             />
             <div className="flex items-center space-x-2" style={{ display: 'none' }}>

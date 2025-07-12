@@ -11,6 +11,7 @@ import CheckoutPage from './pages/CheckoutPage';
 import VenueOwnerDashboard from './pages/venue-owner/VenueOwnerDashboard';
 import VenueOwnerLogin from './pages/venue-owner/VenueOwnerLogin';
 import VenueOwnerRegister from './pages/venue-owner/VenueOwnerRegister';
+import VenueOwnerResetPassword from './pages/venue-owner/VenueOwnerResetPassword';
 import VenueOwnerPending from './pages/venue-owner/VenueOwnerPending';
 import VenueOwnerBookings from './pages/venue-owner/VenueOwnerBookings';
 import VenueOwnerTables from './pages/venue-owner/VenueOwnerTables';
@@ -73,6 +74,7 @@ const App = () => {
             {/* Venue Owner Routes */}
             <Route path="/venue-owner/login" element={<VenueOwnerLogin />} />
             <Route path="/venue-owner/register" element={<VenueOwnerRegister />} />
+            <Route path="/venue-owner/reset-password" element={<VenueOwnerResetPassword />} />
             <Route path="/venue-owner/pending" element={<VenueOwnerPending />} />
             <Route path="/venue-owner/dashboard" element={<VenueOwnerDashboard />} />
             <Route path="/venue-owner/bookings" element={<VenueOwnerBookings />} />
