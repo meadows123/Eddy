@@ -10,6 +10,10 @@ import { useToast } from '../../components/ui/use-toast';
 import { supabase } from '../../lib/supabase';
 import { notifyAdminOfVenueSubmission } from '../../lib/api'; // Adjust path if needed
 import { sendBasicEmail } from '../../lib/emailService.js';
+import { 
+  sendVenueOwnerRegistrationComplete, 
+  notifyAdminOfVenueOwnerRegistration 
+} from '../../lib/venueOwnerEmailService.js';
 import emailjs from '@emailjs/browser';
 
 const VenueOwnerRegister = () => {
@@ -108,30 +112,25 @@ const VenueOwnerRegister = () => {
 
         console.log('✅ User account created successfully:', signUpData.user.id);
 
-        // Wait a moment to ensure the user account is fully created
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // The database trigger should automatically link the venue owner
+        // Let's wait a moment and then verify the link was created
+        await new Promise(resolve => setTimeout(resolve, 2000));
 
-        // Verify the user account exists before linking
-        console.log('🔍 Verifying user account exists...');
-        const { data: userCheck, error: userCheckError } = await supabase.auth.getUser();
-        
-        if (userCheckError || !userCheck.user) {
-          console.error('❌ User account verification failed:', userCheckError);
-          throw new Error('User account not found after creation');
-        }
-        
-        console.log('✅ User account verified:', userCheck.user.id);
+        // Verify the venue owner was linked automatically
+        console.log('🔍 Verifying automatic venue owner link...');
+        const { data: linkedVenueOwner, error: linkCheckError } = await supabase
+          .from('venue_owners')
+          .select('*')
+          .eq('owner_email', formData.email)
+          .eq('user_id', signUpData.user.id)
+          .eq('status', 'active')
+          .single();
 
-        // Update all pending venue owner records with the user ID and mark as active
-        console.log('🔗 Linking venue owner to user account...');
-        
-        // Try to update with retry mechanism for foreign key constraint issues
-        let updateError = null;
-        let retryCount = 0;
-        const maxRetries = 3;
-        
-        while (retryCount < maxRetries) {
-          const { error } = await supabase
+        if (linkCheckError || !linkedVenueOwner) {
+          console.warn('⚠️ Automatic linking may have failed, attempting manual link...');
+          
+          // Manual fallback linking
+          const { error: manualLinkError } = await supabase
             .from('venue_owners')
             .update({ 
               user_id: signUpData.user.id,
@@ -142,45 +141,44 @@ const VenueOwnerRegister = () => {
             .eq('owner_email', formData.email)
             .eq('status', 'pending_owner_signup');
 
-          if (!error) {
-            console.log('✅ Venue owner linked successfully on attempt', retryCount + 1);
-            break;
+          if (manualLinkError) {
+            console.error('❌ Manual linking also failed:', manualLinkError);
+            throw manualLinkError;
           }
           
-          updateError = error;
-          retryCount++;
-          console.warn(`⚠️ Link attempt ${retryCount} failed:`, error);
-          
-          if (retryCount < maxRetries) {
-            console.log(`🔄 Retrying in ${retryCount * 2} seconds...`);
-            await new Promise(resolve => setTimeout(resolve, retryCount * 2000));
-          }
+          console.log('✅ Manual linking successful');
+        } else {
+          console.log('✅ Automatic linking successful');
         }
 
-        if (updateError) {
-          console.error('❌ Failed to update venue owner after retries:', updateError);
-          throw updateError;
-        }
+        // Verify venue linking (should be automatic via trigger)
+        console.log('🔍 Verifying venue link...');
+        const { data: linkedVenue, error: venueLinkError } = await supabase
+          .from('venues')
+          .select('*')
+          .eq('contact_email', formData.email)
+          .eq('owner_id', signUpData.user.id)
+          .single();
 
-        // Also update the venues table to link the venue to the user
-        if (existingVenues[0].venue_id) {
-          console.log('🏢 Linking venue to user account...');
+        if (venueLinkError || !linkedVenue) {
+          console.warn('⚠️ Venue linking may have failed, attempting manual link...');
           
-          const { error: venueUpdateError } = await supabase
+          // Manual venue linking
+          const { error: manualVenueLinkError } = await supabase
             .from('venues')
             .update({ 
               owner_id: signUpData.user.id
             })
-            .eq('id', existingVenues[0].venue_id);
+            .eq('contact_email', formData.email);
 
-          console.log('🏢 Venue update result:', { venueUpdateError });
-
-          if (venueUpdateError) {
-            console.error('⚠️ Error updating venue owner_id:', venueUpdateError);
-            // Don't fail the registration if venue update fails
+          if (manualVenueLinkError) {
+            console.error('⚠️ Manual venue linking failed:', manualVenueLinkError);
+            // Don't fail the registration if venue linking fails
           } else {
-            console.log('✅ Venue linked successfully');
+            console.log('✅ Manual venue linking successful');
           }
+        } else {
+          console.log('✅ Automatic venue linking successful');
         }
 
         // Send welcome email to the venue owner
@@ -194,10 +192,15 @@ const VenueOwnerRegister = () => {
             venue_city: existingVenues[0].venue_city
           };
           
-          await sendVenueOwnerSignupEmail(venueOwnerData);
-          console.log('✅ Venue owner welcome email sent successfully');
+          // Send registration complete email using new service
+          await sendVenueOwnerRegistrationComplete(venueOwnerData);
+          console.log('✅ Venue owner registration complete email sent successfully');
+          
+          // Notify admin of new registration
+          await notifyAdminOfVenueOwnerRegistration(venueOwnerData);
+          console.log('✅ Admin notification sent successfully');
         } catch (emailError) {
-          console.error('❌ Failed to send venue owner signup email:', emailError);
+          console.error('❌ Failed to send venue owner emails:', emailError);
           // Don't fail the registration if email fails
         }
 

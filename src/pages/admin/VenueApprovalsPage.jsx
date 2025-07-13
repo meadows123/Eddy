@@ -22,9 +22,12 @@ import {
   FileText
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { sendVenueOwnerApplicationApproved } from '@/lib/venueOwnerEmailService.js';
 import emailjs from '@emailjs/browser';
 
 const VenueApprovalsPage = () => {
+  console.log('🚨 ADMIN VenueApprovalsPage component loaded - this should ONLY be at /admin/venue-approvals');
+  
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState(null);
@@ -117,36 +120,31 @@ const VenueApprovalsPage = () => {
       // Update request status
       await supabase.from('pending_venue_owner_requests').update({ status: 'approved' }).eq('id', req.id);
 
-      // Send approval email to the venue owner using Edge Function
+      // Send approval email to the venue owner using new email service
       try {
-        console.log('🔄 Attempting to send invitation email via Edge Function...');
+        console.log('🔄 Sending application approved email...');
         console.log('📧 Email data:', {
           email: req.email,
           venueName: req.venue_name,
           contactName: req.contact_name,
-          venueType: normalizedVenueType // Use normalized venue type
+          venueType: normalizedVenueType,
+          venueAddress: req.venue_address,
+          venueCity: req.venue_city
         });
 
-        const { data, error } = await supabase.functions.invoke('invite-venue-owner', {
-          body: {
-            email: req.email,
-            venueName: req.venue_name,
-            contactName: req.contact_name,
-            venueType: normalizedVenueType, // Use normalized venue type
-            approvalDate: new Date().toISOString()
-          }
-        });
+        const venueOwnerData = {
+          email: req.email,
+          contact_name: req.contact_name,
+          venue_name: req.venue_name,
+          venue_type: normalizedVenueType,
+          venue_address: req.venue_address,
+          venue_city: req.venue_city
+        };
 
-        console.log('📤 Edge Function response:', { data, error });
-
-        if (error) {
-          console.error('❌ Error sending invitation email:', error);
-          alert(`Warning: Failed to send invitation email: ${error.message}`);
-        } else {
-          console.log('✅ Invitation email sent successfully:', data);
-        }
+        await sendVenueOwnerApplicationApproved(venueOwnerData);
+        console.log('✅ Application approved email sent successfully');
       } catch (emailError) {
-        console.error('❌ Exception sending approval email:', emailError);
+        console.error('❌ Error sending application approved email:', emailError);
         console.error('Error details:', {
           message: emailError.message,
           stack: emailError.stack,
