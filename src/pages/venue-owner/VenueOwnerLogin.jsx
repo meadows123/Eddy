@@ -59,7 +59,24 @@ const VenueOwnerLogin = () => {
       }
     } catch (error) {
       console.error('❌ Login error:', error);
-      setError(error.message || 'Login failed');
+      
+      // Provide more specific error messages
+      if (error.message === 'Invalid login credentials') {
+        setError('Invalid email or password. If you recently registered, please check your email for a confirmation link and click it before logging in. You can also use the "Resend confirmation email" button below.');
+      } else if (error.message.includes('Email not confirmed')) {
+        setError('Please check your email and click the confirmation link before logging in. If you didn\'t receive the email, use the "Resend confirmation email" button below.');
+      } else if (error.message.includes('Invalid login credentials')) {
+        setError('Invalid email or password. If you recently registered, please check your email for a confirmation link and click it before logging in.');
+      } else {
+        setError(error.message || 'Login failed');
+      }
+      
+      // Show toast with additional guidance
+      toast({
+        title: 'Login Failed',
+        description: 'If you recently registered, please check your email for a confirmation link. Use the "Debug Account Status" button to check your account status.',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
@@ -131,6 +148,51 @@ const VenueOwnerLogin = () => {
     }
   };
 
+  const handleResendConfirmation = async () => {
+    if (!formData.email) {
+      setError('Please enter your email address first');
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log('🔄 Resending confirmation email to:', formData.email);
+      
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: formData.email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/venue-owner/login`
+        }
+      });
+      
+      if (error) throw error;
+      
+      toast({
+        title: 'Confirmation Email Sent',
+        description: 'Check your email for the confirmation link. If you don\'t see it, check your spam folder.',
+        variant: 'default',
+      });
+      
+      setError(null);
+      console.log('✅ Confirmation email resent successfully');
+      
+    } catch (error) {
+      console.error('❌ Resend confirmation error:', error);
+      setError(error.message || 'Failed to resend confirmation email');
+      
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to resend confirmation email. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const debugVenueOwnerStatus = async () => {
     try {
       console.log('🔍 Debugging venue owner status...');
@@ -154,6 +216,29 @@ const VenueOwnerLogin = () => {
           .eq('owner_email', formData.email);
         console.log('📧 Venue owners by email:', venueOwnersByEmail, 'Error:', emailError);
       }
+      
+      // Check auth users by email (without authentication)
+      console.log('🔍 Checking auth users by email:', formData.email);
+      const { data: authUsers, error: authError } = await supabase
+        .from('auth.users')
+        .select('id, email, email_confirmed_at, created_at')
+        .eq('email', formData.email);
+      console.log('👤 Auth users found:', authUsers, 'Error:', authError);
+      
+      // Check venue_owners table by email
+      const { data: venueOwnersByEmail, error: venueOwnerEmailError } = await supabase
+        .from('venue_owners')
+        .select('*')
+        .eq('owner_email', formData.email);
+      console.log('🏢 Venue owners by email:', venueOwnersByEmail, 'Error:', venueOwnerEmailError);
+      
+      // Check if there are any pending venue owner requests
+      const { data: pendingRequests, error: pendingError } = await supabase
+        .from('pending_venue_owner_requests')
+        .select('*')
+        .eq('email', formData.email);
+      console.log('⏳ Pending requests:', pendingRequests, 'Error:', pendingError);
+      
     } catch (error) {
       console.error('❌ Debug error:', error);
     }
@@ -366,6 +451,31 @@ const VenueOwnerLogin = () => {
               Register your venue
             </Link>
           </p>
+          
+          <div className="mt-4 pt-4 border-t border-brand-burgundy/10">
+            <p className="text-xs text-brand-burgundy/60 mb-2">
+              Having trouble logging in?
+            </p>
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={handleResendConfirmation}
+                className="text-xs text-brand-burgundy/70 hover:text-brand-gold underline block"
+                disabled={loading}
+              >
+                Resend confirmation email
+              </button>
+              
+              <button
+                type="button"
+                onClick={debugVenueOwnerStatus}
+                className="text-xs text-brand-burgundy/70 hover:text-brand-gold underline block"
+                disabled={loading}
+              >
+                Debug Account Status
+              </button>
+            </div>
+          </div>
         </div>
       </motion.div>
     </div>

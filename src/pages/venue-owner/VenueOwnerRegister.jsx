@@ -84,45 +84,103 @@ const VenueOwnerRegister = () => {
         console.log('✅ Found existing approved venue owner record, creating user account...');
         
         // Venue owner has been approved, create user account and link it
+        console.log('🔄 Creating user account for approved venue owner...');
+        
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/venue-owner/login`
+          }
         });
 
         console.log('👤 Sign up result:', { signUpData, signUpError });
 
-        if (signUpError) throw signUpError;
+        if (signUpError) {
+          console.error('❌ User creation failed:', signUpError);
+          throw signUpError;
+        }
+
+        if (!signUpData.user || !signUpData.user.id) {
+          console.error('❌ No user data returned from signup');
+          throw new Error('Failed to create user account');
+        }
+
+        console.log('✅ User account created successfully:', signUpData.user.id);
+
+        // Wait a moment to ensure the user account is fully created
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        // Verify the user account exists before linking
+        console.log('🔍 Verifying user account exists...');
+        const { data: userCheck, error: userCheckError } = await supabase.auth.getUser();
+        
+        if (userCheckError || !userCheck.user) {
+          console.error('❌ User account verification failed:', userCheckError);
+          throw new Error('User account not found after creation');
+        }
+        
+        console.log('✅ User account verified:', userCheck.user.id);
 
         // Update all pending venue owner records with the user ID and mark as active
-        const { error: updateError } = await supabase
-          .from('venue_owners')
-          .update({ 
-            user_id: signUpData.user.id,
-            status: 'active',
-            owner_name: formData.full_name,
-            owner_phone: formData.phone
-          })
-          .eq('owner_email', formData.email)
-          .eq('status', 'pending_owner_signup');
+        console.log('🔗 Linking venue owner to user account...');
+        
+        // Try to update with retry mechanism for foreign key constraint issues
+        let updateError = null;
+        let retryCount = 0;
+        const maxRetries = 3;
+        
+        while (retryCount < maxRetries) {
+          const { error } = await supabase
+            .from('venue_owners')
+            .update({ 
+              user_id: signUpData.user.id,
+              status: 'active',
+              owner_name: formData.full_name,
+              owner_phone: formData.phone
+            })
+            .eq('owner_email', formData.email)
+            .eq('status', 'pending_owner_signup');
 
-        console.log('🔗 Venue owner update result:', { updateError });
+          if (!error) {
+            console.log('✅ Venue owner linked successfully on attempt', retryCount + 1);
+            break;
+          }
+          
+          updateError = error;
+          retryCount++;
+          console.warn(`⚠️ Link attempt ${retryCount} failed:`, error);
+          
+          if (retryCount < maxRetries) {
+            console.log(`🔄 Retrying in ${retryCount * 2} seconds...`);
+            await new Promise(resolve => setTimeout(resolve, retryCount * 2000));
+          }
+        }
 
-        if (updateError) throw updateError;
+        if (updateError) {
+          console.error('❌ Failed to update venue owner after retries:', updateError);
+          throw updateError;
+        }
 
         // Also update the venues table to link the venue to the user
-        // Use the venue_id from the venue_owner record to ensure we update the correct venue
-        const { error: venueUpdateError } = await supabase
-          .from('venues')
-          .update({ 
-            owner_id: signUpData.user.id
-          })
-          .eq('id', existingVenues[0].venue_id); // Use venue_id instead of contact_email
+        if (existingVenues[0].venue_id) {
+          console.log('🏢 Linking venue to user account...');
+          
+          const { error: venueUpdateError } = await supabase
+            .from('venues')
+            .update({ 
+              owner_id: signUpData.user.id
+            })
+            .eq('id', existingVenues[0].venue_id);
 
-        console.log('🏢 Venue update result:', { venueUpdateError });
+          console.log('🏢 Venue update result:', { venueUpdateError });
 
-        if (venueUpdateError) {
-          console.error('Error updating venue owner_id:', venueUpdateError);
-          // Don't fail the registration if venue update fails
+          if (venueUpdateError) {
+            console.error('⚠️ Error updating venue owner_id:', venueUpdateError);
+            // Don't fail the registration if venue update fails
+          } else {
+            console.log('✅ Venue linked successfully');
+          }
         }
 
         // Send welcome email to the venue owner
@@ -136,14 +194,21 @@ const VenueOwnerRegister = () => {
             venue_city: existingVenues[0].venue_city
           };
           
-          // await sendVenueOwnerSignupEmail(venueOwnerData); // Temporarily removed
-          console.log('✅ Venue owner signup email functionality temporarily disabled');
+          await sendVenueOwnerSignupEmail(venueOwnerData);
+          console.log('✅ Venue owner welcome email sent successfully');
         } catch (emailError) {
           console.error('❌ Failed to send venue owner signup email:', emailError);
           // Don't fail the registration if email fails
         }
 
-        setSuccess('Account created successfully! You can now log in to manage your venue.');
+        // Check if email confirmation is required
+        if (signUpData.user && !signUpData.user.email_confirmed_at) {
+          console.log('📧 Email confirmation required for venue owner');
+          setSuccess('Account created successfully! Please check your email and click the confirmation link before logging in.');
+        } else {
+          setSuccess('Account created successfully! You can now log in to manage your venue.');
+        }
+        
         console.log('🎉 Registration completed successfully');
         
         // Clear form data

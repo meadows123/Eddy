@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Store, Lock, Eye, EyeOff, ArrowRight, CheckCircle } from 'lucide-react';
+import { Store, Lock, Eye, EyeOff, ArrowRight, CheckCircle, AlertCircle } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -17,6 +17,8 @@ const VenueOwnerResetPassword = () => {
   const [success, setSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [debugInfo, setDebugInfo] = useState(null);
+  const [isStandardReset, setIsStandardReset] = useState(false);
   
   const [formData, setFormData] = useState({
     password: '',
@@ -27,8 +29,35 @@ const VenueOwnerResetPassword = () => {
   useEffect(() => {
     const accessToken = searchParams.get('access_token');
     const refreshToken = searchParams.get('refresh_token');
+    const standardToken = searchParams.get('token');
+    const type = searchParams.get('type');
     
+    console.log('🔍 Reset password page loaded with params:', {
+      accessToken: accessToken ? 'Present' : 'Missing',
+      refreshToken: refreshToken ? 'Present' : 'Missing',
+      standardToken: standardToken ? 'Present' : 'Missing',
+      type: type,
+      allParams: Object.fromEntries(searchParams.entries())
+    });
+
+    setDebugInfo({
+      accessToken: accessToken ? 'Present' : 'Missing',
+      refreshToken: refreshToken ? 'Present' : 'Missing',
+      standardToken: standardToken ? 'Present' : 'Missing',
+      type: type,
+      allParams: Object.fromEntries(searchParams.entries())
+    });
+
+    // Handle standard Supabase password reset (token parameter)
+    if (standardToken) {
+      console.log('🔄 Standard password reset detected');
+      setIsStandardReset(true);
+      return;
+    }
+
+    // Handle venue owner specific reset (access_token/refresh_token)
     if (!accessToken || !refreshToken) {
+      console.error('❌ Missing tokens for password reset');
       setError('Invalid or missing reset link. Please request a new password reset.');
       return;
     }
@@ -36,17 +65,33 @@ const VenueOwnerResetPassword = () => {
     // Set the session with the tokens from the URL
     const setSession = async () => {
       try {
+        console.log('🔄 Setting session with tokens...');
+        
         const { error } = await supabase.auth.setSession({
           access_token: accessToken,
           refresh_token: refreshToken
         });
 
         if (error) {
-          console.error('Session error:', error);
+          console.error('❌ Session error:', error);
           setError('Invalid reset link. Please request a new password reset.');
+          return;
         }
+
+        console.log('✅ Session set successfully');
+        
+        // Verify we have a user
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError || !user) {
+          console.error('❌ User verification failed:', userError);
+          setError('Unable to verify user. Please request a new password reset.');
+          return;
+        }
+
+        console.log('✅ User verified:', user.email);
+        
       } catch (error) {
-        console.error('Error setting session:', error);
+        console.error('❌ Error setting session:', error);
         setError('Failed to validate reset link. Please try again.');
       }
     };
@@ -102,11 +147,27 @@ const VenueOwnerResetPassword = () => {
     try {
       console.log('🔄 Updating password...');
       
-      const { error } = await supabase.auth.updateUser({
-        password: formData.password
-      });
+      let result;
+      
+      if (isStandardReset) {
+        // For standard password reset, we need to use the token
+        const token = searchParams.get('token');
+        if (!token) {
+          throw new Error('Missing reset token');
+        }
+        
+        // Use the token to reset the password
+        result = await supabase.auth.updateUser({
+          password: formData.password
+        });
+      } else {
+        // For venue owner reset, we already have the session set
+        result = await supabase.auth.updateUser({
+          password: formData.password
+        });
+      }
 
-      if (error) throw error;
+      if (result.error) throw result.error;
 
       console.log('✅ Password updated successfully');
       setSuccess(true);
@@ -117,9 +178,13 @@ const VenueOwnerResetPassword = () => {
         variant: 'default',
       });
 
-      // Redirect to login after a short delay
+      // Redirect to appropriate login page after a short delay
       setTimeout(() => {
-        navigate('/venue-owner/login');
+        if (isStandardReset) {
+          navigate('/'); // Redirect to main site for regular users
+        } else {
+          navigate('/venue-owner/login'); // Redirect to venue owner login
+        }
       }, 2000);
 
     } catch (error) {
@@ -133,6 +198,14 @@ const VenueOwnerResetPassword = () => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRequestNewReset = () => {
+    if (isStandardReset) {
+      navigate('/'); // Redirect to main site for regular users
+    } else {
+      navigate('/venue-owner/login'); // Redirect to venue owner login
     }
   };
 
@@ -163,7 +236,7 @@ const VenueOwnerResetPassword = () => {
           </div>
 
           <Button
-            onClick={() => navigate('/venue-owner/login')}
+            onClick={() => isStandardReset ? navigate('/') : navigate('/venue-owner/login')}
             className="w-full bg-brand-burgundy text-white hover:bg-brand-burgundy/90"
           >
             Go to Login
@@ -204,7 +277,30 @@ const VenueOwnerResetPassword = () => {
             animate={{ opacity: 1, y: 0 }}
             className="bg-red-50 border border-red-200 rounded-md p-4"
           >
-            <p className="text-sm text-red-600">{error}</p>
+            <div className="flex">
+              <AlertCircle className="h-5 w-5 text-red-400 mr-2 mt-0.5" />
+              <div>
+                <p className="text-sm text-red-600">{error}</p>
+                <button
+                  onClick={handleRequestNewReset}
+                  className="text-sm text-red-500 hover:text-red-700 underline mt-1"
+                >
+                  Request new password reset
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {debugInfo && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-blue-50 border border-blue-200 rounded-md p-4"
+          >
+            <p className="text-xs text-blue-600 font-mono">
+              Debug: {JSON.stringify(debugInfo, null, 2)}
+            </p>
           </motion.div>
         )}
 
@@ -281,7 +377,7 @@ const VenueOwnerResetPassword = () => {
             <Button
               type="submit"
               className="w-full bg-brand-burgundy text-white hover:bg-brand-burgundy/90"
-              disabled={loading}
+              disabled={loading || !!error}
             >
               {loading ? 'Updating Password...' : 'Update Password'}
               <ArrowRight className="ml-2 h-4 w-4" />
@@ -293,7 +389,7 @@ const VenueOwnerResetPassword = () => {
           <p className="text-sm text-brand-burgundy/70">
             Remember your password?{' '}
             <button
-              onClick={() => navigate('/venue-owner/login')}
+              onClick={() => isStandardReset ? navigate('/') : navigate('/venue-owner/login')}
               className="text-brand-burgundy hover:text-brand-gold font-medium"
             >
               Back to login
