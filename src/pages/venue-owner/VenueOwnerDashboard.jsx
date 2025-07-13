@@ -2,10 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   BarChart3, 
   Calendar, 
-  Users, 
   CreditCard, 
   TrendingUp, 
-  Table2,
   Settings,
   QrCode,
   Image,
@@ -16,7 +14,6 @@ import { Button } from '../../components/ui/button';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
 import { useNavigate } from 'react-router-dom';
 import BookingList from './components/BookingList';
-import TableManagement from './components/TableManagement';
 import ImageManagement from './components/ImageManagement';
 import { supabase } from '../../lib/supabase';
 import { toast } from '../../components/ui/use-toast';
@@ -508,33 +505,7 @@ const VenueOwnerDashboard = () => {
           </div>
         </div>
 
-        {/* Settings Quick Access */}
-        <div className="mb-6 p-4 bg-white rounded-lg border border-brand-burgundy/10">
-          <div className="flex justify-between items-center">
-            <div>
-              <h3 className="text-lg font-semibold text-brand-burgundy">Quick Actions</h3>
-              <p className="text-sm text-brand-burgundy/70">Manage your venue settings and preferences</p>
-            </div>
-            <div className="flex gap-3">
-              <Button 
-                variant="outline" 
-                className="border-brand-gold text-brand-gold hover:bg-brand-gold/10"
-                onClick={() => navigate('/venue-owner/settings')}
-              >
-                <Settings className="h-4 w-4 mr-2" />
-                Venue Settings
-              </Button>
-              <Button 
-                variant="outline" 
-                className="border-brand-burgundy text-brand-burgundy hover:bg-brand-burgundy/10"
-                onClick={() => navigate('/venue-owner/analytics')}
-              >
-                <BarChart3 className="h-4 w-4 mr-2" />
-                Analytics
-              </Button>
-            </div>
-          </div>
-        </div>
+
 
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
@@ -590,10 +561,6 @@ const VenueOwnerDashboard = () => {
               <Calendar className="h-4 w-4 mr-2" />
               Bookings
             </TabsTrigger>
-            <TabsTrigger value="tables" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy">
-              <Table2 className="h-4 w-4 mr-2" />
-              Tables
-            </TabsTrigger>
             <TabsTrigger value="images" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy">
               <Image className="h-4 w-4 mr-2" />
               Images
@@ -602,28 +569,12 @@ const VenueOwnerDashboard = () => {
               <BarChart3 className="h-4 w-4 mr-2" />
               Analytics
             </TabsTrigger>
-            <TabsTrigger value="staff" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy">
-              <Users className="h-4 w-4 mr-2" />
-              Staff
-            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="bookings">
             <Card className="bg-white border-brand-burgundy/10">
               <CardContent className="pt-6">
                 <BookingList currentUser={currentUser} />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="tables">
-            <Card className="bg-white border-brand-burgundy/10">
-              <CardContent className="pt-6">
-                {venue && currentUser ? (
-                  <TableManagement currentUser={currentUser} />
-                ) : (
-                  <div>Loading venue info...</div>
-                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -731,17 +682,6 @@ const VenueOwnerDashboard = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent value="staff">
-            <Card className="bg-white border-brand-burgundy/10">
-              <CardHeader>
-                <CardTitle>Staff Management</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {/* Add StaffManagement component here */}
-                <p className="text-brand-burgundy/70">Loading staff...</p>
-              </CardContent>
-            </Card>
-          </TabsContent>
         </Tabs>
 
         {/* Eddy VIP Members */}
