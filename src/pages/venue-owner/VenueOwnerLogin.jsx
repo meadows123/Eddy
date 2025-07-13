@@ -22,41 +22,80 @@ const VenueOwnerLogin = () => {
     e.preventDefault();
     setLoading(true);
     setError(null);
-    
-    console.log('🔄 Attempting venue owner login...');
-    console.log('📧 Login email:', formData.email);
-    
+
     try {
+      console.log('🔐 Starting login process for:', formData.email);
+      
+      // Log the form data (without password)
+      console.log('📝 Login attempt:', {
+        email: formData.email,
+        passwordLength: formData.password.length,
+        hasPassword: !!formData.password
+      });
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
       });
-      
+
       console.log('🔐 Auth result:', { data, error });
-      
-      if (error) throw error;
-      
+
+      if (error) {
+        console.error('❌ Authentication failed:', error);
+        throw error;
+      }
+
+      if (!data.user) {
+        console.error('❌ No user data returned');
+        throw new Error('No user data returned from authentication');
+      }
+
+      console.log('✅ Authentication successful for user:', data.user.id);
+      console.log('👤 User details:', {
+        id: data.user.id,
+        email: data.user.email,
+        emailConfirmed: !!data.user.email_confirmed_at,
+        lastSignIn: data.user.last_sign_in_at
+      });
+
       // Check if user is a venue owner
-      console.log('👤 Checking if user is venue owner...');
-      console.log('🆔 User ID:', data.user.id);
-      
-      const { data: owner, error: ownerError } = await supabase
+      console.log('🔍 Checking venue owner status...');
+      const { data: venueOwner, error: venueOwnerError } = await supabase
         .from('venue_owners')
         .select('*')
         .eq('user_id', data.user.id)
         .single();
-        
-      console.log('🏢 Venue owner check:', { owner, ownerError });
 
-      if (ownerError || !owner) {
-        console.log('❌ User is not a venue owner, redirecting to registration...');
-        // Not a venue owner yet, redirect to registration
-        navigate('/venue-owner/register');
-      } else {
-        console.log('✅ User is a venue owner, redirecting to dashboard...');
-        // Already a venue owner, redirect to dashboard
-        navigate('/venue-owner/dashboard');
+      console.log('🏢 Venue owner check result:', { venueOwner, venueOwnerError });
+
+      if (venueOwnerError) {
+        console.error('❌ Venue owner lookup failed:', venueOwnerError);
+        throw new Error('Venue owner profile not found');
       }
+
+      if (!venueOwner) {
+        console.error('❌ No venue owner record found');
+        throw new Error('No venue owner profile found for this user');
+      }
+
+      console.log('✅ Venue owner found:', {
+        id: venueOwner.id,
+        email: venueOwner.owner_email,
+        status: venueOwner.status,
+        name: venueOwner.owner_name
+      });
+
+      // Check if venue owner is active
+      if (venueOwner.status !== 'active') {
+        console.error('❌ Venue owner not active:', venueOwner.status);
+        throw new Error(`Venue owner account is ${venueOwner.status}. Please contact support.`);
+      }
+
+      console.log('🎉 Login successful! Redirecting to dashboard...');
+      
+      // Navigate to dashboard
+      navigate('/venue-owner/dashboard');
+      
     } catch (error) {
       console.error('❌ Login error:', error);
       
@@ -118,6 +157,7 @@ const VenueOwnerLogin = () => {
       setError(null);
       
       console.log('🔄 Sending password reset email to:', formData.email);
+      console.log('📍 Redirect URL:', `${window.location.origin}/venue-owner/reset-password`);
       
       const { error } = await supabase.auth.resetPasswordForEmail(formData.email, {
         redirectTo: `${window.location.origin}/venue-owner/reset-password`
@@ -127,12 +167,19 @@ const VenueOwnerLogin = () => {
       
       toast({
         title: 'Password Reset Email Sent',
-        description: 'Check your email for password reset instructions. If you don\'t see it, check your spam folder.',
+        description: 'Check your email for password reset instructions. Click the link in the email to reset your password. If you don\'t see it, check your spam folder.',
         variant: 'default',
       });
       
       setError(null);
       console.log('✅ Password reset email sent successfully');
+      
+      // Show additional instructions
+      toast({
+        title: 'Important',
+        description: 'After clicking the reset link, you will be taken to a password reset page. If you are redirected to the home page, please check the URL for any error messages.',
+        variant: 'default',
+      });
       
     } catch (error) {
       console.error('❌ Password reset error:', error);
@@ -219,11 +266,9 @@ const VenueOwnerLogin = () => {
       
       // Check auth users by email (without authentication)
       console.log('🔍 Checking auth users by email:', formData.email);
-      const { data: authUsers, error: authError } = await supabase
-        .from('auth.users')
-        .select('id, email, email_confirmed_at, created_at')
-        .eq('email', formData.email);
-      console.log('👤 Auth users found:', authUsers, 'Error:', authError);
+      // Note: Cannot directly query auth.users from client-side
+      // This information is available through the auth API after login
+      console.log('👤 Auth users check: Use Supabase Auth API instead of direct query');
       
       // Check venue_owners table by email
       const { data: venueOwnersByEmail, error: venueOwnerEmailError } = await supabase
@@ -238,6 +283,20 @@ const VenueOwnerLogin = () => {
         .select('*')
         .eq('email', formData.email);
       console.log('⏳ Pending requests:', pendingRequests, 'Error:', pendingError);
+      
+      // Check venues by email
+      const { data: venues, error: venueError } = await supabase
+        .from('venues')
+        .select('*')
+        .eq('contact_email', formData.email);
+      console.log('🏢 Venues by email:', venues, 'Error:', venueError);
+      
+      // Summary of findings
+      console.log('📊 DEBUG SUMMARY:');
+      console.log('   - Auth users check: Use Supabase Auth API instead of direct query');
+      console.log('   - Venue owners found:', venueOwnersByEmail?.length || 0);
+      console.log('   - Venues found:', venues?.length || 0);
+      console.log('   - Pending requests:', pendingRequests?.length || 0);
       
     } catch (error) {
       console.error('❌ Debug error:', error);
