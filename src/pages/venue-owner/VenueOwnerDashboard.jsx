@@ -7,7 +7,9 @@ import {
   Settings,
   QrCode,
   Image,
-  LogOut
+  LogOut,
+  Table2,
+  Users
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -29,7 +31,10 @@ const VenueOwnerDashboard = () => {
     totalBookings: 0,
     totalRevenue: 0,
     averageRating: 0,
-    popularTables: []
+    popularTables: [],
+    pendingPayouts: 0,
+    activeBookings: 0,
+    totalTables: 0
   });
   const [recentBookings, setRecentBookings] = useState([]);
   const [bookingTrends, setBookingTrends] = useState([]);
