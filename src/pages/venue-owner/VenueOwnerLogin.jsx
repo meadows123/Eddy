@@ -1,3 +1,5 @@
+// VenueOwnerLogin.jsx - Updated to fix auth.users query issue
+// Cache bust: 2024-01-15 - Removed direct auth.users queries
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -264,13 +266,7 @@ const VenueOwnerLogin = () => {
         console.log('📧 Venue owners by email:', venueOwnersByEmail, 'Error:', emailError);
       }
       
-      // Check auth users by email (without authentication)
-      console.log('🔍 Checking auth users by email:', formData.email);
-      // Note: Cannot directly query auth.users from client-side
-      // This information is available through the auth API after login
-      console.log('👤 Auth users check: Use Supabase Auth API instead of direct query');
-      
-      // Check venue_owners table by email
+      // Check venue_owners table by email (safe query)
       const { data: venueOwnersByEmail, error: venueOwnerEmailError } = await supabase
         .from('venue_owners')
         .select('*')
@@ -293,7 +289,7 @@ const VenueOwnerLogin = () => {
       
       // Summary of findings
       console.log('📊 DEBUG SUMMARY:');
-      console.log('   - Auth users check: Use Supabase Auth API instead of direct query');
+      console.log('   - Auth user check: Use Supabase Auth API (cannot query auth.users directly)');
       console.log('   - Venue owners found:', venueOwnersByEmail?.length || 0);
       console.log('   - Venues found:', venues?.length || 0);
       console.log('   - Pending requests:', pendingRequests?.length || 0);
