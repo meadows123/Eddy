@@ -129,14 +129,12 @@ const VenueOwnerResetPassword = () => {
     setLoading(true);
     setError(null);
 
-    // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       setLoading(false);
       return;
     }
 
-    // Validate password strength
     const passwordErrors = validatePassword(formData.password);
     if (passwordErrors.length > 0) {
       setError(`Password must contain: ${passwordErrors.join(', ')}`);
@@ -145,100 +143,53 @@ const VenueOwnerResetPassword = () => {
     }
 
     try {
-      console.log('🔄 Updating password...');
-      
       let result;
-      
       if (isStandardReset) {
-        // For standard password reset with token
         const token = searchParams.get('token');
-        if (!token) {
-          throw new Error('Missing reset token');
-        }
-        
-        console.log('🔄 Using token-based password reset...');
-        
-        // For Supabase password reset tokens, we need to use the correct approach
-        // The token from the email is a recovery token that needs to be handled differently
-        
-        // First, let's check if we have an active session
+        if (!token) throw new Error('Missing reset token');
+
+        // Try to get the user/session
         const { data: { user }, error: userError } = await supabase.auth.getUser();
-        
+
         if (userError || !user) {
-          console.log('🔄 No active session, need to handle token-based reset...');
-          
-          // For token-based resets, we need to use the token to establish a session
-          // Let's try to use the token as a recovery token
-          const { data: recoveryData, error: recoveryError } = await supabase.auth.verifyOtp({
+          // No session, verify the token
+          const { error: verifyError } = await supabase.auth.verifyOtp({
             token_hash: token,
             type: 'recovery'
           });
-          
-          if (recoveryError) {
-            console.error('❌ Token verification failed:', recoveryError);
-            throw new Error('Invalid or expired reset token. Please request a new password reset.');
+          if (verifyError) {
+            setError('Invalid or expired reset token. Please request a new password reset.');
+            setLoading(false);
+            return;
           }
-          
-          console.log('✅ Token verified successfully');
         }
-        
-        // Now try to update the password
-        result = await supabase.auth.updateUser({
-          password: formData.password
-        });
-        
-        if (result.error && result.error.message.includes('Auth session missing')) {
-          console.log('🔄 Session missing, trying alternative approach...');
-          
-          // If we still don't have a session, we need to use a different method
-          // For Supabase password resets, sometimes we need to use the token directly
-          // Let's try to use the token to set up a session
-          const { error: sessionError } = await supabase.auth.setSession({
-            access_token: token,
-            refresh_token: token
-          });
-          
-          if (sessionError) {
-            console.error('❌ Session setting failed:', sessionError);
-            throw new Error('Unable to validate reset token. Please request a new password reset.');
-          }
-          
-          // Try updateUser again
-          result = await supabase.auth.updateUser({
-            password: formData.password
-          });
-        }
+
+        // Now update the password
+        result = await supabase.auth.updateUser({ password: formData.password });
       } else {
-        // For venue owner reset, we already have the session set
-        result = await supabase.auth.updateUser({
-          password: formData.password
-        });
+        // Venue owner flow (session already set)
+        result = await supabase.auth.updateUser({ password: formData.password });
       }
 
       if (result.error) throw result.error;
 
-      console.log('✅ Password updated successfully');
       setSuccess(true);
-      
       toast({
         title: 'Password Updated',
         description: 'Your password has been successfully updated.',
         variant: 'default',
       });
 
-      // Redirect to appropriate login page after a short delay
       setTimeout(() => {
         if (isStandardReset) {
-          navigate('/'); // Redirect to main site for regular users
+          navigate('/');
         } else {
-          navigate('/venue-owner/login'); // Redirect to venue owner login
+          navigate('/venue-owner/login');
         }
       }, 2000);
 
     } catch (error) {
-      console.error('❌ Password update error:', error);
       setError(error.message || 'Failed to update password');
-      
       toast({
         title: 'Error',
         description: error.message || 'Failed to update password',
