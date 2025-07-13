@@ -150,16 +150,64 @@ const VenueOwnerResetPassword = () => {
       let result;
       
       if (isStandardReset) {
-        // For standard password reset, we need to use the token
+        // For standard password reset with token
         const token = searchParams.get('token');
         if (!token) {
           throw new Error('Missing reset token');
         }
         
-        // Use the token to reset the password
+        console.log('🔄 Using token-based password reset...');
+        
+        // For Supabase password reset tokens, we need to use the correct approach
+        // The token from the email is a recovery token that needs to be handled differently
+        
+        // First, let's check if we have an active session
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        
+        if (userError || !user) {
+          console.log('🔄 No active session, need to handle token-based reset...');
+          
+          // For token-based resets, we need to use the token to establish a session
+          // Let's try to use the token as a recovery token
+          const { data: recoveryData, error: recoveryError } = await supabase.auth.verifyOtp({
+            token_hash: token,
+            type: 'recovery'
+          });
+          
+          if (recoveryError) {
+            console.error('❌ Token verification failed:', recoveryError);
+            throw new Error('Invalid or expired reset token. Please request a new password reset.');
+          }
+          
+          console.log('✅ Token verified successfully');
+        }
+        
+        // Now try to update the password
         result = await supabase.auth.updateUser({
           password: formData.password
         });
+        
+        if (result.error && result.error.message.includes('Auth session missing')) {
+          console.log('🔄 Session missing, trying alternative approach...');
+          
+          // If we still don't have a session, we need to use a different method
+          // For Supabase password resets, sometimes we need to use the token directly
+          // Let's try to use the token to set up a session
+          const { error: sessionError } = await supabase.auth.setSession({
+            access_token: token,
+            refresh_token: token
+          });
+          
+          if (sessionError) {
+            console.error('❌ Session setting failed:', sessionError);
+            throw new Error('Unable to validate reset token. Please request a new password reset.');
+          }
+          
+          // Try updateUser again
+          result = await supabase.auth.updateUser({
+            password: formData.password
+          });
+        }
       } else {
         // For venue owner reset, we already have the session set
         result = await supabase.auth.updateUser({
