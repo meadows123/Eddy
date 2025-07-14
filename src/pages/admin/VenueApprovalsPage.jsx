@@ -62,35 +62,10 @@ const VenueApprovalsPage = () => {
         using: venueType
       });
 
-      // First, create a venue record in the venues table
-      const { data: newVenue, error: venueError } = await supabase
-        .from('venues')
-        .insert([{
-          name: req.venue_name,
-          description: req.additional_info,
-          type: venueType, // Use actual venue type
-          price_range: req.price_range || '$$',
-          address: req.venue_address,
-          city: req.venue_city,
-          state: req.venue_city, // Using city as state for now
-          country: req.venue_country,
-          latitude: 6.5244, // Default Lagos coordinates - can be updated later
-          longitude: 3.3792,
-          contact_phone: req.contact_phone,
-          contact_email: req.email,
-          status: 'approved',
-          is_active: true
-        }])
-        .select()
-        .single();
-
-      if (venueError) throw venueError;
-
-      // Then, create a venue owner record (allows multiple venues per owner)
+      // First, create a venue owner record (this will be the main record)
       const { data: newVenueOwner, error: venueOwnerError } = await supabase
         .from('venue_owners')
         .insert([{
-          venue_id: newVenue.id, // Link to the venue we just created
           venue_name: req.venue_name,
           venue_description: req.additional_info,
           venue_address: req.venue_address,
@@ -111,12 +86,43 @@ const VenueApprovalsPage = () => {
 
       if (venueOwnerError) throw venueOwnerError;
 
+      // Then, create a venue record in the venues table with the owner_id
+      const { data: newVenue, error: venueError } = await supabase
+        .from('venues')
+        .insert([{
+          name: req.venue_name,
+          description: req.additional_info,
+          type: venueType, // Use actual venue type
+          price_range: req.price_range || '$$',
+          address: req.venue_address,
+          city: req.venue_city,
+          state: req.venue_city, // Using city as state for now
+          country: req.venue_country,
+          latitude: 6.5244, // Default Lagos coordinates - can be updated later
+          longitude: 3.3792,
+          contact_phone: req.contact_phone,
+          contact_email: req.email,
+          owner_id: newVenueOwner.id, // Link to the venue owner
+          status: 'approved',
+          is_active: true
+        }])
+        .select()
+        .single();
+
+      if (venueError) throw venueError;
+
+      // Update the venue owner record with the venue_id
+      await supabase
+        .from('venue_owners')
+        .update({ venue_id: newVenue.id })
+        .eq('id', newVenueOwner.id);
+
       // Update request status
       await supabase.from('pending_venue_owner_requests').update({ status: 'approved' }).eq('id', req.id);
 
-      // Send invitation email using a custom approach
+      // Send invitation email using Supabase's built-in signup flow
       try {
-        console.log('🔄 Sending invitation email using custom approach...');
+        console.log('🔄 Sending invitation email using Supabase signup flow...');
         console.log('📧 Email data:', {
           email: req.email,
           venueName: req.venue_name,
@@ -126,47 +132,17 @@ const VenueApprovalsPage = () => {
           venueCity: req.venue_city
         });
 
-        // Create a temporary password for the venue owner
-        const tempPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
-        
-        // Sign up the user with the temporary password
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email: req.email,
-          password: tempPassword,
-          options: {
-            data: {
-              venue_name: req.venue_name,
-              contact_name: req.contact_name,
-              venue_type: venueType,
-              venue_address: req.venue_address,
-              venue_city: req.venue_city,
-              venue_owner_id: newVenueOwner.id,
-              venue_id: newVenue.id,
-              user_type: 'venue_owner',
-              temp_password: tempPassword
-            }
-          }
+        // Send password reset email to invite the user to set up their account
+        const { error: resetError } = await supabase.auth.resetPasswordForEmail(req.email, {
+          redirectTo: `${window.location.origin}/venue-owner/register?approved=true&venue=${encodeURIComponent(req.venue_name)}`
         });
 
-        if (signUpError) {
-          console.error('❌ Error creating user account:', signUpError);
-          throw signUpError;
+        if (resetError) {
+          console.error('❌ Error sending invitation email:', resetError);
+          throw resetError;
         }
 
-        console.log('✅ User account created successfully:', signUpData);
-        
-        // Update the venue owner record with the user ID
-        if (signUpData.user) {
-          await supabase
-            .from('venue_owners')
-            .update({ 
-              user_id: signUpData.user.id,
-              status: 'active'
-            })
-            .eq('id', newVenueOwner.id);
-        }
-
-        console.log('✅ Invitation email sent successfully using Supabase signup flow');
+        console.log('✅ Invitation email sent successfully');
       } catch (emailError) {
         console.error('❌ Error sending invitation email:', emailError);
         console.error('Error details:', {
