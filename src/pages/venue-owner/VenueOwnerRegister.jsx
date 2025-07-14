@@ -151,63 +151,53 @@ const VenueOwnerRegister = () => {
           console.log('✅ Automatic linking successful');
         }
 
+        // Manually link the venue to the user account
+        console.log('🔗 Manually linking venue to user account...');
+        const { error: manualVenueLinkError } = await supabase
+          .from('venues')
+          .update({ 
+            owner_id: signUpData.user.id,
+            updated_at: new Date().toISOString()
+          })
+          .eq('contact_email', formData.email)
+          .is('owner_id', null);
+
+        if (manualVenueLinkError) {
+          console.error('❌ Failed to link venue to user:', manualVenueLinkError);
+          // Don't throw here, as the user account is already created
+        } else {
+          console.log('✅ Venue linked to user account successfully');
+        }
+
         // Verify venue linking (should be automatic via trigger)
         console.log('🔍 Verifying venue link...');
         const { data: linkedVenue, error: venueLinkError } = await supabase
           .from('venues')
           .select('*')
-          .eq('contact_email', formData.email)
           .eq('owner_id', signUpData.user.id)
           .single();
 
         if (venueLinkError || !linkedVenue) {
-          console.warn('⚠️ Venue linking may have failed, attempting manual venue creation...');
+          console.warn('⚠️ Venue not found - trigger may need time to execute');
           
-          // Create venue manually since it doesn't exist
-          const { data: newVenue, error: venueCreationError } = await supabase
+          // Wait a bit longer for the trigger to execute
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          
+          // Check again
+          const { data: retryVenue, error: retryError } = await supabase
             .from('venues')
-            .insert([{
-              name: existingVenues[0].venue_name,
-              owner_id: signUpData.user.id,
-              description: existingVenues[0].venue_description || 'Premium dining and entertainment venue',
-              type: existingVenues[0].venue_type || 'restaurant',
-              price_range: existingVenues[0].price_range || '$$$',
-              address: existingVenues[0].venue_address || 'Lagos, Nigeria',
-              city: existingVenues[0].venue_city || 'Lagos',
-              state: 'Lagos',
-              country: existingVenues[0].venue_country || 'Nigeria',
-              latitude: 6.5244,
-              longitude: 3.3792,
-              contact_email: formData.email,
-              contact_phone: formData.phone,
-              status: 'approved',
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            }])
-            .select()
+            .select('*')
+            .eq('owner_id', signUpData.user.id)
             .single();
-
-          if (venueCreationError) {
-            console.error('❌ Manual venue creation failed:', venueCreationError);
-            throw venueCreationError;
-          } else {
-            console.log('✅ Manual venue creation successful:', newVenue);
             
-            // Update venue_owners to link to the new venue
-            const { error: venueOwnerUpdateError } = await supabase
-              .from('venue_owners')
-              .update({ venue_id: newVenue.id })
-              .eq('user_id', signUpData.user.id)
-              .eq('venue_id', null);
-
-            if (venueOwnerUpdateError) {
-              console.error('⚠️ Failed to update venue_owners with venue_id:', venueOwnerUpdateError);
-            } else {
-              console.log('✅ Venue owner linked to new venue');
-            }
+          if (retryError || !retryVenue) {
+            console.error('❌ Venue creation failed - trigger may not be working');
+            throw new Error('Venue creation failed. Please contact support.');
+          } else {
+            console.log('✅ Venue created after retry');
           }
         } else {
-          console.log('✅ Automatic venue linking successful');
+          console.log('✅ Automatic venue creation successful');
         }
 
         // Send welcome email to the venue owner

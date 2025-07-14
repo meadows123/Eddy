@@ -102,7 +102,7 @@ const VenueApprovalsPage = () => {
           longitude: 3.3792,
           contact_phone: req.contact_phone,
           contact_email: req.email,
-          owner_id: newVenueOwner.id, // Link to the venue owner
+          // Don't set owner_id yet - it will be set when user account is created
           status: 'approved',
           is_active: true
         }])
