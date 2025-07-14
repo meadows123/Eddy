@@ -22,6 +22,7 @@ import {
   FileText
 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { sendVenueOwnerApplicationApproved } from '@/lib/venueOwnerEmailService';
 
 const VenueApprovalsPage = () => {
   console.log('🚨 ADMIN VenueApprovalsPage component loaded - this should ONLY be at /admin/venue-approvals');
@@ -120,9 +121,9 @@ const VenueApprovalsPage = () => {
       // Update request status
       await supabase.from('pending_venue_owner_requests').update({ status: 'approved' }).eq('id', req.id);
 
-      // Send invitation email using Supabase's built-in signup flow
+      // Send invitation email using proper venue owner email service
       try {
-        console.log('🔄 Sending invitation email using Supabase signup flow...');
+        console.log('🔄 Sending venue owner application approved email...');
         console.log('📧 Email data:', {
           email: req.email,
           venueName: req.venue_name,
@@ -132,25 +133,27 @@ const VenueApprovalsPage = () => {
           venueCity: req.venue_city
         });
 
-        // Send password reset email to invite the user to set up their account
-        const { error: resetError } = await supabase.auth.resetPasswordForEmail(req.email, {
-          redirectTo: `${window.location.origin}/venue-owner/register?approved=true&venue=${encodeURIComponent(req.venue_name)}`
-        });
+        // Send approval email using the venue owner email service
+        const venueOwnerData = {
+          email: req.email,
+          contactName: req.contact_name,
+          venueName: req.venue_name,
+          venueType: venueType,
+          venueAddress: req.venue_address,
+          venueCity: req.venue_city,
+          registrationUrl: `${window.location.origin}/venue-owner/register?approved=true&venue=${encodeURIComponent(req.venue_name)}`
+        };
 
-        if (resetError) {
-          console.error('❌ Error sending invitation email:', resetError);
-          throw resetError;
-        }
-
-        console.log('✅ Invitation email sent successfully');
+        await sendVenueOwnerApplicationApproved(venueOwnerData);
+        console.log('✅ Venue owner approval email sent successfully');
       } catch (emailError) {
-        console.error('❌ Error sending invitation email:', emailError);
+        console.error('❌ Error sending approval email:', emailError);
         console.error('Error details:', {
           message: emailError.message,
           stack: emailError.stack,
           name: emailError.name
         });
-        alert(`Warning: Failed to send invitation email: ${emailError.message}`);
+        alert(`Warning: Failed to send approval email: ${emailError.message}`);
         // Don't fail the approval if email fails
       }
 
