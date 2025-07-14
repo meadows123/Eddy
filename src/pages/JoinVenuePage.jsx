@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import { Building, Users, Music, MapPin } from 'lucide-react';
 
@@ -16,6 +17,7 @@ const JoinVenuePage = () => {
     phone: '',
     address: '',
     city: '',
+    venueType: '',
     capacity: '',
     musicGenres: '',
     venueDescription: '',
@@ -24,6 +26,13 @@ const JoinVenuePage = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+    if (errors[name]) {
+      setErrors(prev => ({...prev, [name]: null}));
+    }
+  };
+
+  const handleSelectChange = (name, value) => {
     setFormData(prev => ({ ...prev, [name]: value }));
     if (errors[name]) {
       setErrors(prev => ({...prev, [name]: null}));
@@ -42,6 +51,7 @@ const JoinVenuePage = () => {
     if (!formData.phone.trim()) newErrors.phone = "Phone number is required.";
     if (!formData.address.trim()) newErrors.address = "Venue address is required.";
     if (!formData.city.trim()) newErrors.city = "City is required.";
+    if (!formData.venueType.trim()) newErrors.venueType = "Venue type is required.";
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   }
@@ -57,7 +67,7 @@ const JoinVenuePage = () => {
       });
       setFormData({
         venueName: '', contactPerson: '', email: '', phone: '',
-        address: '', city: '', capacity: '', musicGenres: '', venueDescription: '',
+        address: '', city: '', venueType: '', capacity: '', musicGenres: '', venueDescription: '',
       });
     } else {
       toast({
@@ -128,6 +138,28 @@ const JoinVenuePage = () => {
                 <Input type="text" id="city" name="city" value={formData.city} onChange={handleChange} placeholder="e.g., London" className={`mt-1 ${errors.city ? 'border-destructive' : ''}`} />
                 {errors.city && <p className="text-sm text-destructive mt-1">{errors.city}</p>}
               </div>
+              <div>
+                <Label htmlFor="venueType" className="text-foreground">Venue Type</Label>
+                <Select value={formData.venueType} onValueChange={(value) => handleSelectChange('venueType', value)}>
+                  <SelectTrigger className={`mt-1 ${errors.venueType ? 'border-destructive' : ''}`}>
+                    <SelectValue placeholder="Select venue type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="restaurant">Restaurant</SelectItem>
+                    <SelectItem value="club">Club</SelectItem>
+                    <SelectItem value="lounge">Lounge</SelectItem>
+                    <SelectItem value="bar">Bar</SelectItem>
+                    <SelectItem value="pub">Pub</SelectItem>
+                    <SelectItem value="cafe">Cafe</SelectItem>
+                    <SelectItem value="nightclub">Nightclub</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+                {errors.venueType && <p className="text-sm text-destructive mt-1">{errors.venueType}</p>}
+              </div>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-6">
               <div>
                 <Label htmlFor="capacity" className="text-foreground flex items-center"><Users className="h-4 w-4 mr-2 text-primary" />Capacity (approx.)</Label>
                 <Input type="number" id="capacity" name="capacity" value={formData.capacity} onChange={handleChange} placeholder="e.g., 500" className="mt-1" />

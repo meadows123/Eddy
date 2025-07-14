@@ -217,7 +217,7 @@ export const sendVenueOwnerApplicationApproved = async (venueOwnerData) => {
           email: venueOwnerData.email,
           contactName: venueOwnerData.contact_name || venueOwnerData.owner_name,
           venueName: venueOwnerData.venue_name,
-          venueType: venueOwnerData.venue_type || 'Restaurant',
+          venueType: venueOwnerData.venue_type || 'Restaurant', // Keep fallback but prefer actual type
           venueAddress: venueOwnerData.venue_address,
           venueCity: venueOwnerData.venue_city,
           registrationUrl: `${window.location.origin}/venue-owner/register?approved=true&email=${encodeURIComponent(venueOwnerData.email)}`
@@ -357,6 +357,69 @@ export const notifyAdminOfVenueOwnerRegistration = async (venueOwnerData) => {
   } catch (error) {
     console.error('❌ Error in notifyAdminOfVenueOwnerRegistration:', error);
     throw error;
+  }
+};
+
+// Add this function to handle approval emails with fallback
+export const sendApprovalEmailWithFallback = async (venueOwnerData) => {
+  try {
+    console.log('🔄 Attempting to send approval email via Edge Function...');
+    
+    // Try Edge Function first
+    const { data, error } = await supabase.functions.invoke('send-email', {
+      body: {
+        template: 'venue-owner-invitation',
+        data: {
+          email: venueOwnerData.email,
+          contactName: venueOwnerData.contact_name || venueOwnerData.owner_name,
+          venueName: venueOwnerData.venue_name,
+          venueType: venueOwnerData.venue_type || 'Restaurant', // Keep fallback but prefer actual type
+          venueAddress: venueOwnerData.venue_address,
+          venueCity: venueOwnerData.venue_city
+        }
+      }
+    });
+
+    if (error) {
+      console.warn('⚠️ Edge Function failed, trying EmailJS fallback...', error);
+      throw error; // This will trigger the fallback
+    }
+
+    console.log('✅ Approval email sent via Edge Function:', data);
+    return data;
+  } catch (error) {
+    console.log('🔄 Falling back to EmailJS for approval email...');
+    
+    // Fallback to EmailJS
+    try {
+      const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+      const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_VENUE_OWNER_APPROVAL_TEMPLATE;
+      const PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+      
+      if (!SERVICE_ID || !TEMPLATE_ID || !PUBLIC_KEY) {
+        throw new Error('EmailJS configuration missing');
+      }
+      
+      emailjs.init(PUBLIC_KEY);
+      
+      const result = await emailjs.send(SERVICE_ID, TEMPLATE_ID, {
+        email: venueOwnerData.email,
+        to_name: venueOwnerData.contact_name || venueOwnerData.owner_name,
+        from_name: 'VIPClub',
+        venue_name: venueOwnerData.venue_name,
+        venue_type: venueOwnerData.venue_type || 'Restaurant', // Keep fallback but prefer actual type
+        venue_address: venueOwnerData.venue_address,
+        venue_city: venueOwnerData.venue_city,
+        owner_name: venueOwnerData.contact_name || venueOwnerData.owner_name,
+        application_date: new Date().toLocaleDateString()
+      });
+      
+      console.log('✅ Approval email sent via EmailJS fallback:', result);
+      return result;
+    } catch (fallbackError) {
+      console.error('❌ Both Edge Function and EmailJS fallback failed:', fallbackError);
+      throw fallbackError;
+    }
   }
 };
 

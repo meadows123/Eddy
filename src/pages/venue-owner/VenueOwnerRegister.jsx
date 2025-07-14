@@ -161,21 +161,50 @@ const VenueOwnerRegister = () => {
           .single();
 
         if (venueLinkError || !linkedVenue) {
-          console.warn('⚠️ Venue linking may have failed, attempting manual link...');
+          console.warn('⚠️ Venue linking may have failed, attempting manual venue creation...');
           
-          // Manual venue linking
-          const { error: manualVenueLinkError } = await supabase
+          // Create venue manually since it doesn't exist
+          const { data: newVenue, error: venueCreationError } = await supabase
             .from('venues')
-            .update({ 
-              owner_id: signUpData.user.id
-            })
-            .eq('contact_email', formData.email);
+            .insert([{
+              name: existingVenues[0].venue_name,
+              owner_id: signUpData.user.id,
+              description: existingVenues[0].venue_description || 'Premium dining and entertainment venue',
+              type: existingVenues[0].venue_type || 'restaurant',
+              price_range: existingVenues[0].price_range || '$$$',
+              address: existingVenues[0].venue_address || 'Lagos, Nigeria',
+              city: existingVenues[0].venue_city || 'Lagos',
+              state: 'Lagos',
+              country: existingVenues[0].venue_country || 'Nigeria',
+              latitude: 6.5244,
+              longitude: 3.3792,
+              contact_email: formData.email,
+              contact_phone: formData.phone,
+              status: 'approved',
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }])
+            .select()
+            .single();
 
-          if (manualVenueLinkError) {
-            console.error('⚠️ Manual venue linking failed:', manualVenueLinkError);
-            // Don't fail the registration if venue linking fails
+          if (venueCreationError) {
+            console.error('❌ Manual venue creation failed:', venueCreationError);
+            throw venueCreationError;
           } else {
-            console.log('✅ Manual venue linking successful');
+            console.log('✅ Manual venue creation successful:', newVenue);
+            
+            // Update venue_owners to link to the new venue
+            const { error: venueOwnerUpdateError } = await supabase
+              .from('venue_owners')
+              .update({ venue_id: newVenue.id })
+              .eq('user_id', signUpData.user.id)
+              .eq('venue_id', null);
+
+            if (venueOwnerUpdateError) {
+              console.error('⚠️ Failed to update venue_owners with venue_id:', venueOwnerUpdateError);
+            } else {
+              console.log('✅ Venue owner linked to new venue');
+            }
           }
         } else {
           console.log('✅ Automatic venue linking successful');

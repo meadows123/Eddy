@@ -56,16 +56,12 @@ const VenueApprovalsPage = () => {
   const handleApprove = async (req) => {
     setProcessing(true);
     try {
-      // Validate and normalize venue type
-      const validVenueTypes = ['restaurant', 'club', 'lounge'];
-      const normalizedVenueType = validVenueTypes.includes(req.venue_type?.toLowerCase()) 
-        ? req.venue_type.toLowerCase() 
-        : 'restaurant'; // Default to restaurant if invalid
-
-      console.log('🏢 Venue type validation:', {
+      // Use the actual venue type from the request, with a reasonable fallback
+      const venueType = req.venue_type || 'restaurant';
+      
+      console.log('🏢 Venue type from request:', {
         original: req.venue_type,
-        normalized: normalizedVenueType,
-        validTypes: validVenueTypes
+        using: venueType
       });
 
       // First, create a venue record in the venues table
@@ -74,7 +70,7 @@ const VenueApprovalsPage = () => {
         .insert([{
           name: req.venue_name,
           description: req.additional_info,
-          type: normalizedVenueType, // Use normalized venue type
+          type: venueType, // Use actual venue type
           price_range: req.price_range || '$$',
           address: req.venue_address,
           city: req.venue_city,
@@ -106,7 +102,7 @@ const VenueApprovalsPage = () => {
           owner_name: req.contact_name,
           owner_email: req.email,
           owner_phone: req.contact_phone,
-          venue_type: normalizedVenueType, // Use normalized venue type
+          venue_type: venueType, // Use actual venue type
           opening_hours: req.opening_hours || '',
           capacity: req.capacity || '',
           price_range: req.price_range || '$$',
@@ -127,7 +123,7 @@ const VenueApprovalsPage = () => {
           email: req.email,
           venueName: req.venue_name,
           contactName: req.contact_name,
-          venueType: normalizedVenueType,
+          venueType: venueType,
           venueAddress: req.venue_address,
           venueCity: req.venue_city
         });
@@ -136,7 +132,7 @@ const VenueApprovalsPage = () => {
           email: req.email,
           contact_name: req.contact_name,
           venue_name: req.venue_name,
-          venue_type: normalizedVenueType,
+          venue_type: venueType,
           venue_address: req.venue_address,
           venue_city: req.venue_city
         };
@@ -203,6 +199,57 @@ const VenueApprovalsPage = () => {
       minute: '2-digit'
     });
   };
+
+  // Test function for Edge Function email
+  const testEdgeFunctionEmail = async () => {
+    try {
+      console.log('🧪 Testing Edge Function email...');
+      
+      const testData = {
+        email: 'test@example.com',
+        contactName: 'Test Owner',
+        venueName: 'Test Club',
+        venueType: 'club',
+        venueAddress: '123 Test Street',
+        venueCity: 'Test City',
+        registrationUrl: 'https://example.com/register'
+      };
+      
+      console.log('📧 Test data:', testData);
+      
+      const { data, error } = await supabase.functions.invoke('send-email', {
+        body: {
+          template: 'venue-owner-application-approved',
+          data: testData
+        }
+      });
+
+      if (error) {
+        console.error('❌ Edge Function error:', error);
+        console.error('Error details:', {
+          message: error.message,
+          status: error.status,
+          name: error.name
+        });
+        alert(`Edge Function Error: ${error.message}`);
+        return { success: false, error };
+      }
+
+      console.log('✅ Edge Function test successful:', data);
+      alert('Edge Function test successful! Check console for details.');
+      return { success: true, data };
+    } catch (error) {
+      console.error('❌ Unexpected error:', error);
+      alert(`Unexpected error: ${error.message}`);
+      return { success: false, error };
+    }
+  };
+
+  // Make test function available globally for debugging
+  React.useEffect(() => {
+    window.testEdgeFunctionEmail = testEdgeFunctionEmail;
+    console.log('🧪 Test function available: window.testEdgeFunctionEmail()');
+  }, []);
 
   if (loading) {
     return (
