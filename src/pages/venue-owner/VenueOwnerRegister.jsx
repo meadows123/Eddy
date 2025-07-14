@@ -11,7 +11,6 @@ import { supabase } from '../../lib/supabase';
 import { notifyAdminOfVenueSubmission } from '../../lib/api'; // Adjust path if needed
 import { sendBasicEmail } from '../../lib/emailService.js';
 import { 
-  sendVenueOwnerRegistrationComplete, 
   notifyAdminOfVenueOwnerRegistration 
 } from '../../lib/venueOwnerEmailService.js';
 import emailjs from '@emailjs/browser';
@@ -200,7 +199,7 @@ const VenueOwnerRegister = () => {
           console.log('✅ Automatic venue creation successful');
         }
 
-        // Send welcome email to the venue owner
+        // Send admin notification email
         try {
           const venueOwnerData = {
             email: formData.email,
@@ -211,15 +210,11 @@ const VenueOwnerRegister = () => {
             venue_city: existingVenues[0].venue_city
           };
           
-          // Send registration complete email using new service
-          await sendVenueOwnerRegistrationComplete(venueOwnerData);
-          console.log('✅ Venue owner registration complete email sent successfully');
-          
           // Notify admin of new registration
           await notifyAdminOfVenueOwnerRegistration(venueOwnerData);
           console.log('✅ Admin notification sent successfully');
         } catch (emailError) {
-          console.error('❌ Failed to send venue owner emails:', emailError);
+          console.error('❌ Failed to send admin notification email:', emailError);
           // Don't fail the registration if email fails
         }
 
