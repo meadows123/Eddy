@@ -47,6 +47,45 @@ const VenueOwnerRegister = () => {
 
   const ADMIN_EMAIL = "sales@oneeddy.com"; // Replace with your admin's email
 
+  // Test function to check Supabase email configuration
+  const testSupabaseEmail = async () => {
+    try {
+      console.log('🧪 Testing Supabase email configuration...');
+      
+      const testEmail = 'test@example.com';
+      const { data, error } = await supabase.auth.signUp({
+        email: testEmail,
+        password: 'testpassword123',
+        options: {
+          emailRedirectTo: `${window.location.origin}/venue-owner/login`
+        }
+      });
+      
+      if (error) {
+        console.error('❌ Supabase email test failed:', error);
+        return { success: false, error: error.message };
+      }
+      
+      console.log('✅ Supabase email test successful:', {
+        user: data.user ? 'User created' : 'No user',
+        session: data.session ? 'Session created' : 'No session',
+        email_confirmed: data.user?.email_confirmed_at ? 'Already confirmed' : 'Needs confirmation'
+      });
+      
+      return { success: true, data };
+    } catch (err) {
+      console.error('❌ Error testing Supabase email:', err);
+      return { success: false, error: err.message };
+    }
+  };
+
+  // Make test function available globally for debugging
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.testSupabaseEmail = testSupabaseEmail;
+    }
+  }, []);
+
   // Save form data to localStorage whenever it changes
   useEffect(() => {
     localStorage.setItem('venueRegistrationData', JSON.stringify(formData));
@@ -88,16 +127,32 @@ const VenueOwnerRegister = () => {
         
         // Venue owner has been approved, create user account and link it
         console.log('🔄 Creating user account for approved venue owner...');
+        console.log('📧 Email being used for signup:', formData.email);
+        console.log('🔗 Redirect URL:', `${window.location.origin}/venue-owner/login`);
         
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email: formData.email,
           password: formData.password,
           options: {
-            emailRedirectTo: `${window.location.origin}/venue-owner/login`
+            emailRedirectTo: `${window.location.origin}/venue-owner/login`,
+            data: {
+              full_name: formData.full_name,
+              phone: formData.phone,
+              venue_name: existingVenues[0].venue_name
+            }
           }
         });
 
-        console.log('👤 Sign up result:', { signUpData, signUpError });
+        console.log('👤 Sign up result:', { 
+          user: signUpData?.user ? {
+            id: signUpData.user.id,
+            email: signUpData.user.email,
+            email_confirmed_at: signUpData.user.email_confirmed_at,
+            created_at: signUpData.user.created_at
+          } : null,
+          session: signUpData?.session ? 'Session created' : 'No session',
+          error: signUpError
+        });
 
         if (signUpError) {
           console.error('❌ User creation failed:', signUpError);

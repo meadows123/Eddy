@@ -75,16 +75,16 @@ const Navigation = () => {
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
             <img
-              src="/images/logos/Logo1-Trans.png"
+              src={window.location.origin + "/images/logos/Logo1-Trans.png"}
               alt="VIP Club"
               className="h-10 w-auto object-contain"
               onError={(e) => {
                 console.log('❌ Logo failed to load from:', e.target.src);
-                // Try alternative logo
+                // Try alternative logo with explicit path
                 if (e.target.src.includes('Logo1-Trans.png')) {
-                  e.target.src = '/images/logos/Logo-Trans.png';
+                  e.target.src = window.location.origin + "/images/logos/Logo-Trans.png";
                 } else if (e.target.src.includes('Logo-Trans.png')) {
-                  e.target.src = '/images/logos/Logo1-Trans-new.png';
+                  e.target.src = window.location.origin + "/images/logos/Logo1-Trans-new.png";
                 } else {
                   // Show fallback if all logos fail
                   e.target.style.display = 'none';
@@ -93,6 +93,7 @@ const Navigation = () => {
               }}
               onLoad={(e) => {
                 console.log('✅ Logo loaded successfully from:', e.target.src);
+                setLogoLoaded(true);
               }}
             />
             <div className="flex items-center space-x-2" style={{ display: 'none' }}>
