@@ -114,9 +114,9 @@ const VenueApprovalsPage = () => {
       // Update request status
       await supabase.from('pending_venue_owner_requests').update({ status: 'approved' }).eq('id', req.id);
 
-      // Send invitation email using Supabase's built-in "Confirm signup" template
+      // Send invitation email using a custom approach
       try {
-        console.log('🔄 Sending invitation email using Supabase built-in template...');
+        console.log('🔄 Sending invitation email using custom approach...');
         console.log('📧 Email data:', {
           email: req.email,
           venueName: req.venue_name,
@@ -126,11 +126,14 @@ const VenueApprovalsPage = () => {
           venueCity: req.venue_city
         });
 
-        // Use Supabase's built-in auth.admin.inviteUserByEmail() function
-        // This will trigger the "Confirm signup" email template
-        const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(
-          req.email,
-          {
+        // Create a temporary password for the venue owner
+        const tempPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-8);
+        
+        // Sign up the user with the temporary password
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email: req.email,
+          password: tempPassword,
+          options: {
             data: {
               venue_name: req.venue_name,
               contact_name: req.contact_name,
@@ -138,17 +141,32 @@ const VenueApprovalsPage = () => {
               venue_address: req.venue_address,
               venue_city: req.venue_city,
               venue_owner_id: newVenueOwner.id,
-              venue_id: newVenue.id
+              venue_id: newVenue.id,
+              user_type: 'venue_owner',
+              temp_password: tempPassword
             }
           }
-        );
+        });
 
-        if (inviteError) {
-          console.error('❌ Error sending invitation email:', inviteError);
-          throw inviteError;
+        if (signUpError) {
+          console.error('❌ Error creating user account:', signUpError);
+          throw signUpError;
         }
 
-        console.log('✅ Invitation email sent successfully using Supabase built-in template:', inviteData);
+        console.log('✅ User account created successfully:', signUpData);
+        
+        // Update the venue owner record with the user ID
+        if (signUpData.user) {
+          await supabase
+            .from('venue_owners')
+            .update({ 
+              user_id: signUpData.user.id,
+              status: 'active'
+            })
+            .eq('id', newVenueOwner.id);
+        }
+
+        console.log('✅ Invitation email sent successfully using Supabase signup flow');
       } catch (emailError) {
         console.error('❌ Error sending invitation email:', emailError);
         console.error('Error details:', {
@@ -209,106 +227,6 @@ const VenueApprovalsPage = () => {
       minute: '2-digit'
     });
   };
-
-  // Test function for Edge Function email
-  const testEdgeFunctionEmail = async () => {
-    try {
-      console.log('🧪 Testing Edge Function email...');
-      
-      const testData = {
-        email: 'test@example.com',
-        contactName: 'Test Owner',
-        venueName: 'Test Club',
-        venueType: 'club',
-        venueAddress: '123 Test Street',
-        venueCity: 'Test City',
-        registrationUrl: 'https://example.com/register'
-      };
-      
-      console.log('📧 Test data:', testData);
-      
-      const { data, error } = await supabase.functions.invoke('send-email', {
-        body: {
-          template: 'venue-owner-application-approved',
-          data: testData
-        }
-      });
-
-      if (error) {
-        console.error('❌ Edge Function error:', error);
-        console.error('Error details:', {
-          message: error.message,
-          status: error.status,
-          name: error.name
-        });
-        alert(`Edge Function Error: ${error.message}`);
-        return { success: false, error };
-      }
-
-      console.log('✅ Edge Function test successful:', data);
-      alert('Edge Function test successful! Check console for details.');
-      return { success: true, data };
-    } catch (error) {
-      console.error('❌ Unexpected error:', error);
-      alert(`Unexpected error: ${error.message}`);
-      return { success: false, error };
-    }
-  };
-
-  // Test function for venue owner signup complete email
-  const testVenueOwnerSignupEmail = async () => {
-    try {
-      console.log('🧪 Testing venue owner signup complete email...');
-      
-      const testData = {
-        email: 'test@example.com',
-        ownerName: 'Test Owner',
-        venueName: 'Test Club',
-        venueType: 'club',
-        venueAddress: '123 Test Street',
-        venueCity: 'Test City',
-        dashboardUrl: `${window.location.origin}/venue-owner/dashboard`,
-        loginUrl: `${window.location.origin}/venue-owner/login`
-      };
-      
-      console.log('📧 Test data:', testData);
-      
-      const { data, error } = await supabase.functions.invoke('send-email', {
-        body: {
-          template: 'venue-owner-signup-complete',
-          data: testData
-        }
-      });
-
-      if (error) {
-        console.error('❌ Edge Function error:', error);
-        console.error('Error details:', {
-          message: error.message,
-          status: error.status,
-          name: error.name
-        });
-        alert(`Edge Function Error: ${error.message}`);
-        return { success: false, error };
-      }
-
-      console.log('✅ Venue owner signup email test successful:', data);
-      alert('Venue owner signup email test successful! Check console for details.');
-      return { success: true, data };
-    } catch (error) {
-      console.error('❌ Unexpected error:', error);
-      alert(`Unexpected error: ${error.message}`);
-      return { success: false, error };
-    }
-  };
-
-  // Make test functions available globally for debugging
-  React.useEffect(() => {
-    window.testEdgeFunctionEmail = testEdgeFunctionEmail;
-    window.testVenueOwnerSignupEmail = testVenueOwnerSignupEmail;
-    console.log('🧪 Test functions available:');
-    console.log('   - window.testEdgeFunctionEmail()');
-    console.log('   - window.testVenueOwnerSignupEmail()');
-  }, []);
 
   if (loading) {
     return (
