@@ -109,12 +109,12 @@ const VenueOwnerRegister = () => {
       console.log('🔄 Starting venue owner registration process...');
       console.log('📧 Form email:', formData.email);
 
-      // First, check if there's an existing approved venue owner record for this email
+      // First, check if there's an existing venue owner record for this email
       const { data: existingVenues, error: venueCheckError } = await supabase
         .from('venue_owners')
         .select('*')
         .eq('owner_email', formData.email)
-        .eq('status', 'pending_owner_signup');
+        .in('status', ['pending_owner_signup', 'active']); // Check both old and new statuses
 
       console.log('🔍 Existing venues check:', { existingVenues, venueCheckError });
 
@@ -123,6 +123,18 @@ const VenueOwnerRegister = () => {
       }
 
       if (existingVenues && existingVenues.length > 0) {
+        const existingVenue = existingVenues[0];
+        
+        // If venue owner is already active, redirect to login
+        if (existingVenue.status === 'active') {
+          console.log('✅ Venue owner already active, redirecting to login...');
+          setError('Account already exists and is active. Please use the login page to access your dashboard.');
+          setTimeout(() => {
+            navigate('/venue-owner/login');
+          }, 3000);
+          return;
+        }
+        
         console.log('✅ Found existing approved venue owner record, creating user account...');
         
         // Venue owner has been approved, create user account and link it
@@ -138,7 +150,7 @@ const VenueOwnerRegister = () => {
             data: {
               full_name: formData.full_name,
               phone: formData.phone,
-              venue_name: existingVenues[0].venue_name
+              venue_name: existingVenue.venue_name
             }
           }
         });
@@ -205,53 +217,99 @@ const VenueOwnerRegister = () => {
           console.log('✅ Automatic linking successful');
         }
 
-        // Manually link the venue to the user account
-        console.log('🔗 Manually linking venue to user account...');
-        const { error: manualVenueLinkError } = await supabase
-          .from('venues')
-          .update({ 
-            owner_id: signUpData.user.id,
-            updated_at: new Date().toISOString()
-          })
-          .eq('contact_email', formData.email)
-          .is('owner_id', null);
-
-        if (manualVenueLinkError) {
-          console.error('❌ Failed to link venue to user:', manualVenueLinkError);
-          // Don't throw here, as the user account is already created
-        } else {
-          console.log('✅ Venue linked to user account successfully');
-        }
-
-        // Verify venue linking (should be automatic via trigger)
-        console.log('🔍 Verifying venue link...');
-        const { data: linkedVenue, error: venueLinkError } = await supabase
+        // Link the venue to the user account
+        console.log('🔗 Linking venue to user account...');
+        
+        // For the new flow, the venue should already exist with owner_id set
+        // Try to find the venue linked to this venue owner
+        let { data: venueToLink, error: venueFindError } = await supabase
           .from('venues')
           .select('*')
-          .eq('owner_id', signUpData.user.id)
+          .eq('id', existingVenue.venue_id)
           .single();
 
-        if (venueLinkError || !linkedVenue) {
-          console.warn('⚠️ Venue not found - trigger may need time to execute');
+        if (venueFindError && venueFindError.code === 'PGRST116') {
+          // No venue found, try alternative approach
+          console.log('⚠️ No venue found by contact_email, trying alternative search...');
           
-          // Wait a bit longer for the trigger to execute
-          await new Promise(resolve => setTimeout(resolve, 3000));
-          
-          // Check again
-          const { data: retryVenue, error: retryError } = await supabase
-            .from('venues')
-            .select('*')
-            .eq('owner_id', signUpData.user.id)
+          // Try to find venue by venue name and owner email in venue_owners
+          const { data: venueOwnerRecord } = await supabase
+            .from('venue_owners')
+            .select('venue_name, owner_email')
+            .eq('owner_email', formData.email.trim())
+            .eq('status', 'active')
             .single();
             
-          if (retryError || !retryVenue) {
-            console.error('❌ Venue creation failed - trigger may not be working');
-            throw new Error('Venue creation failed. Please contact support.');
+          if (venueOwnerRecord) {
+            // Try to find venue by name and email combination
+            const { data: altVenue, error: altError } = await supabase
+              .from('venues')
+              .select('*')
+              .eq('name', venueOwnerRecord.venue_name)
+              .ilike('contact_email', formData.email.trim())
+              .is('owner_id', null)
+              .single();
+              
+            if (!altError && altVenue) {
+              venueToLink = altVenue;
+              venueFindError = null;
+              console.log('✅ Found venue using alternative search');
+            }
+          }
+        }
+
+        if (venueFindError) {
+          console.error('❌ Failed to find venue to link:', venueFindError);
+          
+          // Show all venues for debugging
+          const { data: allVenues } = await supabase
+            .from('venues')
+            .select('id, name, contact_email, owner_id')
+            .ilike('contact_email', `%${formData.email.split('@')[0]}%`);
+            
+          console.log('🔍 Available venues for debugging:', allVenues);
+          
+          throw new Error('Venue not found. Please contact support.');
+        }
+
+        if (venueToLink) {
+          console.log('🏢 Found venue to link:', venueToLink.id);
+          
+          // Update the venue with the owner_id
+          const { error: venueUpdateError } = await supabase
+            .from('venues')
+            .update({ 
+              owner_id: signUpData.user.id,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', venueToLink.id);
+
+          if (venueUpdateError) {
+            console.error('❌ Failed to update venue owner_id:', venueUpdateError);
+            throw venueUpdateError;
+          }
+
+          console.log('✅ Venue linked to user account successfully');
+
+          // Update the venue_owners record with the venue_id
+          const { error: venueOwnerUpdateError } = await supabase
+            .from('venue_owners')
+            .update({ 
+              venue_id: venueToLink.id,
+              updated_at: new Date().toISOString()
+            })
+            .eq('owner_email', formData.email.trim())
+            .eq('status', 'active');
+
+          if (venueOwnerUpdateError) {
+            console.error('❌ Failed to update venue_owners with venue_id:', venueOwnerUpdateError);
+            // Don't throw here as the main linking is done
           } else {
-            console.log('✅ Venue created after retry');
+            console.log('✅ Venue owner record updated with venue_id');
           }
         } else {
-          console.log('✅ Automatic venue creation successful');
+          console.warn('⚠️ No venue found to link - this should not happen');
+          throw new Error('Venue linking failed. Please contact support.');
         }
 
         // Send admin notification email
@@ -259,10 +317,10 @@ const VenueOwnerRegister = () => {
           const venueOwnerData = {
             email: formData.email,
             owner_name: formData.full_name,
-            venue_name: existingVenues[0].venue_name,
-            venue_type: existingVenues[0].venue_type,
-            venue_address: existingVenues[0].venue_address,
-            venue_city: existingVenues[0].venue_city
+            venue_name: existingVenue.venue_name,
+            venue_type: existingVenue.venue_type,
+            venue_address: existingVenue.venue_address,
+            venue_city: existingVenue.venue_city
           };
           
           // Notify admin of new registration
@@ -307,7 +365,67 @@ const VenueOwnerRegister = () => {
 
       console.log('📝 No existing approved record found, creating new pending request...');
 
-      // No existing approved record, create a new pending request
+      // First, create the user account immediately
+      console.log('🔄 Creating user account for new venue owner application...');
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/venue-owner/login`,
+          data: {
+            full_name: formData.full_name,
+            phone: formData.phone,
+            venue_name: formData.venue_name
+          }
+        }
+      });
+
+      if (signUpError) {
+        console.error('❌ User creation failed:', signUpError);
+        setError(`Failed to create account: ${signUpError.message}`);
+        return;
+      }
+
+      if (!signUpData.user || !signUpData.user.id) {
+        console.error('❌ No user data returned from signup');
+        setError('Failed to create user account');
+        return;
+      }
+
+      console.log('✅ User account created successfully:', signUpData.user.id);
+
+      // Create venue owner record with user_id and pending approval status
+      const { data: venueOwnerData, error: venueOwnerError } = await supabase
+        .from('venue_owners')
+        .insert([{
+          user_id: signUpData.user.id,
+          venue_name: formData.venue_name,
+          venue_description: formData.venue_description,
+          venue_address: formData.venue_address,
+          venue_city: formData.venue_city,
+          venue_country: formData.venue_country,
+          venue_phone: formData.phone,
+          owner_name: formData.full_name,
+          owner_email: formData.email,
+          owner_phone: formData.phone,
+          venue_type: formData.venue_type,
+          opening_hours: formData.opening_hours || '',
+          capacity: formData.capacity || '',
+          price_range: formData.price_range || '$$',
+          status: 'pending_approval' // NEW status: waiting for admin approval
+        }])
+        .select()
+        .single();
+
+      if (venueOwnerError) {
+        console.error('❌ Venue owner creation failed:', venueOwnerError);
+        setError(`Failed to create venue owner record: ${venueOwnerError.message}`);
+        return;
+      }
+
+      console.log('✅ Venue owner record created successfully');
+
+      // Also create the pending request for admin tracking
       const requestData = {
         email: formData.email,
         venue_name: formData.venue_name,
@@ -321,7 +439,8 @@ const VenueOwnerRegister = () => {
         opening_hours: formData.opening_hours,
         capacity: formData.capacity,
         price_range: formData.price_range,
-        status: 'pending'
+        status: 'pending',
+        user_id: signUpData.user.id // Link to the created user
       };
 
       const { data, error } = await supabase
@@ -329,49 +448,58 @@ const VenueOwnerRegister = () => {
         .insert([requestData]);
 
       if (error) {
-        setError(error.message);
-        console.error('Supabase error:', error);
-        return;
+        console.warn('⚠️ Failed to create pending request record:', error);
+        // Don't fail the whole process for this
       }
-      setSuccess('Your venue application has been submitted successfully! Our team will review it within 48 hours. You will receive an email notification once your application is approved.');
 
+      // Send admin notification email
       const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
       const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_VENUE_OWNER_REQUEST_TEMPLATE;
       const PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
       
-      console.log('Debug - SERVICE_ID:', SERVICE_ID);
-      console.log('Debug - TEMPLATE_ID:', TEMPLATE_ID);
-      console.log('Debug - PUBLIC_KEY:', PUBLIC_KEY);
-      
-      emailjs.init(PUBLIC_KEY);
-
-      await emailjs.send(
-        SERVICE_ID,
-        TEMPLATE_ID,
-        {
-          email: 'info@oneeddy.com',
-          to_name: 'Admin',
-          from_name: 'Eddys Members',
-          subject: 'New Venue Owner Application',
-          ownerName: formData.full_name,
-          ownerEmail: formData.email,
-          ownerPhone: formData.phone,
-          applicationDate: new Date().toLocaleDateString('en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
-          }),
-          venueName: formData.venue_name,
-          venueDescription: formData.venue_description,
-          venueType: formData.venue_type || 'Not specified',
-          venueCapacity: formData.capacity || 'Not specified',
-          venueAddress: formData.venue_address,
-          priceRange: formData.price_range || 'Not specified',
-          openingHours: formData.opening_hours || 'Not specified',
-          venuePhone: formData.phone
+      if (SERVICE_ID && TEMPLATE_ID && PUBLIC_KEY) {
+        try {
+          emailjs.init(PUBLIC_KEY);
+          await emailjs.send(
+            SERVICE_ID,
+            TEMPLATE_ID,
+            {
+              email: 'info@oneeddy.com',
+              to_name: 'Admin',
+              from_name: 'Eddys Members',
+              subject: 'New Venue Owner Application',
+              ownerName: formData.full_name,
+              ownerEmail: formData.email,
+              ownerPhone: formData.phone,
+              applicationDate: new Date().toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              }),
+              venueName: formData.venue_name,
+              venueDescription: formData.venue_description,
+              venueType: formData.venue_type || 'Not specified',
+              venueCapacity: formData.capacity || 'Not specified',
+              venueAddress: formData.venue_address,
+              priceRange: formData.price_range || 'Not specified',
+              openingHours: formData.opening_hours || 'Not specified',
+              venuePhone: formData.phone
+            }
+          );
+          console.log('✅ Admin notification email sent');
+        } catch (emailError) {
+          console.error('❌ Failed to send admin notification:', emailError);
+          // Don't fail the registration if email fails
         }
-      );
+      }
+
+      // Check if email confirmation is required
+      if (signUpData.user && !signUpData.user.email_confirmed_at) {
+        setSuccess('Account created successfully! Please check your email and click the confirmation link to complete your registration. Your venue will be reviewed by our team within 48 hours.');
+      } else {
+        setSuccess('Account created successfully! Your venue application has been submitted and will be reviewed by our team within 48 hours.');
+      }
       // Optionally clear the form or redirect
     } catch (err) {
       setError(err.message || 'An unexpected error occurred.');

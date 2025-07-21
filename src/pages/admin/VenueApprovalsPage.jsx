@@ -62,37 +62,28 @@ const VenueApprovalsPage = () => {
         using: venueType
       });
 
-      // First, create a venue owner record (this will be the main record)
-      const { data: newVenueOwner, error: venueOwnerError } = await supabase
+      // Find the existing venue owner record that was created during registration
+      const { data: existingVenueOwner, error: venueOwnerFindError } = await supabase
         .from('venue_owners')
-        .insert([{
-          venue_name: req.venue_name,
-          venue_description: req.additional_info,
-          venue_address: req.venue_address,
-          venue_city: req.venue_city,
-          venue_country: req.venue_country,
-          venue_phone: req.contact_phone,
-          owner_name: req.contact_name,
-          owner_email: req.email,
-          owner_phone: req.contact_phone,
-          venue_type: venueType, // Use actual venue type
-          opening_hours: req.opening_hours || '',
-          capacity: req.capacity || '',
-          price_range: req.price_range || '$$',
-          status: 'pending_owner_signup' // Will be updated when user signs up
-        }])
-        .select()
+        .select('*')
+        .eq('owner_email', req.email)
+        .eq('status', 'pending_approval')
         .single();
 
-      if (venueOwnerError) throw venueOwnerError;
+      if (venueOwnerFindError || !existingVenueOwner) {
+        console.error('❌ Could not find existing venue owner record:', venueOwnerFindError);
+        throw new Error(`Could not find venue owner record for ${req.email}. Make sure they have completed the registration process first.`);
+      }
 
-      // Then, create a venue record in the venues table with the owner_id
+      console.log('✅ Found existing venue owner record:', existingVenueOwner);
+
+      // Create a venue record with the correct owner_id (user already exists!)
       const { data: newVenue, error: venueError } = await supabase
         .from('venues')
         .insert([{
           name: req.venue_name,
           description: req.additional_info,
-          type: venueType, // Use actual venue type
+          type: venueType,
           price_range: req.price_range || '$$',
           address: req.venue_address,
           city: req.venue_city,
@@ -102,7 +93,7 @@ const VenueApprovalsPage = () => {
           longitude: 3.3792,
           contact_phone: req.contact_phone,
           contact_email: req.email,
-          // Don't set owner_id yet - it will be set when user account is created
+          owner_id: existingVenueOwner.user_id, // THIS IS THE KEY FIX!
           status: 'approved',
           is_active: true
         }])
@@ -111,19 +102,50 @@ const VenueApprovalsPage = () => {
 
       if (venueError) throw venueError;
 
-      // Update the venue owner record with the venue_id
-      await supabase
+      console.log('✅ Venue created with owner_id:', newVenue.owner_id);
+
+      // Update the venue owner record: set status to active and link venue
+      const { error: venueOwnerUpdateError } = await supabase
         .from('venue_owners')
-        .update({ venue_id: newVenue.id })
-        .eq('id', newVenueOwner.id);
+        .update({ 
+          venue_id: newVenue.id,
+          status: 'active' // Now active since admin approved
+        })
+        .eq('id', existingVenueOwner.id);
+
+      if (venueOwnerUpdateError) throw venueOwnerUpdateError;
 
       // Update request status
-      await supabase.from('pending_venue_owner_requests').update({ status: 'approved' }).eq('id', req.id);
+      await supabase
+        .from('pending_venue_owner_requests')
+        .update({ status: 'approved' })
+        .eq('id', req.id);
+
+      // Send approval notification email to venue owner
+      try {
+        const venueOwnerData = {
+          email: req.email,
+          contact_name: req.contact_name,
+          owner_name: req.contact_name,
+          venue_name: req.venue_name,
+          venue_type: venueType,
+          venue_address: req.venue_address,
+          venue_city: req.venue_city
+        };
+        
+        // Import the email service
+        const { sendVenueOwnerApplicationApproved } = await import('../../lib/venueOwnerEmailService');
+        await sendVenueOwnerApplicationApproved(venueOwnerData);
+        console.log('✅ Approval notification email sent');
+      } catch (emailError) {
+        console.error('❌ Failed to send approval email:', emailError);
+        // Don't fail the approval if email fails
+      }
 
       // Refresh the list
       await loadRequests();
       
-      alert('Venue owner approved successfully! The venue owner can now register using their email address and will receive a confirmation email from Supabase.');
+      alert(`Venue owner approved successfully! ${req.contact_name} can now access their venue dashboard. The venue "${req.venue_name}" is now live with proper owner linking.`);
     } catch (error) {
       console.error('Error approving request:', error);
       alert('Error approving request: ' + error.message);
