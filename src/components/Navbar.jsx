@@ -24,8 +24,8 @@ const Navbar = () => {
       <div className="container flex h-20 items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
           <motion.img
-            src="/logos/Logo-Trans.png"
-            alt="VIP Club"
+            src="/images/logos/Logo1-Trans.png"
+            alt="Eddy Members"
             className="h-12 w-auto object-contain"
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
