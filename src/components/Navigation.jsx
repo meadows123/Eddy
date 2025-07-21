@@ -75,16 +75,16 @@ const Navigation = () => {
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
             <img
-              src="/logos/Logo1-Trans.png"
+              src="/logos/Logo1-Trans-new.png"
               alt="VIP Club"
               className="h-14 w-auto object-contain"
               style={{ maxWidth: '200px', minHeight: '56px' }}
               onError={(e) => {
                 console.log('❌ Logo failed to load from:', e.target.src);
                 // Try alternative logos in build order
-                if (e.target.src.includes('Logo1-Trans.png')) {
-                  e.target.src = '/logos/Logo-Trans.png';
-                } else if (e.target.src.includes('Logo-Trans.png')) {
+                if (e.target.src.includes('Logo1-Trans-new.png')) {
+                  e.target.src = '/logos/Logo1-Trans-new.png';
+                } else if (e.target.src.includes('Logo1-Trans-new.png')) {
                   e.target.src = '/logos/Logo1-Trans-new.png';
                 } else {
                   // If all fail, show fallback

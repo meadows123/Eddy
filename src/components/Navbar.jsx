@@ -24,7 +24,7 @@ const Navbar = () => {
       <div className="container flex h-20 items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
           <motion.img
-            src="/logos/Logo1-Trans.png"
+            src="/logos/Logo1-Trans-new.png"
             alt="Eddy Members"
             className="h-16 w-auto object-contain"
             style={{ maxWidth: '250px', minHeight: '64px' }}
@@ -42,9 +42,9 @@ const Navbar = () => {
             onError={(e) => {
               console.log('❌ Navbar logo failed to load from:', e.target.src);
               // Try alternative logos in build order
-              if (e.target.src.includes('Logo1-Trans.png')) {
-                e.target.src = '/logos/Logo-Trans.png';
-              } else if (e.target.src.includes('Logo-Trans.png')) {
+              if (e.target.src.includes('Logo1-Trans-new.png')) {
+                e.target.src = '/logos/Logo1-Trans-new.png';
+              } else if (e.target.src.includes('Logo-Trans-new.png')) {
                 e.target.src = '/logos/Logo1-Trans-new.png';
               } else {
                 // Show text fallback if all logos fail
