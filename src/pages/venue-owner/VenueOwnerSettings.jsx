@@ -61,9 +61,64 @@ const VenueOwnerSettings = () => {
     weekly_report: true
   });
 
+  // Debug function to check venue ownership
+  const debugVenueOwnership = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        console.log('❌ No authenticated user');
+        return;
+      }
+
+      console.log('🔍 VENUE OWNERSHIP DEBUG:');
+      console.log('👤 Current user:', { id: user.id, email: user.email });
+      console.log('🏢 Current venue:', venue ? { id: venue.id, owner_id: venue.owner_id, name: venue.name } : 'No venue');
+
+      // Check venue ownership
+      const { data: venueCheck, error: venueError } = await supabase
+        .from('venues')
+        .select('*')
+        .eq('owner_id', user.id);
+
+      console.log('🏢 Venues owned by user:', venueCheck);
+      if (venueError) console.error('❌ Venue check error:', venueError);
+
+      // Check venue_owners record
+      const { data: venueOwnerCheck, error: ownerError } = await supabase
+        .from('venue_owners')
+        .select('*')
+        .eq('user_id', user.id);
+
+      console.log('👥 Venue owner records:', venueOwnerCheck);
+      if (ownerError) console.error('❌ Venue owner check error:', ownerError);
+
+      // Test if we can update the venue
+      if (venue) {
+        const { data: updateTest, error: updateError } = await supabase
+          .from('venues')
+          .select('id, name, owner_id')
+          .eq('id', venue.id)
+          .eq('owner_id', user.id);
+
+        console.log('🧪 Update test result:', updateTest);
+        if (updateError) console.error('❌ Update test error:', updateError);
+      }
+
+    } catch (error) {
+      console.error('❌ Debug function error:', error);
+    }
+  };
+
   useEffect(() => {
     checkAuth();
   }, []);
+
+  // Auto-debug on component mount in development
+  useEffect(() => {
+    if (import.meta.env.DEV && venue && currentUser) {
+      debugVenueOwnership();
+    }
+  }, [venue, currentUser]);
 
   const checkAuth = async () => {
     try {
@@ -117,6 +172,8 @@ const VenueOwnerSettings = () => {
     try {
       setLoading(true);
 
+      console.log('🔍 Fetching venue data for user:', userId);
+
       // Fetch venue
       const { data: venueData, error: venueError } = await supabase
         .from('venues')
@@ -125,8 +182,38 @@ const VenueOwnerSettings = () => {
         .single();
 
       if (venueError) {
-        console.error('Error fetching venue:', venueError);
-        return;
+        console.error('❌ Error fetching venue:', venueError);
+        
+        // Try to find venue by email instead (fallback)
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.email) {
+          console.log('🔄 Trying to fetch venue by email:', user.email);
+          const { data: venueByEmail, error: emailError } = await supabase
+            .from('venues')
+            .select('*')
+            .eq('contact_email', user.email)
+            .single();
+          
+          if (venueByEmail && !emailError) {
+            console.log('✅ Found venue by email, updating owner_id...');
+            // Update the venue's owner_id
+            await supabase
+              .from('venues')
+              .update({ owner_id: userId })
+              .eq('id', venueByEmail.id);
+            
+            setVenue({ ...venueByEmail, owner_id: userId });
+            console.log('✅ Venue owner_id fixed');
+          } else {
+            console.error('❌ No venue found by email either:', emailError);
+            return;
+          }
+        } else {
+          return;
+        }
+      } else {
+        setVenue(venueData);
+        console.log('✅ Venue fetched successfully:', venueData.id);
       }
 
       setVenue(venueData);
@@ -180,27 +267,60 @@ const VenueOwnerSettings = () => {
     try {
       setSaving(true);
 
-      const { error } = await supabase
-        .from('venues')
-        .update({
-          name: venueForm.name,
-          description: venueForm.description,
-          type: venueForm.type,
-          address: venueForm.address,
-          city: venueForm.city,
-          country: venueForm.country,
-          contact_phone: venueForm.contact_phone,
-          contact_email: venueForm.contact_email,
-          capacity: venueForm.capacity ? parseInt(venueForm.capacity) : null,
-          price_range: venueForm.price_range,
-          opening_hours: venueForm.opening_hours,
-          ambiance: venueForm.ambiance,
-          dress_code: venueForm.dress_code,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', venue.id);
+      console.log('🔄 Attempting to update venue:', venue.id);
+      console.log('👤 Current user ID:', currentUser?.id);
+      console.log('🏢 Venue owner_id:', venue.owner_id);
 
-      if (error) throw error;
+      // Validate that we have proper authentication
+      if (!currentUser?.id) {
+        throw new Error('Authentication required. Please log in again.');
+      }
+
+      // Validate that this user owns this venue
+      if (venue.owner_id !== currentUser.id) {
+        console.error('❌ User does not own this venue:', {
+          userID: currentUser.id,
+          venueOwnerID: venue.owner_id
+        });
+        throw new Error('You do not have permission to update this venue.');
+      }
+
+      const updateData = {
+        name: venueForm.name,
+        description: venueForm.description,
+        type: venueForm.type,
+        address: venueForm.address,
+        city: venueForm.city,
+        country: venueForm.country,
+        contact_phone: venueForm.contact_phone,
+        contact_email: venueForm.contact_email,
+        capacity: venueForm.capacity ? parseInt(venueForm.capacity) : null,
+        price_range: venueForm.price_range,
+        opening_hours: venueForm.opening_hours,
+        ambiance: venueForm.ambiance,
+        dress_code: venueForm.dress_code,
+        updated_at: new Date().toISOString()
+      };
+
+      console.log('📝 Update data:', updateData);
+
+      const { data, error } = await supabase
+        .from('venues')
+        .update(updateData)
+        .eq('id', venue.id)
+        .eq('owner_id', currentUser.id) // Double-check ownership
+        .select();
+
+      if (error) {
+        console.error('❌ Supabase update error:', error);
+        throw error;
+      }
+
+      if (!data || data.length === 0) {
+        throw new Error('No venue was updated. Please check that you own this venue.');
+      }
+
+      console.log('✅ Venue updated successfully:', data[0]);
 
       toast({
         title: 'Success!',
@@ -212,10 +332,21 @@ const VenueOwnerSettings = () => {
       await fetchVenueData(currentUser.id);
 
     } catch (error) {
-      console.error('Error updating venue:', error);
+      console.error('❌ Error updating venue:', error);
+      
+      let errorMessage = 'Failed to update venue details';
+      
+      if (error.message.includes('permission') || error.message.includes('policy')) {
+        errorMessage = 'Permission denied. Please ensure you own this venue.';
+      } else if (error.message.includes('authentication') || error.message.includes('auth')) {
+        errorMessage = 'Authentication error. Please log in again.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
       toast({
         title: 'Error',
-        description: 'Failed to update venue details',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -397,7 +528,7 @@ const VenueOwnerSettings = () => {
                   </div>
                 </div>
 
-                <div className="pt-4 border-t">
+                <div className="pt-4 border-t flex gap-4">
                   <Button type="submit" disabled={saving} className="bg-brand-burgundy text-white hover:bg-brand-burgundy/90">
                     {saving ? (
                       <>
@@ -411,6 +542,18 @@ const VenueOwnerSettings = () => {
                       </>
                     )}
                   </Button>
+                  
+                  {/* Debug button - only show in development */}
+                  {import.meta.env.DEV && (
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={debugVenueOwnership}
+                      className="border-gray-300 text-gray-600 hover:bg-gray-50"
+                    >
+                      🔍 Debug Ownership
+                    </Button>
+                  )}
                 </div>
               </form>
             </CardContent>
