@@ -18,9 +18,25 @@ const Footer = () => {
           <div>
             <div className="mb-4">
               <img
-                src="/images/logos/Logo1-Trans.png"
+                src="/logos/Logo1-Trans.png"
                 alt="VIP Club"
                 className="h-8 w-auto"
+                onError={(e) => {
+                  console.log('❌ Footer logo failed to load from:', e.target.src);
+                  // Try alternative logos in build order
+                  if (e.target.src.includes('Logo1-Trans.png')) {
+                    e.target.src = '/logos/Logo-Trans.png';
+                  } else if (e.target.src.includes('Logo-Trans.png')) {
+                    e.target.src = '/logos/Logo1-Trans-new.png';
+                  } else {
+                    // Show text fallback if all logos fail
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'block';
+                  }
+                }}
+                onLoad={(e) => {
+                  console.log('✅ Footer logo loaded successfully from:', e.target.src);
+                }}
               />
               <h3 className="text-xl font-heading font-bold text-white" style={{ display: 'none' }}>
                 VIP Club

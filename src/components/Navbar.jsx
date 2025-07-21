@@ -24,17 +24,25 @@ const Navbar = () => {
       <div className="container flex h-20 items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
           <motion.img
-            src="/images/logos/Logo1-Trans.png"
+            src="/logos/Logo1-Trans.png"
             alt="Eddy Members"
             className="h-12 w-auto object-contain"
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
-            onLoad={() => console.log('✅ Logo loaded successfully')}
+            onLoad={() => console.log('✅ Navbar logo loaded successfully')}
             onError={(e) => {
-              console.log('❌ Logo failed to load from:', e.target.src);
-              e.target.style.display = 'none';
-              e.target.nextSibling.style.display = 'flex';
+              console.log('❌ Navbar logo failed to load from:', e.target.src);
+              // Try alternative logos in build order
+              if (e.target.src.includes('Logo1-Trans.png')) {
+                e.target.src = '/logos/Logo-Trans.png';
+              } else if (e.target.src.includes('Logo-Trans.png')) {
+                e.target.src = '/logos/Logo1-Trans-new.png';
+              } else {
+                // Show text fallback if all logos fail
+                e.target.style.display = 'none';
+                e.target.nextSibling.style.display = 'flex';
+              }
             }}
           />
           <motion.div
