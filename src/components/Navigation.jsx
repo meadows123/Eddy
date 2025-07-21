@@ -77,7 +77,8 @@ const Navigation = () => {
             <img
               src="/logos/Logo1-Trans.png"
               alt="VIP Club"
-              className="h-10 w-auto object-contain"
+              className="h-14 w-auto object-contain"
+              style={{ maxWidth: '200px', minHeight: '56px' }}
               onError={(e) => {
                 console.log('❌ Logo failed to load from:', e.target.src);
                 // Try alternative logos in build order
@@ -93,7 +94,12 @@ const Navigation = () => {
               }}
               onLoad={(e) => {
                 console.log('✅ Logo loaded successfully from:', e.target.src);
+                console.log('📏 Logo dimensions:', e.target.naturalWidth, 'x', e.target.naturalHeight);
+                console.log('📐 Logo display size:', e.target.width, 'x', e.target.height);
                 setLogoLoaded(true);
+                // Add temporary border for debugging
+                e.target.style.border = '2px solid red';
+                setTimeout(() => e.target.style.border = 'none', 3000);
               }}
             />
             <div className="flex items-center space-x-2" style={{ display: 'none' }}>

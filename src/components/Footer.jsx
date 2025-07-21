@@ -20,7 +20,8 @@ const Footer = () => {
               <img
                 src="/logos/Logo1-Trans.png"
                 alt="VIP Club"
-                className="h-8 w-auto"
+                className="h-12 w-auto object-contain"
+                style={{ maxWidth: '180px', minHeight: '48px' }}
                 onError={(e) => {
                   console.log('❌ Footer logo failed to load from:', e.target.src);
                   // Try alternative logos in build order
@@ -36,6 +37,11 @@ const Footer = () => {
                 }}
                 onLoad={(e) => {
                   console.log('✅ Footer logo loaded successfully from:', e.target.src);
+                  console.log('📏 Footer logo dimensions:', e.target.naturalWidth, 'x', e.target.naturalHeight);
+                  console.log('📐 Footer logo display size:', e.target.width, 'x', e.target.height);
+                  // Add temporary border for debugging
+                  e.target.style.border = '2px solid green';
+                  setTimeout(() => e.target.style.border = 'none', 3000);
                 }}
               />
               <h3 className="text-xl font-heading font-bold text-white" style={{ display: 'none' }}>

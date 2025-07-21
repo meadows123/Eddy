@@ -26,11 +26,19 @@ const Navbar = () => {
           <motion.img
             src="/logos/Logo1-Trans.png"
             alt="Eddy Members"
-            className="h-12 w-auto object-contain"
+            className="h-16 w-auto object-contain"
+            style={{ maxWidth: '250px', minHeight: '64px' }}
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
-            onLoad={() => console.log('✅ Navbar logo loaded successfully')}
+            onLoad={(e) => {
+              console.log('✅ Navbar logo loaded successfully');
+              console.log('📏 Navbar logo dimensions:', e.target.naturalWidth, 'x', e.target.naturalHeight);
+              console.log('📐 Navbar logo display size:', e.target.width, 'x', e.target.height);
+              // Add temporary border for debugging
+              e.target.style.border = '2px solid blue';
+              setTimeout(() => e.target.style.border = 'none', 3000);
+            }}
             onError={(e) => {
               console.log('❌ Navbar logo failed to load from:', e.target.src);
               // Try alternative logos in build order
