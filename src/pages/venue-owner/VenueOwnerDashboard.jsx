@@ -489,21 +489,22 @@ const VenueOwnerDashboard = () => {
             {loginVenueMessage}
           </div>
         )}
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex flex-col space-y-4 sm:flex-row sm:justify-between sm:items-center sm:space-y-0 mb-6 sm:mb-8">
           <div>
-            <h1 className="text-3xl font-heading text-brand-burgundy mb-2">Venue Dashboard</h1>
-            <p className="text-brand-burgundy/70">Manage your venue, bookings, and revenue</p>
+            <h1 className="text-2xl sm:text-3xl font-heading text-brand-burgundy mb-2">Venue Dashboard</h1>
+            <p className="text-sm sm:text-base text-brand-burgundy/70">Manage your venue, bookings, and revenue</p>
           </div>
-          <div className="flex gap-4">
-            <Button variant="outline" className="border-brand-gold text-brand-gold hover:bg-brand-gold/10" onClick={() => navigate('/venue-owner/settings')}>
+          <div className="flex flex-col space-y-2 sm:flex-row sm:gap-4 sm:space-y-0">
+            <Button variant="outline" className="border-brand-gold text-brand-gold hover:bg-brand-gold/10 w-full sm:w-auto" onClick={() => navigate('/venue-owner/settings')}>
               <Settings className="h-4 w-4 mr-2" />
               Settings
             </Button>
-            <Button className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90">
+            <Button className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90 w-full sm:w-auto">
               <QrCode className="h-4 w-4 mr-2" />
-              Generate QR Code
+              <span className="hidden sm:inline">Generate QR Code</span>
+              <span className="sm:hidden">QR Code</span>
             </Button>
-            <Button variant="outline" className="border-red-500 text-red-500 hover:bg-red-50" onClick={handleLogout}>
+            <Button variant="outline" className="border-red-500 text-red-500 hover:bg-red-50 w-full sm:w-auto" onClick={handleLogout}>
               <LogOut className="h-4 w-4 mr-2" />
               Log Out
             </Button>

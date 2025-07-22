@@ -76,12 +76,12 @@ const VenueOwnerTables = () => {
   return (
     <div className="bg-brand-cream/50 min-h-screen">
       <div className="container py-8">
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex flex-col space-y-4 sm:flex-row sm:justify-between sm:items-center sm:space-y-0 mb-6 sm:mb-8">
           <div>
-            <h1 className="text-3xl font-heading text-brand-burgundy mb-2">Table Management</h1>
-            <p className="text-brand-burgundy/70">Manage your venue's tables and seating arrangements</p>
+            <h1 className="text-2xl sm:text-3xl font-heading text-brand-burgundy mb-2">Table Management</h1>
+            <p className="text-sm sm:text-base text-brand-burgundy/70">Manage your venue's tables and seating arrangements</p>
           </div>
-          <Button className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90">
+          <Button className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90 w-full sm:w-auto">
             Add New Table
           </Button>
         </div>

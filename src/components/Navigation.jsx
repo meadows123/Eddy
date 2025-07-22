@@ -141,13 +141,13 @@ const Navigation = () => {
                   <DropdownMenuLabel>My Account</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem>
-                    <Link to="/profile" className="flex items-center w-full">
+                    <Link to={isOwner ? "/venue-owner/dashboard" : "/profile"} className="flex items-center w-full">
                       <User className="mr-2 h-4 w-4" />
-                      Profile
+                      {isOwner ? "Dashboard" : "Profile"}
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem>
-                    <Link to="/settings" className="flex items-center w-full">
+                    <Link to={isOwner ? "/venue-owner/settings" : "/settings"} className="flex items-center w-full">
                       <Settings className="mr-2 h-4 w-4" />
                       Settings
                     </Link>
@@ -210,15 +210,15 @@ const Navigation = () => {
               {user ? (
                 <div className="pt-4 border-t border-brand-burgundy/10">
                   <Link
-                    to="/profile"
+                    to={isOwner ? "/venue-owner/dashboard" : "/profile"}
                     className="flex items-center space-x-2 text-sm font-medium text-brand-burgundy/70 hover:text-brand-gold"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     <User className="h-4 w-4" />
-                    <span>Profile</span>
+                    <span>{isOwner ? "Dashboard" : "Profile"}</span>
                   </Link>
                   <Link
-                    to="/settings"
+                    to={isOwner ? "/venue-owner/settings" : "/settings"}
                     className="flex items-center space-x-2 text-sm font-medium text-brand-burgundy/70 hover:text-brand-gold mt-4"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
@@ -236,12 +236,12 @@ const Navigation = () => {
               ) : (
                 <div className="pt-4 border-t border-brand-burgundy/10">
                   <Link
-                    to="/profile"
+                    to={isOwner ? "/venue-owner/login" : "/profile"}
                     className="flex items-center space-x-2 text-sm font-medium text-brand-burgundy/70 hover:text-brand-gold"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     <User className="h-4 w-4" />
-                    <span>Sign In</span>
+                    <span>{isOwner ? "Venue Login" : "Sign In"}</span>
                   </Link>
                 </div>
               )}

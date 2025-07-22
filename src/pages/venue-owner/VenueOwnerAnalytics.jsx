@@ -413,17 +413,17 @@ const VenueOwnerAnalytics = () => {
     <div className="bg-brand-cream/50 min-h-screen">
       <div className="container py-8">
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex flex-col space-y-4 sm:flex-row sm:justify-between sm:items-center sm:space-y-0 mb-6 sm:mb-8">
           <div>
-            <h1 className="text-3xl font-heading text-brand-burgundy mb-2">Analytics Dashboard</h1>
-            <p className="text-brand-burgundy/70">Track your venue's performance and revenue</p>
+            <h1 className="text-2xl sm:text-3xl font-heading text-brand-burgundy mb-2">Analytics Dashboard</h1>
+            <p className="text-sm sm:text-base text-brand-burgundy/70">Track your venue's performance and revenue</p>
           </div>
-          <div className="flex items-center space-x-4">
+          <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-y-0 sm:space-x-4">
             {/* Time Range Selector */}
             <select
               value={timeRange}
               onChange={(e) => setTimeRange(e.target.value)}
-              className="px-3 py-2 border border-brand-burgundy/20 rounded-lg bg-white text-brand-burgundy"
+              className="px-3 py-2 border border-brand-burgundy/20 rounded-lg bg-white text-brand-burgundy w-full sm:w-auto"
             >
               <option value="thisWeek">This Week</option>
               <option value="lastWeek">Last Week</option>
@@ -435,7 +435,7 @@ const VenueOwnerAnalytics = () => {
               onClick={refreshData}
               disabled={refreshing}
               variant="outline"
-              className="border-brand-gold text-brand-gold hover:bg-brand-gold/10"
+              className="border-brand-gold text-brand-gold hover:bg-brand-gold/10 w-full sm:w-auto"
             >
               <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
               Refresh
@@ -444,7 +444,7 @@ const VenueOwnerAnalytics = () => {
         </div>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
           {/* Total Revenue */}
           <Card className="bg-white border-brand-burgundy/10">
             <CardContent className="p-6">
@@ -537,7 +537,7 @@ const VenueOwnerAnalytics = () => {
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
           {/* Revenue Chart */}
           <Card className="lg:col-span-2 bg-white border-brand-burgundy/10">
             <CardHeader>
@@ -547,7 +547,7 @@ const VenueOwnerAnalytics = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-64 flex items-end justify-between space-x-1">
+              <div className="h-48 sm:h-64 flex items-end justify-between space-x-1">
                 {analytics.dailyRevenue.map((day, index) => {
                   const maxRevenue = Math.max(...analytics.dailyRevenue.map(d => d.revenue));
                   const height = maxRevenue > 0 ? (day.revenue / maxRevenue) * 100 : 0;
@@ -623,7 +623,7 @@ const VenueOwnerAnalytics = () => {
                           {booking.venues?.name || 'Unknown Venue'}
                         </p>
                         <p className="text-sm text-brand-burgundy/70">
-                          {format(new Date(booking.booking_date || booking.created_at), 'MMM dd, yyyy')} • {booking.guest_count} guests
+                          {format(new Date(booking.booking_date || booking.created_at), 'MMM dd, yyyy')} • {booking.number_of_guests} guests
                         </p>
                       </div>
                     </div>

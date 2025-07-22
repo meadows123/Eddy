@@ -224,7 +224,7 @@ const TableManagement = ({ currentUser }) => {
                 Add Table
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md" aria-describedby="add-table-desc">
+            <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto" aria-describedby="add-table-desc">
               <DialogHeader>
                 <DialogTitle>{editingTable ? 'Edit Table' : 'Add New Table'}</DialogTitle>
               </DialogHeader>
@@ -327,7 +327,7 @@ const TableManagement = ({ currentUser }) => {
             No tables yet. Add your first table!
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
             {tables.map((table) => (
               <Card key={table.id} className="bg-white border-brand-burgundy/10">
                 <CardHeader className="flex flex-row items-center justify-between pb-2">

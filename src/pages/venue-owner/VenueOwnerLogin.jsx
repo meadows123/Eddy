@@ -9,6 +9,7 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../components/ui/use-toast';
+import { sendVenueOwnerPasswordReset } from '../../lib/venueOwnerEmailService.js';
 
 const VenueOwnerLogin = () => {
   const navigate = useNavigate();
@@ -393,22 +394,22 @@ const VenueOwnerLogin = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-4 px-4 sm:py-12 sm:px-6 lg:px-8">
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-lg"
+        className="max-w-md w-full space-y-6 sm:space-y-8 bg-white p-6 sm:p-8 rounded-xl shadow-lg"
       >
         <div className="text-center">
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2 }}
-            className="mx-auto h-12 w-12 bg-brand-burgundy/10 rounded-full flex items-center justify-center"
+            className="mx-auto h-10 w-10 sm:h-12 sm:w-12 bg-brand-burgundy/10 rounded-full flex items-center justify-center"
           >
-            <Store className="h-6 w-6 text-brand-burgundy" />
+            <Store className="h-5 w-5 sm:h-6 sm:w-6 text-brand-burgundy" />
           </motion.div>
-          <h2 className="mt-6 text-3xl font-heading text-brand-burgundy">
+          <h2 className="mt-4 sm:mt-6 text-2xl sm:text-3xl font-heading text-brand-burgundy">
             Welcome Back
           </h2>
           <p className="mt-2 text-sm text-brand-burgundy/70">
@@ -416,8 +417,8 @@ const VenueOwnerLogin = () => {
           </p>
         </div>
 
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="space-y-4">
+        <form className="mt-6 sm:mt-8 space-y-4 sm:space-y-6" onSubmit={handleSubmit}>
+          <div className="space-y-3 sm:space-y-4">
             <div>
               <Label htmlFor="email" className="text-brand-burgundy">
                 Email Address
@@ -499,7 +500,7 @@ const VenueOwnerLogin = () => {
           </div>
         </form>
 
-        <div className="text-center mt-6">
+        <div className="text-center mt-4 sm:mt-6">
           <p className="text-sm text-brand-burgundy/70">
             Don't have a venue account?{' '}
             <Link to="/venue-owner/register" className="text-brand-burgundy hover:text-brand-gold font-medium">
@@ -507,11 +508,11 @@ const VenueOwnerLogin = () => {
             </Link>
           </p>
           
-          <div className="mt-4 pt-4 border-t border-brand-burgundy/10">
+          <div className="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-brand-burgundy/10">
             <p className="text-xs text-brand-burgundy/60 mb-2">
               Having trouble logging in?
             </p>
-            <div className="space-y-2">
+            <div className="space-y-1 sm:space-y-2">
               <button
                 type="button"
                 onClick={handleResendConfirmation}
