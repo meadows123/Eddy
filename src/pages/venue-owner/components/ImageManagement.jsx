@@ -14,6 +14,8 @@ const ImageManagement = ({ currentUser }) => {
   const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [dragActive, setDragActive] = useState(false);
+  const [imageUrl, setImageUrl] = useState('');
+  const [addingUrl, setAddingUrl] = useState(false);
 
   useEffect(() => {
     if (currentUser) {
@@ -60,6 +62,73 @@ const ImageManagement = ({ currentUser }) => {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const addImageFromUrl = async () => {
+    try {
+      setAddingUrl(true);
+
+      if (!imageUrl.trim()) {
+        throw new Error('Please enter an image URL');
+      }
+
+      // Basic URL validation
+      try {
+        new URL(imageUrl);
+      } catch {
+        throw new Error('Please enter a valid URL');
+      }
+
+      // Test if the URL is accessible (basic check)
+      const img = new Image();
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        img.src = imageUrl;
+      });
+
+      // Save to database
+      const { data: imageData, error: dbError } = await supabase
+        .from('venue_images')
+        .insert([{
+          venue_id: venue.id,
+          image_url: imageUrl,
+          is_primary: images.length === 0
+        }])
+        .select()
+        .single();
+
+      if (dbError) throw dbError;
+
+      setImages(prev => [imageData, ...prev]);
+      setImageUrl('');
+      
+      toast({
+        title: 'Success',
+        description: 'Image added successfully!',
+        className: 'bg-green-500 text-white'
+      });
+
+    } catch (error) {
+      console.error('Error adding image from URL:', error);
+      
+      let errorMessage = 'Failed to add image from URL';
+      if (error.message.includes('valid URL')) {
+        errorMessage = 'Please enter a valid image URL';
+      } else if (error.message.includes('load')) {
+        errorMessage = 'Could not load image from this URL. Please check the URL and try again.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast({
+        title: 'Failed to Add Image',
+        description: errorMessage,
+        variant: 'destructive'
+      });
+    } finally {
+      setAddingUrl(false);
     }
   };
 
@@ -121,9 +190,26 @@ const ImageManagement = ({ currentUser }) => {
 
     } catch (error) {
       console.error('Error uploading image:', error);
+      console.error('Full error details:', {
+        message: error.message,
+        name: error.name,
+        stack: error.stack,
+        details: error
+      });
+      
+      let errorMessage = 'Failed to upload image. Please try again.';
+      
+      if (error.message?.includes('bucket') || error.message?.includes('Bucket')) {
+        errorMessage = 'Storage bucket not configured. Please contact support or use URL upload instead.';
+      } else if (error.message?.includes('policy') || error.message?.includes('permission')) {
+        errorMessage = 'Permission denied. Storage bucket needs proper policies configured.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to upload image. Please try again.',
+        title: 'Upload Failed',
+        description: errorMessage,
         variant: 'destructive'
       });
     } finally {
@@ -310,6 +396,40 @@ const ImageManagement = ({ currentUser }) => {
                 </span>
               </Button>
             </Label>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* URL Upload Alternative */}
+      <Card className="border border-brand-burgundy/20">
+        <CardContent className="p-6">
+          <div className="text-center">
+            <h3 className="text-lg font-semibold text-brand-burgundy mb-2">
+              Add Image from URL
+            </h3>
+            <p className="text-brand-burgundy/70 mb-4">
+              Alternative: Add an image by providing a direct image URL
+            </p>
+            <div className="flex gap-2 max-w-md mx-auto">
+              <Input
+                type="url"
+                placeholder="https://example.com/image.jpg"
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
+                className="flex-1"
+                disabled={addingUrl}
+              />
+              <Button
+                onClick={addImageFromUrl}
+                disabled={addingUrl || !imageUrl.trim()}
+                className="bg-brand-burgundy text-white hover:bg-brand-burgundy/90"
+              >
+                {addingUrl ? 'Adding...' : 'Add Image'}
+              </Button>
+            </div>
+            <p className="text-xs text-brand-burgundy/50 mt-2">
+              Use this option if file upload isn't working
+            </p>
           </div>
         </CardContent>
       </Card>

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { Gem, Target, Zap, Heart, Star, Shield, Users, MapPin, Clock } from 'lucide-react';
+import { Gem, Target, Zap, Heart, Star, Shield, Users, MapPin, Clock, User } from 'lucide-react';
 
 const AboutPage = () => {
   return (
@@ -18,10 +18,30 @@ const AboutPage = () => {
         <div className="grid md:grid-cols-2 gap-12 items-center mb-16">
           <div>
             <img  
-              src="/images/logos/callum.jpg" 
+              src="/logos/callum.jpg" 
               alt="Eddy - Our beloved friend who inspired VIP Club"
               className="rounded-lg shadow-xl object-cover w-full h-auto aspect-[4/3] border-4 border-brand-gold" 
+              onError={(e) => {
+                console.log('❌ Failed to load Eddy image from:', e.target.src);
+                // Try alternative path if needed
+                if (e.target.src.includes('/logos/')) {
+                  e.target.src = '/images/logos/callum.jpg';
+                } else {
+                  // Show placeholder if all fail
+                  e.target.style.display = 'none';
+                  e.target.nextSibling.style.display = 'block';
+                }
+              }}
             />
+            <div 
+              className="rounded-lg shadow-xl w-full aspect-[4/3] border-4 border-brand-gold bg-brand-burgundy/10 flex items-center justify-center" 
+              style={{ display: 'none' }}
+            >
+              <div className="text-center text-brand-burgundy/70">
+                <User className="w-16 h-16 mx-auto mb-2" />
+                <p className="text-sm">Photo of Eddy</p>
+              </div>
+            </div>
             <p className="text-center text-brand-burgundy/60 text-sm mt-2 italic">
               Eddy - The inspiration behind VIP Club
             </p>
@@ -54,10 +74,27 @@ const AboutPage = () => {
               <div className="flex justify-center mb-6">
                 <div className="relative">
                   <img 
-                    src="/images/logos/callum.jpg"
+                    src="/logos/callum.jpg"
                     alt="Eddy - Forever in our hearts"
                     className="w-24 h-24 rounded-full object-cover border-4 border-brand-gold shadow-lg"
+                    onError={(e) => {
+                      console.log('❌ Failed to load memorial image from:', e.target.src);
+                      // Try alternative path if needed
+                      if (e.target.src.includes('/logos/')) {
+                        e.target.src = '/images/logos/callum.jpg';
+                      } else {
+                        // Show placeholder if all fail
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'flex';
+                      }
+                    }}
                   />
+                  <div 
+                    className="w-24 h-24 rounded-full border-4 border-brand-gold shadow-lg bg-brand-burgundy/10 items-center justify-center" 
+                    style={{ display: 'none' }}
+                  >
+                    <User className="w-12 h-12 text-brand-burgundy/70" />
+                  </div>
                   <div className="absolute -bottom-2 -right-2 bg-brand-burgundy rounded-full p-2">
                     <Heart className="h-4 w-4 text-white fill-current" />
                   </div>
