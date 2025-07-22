@@ -5,9 +5,11 @@ const TermsPage = () => {
   return (
     <div className="bg-brand-cream/50 min-h-screen py-12">
       <div className="container mx-auto px-4 max-w-4xl">
-        <div className="text-center mb-8">
+        <div className="text-center mb-12">
           <h1 className="text-4xl font-heading text-brand-burgundy mb-4">Terms of Service</h1>
-          <p className="text-brand-burgundy/70">Last updated: {new Date().toLocaleDateString()}</p>
+          <p className="text-brand-burgundy/70 text-lg max-w-2xl mx-auto">
+            By using Eddys Members services, you agree to these terms. Please read them carefully.
+          </p>
         </div>
 
         <Card className="bg-white border-brand-burgundy/10">
@@ -15,7 +17,7 @@ const TermsPage = () => {
             <section>
               <h2 className="text-2xl font-semibold text-brand-burgundy mb-4">1. Acceptance of Terms</h2>
               <p className="text-brand-burgundy/80 leading-relaxed">
-                By accessing and using VIP Club's services, you accept and agree to be bound by the terms and provision of this agreement. 
+                By accessing and using Eddys Members's services, you accept and agree to be bound by the terms and provision of this agreement. 
                 If you do not agree to abide by the above, please do not use this service.
               </p>
             </section>
@@ -24,7 +26,7 @@ const TermsPage = () => {
               <h2 className="text-2xl font-semibold text-brand-burgundy mb-4">2. Use License</h2>
               <div className="text-brand-burgundy/80 leading-relaxed space-y-3">
                 <p>
-                  Permission is granted to temporarily download one copy of VIP Club's materials for personal, 
+                  Permission is granted to temporarily download one copy of Eddys Members's materials for personal, 
                   non-commercial transitory viewing only. This is the grant of a license, not a transfer of title, and under this license you may not:
                 </p>
                 <ul className="list-disc list-inside ml-4 space-y-2">
@@ -44,7 +46,7 @@ const TermsPage = () => {
                   <li>All bookings are subject to venue availability and confirmation</li>
                   <li>Bookings must be made by individuals 18 years or older</li>
                   <li>False information provided during booking may result in cancellation</li>
-                  <li>VIP Club reserves the right to refuse service to anyone</li>
+                  <li>Eddys Members reserves the right to refuse service to anyone</li>
                 </ul>
                 
                 <p><strong>Payment Terms:</strong></p>
@@ -101,7 +103,7 @@ const TermsPage = () => {
             <section>
               <h2 className="text-2xl font-semibold text-brand-burgundy mb-4">7. Disclaimer</h2>
               <p className="text-brand-burgundy/80 leading-relaxed">
-                The materials on VIP Club's website are provided on an 'as is' basis. VIP Club makes no warranties, 
+                The materials on Eddys Members's website are provided on an 'as is' basis. Eddys Members makes no warranties, 
                 expressed or implied, and hereby disclaims and negates all other warranties including without limitation, 
                 implied warranties or conditions of merchantability, fitness for a particular purpose, 
                 or non-infringement of intellectual property or other violation of rights.
@@ -111,9 +113,9 @@ const TermsPage = () => {
             <section>
               <h2 className="text-2xl font-semibold text-brand-burgundy mb-4">8. Limitations</h2>
               <p className="text-brand-burgundy/80 leading-relaxed">
-                In no event shall VIP Club or its suppliers be liable for any damages (including, without limitation, 
+                In no event shall Eddys Members or its suppliers be liable for any damages (including, without limitation, 
                 damages for loss of data or profit, or due to business interruption) arising out of the use or inability 
-                to use the materials on VIP Club's website, even if VIP Club or a VIP Club authorized representative has 
+                to use the materials on Eddys Members's website, even if Eddys Members or a Eddys Members authorized representative has 
                 been notified orally or in writing of the possibility of such damage.
               </p>
             </section>
@@ -129,19 +131,19 @@ const TermsPage = () => {
             <section>
               <h2 className="text-2xl font-semibold text-brand-burgundy mb-4">10. Modifications</h2>
               <p className="text-brand-burgundy/80 leading-relaxed">
-                VIP Club may revise these terms of service at any time without notice. By using this website, 
+                Eddys Members may revise these terms of service at any time without notice. By using this website, 
                 you are agreeing to be bound by the then current version of these terms of service.
               </p>
             </section>
 
             <section>
-              <h2 className="text-2xl font-semibold text-brand-burgundy mb-4">11. Contact Information</h2>
-              <div className="text-brand-burgundy/80 leading-relaxed">
+              <h2 className="text-2xl font-heading font-bold text-brand-burgundy mb-6">Contact Information</h2>
+              <div>
                 <p>If you have any questions about these Terms of Service, please contact us at:</p>
                 <div className="mt-3 p-4 bg-brand-cream/30 rounded-lg">
-                  <p><strong>Email:</strong> legal@vipclub.ng</p>
-                  <p><strong>Phone:</strong> +234 (0) 123 456 7890</p>
-                  <p><strong>Address:</strong> VIP Club Legal Department, Lagos, Nigeria</p>
+                  <p><strong>Email:</strong> info@oneeddy.com</p>
+                  <p><strong>Response Time:</strong> Within 24 hours</p>
+                  <p><strong>Based in:</strong> Lagos, Nigeria</p>
                 </div>
               </div>
             </section>

@@ -54,8 +54,8 @@ const EmailTestPage = () => {
       const simpleParams = {
         to_email: testEmail,
         to_name: 'Test User',
-        from_name: 'VIP Club',
-        subject: 'VIP Club Test Email',
+        from_name: 'Eddys Members',
+        subject: 'Eddys Members Test Email',
         message: 'This is a test email to verify EmailJS configuration.'
       };
 
@@ -78,7 +78,7 @@ const EmailTestPage = () => {
         recipient: testEmail,       // Another variant
         user_name: 'Test User',
         name: 'Test User',
-        from_name: 'VIP Club',
+        from_name: 'Eddys Members',
         message: 'Testing alternative parameter names for EmailJS template.'
       };
 
@@ -137,7 +137,7 @@ const EmailTestPage = () => {
         modifyBookingUrl: window.location.origin + '/profile',
         cancelBookingUrl: window.location.origin + '/profile',
         websiteUrl: window.location.origin,
-        supportUrl: 'mailto:support@vipclub.com',
+        supportUrl: 'mailto:info@oneeddy.com',
         unsubscribeUrl: window.location.origin + '/settings'
       };
 

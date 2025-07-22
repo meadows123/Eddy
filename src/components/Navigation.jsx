@@ -76,35 +76,26 @@ const Navigation = () => {
           <Link to="/" className="flex items-center space-x-2">
             <img
               src="/logos/Logo1-Trans-new.png"
-              alt="VIP Club"
-              className="h-14 w-auto object-contain"
-              style={{ maxWidth: '200px', minHeight: '56px' }}
+              alt="Eddys Members"
+              className="h-8 w-auto object-contain sm:h-10"
+              style={{ maxWidth: '150px', minHeight: '32px' }}
               onError={(e) => {
-                console.log('❌ Logo failed to load from:', e.target.src);
-                // Try alternative logos in build order
+                console.log('❌ Navigation logo failed to load from:', e.target.src);
                 if (e.target.src.includes('Logo1-Trans-new.png')) {
-                  e.target.src = '/logos/Logo1-Trans-new.png';
-                } else if (e.target.src.includes('Logo1-Trans-new.png')) {
-                  e.target.src = '/logos/Logo1-Trans-new.png';
+                  e.target.src = '/logos/Logo1-Trans.png';
+                } else if (e.target.src.includes('Logo1-Trans.png')) {
+                  e.target.src = '/logos/Logo-Trans.png';
                 } else {
-                  // If all fail, show fallback
                   e.target.style.display = 'none';
-                  e.target.nextSibling.style.display = 'flex';
+                  e.target.nextSibling.style.display = 'inline';
                 }
               }}
               onLoad={(e) => {
-                console.log('✅ Logo loaded successfully from:', e.target.src);
-                console.log('📏 Logo dimensions:', e.target.naturalWidth, 'x', e.target.naturalHeight);
-                console.log('📐 Logo display size:', e.target.width, 'x', e.target.height);
+                console.log('✅ Navigation logo loaded successfully from:', e.target.src);
                 setLogoLoaded(true);
               }}
             />
-            <div className="flex items-center space-x-2" style={{ display: 'none' }}>
-              <div className="h-8 w-8 bg-gradient-to-br from-brand-burgundy to-brand-gold rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">V</span>
-              </div>
-              <span className="text-xl font-heading text-brand-burgundy font-bold">VIP Club</span>
-            </div>
+            <span className="text-xl font-heading text-brand-burgundy font-bold">Eddys Members</span>
           </Link>
 
           {/* Desktop Navigation */}

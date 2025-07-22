@@ -86,7 +86,7 @@ const FAQPage = () => {
     {
       id: 12,
       category: 'venues',
-      question: 'How do I list my venue on VIP Club?',
+      question: 'How do I list my venue on Eddys Members?',
       answer: 'Venue owners can register through our venue owner portal. The process includes:\n• Account creation and verification\n• Venue information submission\n• Photo uploads and virtual tour setup\n• Pricing and availability configuration\n• Approval process (typically 2-3 business days)'
     },
     {
@@ -125,8 +125,8 @@ const FAQPage = () => {
       <div className="container mx-auto px-4 max-w-4xl">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-heading text-brand-burgundy mb-4">Frequently Asked Questions</h1>
-          <p className="text-brand-burgundy/70 text-lg">
-            Find answers to common questions about VIP Club bookings, payments, and venues.
+          <p className="text-brand-burgundy/70 text-lg max-w-2xl mx-auto">
+            Find answers to common questions about Eddys Members bookings, payments, and venues.
           </p>
         </div>
 
@@ -236,7 +236,7 @@ const FAQPage = () => {
                 Contact Support
               </a>
               <a
-                href="mailto:support@vipclub.ng"
+                href="mailto:info@oneeddy.com"
                 className="inline-flex items-center justify-center px-6 py-2 border border-brand-burgundy text-brand-burgundy rounded-lg hover:bg-brand-burgundy/10 transition-colors"
               >
                 Email Us

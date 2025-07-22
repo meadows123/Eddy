@@ -463,8 +463,8 @@ const HomePage = () => {
             transition={{ duration: 0.8 }}
             className="text-center mb-16"
           >
-            <h2 className="text-4xl md:text-6xl font-heading text-brand-burgundy mb-6 font-bold">
-              Why Choose VIP Club?
+            <h2 className="text-3xl font-heading font-bold mb-12 text-center text-brand-burgundy">
+              Why Choose Eddys Members?
             </h2>
             <p className="text-xl text-brand-burgundy/70 max-w-3xl mx-auto">
               Experience the difference with our premium booking platform designed for discerning customers

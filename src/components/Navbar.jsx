@@ -60,8 +60,8 @@ const Navbar = () => {
             <div className="h-10 w-10 bg-gradient-to-br from-brand-burgundy to-brand-gold rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-lg">V</span>
             </div>
-            <span className="font-heading font-bold text-xl tracking-tight text-brand-burgundy">
-              VIP Club
+            <span className="text-xl font-heading text-brand-burgundy font-bold">
+              Eddys Members
             </span>
           </motion.div>
         </Link>

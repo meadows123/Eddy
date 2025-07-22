@@ -8,7 +8,7 @@ const AboutPage = () => {
     <div className="bg-brand-cream/50 min-h-screen py-12">
       <div className="container mx-auto px-4">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-heading text-brand-burgundy mb-4">About VIP Club</h1>
+          <h1 className="text-4xl font-heading text-brand-burgundy mb-4">About Eddys Members</h1>
           <p className="text-brand-burgundy/70 text-lg max-w-3xl mx-auto">
             Built in honor of our friend Eddy - your gateway to Nigeria's most exclusive venue experiences. We connect you with premium venues and unforgettable moments across Lagos and beyond.
           </p>
@@ -19,7 +19,7 @@ const AboutPage = () => {
           <div>
             <img  
               src="/logos/callum.jpg" 
-              alt="Eddy - Our beloved friend who inspired VIP Club"
+              alt="Eddy - Our beloved friend who inspired Eddys Members"
               className="rounded-lg shadow-xl object-cover w-full h-auto aspect-[4/3] border-4 border-brand-gold" 
               onError={(e) => {
                 console.log('❌ Failed to load Eddy image from:', e.target.src);
@@ -43,18 +43,18 @@ const AboutPage = () => {
               </div>
             </div>
             <p className="text-center text-brand-burgundy/60 text-sm mt-2 italic">
-              Eddy - The inspiration behind VIP Club
+              Eddy - The inspiration behind Eddys Members
             </p>
           </div>
           <div className="space-y-6">
             <h2 className="text-3xl font-heading font-bold text-brand-burgundy">Our Story</h2>
             <p className="text-brand-burgundy/80 leading-relaxed">
-              VIP Club was born from a deeply personal place - a promise to honor the memory of our dear friend Eddy, who believed that life's most precious moments happen when people come together. 
+              Eddys Members was born from a deeply personal place - a promise to honor the memory of our dear friend Eddy, who believed that life's most precious moments happen when people come together. 
               Eddy always said that everyone deserves to feel like a VIP, to experience the joy of being celebrated and surrounded by good company.
             </p>
             <p className="text-brand-burgundy/80 leading-relaxed">
               After we lost Eddy, we realized how important it is to create spaces and opportunities for people to connect, celebrate, and make lasting memories. 
-              We named it "VIP Club" in his honor - because to Eddy, VIP wasn't just about exclusive venues, it was about making every person feel valued, important, and part of something special.
+              We named it "Eddys Members" in his honor - because to Eddy, VIP wasn't just about exclusive venues, it was about making every person feel valued, important, and part of something special.
             </p>
             <p className="text-brand-burgundy/80 leading-relaxed">
               This platform is our way of ensuring that Eddy's vision lives on - connecting people with amazing venues where they can create the kind of memories he would have loved to be part of.
@@ -198,17 +198,16 @@ const AboutPage = () => {
             <CardContent className="p-6">
               <h3 className="text-xl font-semibold text-brand-burgundy mb-4 flex items-center">
                 <MapPin className="h-5 w-5 mr-2" />
-                Our Location
+                Our Location & Contact
               </h3>
               <div className="space-y-2 text-brand-burgundy/80">
-                <p>VIP Club Headquarters</p>
-                <p>(Founded in Memory of Eddy)</p>
-                <p>123 Victoria Island</p>
-                <p>Lagos, Nigeria</p>
+                <p>Eddys Members - Built in Memory of Eddy</p>
+                <p>Based in Lagos, Nigeria</p>
+                <p>Serving venues nationwide</p>
                 <p className="pt-2">
-                  <strong>Phone:</strong> +234 (0) 123 456 7890<br />
-                  <strong>Email:</strong> info@vipclub.ng<br />
-                  <em className="text-sm">Continuing Eddy's legacy</em>
+                  <strong>Email:</strong> info@oneeddy.com<br />
+                  <strong>Instagram:</strong> @eddy.members<br />
+                  <em className="text-sm">Continuing Eddy's legacy of bringing people together</em>
                 </p>
               </div>
             </CardContent>
@@ -218,23 +217,23 @@ const AboutPage = () => {
             <CardContent className="p-6">
               <h3 className="text-xl font-semibold text-brand-burgundy mb-4 flex items-center">
                 <Clock className="h-5 w-5 mr-2" />
-                Business Hours
+                Platform Availability
               </h3>
               <div className="space-y-2 text-brand-burgundy/80">
                 <div className="flex justify-between">
-                  <span>Monday - Friday</span>
-                  <span>9:00 AM - 6:00 PM</span>
+                  <span>Booking Platform</span>
+                  <span>24/7 Available</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Saturday</span>
-                  <span>10:00 AM - 4:00 PM</span>
+                  <span>Email Support</span>
+                  <span>Within 24 hours</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Sunday</span>
-                  <span>Closed</span>
+                  <span>Venue Partners</span>
+                  <span>Real-time updates</span>
                 </div>
                 <p className="text-sm pt-2 border-t border-brand-burgundy/10">
-                  Our booking platform is available 24/7 for your convenience.
+                  Our platform honors Eddy's vision of making premium experiences accessible to everyone.
                 </p>
               </div>
             </CardContent>
@@ -247,7 +246,7 @@ const AboutPage = () => {
             <CardContent className="p-8">
               <h3 className="text-2xl font-heading font-bold text-brand-burgundy mb-4">Ready to Create Your VIP Moment?</h3>
                              <p className="text-brand-burgundy/80 mb-6 max-w-2xl mx-auto">
-                 Join thousands of people who have discovered their perfect venue through VIP Club - Eddy's legacy of bringing people together. 
+                 Join thousands of people who have discovered their perfect venue through Eddys Members - Eddy's legacy of bringing people together. 
                  Every booking helps us carry forward Eddy's mission of making everyone feel special and creating unforgettable memories.
                </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">

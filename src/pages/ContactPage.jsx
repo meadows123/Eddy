@@ -65,8 +65,8 @@ const ContactPage = () => {
                   </div>
                   <div>
                     <h3 className="font-semibold text-brand-burgundy">Email</h3>
-                    <p className="text-brand-burgundy/70">info@vipclub.ng</p>
-                    <p className="text-brand-burgundy/70">support@vipclub.ng</p>
+                    <p className="text-brand-burgundy/70">info@oneeddy.com</p>
+                    <p className="text-brand-burgundy/70">General inquiries & support</p>
                   </div>
                 </div>
 
@@ -76,8 +76,8 @@ const ContactPage = () => {
                   </div>
                   <div>
                     <h3 className="font-semibold text-brand-burgundy">Phone</h3>
-                    <p className="text-brand-burgundy/70">+234 (0) 123 456 7890</p>
-                    <p className="text-brand-burgundy/70">+234 (0) 987 654 3210</p>
+                    <p className="text-brand-burgundy/70">Available via email</p>
+                    <p className="text-brand-burgundy/70">Response within 24 hours</p>
                   </div>
                 </div>
 
@@ -86,11 +86,11 @@ const ContactPage = () => {
                     <MapPin className="h-5 w-5 text-brand-burgundy" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-brand-burgundy">Address</h3>
+                    <h3 className="font-semibold text-brand-burgundy">Location</h3>
                     <p className="text-brand-burgundy/70">
-                      VIP Club HQ<br />
-                      123 Victoria Island<br />
-                      Lagos, Nigeria
+                      Based in Lagos, Nigeria<br />
+                      Serving venues nationwide<br />
+                      Built in memory of Eddy
                     </p>
                   </div>
                 </div>
@@ -100,11 +100,11 @@ const ContactPage = () => {
                     <Clock className="h-5 w-5 text-brand-burgundy" />
                   </div>
                   <div>
-                    <h3 className="font-semibold text-brand-burgundy">Business Hours</h3>
+                    <h3 className="font-semibold text-brand-burgundy">Response Times</h3>
                     <p className="text-brand-burgundy/70">
-                      Monday - Friday: 9:00 AM - 6:00 PM<br />
-                      Saturday: 10:00 AM - 4:00 PM<br />
-                      Sunday: Closed
+                      Email: Within 24 hours<br />
+                      Booking platform: 24/7 available<br />
+                      Urgent matters: Same day response
                     </p>
                   </div>
                 </div>

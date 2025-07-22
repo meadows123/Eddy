@@ -1,4 +1,4 @@
-// EmailJS integration for VIP Club
+// EmailJS integration for Eddys Members
 import emailjs from '@emailjs/browser';
 import { 
   bookingConfirmationTemplate, 
@@ -26,9 +26,9 @@ if (EMAILJS_CONFIG.publicKey) {
 const optimizeEmailDelivery = (params) => {
   return {
     ...params,
-    subject: params.subject || 'VIP Club Booking Confirmation',
-    from_name: 'VIP Club',
-    reply_to: 'support@vipclub.com'
+    subject: params.subject || 'Eddys Members Booking Confirmation',
+    from_name: 'Eddys Members',
+    reply_to: 'info@oneeddy.com'
   };
 };
 
@@ -98,7 +98,7 @@ export const sendBookingConfirmation = async (booking, venue, customer) => {
       modifyBookingUrl: `${window.location.origin}/profile`,
       cancelBookingUrl: `${window.location.origin}/profile`,
       websiteUrl: window.location.origin,
-      supportUrl: 'mailto:support@vipclub.com',
+      supportUrl: 'mailto:info@oneeddy.com',
       unsubscribeUrl: `${window.location.origin}/settings`
     };
 
@@ -166,8 +166,8 @@ export const sendVenueOwnerNotification = async (booking, venue, customer) => {
         to_name: 'Venue Manager',
         subject: `New Booking - ${venue.name}`,
         html_content: ownerTemplate,
-        from_name: 'VIP Club',
-        reply_to: 'support@vipclub.com'
+        from_name: 'Eddys Members',
+        reply_to: 'info@oneeddy.com'
       }
     );
 
@@ -198,8 +198,8 @@ export const sendCancellationEmail = async (booking, venue, customer) => {
         to_name: customer.name,
         subject: `Booking Cancelled - ${venue.name}`,
         html_content: cancellationHtml,
-        from_name: 'VIP Club',
-        reply_to: 'support@vipclub.com'
+        from_name: 'Eddys Members',
+        reply_to: 'info@oneeddy.com'
       }
     );
 
@@ -253,9 +253,9 @@ export const testEmailService = async () => {
   const testData = {
     to_name: 'Test User',
     to_email: 'test@example.com',
-    from_name: 'VIP Club',
+    from_name: 'Eddys Members',
     message: 'This is a test email to verify EmailJS configuration.',
-    subject: 'VIP Club Email Service Test'
+    subject: 'Eddys Members Email Service Test'
   };
 
   try {
@@ -308,9 +308,9 @@ export const testBasicEmail = async (userEmail = 'test@example.com') => {
   const testData = {
     customerEmail: userEmail, // Updated to match template's To field
     to_name: 'Test User',
-    from_name: 'VIP Club',
+    from_name: 'Eddys Members',
     message: 'This is a simple test email.',
-    subject: 'VIP Club Test'
+    subject: 'Eddys Members Test'
   };
 
   try {
@@ -349,9 +349,9 @@ export const quickEmailTest = async (testEmail = 'test@example.com') => {
       {
         to_email: testEmail,
         to_name: 'Test User',
-        from_name: 'VIP Club',
-        subject: 'VIP Club Test Email',
-        message: 'This is a test email from VIP Club',
+        from_name: 'Eddys Members',
+        subject: 'Eddys Members Test Email',
+        message: 'This is a test email from Eddys Members',
         venue_name: 'Test Venue',
         booking_id: '12345',
         booking_date: new Date().toLocaleDateString(),
@@ -569,4 +569,69 @@ export const testEdgeFunctionEmail = async (template = 'venue-owner-invitation',
 // Make test function available globally for debugging
 if (typeof window !== 'undefined') {
   window.testEdgeFunctionEmail = testEdgeFunctionEmail;
+}
+
+// Simple test function for localhost debugging
+export const testLocalhostEmail = async (testEmail = 'test@example.com') => {
+  console.log('🧪 Testing EmailJS on localhost...');
+  
+  // Check configuration
+  const config = {
+    serviceId: import.meta.env.VITE_EMAILJS_SERVICE_ID,
+    templateId: import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
+    publicKey: import.meta.env.VITE_EMAILJS_PUBLIC_KEY,
+  };
+  
+  console.log('📋 EmailJS Config:', {
+    serviceId: config.serviceId ? '✅ Set' : '❌ Missing',
+    templateId: config.templateId ? '✅ Set' : '❌ Missing',
+    publicKey: config.publicKey ? '✅ Set' : '❌ Missing'
+  });
+  
+  if (!config.serviceId || !config.templateId || !config.publicKey) {
+    console.error('❌ EmailJS configuration incomplete');
+    return { success: false, error: 'EmailJS configuration incomplete' };
+  }
+  
+  try {
+    // Initialize EmailJS
+    emailjs.init(config.publicKey);
+    
+    // Test with minimal data
+    const testParams = {
+      to_email: testEmail,
+      to_name: 'Test User',
+      from_name: 'Eddys Members Test',
+      subject: 'Localhost Email Test',
+      message: 'This is a test email from localhost to verify EmailJS is working.',
+      venue_name: 'Test Venue',
+      owner_name: 'Test Owner',
+      application_date: new Date().toLocaleDateString()
+    };
+    
+    console.log('📧 Sending test email with params:', testParams);
+    
+    const result = await emailjs.send(
+      config.serviceId,
+      config.templateId,
+      testParams
+    );
+    
+    console.log('✅ Localhost email test successful:', result);
+    return { success: true, result };
+  } catch (error) {
+    console.error('❌ Localhost email test failed:', error);
+    console.error('Error details:', {
+      status: error.status,
+      text: error.text,
+      message: error.message
+    });
+    
+    return { success: false, error: error.text || error.message };
+  }
+};
+
+// Make test function available globally for debugging
+if (typeof window !== 'undefined') {
+  window.testLocalhostEmail = testLocalhostEmail;
 }

@@ -304,12 +304,12 @@ export async function notifyAdminOfVenueSubmission(newVenue, venueOwner, user) {
         month: 'long',
         day: 'numeric'
       }),
-      viewUrl: 'http://localhost:5173/admin/venue-approvals',
+      viewUrl: 'https://your-production-domain.com/admin/venue-approvals', // Update this to your actual production URL
       
       // Email routing (for EmailJS)
       to_email: ADMIN_EMAIL,
-      to_name: 'VIP Club Admin',
-      from_name: 'VIP Club System',
+      to_name: 'Eddys Members Admin',
+      from_name: 'Eddys Members System',
       reply_to: venueOwner.email
     };
     
@@ -384,7 +384,7 @@ export async function testEmailJSConnection() {
         name: 'Common EmailJS fields',
         data: {
           email: 'sales@oneeddy.com',
-          name: 'VIP Club Admin',
+          name: 'Eddys Members Admin',
           subject: 'EmailJS Connection Test',
           message: 'This is a test message to verify EmailJS connectivity.'
         }
@@ -394,7 +394,7 @@ export async function testEmailJSConnection() {
         name: 'Standard to/from fields',
         data: {
           to: 'sales@oneeddy.com',
-          from: 'VIP Club Test',
+          from: 'Eddys Members Test',
           subject: 'EmailJS Connection Test',
           message: 'This is a test message to verify EmailJS connectivity.'
         }
@@ -404,7 +404,7 @@ export async function testEmailJSConnection() {
         name: 'User-based fields',
         data: {
           user_email: 'sales@oneeddy.com',
-          user_name: 'VIP Club Admin',
+          user_name: 'Eddys Members Admin',
           subject: 'EmailJS Connection Test',
           message: 'This is a test message to verify EmailJS connectivity.'
         }
@@ -413,9 +413,9 @@ export async function testEmailJSConnection() {
       {
         name: 'Current approach',
         data: {
-          to_name: 'VIP Club Admin',
+          to_name: 'Eddys Members Admin',
           to_email: 'sales@oneeddy.com',
-          from_name: 'VIP Club Test',
+          from_name: 'Eddys Members Test',
           reply_to: 'noreply@oneeddy.com',
           subject: 'EmailJS Connection Test',
           message: 'This is a test message to verify EmailJS connectivity.',

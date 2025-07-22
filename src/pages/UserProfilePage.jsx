@@ -1175,12 +1175,12 @@ function ReferralCodesSection({ user }) {
           </div>
           <div>
             <label className="block text-sm font-medium text-brand-burgundy/70">Personal Message (Optional)</label>
-            <textarea
-              className="w-full border p-2 rounded bg-white border-brand-burgundy/30 focus:border-brand-gold"
-              rows="3"
+            <Textarea
               value={personalMessage}
-              onChange={e => setPersonalMessage(e.target.value)}
-              placeholder="Tell your friend why they should join VIP Club..."
+              onChange={(e) => setPersonalMessage(e.target.value)}
+              className="border-brand-burgundy/20 focus:border-brand-burgundy resize-none"
+              rows={3}
+              placeholder="Tell your friend why they should join Eddys Members..."
             />
           </div>
           <button

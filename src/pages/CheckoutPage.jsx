@@ -17,7 +17,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { sendBookingConfirmation, sendVenueOwnerNotification, debugBookingEmail } from '@/lib/emailService';
+import { sendBookingConfirmation, sendVenueOwnerNotification, debugBookingEmail } from '../lib/emailService.js';
 
 const CheckoutPage = () => {
   const { id } = useParams();
@@ -191,7 +191,7 @@ const CheckoutPage = () => {
             name: bookingData.venueName || selection.venueName,
             address: selection.venueAddress || 'Lagos, Nigeria',
             contact_phone: selection.venuePhone || '+234 XXX XXX XXXX',
-            contact_email: selection.venueEmail || 'info@vipclub.com',
+            contact_email: selection.venueEmail || 'info@oneeddy.com',
             images: selection.venueImage ? [selection.venueImage] : [],
             dress_code: 'Smart casual'
           };
@@ -202,7 +202,7 @@ const CheckoutPage = () => {
           name: bookingData.venueName || selection.venueName,
           address: selection.venueAddress || 'Lagos, Nigeria',
           contact_phone: selection.venuePhone || '+234 XXX XXX XXXX',
-          contact_email: selection.venueEmail || 'info@vipclub.com',
+          contact_email: selection.venueEmail || 'info@oneeddy.com',
           images: selection.venueImage ? [selection.venueImage] : [],
           dress_code: 'Smart casual'
         };
@@ -219,7 +219,7 @@ const CheckoutPage = () => {
       const customerEmailResult = await sendBookingConfirmation(booking, venue, customer);
       
       // Get venue owner info if available for notification
-      const venueOwnerEmail = venue.contact_email || selection.ownerEmail || 'owner@vipclub.com';
+      const venueOwnerEmail = venue.contact_email || selection.ownerEmail || 'info@oneeddy.com';
       if (venueOwnerEmail) {
         const venueOwner = {
           full_name: 'Venue Owner',

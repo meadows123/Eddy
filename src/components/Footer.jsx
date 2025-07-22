@@ -19,7 +19,7 @@ const Footer = () => {
             <div className="mb-4">
               <img
                 src="/logos/Logo1-Trans.png"
-                alt="VIP Club"
+                alt="Eddys Members"
                 className="h-12 w-auto object-contain"
                 style={{ maxWidth: '180px', minHeight: '48px' }}
                 onError={(e) => {
@@ -42,11 +42,11 @@ const Footer = () => {
                 }}
               />
               <h3 className="text-xl font-heading font-bold text-white" style={{ display: 'none' }}>
-                VIP Club
+                Eddys Members
               </h3>
             </div>
             <p className="text-brand-cream/80 mb-4">
-              Your premier destination for exclusive venue bookings in Lagos.
+              Your premier destination for exclusive venue bookings.
             </p>
             <div className="flex gap-4">
               <a
@@ -79,26 +79,33 @@ const Footer = () => {
               <li><Link to="/venues" onClick={handleLinkClick} className="text-brand-cream/80 hover:text-white transition-colors">Venues</Link></li>
               <li><Link to="/about" onClick={handleLinkClick} className="text-brand-cream/80 hover:text-white transition-colors">About Us</Link></li>
               <li><Link to="/contact" onClick={handleLinkClick} className="text-brand-cream/80 hover:text-white transition-colors">Contact</Link></li>
+              <li><Link to="/faq" onClick={handleLinkClick} className="text-brand-cream/80 hover:text-white transition-colors">FAQ</Link></li>
             </ul>
           </div>
           <div>
             <h4 className="text-lg font-semibold mb-4 text-white">For Venues</h4>
             <ul className="space-y-2">
-              <li><Link to="/venue-owner/login" onClick={handleLinkClick} className="text-brand-cream/80 hover:text-white transition-colors">Login</Link></li>
-              <li><Link to="/venue-owner/register" onClick={handleLinkClick} className="text-brand-cream/80 hover:text-white transition-colors">Register</Link></li>
+              <li><Link to="/venue-owner/login" onClick={handleLinkClick} className="text-brand-cream/80 hover:text-white transition-colors">Venue Login</Link></li>
+              <li><Link to="/venue-owner/register" onClick={handleLinkClick} className="text-brand-cream/80 hover:text-white transition-colors">Join as Partner</Link></li>
+              <li><a href="mailto:info@oneeddy.com" className="text-brand-cream/80 hover:text-white transition-colors">Partnership Inquiries</a></li>
             </ul>
           </div>
           <div>
-            <h4 className="text-lg font-semibold mb-4 text-white">Legal</h4>
+            <h4 className="text-lg font-semibold mb-4 text-white">Contact Info</h4>
             <ul className="space-y-2">
+              <li>
+                <a href="mailto:info@oneeddy.com" className="text-brand-cream/80 hover:text-white transition-colors">
+                  info@oneeddy.com
+                </a>
+              </li>
+              <li className="text-brand-cream/80">Lagos, Nigeria</li>
               <li><Link to="/privacy" onClick={handleLinkClick} className="text-brand-cream/80 hover:text-white transition-colors">Privacy Policy</Link></li>
               <li><Link to="/terms" onClick={handleLinkClick} className="text-brand-cream/80 hover:text-white transition-colors">Terms of Service</Link></li>
-              <li><Link to="/faq" onClick={handleLinkClick} className="text-brand-cream/80 hover:text-white transition-colors">FAQ</Link></li>
             </ul>
           </div>
         </div>
         <div className="border-t border-brand-cream/10 mt-8 pt-8 text-center text-brand-cream/60">
-          <p>&copy; {currentYear} VIP Club. All rights reserved.</p>
+          <p>&copy; {currentYear} Eddys Members. All rights reserved. Built with ❤️ in memory of Eddy.</p>
         </div>
       </div>
     </footer>

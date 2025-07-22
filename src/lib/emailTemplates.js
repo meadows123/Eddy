@@ -1,4 +1,4 @@
-// Email templates for VIP Club booking confirmations
+// Email templates for Eddys Members booking confirmations
 
 export const bookingConfirmationTemplate = (bookingData) => {
   return `
@@ -33,7 +33,7 @@ export const bookingConfirmationTemplate = (bookingData) => {
           style="height: 32px; vertical-align: middle"
           height="32px"
           src="cid:logo.png"
-          alt="VIP Club"
+          alt="Eddys Members"
         />
       </a>
       <span
@@ -137,10 +137,10 @@ export const bookingConfirmationTemplate = (bookingData) => {
   <div style="max-width: 600px; margin: auto;">
     <p style="color: #999; text-align: center; padding: 16px;" class="mobile-text mobile-padding">
       This email was sent to ${bookingData.customerEmail}<br>
-      You received this email because you made a reservation with VIP Club
+      You received this email because you made a reservation with Eddys Members
     </p>
     <p style="color: #999; text-align: center; font-size: 12px;" class="mobile-text">
-      VIP Club - Your Premier Destination for Exclusive Venue Bookings<br>
+      Eddys Members - Your Premier Destination for Exclusive Venue Bookings<br>
       Lagos, Nigeria | www.vipclub.com
     </p>
   </div>
@@ -170,7 +170,7 @@ export const venueOwnerNotificationTemplate = (bookingData, venueOwnerData) => {
           style="height: 32px; vertical-align: middle"
           height="32px"
           src="cid:logo.png"
-          alt="VIP Club"
+          alt="Eddys Members"
         />
       </a>
       <span
@@ -240,7 +240,7 @@ export const venueOwnerNotificationTemplate = (bookingData, venueOwnerData) => {
   </div>
   <div style="max-width: 600px; margin: auto">
     <p style="color: #999; text-align: center; padding: 16px;">
-      VIP Club Venue Owner Portal<br>
+      Eddys Members Venue Owner Portal<br>
       Manage your bookings at vipclub.com/venue-owner
     </p>
   </div>
@@ -270,7 +270,7 @@ export const cancellationTemplate = (bookingData) => {
           style="height: 32px; vertical-align: middle"
           height="32px"
           src="cid:logo.png"
-          alt="VIP Club"
+          alt="Eddys Members"
         />
       </a>
       <span
@@ -319,13 +319,13 @@ export const cancellationTemplate = (bookingData) => {
       ` : ''}
 
       <p style="margin-top: 24px;">
-        We're sorry to see you cancel your reservation. We hope to welcome you to VIP Club in the future!
+        We're sorry to see you cancel your reservation. We hope to welcome you to Eddys Members in the future!
       </p>
     </div>
   </div>
   <div style="max-width: 600px; margin: auto">
     <p style="color: #999; text-align: center; padding: 16px;">
-      VIP Club - Your Premier Destination for Exclusive Venue Bookings<br>
+      Eddys Members - Your Premier Destination for Exclusive Venue Bookings<br>
       Lagos, Nigeria | www.vipclub.com
     </p>
   </div>

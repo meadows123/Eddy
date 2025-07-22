@@ -152,10 +152,10 @@ const PrivacyPage = () => {
               <div className="text-brand-burgundy/80 leading-relaxed">
                 <p>If you have questions about this privacy policy or your personal information, contact us:</p>
                 <div className="mt-3 p-4 bg-brand-cream/30 rounded-lg">
-                  <p><strong>Email:</strong> privacy@vipclub.ng</p>
-                  <p><strong>Phone:</strong> +234 (0) 123 456 7890</p>
-                  <p><strong>Address:</strong> VIP Club Privacy Team, Lagos, Nigeria</p>
-                  <p><strong>Data Protection Officer:</strong> dpo@vipclub.ng</p>
+                  <p><strong>Email:</strong> info@oneeddy.com</p>
+                  <p><strong>Response Time:</strong> Within 24 hours</p>
+                  <p><strong>Based in:</strong> Lagos, Nigeria</p>
+                  <p><strong>Privacy Inquiries:</strong> All privacy matters handled at info@oneeddy.com</p>
                 </div>
               </div>
             </section>
