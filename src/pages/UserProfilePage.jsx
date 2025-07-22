@@ -105,16 +105,7 @@ const UserProfilePage = () => {
     try {
       const { data: creditsData, error } = await supabase
         .from('venue_credits')
-        .select(`
-          *,
-          venues (
-            id,
-            name,
-            address,
-            type,
-            city
-          )
-        `)
+        .select('*')
         .eq('user_id', user.id)
         .eq('status', 'active')
         .gt('remaining_balance', 0)
@@ -122,7 +113,44 @@ const UserProfilePage = () => {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setVenueCredits(creditsData || []);
+
+      // Get venue data for each credit separately
+      const creditsWithVenueData = await Promise.all(
+        (creditsData || []).map(async (credit) => {
+          try {
+            const { data: venueData, error: venueError } = await supabase
+              .from('venues')
+              .select('id, name, address, type, city')
+              .eq('id', credit.venue_id)
+              .single();
+
+            if (!venueError && venueData) {
+              credit.venues = venueData;
+            } else {
+              // Fallback venue data
+              credit.venues = {
+                id: credit.venue_id,
+                name: 'Unknown Venue',
+                address: 'Address not available',
+                type: 'Venue',
+                city: 'City not available'
+              };
+            }
+          } catch (err) {
+            console.error('Error fetching venue data:', err);
+            credit.venues = {
+              id: credit.venue_id,
+              name: 'Unknown Venue',
+              address: 'Address not available',
+              type: 'Venue',
+              city: 'City not available'
+            };
+          }
+          return credit;
+        })
+      );
+
+      setVenueCredits(creditsWithVenueData);
     } catch (error) {
       console.error('Error loading venue credits:', error);
     } finally {
