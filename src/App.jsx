@@ -17,11 +17,13 @@ import VenueOwnerBookings from './pages/venue-owner/VenueOwnerBookings';
 import VenueOwnerTables from './pages/venue-owner/VenueOwnerTables';
 import VenueOwnerAnalytics from './pages/venue-owner/VenueOwnerAnalytics';
 import VenueOwnerSettings from './pages/venue-owner/VenueOwnerSettings';
+import VenueOwnerCredits from './pages/venue-owner/VenueOwnerCredits';
 import VenueApprovalsPage from './pages/admin/VenueApprovalsPage';
 import ProfilePage from './pages/ProfilePage';
 import BookingsPage from './pages/BookingsPage';
 import SettingsPage from './pages/SettingsPage';
 import ExplorePage from './pages/ExplorePage';
+import VenueCreditPurchase from './pages/VenueCreditPurchase';
 import SupabaseTest from './components/SupabaseTest';
 import AuthTestPage from './pages/AuthTestPage';
 import EmailTest from './components/EmailTest';
@@ -64,6 +66,7 @@ const App = () => {
             <Route path="/bookings" element={<BookingsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/reset-password" element={<VenueOwnerResetPassword />} />
+            <Route path="/venue-credit-purchase" element={<VenueCreditPurchase />} />
 
             {/* Information Pages */}
             <Route path="/about" element={<AboutPage />} />
@@ -82,6 +85,8 @@ const App = () => {
             <Route path="/venue-owner/tables" element={<VenueOwnerTables />} />
             <Route path="/venue-owner/analytics" element={<VenueOwnerAnalytics />} />
             <Route path="/venue-owner/settings" element={<VenueOwnerSettings />} />
+            <Route path="/venue-owner/credits" element={<VenueOwnerCredits />} />
+            <Route path="/venue-owner/credits/purchase" element={<VenueCreditPurchase />} />
 
             {/* Admin Routes */}
             <Route path="/admin/venue-approvals" element={<VenueApprovalsPage />} />

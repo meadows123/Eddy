@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
-import { Heart, Calendar, Settings, Clipboard, XCircle, CheckCircle, Send, Link as LinkIcon } from 'lucide-react';
+import { Heart, Calendar, Settings, Clipboard, XCircle, CheckCircle, Send, Link as LinkIcon, Wallet } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Elements, useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
@@ -53,11 +53,14 @@ const UserProfilePage = () => {
   const [stripeError, setStripeError] = useState(null);
   const [stripeSuccess, setStripeSuccess] = useState(null);
   const [bookingRef, setBookingRef] = useState(null);
+  const [venueCredits, setVenueCredits] = useState([]);
+  const [creditsLoading, setCreditsLoading] = useState(false);
 
   // Load user data when logged in
   useEffect(() => {
     if (user) {
       loadUserData();
+      loadVenueCredits();
     }
   }, [user]);
 
@@ -94,6 +97,38 @@ const UserProfilePage = () => {
     };
     fetchSplitPayments();
   }, [user]);
+
+  const loadVenueCredits = async () => {
+    if (!user) return;
+    
+    setCreditsLoading(true);
+    try {
+      const { data: creditsData, error } = await supabase
+        .from('venue_credits')
+        .select(`
+          *,
+          venues (
+            id,
+            name,
+            address,
+            type,
+            city
+          )
+        `)
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .gt('remaining_balance', 0)
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setVenueCredits(creditsData || []);
+    } catch (error) {
+      console.error('Error loading venue credits:', error);
+    } finally {
+      setCreditsLoading(false);
+    }
+  };
 
   const loadUserData = async () => {
     try {
@@ -463,7 +498,7 @@ const UserProfilePage = () => {
               </div>
 
         <Tabs defaultValue="profile" className="space-y-4">
-          <TabsList className="bg-white p-1 rounded-lg border border-brand-burgundy/10 grid grid-cols-2 md:grid-cols-6 h-auto">
+          <TabsList className="bg-white p-1 rounded-lg border border-brand-burgundy/10 grid grid-cols-2 md:grid-cols-7 h-auto">
             <TabsTrigger value="profile" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 p-2 md:p-3 text-xs md:text-sm">
               <Settings className="h-3 w-3 md:h-4 md:w-4" />
               <span className="hidden sm:inline">Profile</span>
@@ -493,6 +528,11 @@ const UserProfilePage = () => {
               <Send className="h-3 w-3 md:h-4 md:w-4" />
               <span className="hidden sm:inline">Split Payments</span>
               <span className="sm:hidden">Split</span>
+            </TabsTrigger>
+            <TabsTrigger value="wallet" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 p-2 md:p-3 text-xs md:text-sm">
+              <Wallet className="h-3 w-3 md:h-4 md:w-4" />
+              <span className="hidden sm:inline">Wallet</span>
+              <span className="sm:hidden">Wallet</span>
             </TabsTrigger>
           </TabsList>
 
@@ -902,6 +942,121 @@ const UserProfilePage = () => {
                 )}
                 {stripeSuccess && (
                   <div className="mt-4 p-3 rounded bg-green-100 text-green-800">{stripeSuccess} {bookingRef && (<span>Booking Ref: <span className="font-bold">{bookingRef}</span></span>)}</div>
+                )}
+              </div>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="wallet">
+            <Card className="bg-white border-brand-burgundy/10">
+              <div className="p-2 sm:p-4 md:p-6">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6">
+                  <div>
+                    <h2 className="text-xl sm:text-2xl font-heading text-brand-burgundy mb-2">Venue Credits</h2>
+                    <p className="text-brand-burgundy/70">
+                      Manage your credits for faster bookings at your favorite venues
+                    </p>
+                  </div>
+                  <Button 
+                    onClick={() => navigate('/venue-credit-purchase')}
+                    className="bg-brand-burgundy text-white hover:bg-brand-burgundy/90 mt-4 sm:mt-0"
+                  >
+                    <Wallet className="h-4 w-4 mr-2" />
+                    Purchase Credits
+                  </Button>
+                </div>
+
+                {creditsLoading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-gold"></div>
+                  </div>
+                ) : venueCredits.length > 0 ? (
+                  <div className="space-y-4">
+                    {/* Credits Summary */}
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                      <div className="bg-brand-cream/30 p-4 rounded-lg border border-brand-burgundy/10 text-center">
+                        <div className="text-2xl font-bold text-brand-burgundy">
+                          {venueCredits.length}
+                        </div>
+                        <div className="text-sm text-brand-burgundy/70">Active Venues</div>
+                      </div>
+                      <div className="bg-brand-cream/30 p-4 rounded-lg border border-brand-burgundy/10 text-center">
+                        <div className="text-2xl font-bold text-brand-gold">
+                          ₦{venueCredits.reduce((sum, credit) => sum + (credit.remaining_balance / 100), 0).toLocaleString()}
+                        </div>
+                        <div className="text-sm text-brand-burgundy/70">Total Available</div>
+                      </div>
+                      <div className="bg-brand-cream/30 p-4 rounded-lg border border-brand-burgundy/10 text-center">
+                        <div className="text-2xl font-bold text-brand-burgundy">
+                          ₦{venueCredits.reduce((sum, credit) => sum + (credit.amount / 100), 0).toLocaleString()}
+                        </div>
+                        <div className="text-sm text-brand-burgundy/70">Total Purchased</div>
+                      </div>
+                    </div>
+
+                    {/* Credits List */}
+                    <div className="space-y-3">
+                      <h3 className="text-lg font-semibold text-brand-burgundy">Your Venue Credits</h3>
+                      {venueCredits.map((credit) => (
+                        <div key={credit.id} className="border border-brand-burgundy/10 rounded-lg p-4 hover:shadow-md transition-shadow">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                            <div className="mb-3 sm:mb-0">
+                              <h4 className="font-semibold text-brand-burgundy">{credit.venues.name}</h4>
+                              <p className="text-sm text-brand-burgundy/70">
+                                {credit.venues.type} • {credit.venues.city}
+                              </p>
+                              <p className="text-xs text-brand-burgundy/60 mt-1">
+                                Purchased: {new Date(credit.created_at).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <div className="flex flex-col sm:items-end">
+                              <div className="text-lg font-bold text-brand-gold">
+                                ₦{(credit.remaining_balance / 100).toLocaleString()}
+                              </div>
+                              <div className="text-sm text-brand-burgundy/70">
+                                of ₦{(credit.amount / 100).toLocaleString()}
+                              </div>
+                              {credit.used_amount > 0 && (
+                                <div className="text-xs text-brand-burgundy/60">
+                                  Used: ₦{(credit.used_amount / 100).toLocaleString()}
+                                </div>
+                              )}
+                              <div className="text-xs text-brand-burgundy/50 mt-1">
+                                Expires: {new Date(credit.expires_at).toLocaleDateString()}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Progress Bar */}
+                          <div className="mt-3">
+                            <div className="bg-gray-200 rounded-full h-2">
+                              <div
+                                className="bg-brand-gold rounded-full h-2 transition-all duration-300"
+                                style={{
+                                  width: `${Math.max(0, Math.min(100, ((credit.amount - credit.used_amount) / credit.amount) * 100))}%`
+                                }}
+                              ></div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-12">
+                    <Wallet className="h-16 w-16 text-brand-burgundy/30 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-brand-burgundy mb-2">No Venue Credits</h3>
+                    <p className="text-brand-burgundy/60 mb-6">
+                      Purchase credits at your favorite venues for faster bookings and exclusive benefits.
+                    </p>
+                    <Button 
+                      onClick={() => navigate('/venue-credit-purchase')}
+                      className="bg-brand-burgundy text-white hover:bg-brand-burgundy/90"
+                    >
+                      <Wallet className="h-4 w-4 mr-2" />
+                      Purchase Your First Credits
+                    </Button>
+                  </div>
                 )}
               </div>
             </Card>
