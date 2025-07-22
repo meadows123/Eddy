@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Map, { Marker, Popup } from 'react-map-gl';
-import { supabase } from '../lib/supabase';
+import { supabase } from '../lib/supabase.js';
 import { MapPin, Star, DollarSign, Users, Phone, Mail, ExternalLink, Filter, Search, Navigation, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -126,11 +126,21 @@ const ExplorePage = () => {
         }
 
         if (!data || data.length === 0) {
-          console.log('No venues found in database');
+          console.log('No venues found in database with status=approved and is_active=true');
+          
+          // Let's also check what venues exist without filters
+          const { data: allVenues } = await supabase
+            .from('venues')
+            .select('id, name, status, is_active, latitude, longitude');
+          
+          console.log('All venues in database:', allVenues);
+          
           setVenues([]);
           setFilteredVenues([]);
           return;
         }
+
+        console.log(`Found ${data.length} approved venues:`, data);
 
         // Transform venues with proper coordinates and images
         const venuesWithData = data.map(venue => {
@@ -138,13 +148,24 @@ const ExplorePage = () => {
                               venue.venue_images?.[0]?.image_url || 
                               'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4';
           
-          return {
+          const transformedVenue = {
             ...venue,
             lat: venue.latitude || 6.5244,
             lng: venue.longitude || 3.3792,
             image: primaryImage,
             priceLevel: venue.price_range?.length || 1
           };
+          
+          console.log(`Venue: ${venue.name}`, {
+            id: venue.id,
+            status: venue.status,
+            is_active: venue.is_active,
+            latitude: venue.latitude,
+            longitude: venue.longitude,
+            hasCoordinates: !!(venue.latitude && venue.longitude)
+          });
+          
+          return transformedVenue;
         });
         setVenues(venuesWithData);
         setFilteredVenues(venuesWithData);
@@ -277,6 +298,32 @@ const ExplorePage = () => {
           <h1 className="text-4xl font-heading text-brand-burgundy mb-4">Explore Lagos Venues</h1>
           <p className="text-brand-burgundy/70 text-lg">Discover the best restaurants, clubs, and lounges on our interactive map</p>
         </div>
+
+        {/* Debug Panel - Remove this after fixing the issue */}
+        {process.env.NODE_ENV === 'development' && (
+          <Card className="mb-6 bg-yellow-50 border-yellow-200">
+            <CardContent className="p-4">
+              <h3 className="font-semibold text-yellow-800 mb-2">Debug Info</h3>
+              <div className="text-sm text-yellow-700 space-y-1">
+                <p>Total venues loaded: {venues.length}</p>
+                <p>Filtered venues: {filteredVenues.length}</p>
+                <p>Loading: {loading ? 'Yes' : 'No'}</p>
+                {venues.length > 0 && (
+                  <details className="mt-2">
+                    <summary className="cursor-pointer font-medium">Venue Details</summary>
+                    <div className="mt-2 max-h-40 overflow-y-auto">
+                      {venues.map(venue => (
+                        <div key={venue.id} className="text-xs border-b border-yellow-200 py-1">
+                          <strong>{venue.name}</strong> - {venue.type} - Status: {venue.status} - Active: {venue.is_active ? 'Yes' : 'No'} - Coords: {venue.latitude}, {venue.longitude}
+                        </div>
+                      ))}
+                    </div>
+                  </details>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Location Permission Notice */}
         {locationPermissionDenied && (
