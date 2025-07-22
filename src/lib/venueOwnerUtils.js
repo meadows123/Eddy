@@ -1,5 +1,5 @@
 // Venue Owner Utility Functions
-import { supabase } from './supabase';
+import { supabase } from './supabase.js';
 
 // Check for broken venue owner links
 export const checkBrokenVenueOwnerLinks = async () => {

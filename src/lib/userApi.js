@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { supabase } from './supabase.js'
 
 // Helper function for error handling
 const handleError = (error, operation) => {

@@ -1,5 +1,5 @@
 // Venue Owner Email Service - Separate from regular user emails
-import { supabase } from './supabase';
+import { supabase } from './supabase.js';
 
 // Venue Owner Email Templates
 const venueOwnerTemplates = {
@@ -210,6 +210,7 @@ export const sendVenueOwnerApplicationApproved = async (venueOwnerData) => {
   try {
     console.log('🔄 Sending venue owner application approved email to:', venueOwnerData.email);
     
+    // Try Edge Function first
     const { data, error } = await supabase.functions.invoke('send-email', {
       body: {
         template: 'venue-owner-application-approved',
@@ -226,15 +227,48 @@ export const sendVenueOwnerApplicationApproved = async (venueOwnerData) => {
     });
 
     if (error) {
-      console.error('❌ Failed to send application approved email:', error);
-      throw error;
+      console.warn('⚠️ Edge Function failed, trying EmailJS fallback...', error);
+      throw error; // This will trigger the fallback
     }
 
-    console.log('✅ Venue owner application approved email sent successfully:', data);
+    console.log('✅ Venue owner application approved email sent successfully via Edge Function:', data);
     return data;
   } catch (error) {
-    console.error('❌ Error in sendVenueOwnerApplicationApproved:', error);
-    throw error;
+    console.log('🔄 Falling back to EmailJS for approval email...');
+    
+    // Fallback to EmailJS
+    try {
+      const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+      const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_VENUE_OWNER_APPROVAL_TEMPLATE;
+      const PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+      
+      if (!SERVICE_ID || !TEMPLATE_ID || !PUBLIC_KEY) {
+        throw new Error('EmailJS configuration missing');
+      }
+      
+      // Initialize EmailJS
+      const { default: emailjs } = await import('@emailjs/browser');
+      emailjs.init(PUBLIC_KEY);
+      
+      const result = await emailjs.send(SERVICE_ID, TEMPLATE_ID, {
+        email: venueOwnerData.email,
+        to_name: venueOwnerData.contact_name || venueOwnerData.owner_name,
+        from_name: 'VIPClub',
+        venue_name: venueOwnerData.venue_name,
+        venue_type: venueOwnerData.venue_type || 'Restaurant',
+        venue_address: venueOwnerData.venue_address,
+        venue_city: venueOwnerData.venue_city,
+        owner_name: venueOwnerData.contact_name || venueOwnerData.owner_name,
+        application_date: new Date().toLocaleDateString(),
+        registration_url: `${window.location.origin}/venue-owner/register?approved=true&email=${encodeURIComponent(venueOwnerData.email)}`
+      });
+      
+      console.log('✅ Approval email sent via EmailJS fallback:', result);
+      return result;
+    } catch (fallbackError) {
+      console.error('❌ Both Edge Function and EmailJS fallback failed:', fallbackError);
+      throw fallbackError;
+    }
   }
 };
 
@@ -242,13 +276,17 @@ export const sendVenueOwnerRegistrationComplete = async (venueOwnerData) => {
   try {
     console.log('🔄 Sending venue owner registration complete email to:', venueOwnerData.email);
     
+    // Try Edge Function first
     const { data, error } = await supabase.functions.invoke('send-email', {
       body: {
-        template: 'venue-owner-registration-complete',
+        template: 'venue-owner-signup-complete',
         data: {
           email: venueOwnerData.email,
           ownerName: venueOwnerData.owner_name,
           venueName: venueOwnerData.venue_name,
+          venueType: venueOwnerData.venue_type || 'Restaurant',
+          venueAddress: venueOwnerData.venue_address,
+          venueCity: venueOwnerData.venue_city,
           dashboardUrl: `${window.location.origin}/venue-owner/dashboard`,
           loginUrl: `${window.location.origin}/venue-owner/login`
         }
@@ -256,15 +294,48 @@ export const sendVenueOwnerRegistrationComplete = async (venueOwnerData) => {
     });
 
     if (error) {
-      console.error('❌ Failed to send registration complete email:', error);
-      throw error;
+      console.warn('⚠️ Edge Function failed, trying EmailJS fallback...', error);
+      throw error; // This will trigger the fallback
     }
 
-    console.log('✅ Venue owner registration complete email sent successfully:', data);
+    console.log('✅ Venue owner registration complete email sent successfully via Edge Function:', data);
     return data;
   } catch (error) {
-    console.error('❌ Error in sendVenueOwnerRegistrationComplete:', error);
-    throw error;
+    console.log('🔄 Falling back to EmailJS for registration complete email...');
+    
+    // Fallback to EmailJS
+    try {
+      const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+      const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_VENUE_OWNER_WELCOME_TEMPLATE;
+      const PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+      
+      if (!SERVICE_ID || !TEMPLATE_ID || !PUBLIC_KEY) {
+        throw new Error('EmailJS configuration missing');
+      }
+      
+      // Initialize EmailJS
+      const { default: emailjs } = await import('@emailjs/browser');
+      emailjs.init(PUBLIC_KEY);
+      
+      const result = await emailjs.send(SERVICE_ID, TEMPLATE_ID, {
+        email: venueOwnerData.email,
+        to_name: venueOwnerData.owner_name,
+        from_name: 'VIPClub',
+        venue_name: venueOwnerData.venue_name,
+        venue_type: venueOwnerData.venue_type || 'Restaurant',
+        venue_address: venueOwnerData.venue_address,
+        venue_city: venueOwnerData.venue_city,
+        owner_name: venueOwnerData.owner_name,
+        dashboard_url: `${window.location.origin}/venue-owner/dashboard`,
+        login_url: `${window.location.origin}/venue-owner/login`
+      });
+      
+      console.log('✅ Registration complete email sent via EmailJS fallback:', result);
+      return result;
+    } catch (fallbackError) {
+      console.error('❌ Both Edge Function and EmailJS fallback failed:', fallbackError);
+      throw fallbackError;
+    }
   }
 };
 
@@ -330,6 +401,7 @@ export const notifyAdminOfVenueOwnerRegistration = async (venueOwnerData) => {
   try {
     console.log('🔄 Notifying admin of venue owner registration');
     
+    // Try Edge Function first
     const { data, error } = await supabase.functions.invoke('send-email', {
       body: {
         template: 'admin-venue-owner-registration',
@@ -348,15 +420,55 @@ export const notifyAdminOfVenueOwnerRegistration = async (venueOwnerData) => {
     });
 
     if (error) {
-      console.error('❌ Failed to notify admin:', error);
-      throw error;
+      console.warn('⚠️ Edge Function failed, trying EmailJS fallback...', error);
+      throw error; // This will trigger the fallback
     }
 
-    console.log('✅ Admin notification sent successfully:', data);
+    console.log('✅ Admin notification sent successfully via Edge Function:', data);
     return data;
   } catch (error) {
-    console.error('❌ Error in notifyAdminOfVenueOwnerRegistration:', error);
-    throw error;
+    console.log('🔄 Falling back to EmailJS for admin notification...');
+    
+    // Fallback to EmailJS
+    try {
+      const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+      const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_VENUE_OWNER_REQUEST_TEMPLATE;
+      const PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+      
+      if (!SERVICE_ID || !TEMPLATE_ID || !PUBLIC_KEY) {
+        throw new Error('EmailJS configuration missing');
+      }
+      
+      // Initialize EmailJS
+      const { default: emailjs } = await import('@emailjs/browser');
+      emailjs.init(PUBLIC_KEY);
+      
+      const result = await emailjs.send(SERVICE_ID, TEMPLATE_ID, {
+        email: 'sales@oneeddy.com', // Admin email
+        to_name: 'Admin',
+        from_name: 'VIPClub System',
+        subject: 'New Venue Owner Registration',
+        ownerName: venueOwnerData.owner_name,
+        ownerEmail: venueOwnerData.email,
+        ownerPhone: venueOwnerData.phone || 'Not provided',
+        venueName: venueOwnerData.venue_name,
+        venueType: venueOwnerData.venue_type || 'Restaurant',
+        venueAddress: venueOwnerData.venue_address,
+        venueCity: venueOwnerData.venue_city,
+        applicationDate: new Date().toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        })
+      });
+      
+      console.log('✅ Admin notification sent via EmailJS fallback:', result);
+      return result;
+    } catch (fallbackError) {
+      console.error('❌ Both Edge Function and EmailJS fallback failed:', fallbackError);
+      throw fallbackError;
+    }
   }
 };
 
@@ -400,6 +512,8 @@ export const sendApprovalEmailWithFallback = async (venueOwnerData) => {
         throw new Error('EmailJS configuration missing');
       }
       
+      // Initialize EmailJS
+      const { default: emailjs } = await import('@emailjs/browser');
       emailjs.init(PUBLIC_KEY);
       
       const result = await emailjs.send(SERVICE_ID, TEMPLATE_ID, {
@@ -462,4 +576,78 @@ export const testVenueOwnerEmails = async (testEmail = 'test@example.com') => {
 // Make test function available globally for debugging
 if (typeof window !== 'undefined') {
   window.testVenueOwnerEmails = testVenueOwnerEmails;
+} 
+
+// Simple test function to debug email service configuration
+export const testEmailConfiguration = async () => {
+  console.log('🔍 Testing email service configuration...');
+  
+  // Check environment variables
+  const envVars = {
+    emailjsServiceId: import.meta.env.VITE_EMAILJS_SERVICE_ID,
+    emailjsPublicKey: import.meta.env.VITE_EMAILJS_PUBLIC_KEY,
+    venueOwnerApprovalTemplate: import.meta.env.VITE_EMAILJS_VENUE_OWNER_APPROVAL_TEMPLATE,
+    venueOwnerWelcomeTemplate: import.meta.env.VITE_EMAILJS_VENUE_OWNER_WELCOME_TEMPLATE,
+    venueOwnerRequestTemplate: import.meta.env.VITE_EMAILJS_VENUE_OWNER_REQUEST_TEMPLATE
+  };
+  
+  console.log('📋 Environment Variables:', {
+    serviceId: envVars.emailjsServiceId ? '✅ Set' : '❌ Missing',
+    publicKey: envVars.emailjsPublicKey ? '✅ Set' : '❌ Missing',
+    approvalTemplate: envVars.venueOwnerApprovalTemplate ? '✅ Set' : '❌ Missing',
+    welcomeTemplate: envVars.venueOwnerWelcomeTemplate ? '✅ Set' : '❌ Missing',
+    requestTemplate: envVars.venueOwnerRequestTemplate ? '✅ Set' : '❌ Missing'
+  });
+  
+  // Test Edge Function
+  try {
+    console.log('🔄 Testing Edge Function...');
+    const { data, error } = await supabase.functions.invoke('send-email', {
+      body: {
+        template: 'test',
+        data: {
+          email: 'test@example.com',
+          message: 'Test email from Edge Function'
+        }
+      }
+    });
+    
+    if (error) {
+      console.error('❌ Edge Function test failed:', error);
+    } else {
+      console.log('✅ Edge Function test successful:', data);
+    }
+  } catch (edgeError) {
+    console.error('❌ Edge Function not available:', edgeError);
+  }
+  
+  // Test EmailJS
+  try {
+    console.log('🔄 Testing EmailJS...');
+    const { default: emailjs } = await import('@emailjs/browser');
+    
+    if (envVars.emailjsPublicKey) {
+      emailjs.init(envVars.emailjsPublicKey);
+      console.log('✅ EmailJS initialized');
+    } else {
+      console.error('❌ EmailJS public key missing');
+    }
+  } catch (emailjsError) {
+    console.error('❌ EmailJS test failed:', emailjsError);
+  }
+  
+  return {
+    edgeFunction: 'tested',
+    emailjs: envVars.emailjsPublicKey ? 'available' : 'missing_key',
+    templates: {
+      approval: envVars.venueOwnerApprovalTemplate ? 'set' : 'missing',
+      welcome: envVars.venueOwnerWelcomeTemplate ? 'set' : 'missing',
+      request: envVars.venueOwnerRequestTemplate ? 'set' : 'missing'
+    }
+  };
+};
+
+// Make test function available globally for debugging
+if (typeof window !== 'undefined') {
+  window.testEmailConfiguration = testEmailConfiguration;
 } 

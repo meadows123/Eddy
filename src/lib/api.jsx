@@ -1,4 +1,4 @@
-import { supabase } from './supabase'
+import { supabase } from './supabase.js'
 import { Elements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import React, { useState, useEffect } from 'react';
@@ -7,58 +7,69 @@ import { Settings, Heart, Calendar } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '../components/ui/button.jsx';
 
-// User Profile API
-export const userApi = {
-  // Get user profile
-  getProfile: async (userId) => {
+// Get user profile by ID
+export const getUserProfile = async (userId) => {
+  try {
     const { data, error } = await supabase
-      .from('user_profiles')
+      .from('profiles')
       .select('*')
       .eq('id', userId)
-      .single()
-    
-    if (error) throw error
-    return data
-  },
+      .single();
 
-  // Update user profile
-  updateProfile: async (userId, updates) => {
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .update(updates)
-      .eq('id', userId)
-      .select()
-      .single()
-    
-    if (error) throw error
-    return data
-  },
-
-  // Get user preferences
-  getPreferences: async (userId) => {
-    const { data, error } = await supabase
-      .from('user_preferences')
-      .select('*')
-      .eq('user_id', userId)
-      .single()
-    
-    if (error) throw error
-    return data
-  },
-
-  // Update user preferences
-  updatePreferences: async (userId, updates) => {
-    const { data, error } = await supabase
-      .from('user_preferences')
-      .update(updates)
-      .eq('user_id', userId)
-      .select()
-      .single()
-    
-    if (error) throw error
-    return data
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error('Error fetching user profile:', error);
+    throw error;
   }
-}
+};
+
+// Update user profile
+export const updateUserProfile = async (userId, profileData) => {
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({
+        first_name: profileData.firstName,
+        last_name: profileData.lastName,
+        phone: profileData.phone,
+        city: profileData.city,
+        country: profileData.country
+      })
+      .eq('id', userId)
+      .single();
+
+    if (error) throw error;
+  } catch (error) {
+    console.error('Error updating user profile:', error);
+    throw error;
+  }
+};
+
+// Get user preferences
+export const getUserPreferences = async (userId) => {
+  const { data, error } = await supabase
+    .from('user_preferences')
+    .select('*')
+    .eq('user_id', userId)
+    .single()
+  
+  if (error) throw error
+  return data
+};
+
+// Update user preferences
+export const updateUserPreferences = async (userId, updates) => {
+  const { data, error } = await supabase
+    .from('user_preferences')
+    .update(updates)
+    .eq('user_id', userId)
+    .select()
+    .single()
+  
+  if (error) throw error
+  return data
+};
 
 // Saved Venues API
 export const savedVenuesApi = {
