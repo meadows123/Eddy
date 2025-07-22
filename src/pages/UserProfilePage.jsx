@@ -17,6 +17,9 @@ const UserProfilePage = () => {
   console.log('🔍 UserProfilePage component is rendering');
   const { user, signIn, signUp, signOut } = useAuth();
   console.log('👤 Current user:', user);
+  const navigate = useNavigate();
+  const location = useLocation();
+  
   const [isSignup, setIsSignup] = useState(false);
   const [form, setForm] = useState({ email: '', password: '' });
   const [signupForm, setSignupForm] = useState({ 
@@ -34,7 +37,6 @@ const UserProfilePage = () => {
   const [profile, setProfile] = useState(null);
   const [savedVenues, setSavedVenues] = useState([]);
   const [bookings, setBookings] = useState([]);
-  const navigate = useNavigate();
   const [depositAmount, setDepositAmount] = useState("");
   const [editingProfile, setEditingProfile] = useState(false);
   const [profileForm, setProfileForm] = useState({
@@ -525,7 +527,7 @@ const UserProfilePage = () => {
                 </Button>
               </div>
 
-        <Tabs defaultValue="profile" className="space-y-4">
+        <Tabs defaultValue={location.state?.activeTab || "profile"} className="space-y-4">
           <TabsList className="bg-white p-1 rounded-lg border border-brand-burgundy/10 grid grid-cols-2 md:grid-cols-7 h-auto">
             <TabsTrigger value="profile" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 p-2 md:p-3 text-xs md:text-sm">
               <Settings className="h-3 w-3 md:h-4 md:w-4" />

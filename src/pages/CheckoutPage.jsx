@@ -93,6 +93,10 @@ const CheckoutPage = () => {
     console.log('isDepositFlow:', isDepositFlow);
     console.log('id from params:', id);
     console.log('location.pathname:', location.pathname);
+    console.log('location.state:', location.state);
+    
+    // Check if this is a credit purchase flow
+    const isCreditPurchase = location.state?.creditPurchase;
     
     if (isDepositFlow) {
       // For deposit flow, we don't need venue selection
@@ -106,8 +110,26 @@ const CheckoutPage = () => {
         isDeposit: true,
         venueName: 'VIP Credit Deposit'
       });
+    } else if (isCreditPurchase) {
+      // For credit purchase flow, use data from location.state
+      console.log('Credit purchase flow detected');
+      const { venueId, venueName, amount, purchaseAmount, venue } = location.state;
+      setSelection({
+        isCreditPurchase: true,
+        venueId,
+        venueName,
+        creditAmount: amount,
+        purchaseAmount,
+        venue
+      });
     } else {
       // Original venue booking flow
+      if (!id) {
+        console.log('No venue ID provided, redirecting to venues');
+        navigate('/venues');
+        return;
+      }
+      
       const savedSelection = localStorage.getItem('lagosvibe_booking_selection');
       console.log('savedSelection from localStorage:', savedSelection);
       
@@ -131,7 +153,7 @@ const CheckoutPage = () => {
       }
     }
     setLoading(false);
-  }, [id, navigate, isDepositFlow, depositAmount]);
+  }, [id, navigate, isDepositFlow, depositAmount, location.state]);
   
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -346,6 +368,41 @@ const CheckoutPage = () => {
           password: formData.password
         });
 
+        // Handle credit purchase flow
+        if (selection.isCreditPurchase) {
+          // Create venue credit record
+          const { data: creditData, error: creditError } = await supabase
+            .from('venue_credits')
+            .insert([{
+              user_id: currentUser?.id,
+              venue_id: selection.venueId,
+              amount: selection.creditAmount * 100, // Convert to kobo/cents
+              notes: `Credit purchase for ${selection.venueName}`,
+              status: 'active'
+            }])
+            .select()
+            .single();
+
+          if (creditError) {
+            throw new Error(`Failed to create venue credits: ${creditError.message}`);
+          }
+
+          // Show success message
+          toast({
+            title: "Credits Purchased Successfully! 🎉",
+            description: `₦${selection.creditAmount.toLocaleString()} credits added to your ${selection.venueName} account`,
+            className: "bg-green-500 text-white",
+          });
+
+          // Navigate back to profile/wallet
+          setTimeout(() => {
+            navigate('/profile', { state: { activeTab: 'wallet' } });
+          }, 2000);
+
+          return; // Exit early for credit purchase flow
+        }
+
+        // Original booking flow continues here...
         // Prepare booking data for database
         const bookingData = {
           user_id: currentUser?.id,
@@ -449,6 +506,9 @@ const CheckoutPage = () => {
     if (isDepositFlow && depositAmount) {
       return depositAmount.toFixed(2);
     }
+    if (selection?.isCreditPurchase) {
+      return selection.purchaseAmount.toFixed(2);
+    }
     if (!selection) return 0;
     let total = (selection.ticket?.price || 0) + (selection.table?.price || 0) + 25; // 25 is service fee
     if (vipPerks.includes("10% Discount Applied")) {
@@ -509,8 +569,16 @@ const CheckoutPage = () => {
       <div className="container py-20 text-center">
         <h2 className="text-2xl font-bold mb-4">No Selection Found</h2>
         <p className="text-muted-foreground mb-6">Please go back and select a ticket or table first.</p>
-        <Link to={`/venues/${id}`}>
-          <Button>Back to Venue</Button>
+        <Link to={
+          isDepositFlow ? "/profile" : 
+          location.state?.creditPurchase ? "/venue-credit-purchase" :
+          `/venues/${id}`
+        }>
+          <Button>
+            {isDepositFlow ? "Back to Profile" : 
+             location.state?.creditPurchase ? "Back to Credit Purchase" :
+             "Back to Venue"}
+          </Button>
         </Link>
       </div>
     );
@@ -518,9 +586,15 @@ const CheckoutPage = () => {
   
   return (
     <div className="container py-10">
-      <Link to={isDepositFlow ? "/profile" : `/venues/${id}`} className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-6">
+      <Link to={
+        isDepositFlow ? "/profile" : 
+        location.state?.creditPurchase ? "/venue-credit-purchase" :
+        `/venues/${id}`
+      } className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-6">
         <ArrowLeft className="mr-2 h-4 w-4" />
-        {isDepositFlow ? "Back to Profile" : "Back to Venue"}
+        {isDepositFlow ? "Back to Profile" : 
+         location.state?.creditPurchase ? "Back to Credit Purchase" :
+         "Back to Venue"}
       </Link>
       
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
