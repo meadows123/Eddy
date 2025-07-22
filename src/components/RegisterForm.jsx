@@ -8,6 +8,7 @@ const RegisterForm = () => {
   const [age, setAge] = useState('');
   const [country, setCountry] = useState('');
   const [city, setCity] = useState('');
+  const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -19,35 +20,80 @@ const RegisterForm = () => {
     setError('');
     setSuccess('');
     setEmailStatus('');
-    // Register user with metadata
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          full_name: name,
-          age: age ? parseInt(age) : null,
-          country,
-          city
+
+    try {
+      // Debug: Log the data being sent
+      const signUpPayload = {
+        email,
+        password,
+        options: {
+          data: {
+            full_name: name,
+            age,
+            country,
+            city,
+            phone
+          }
         }
+      };
+      
+      console.log('🔍 DEBUG: Registration payload:', {
+        email,
+        name,
+        age,
+        country,
+        city,
+        phone,
+        signUpPayload
+      });
+
+      // Register user with metadata
+      console.log('🚀 DEBUG: Calling supabase.auth.signUp...');
+      const { data, error } = await supabase.auth.signUp(signUpPayload);
+      
+      console.log('📥 DEBUG: Auth response:', { data, error });
+
+      if (error) {
+        console.error('❌ DEBUG: Auth signup error:', {
+          message: error.message,
+          status: error.status,
+          details: error
+        });
+        setError(`Auth Error: ${error.message}`);
+        return;
       }
-    });
-    setLoading(false);
-    if (error) {
-      setError(error.message);
-    } else {
+
+      console.log('✅ DEBUG: Auth signup successful, user created:', data.user);
       setSuccess('Registration successful! Please check your email to confirm your account.');
+      
       // Insert into profiles table (for immediate profile availability)
       if (data.user) {
-        await supabase.from('profiles').upsert({
+        console.log('🔍 DEBUG: Creating profile record...');
+        const profileData = {
           id: data.user.id,
           full_name: name,
           age: age ? parseInt(age) : null,
           country,
           city,
-          email
-        });
+          email,
+          phone
+        };
+        
+        console.log('📤 DEBUG: Profile data:', profileData);
+        
+        const { data: profileResult, error: profileError } = await supabase.from('profiles').upsert(profileData);
+        
+        console.log('📥 DEBUG: Profile upsert result:', { profileResult, profileError });
+        
+        if (profileError) {
+          console.error('❌ DEBUG: Profile creation error:', profileError);
+          setError(`Profile Error: ${profileError.message}`);
+          return;
+        }
+        
+        console.log('✅ DEBUG: Profile created successfully');
       }
+      
       // Call Edge Function to send custom welcome email
       const functionUrl = `${import.meta.env.VITE_SUPABASE_URL.replace('.supabase.co', '.functions.supabase.co')}/send-email`;
       fetch(functionUrl, {
@@ -71,6 +117,12 @@ const RegisterForm = () => {
       .catch(() => {
         setEmailStatus('Registered, but failed to send welcome email.');
       });
+      
+    } catch (err) {
+      console.error('💥 DEBUG: Unexpected error during registration:', err);
+      setError(`Unexpected Error: ${err.message}`);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -108,6 +160,14 @@ const RegisterForm = () => {
         className="w-full mb-2 p-2 border rounded"
         value={city}
         onChange={e => setCity(e.target.value)}
+        required
+      />
+      <input
+        type="tel"
+        placeholder="Phone"
+        className="w-full mb-2 p-2 border rounded"
+        value={phone}
+        onChange={e => setPhone(e.target.value)}
         required
       />
       <input
