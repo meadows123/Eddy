@@ -4,6 +4,10 @@ import { supabase } from '../lib/supabase';
 const RegisterForm = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [age, setAge] = useState('');
+  const [country, setCountry] = useState('');
+  const [city, setCity] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -15,15 +19,35 @@ const RegisterForm = () => {
     setError('');
     setSuccess('');
     setEmailStatus('');
-    const { error } = await supabase.auth.signUp({
+    // Register user with metadata
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        data: {
+          full_name: name,
+          age: age ? parseInt(age) : null,
+          country,
+          city
+        }
+      }
     });
     setLoading(false);
     if (error) {
       setError(error.message);
     } else {
       setSuccess('Registration successful! Please check your email to confirm your account.');
+      // Insert into profiles table (for immediate profile availability)
+      if (data.user) {
+        await supabase.from('profiles').upsert({
+          id: data.user.id,
+          full_name: name,
+          age: age ? parseInt(age) : null,
+          country,
+          city,
+          email
+        });
+      }
       // Call Edge Function to send custom welcome email
       const functionUrl = `${import.meta.env.VITE_SUPABASE_URL.replace('.supabase.co', '.functions.supabase.co')}/send-email`;
       fetch(functionUrl, {
@@ -53,6 +77,39 @@ const RegisterForm = () => {
   return (
     <form onSubmit={handleRegister} className="max-w-md mx-auto p-6 bg-white rounded shadow">
       <h2 className="text-xl font-bold mb-4">Register</h2>
+      <input
+        type="text"
+        placeholder="Full Name"
+        className="w-full mb-2 p-2 border rounded"
+        value={name}
+        onChange={e => setName(e.target.value)}
+        required
+      />
+      <input
+        type="number"
+        placeholder="Age"
+        className="w-full mb-2 p-2 border rounded"
+        value={age}
+        onChange={e => setAge(e.target.value)}
+        min={1}
+        required
+      />
+      <input
+        type="text"
+        placeholder="Country"
+        className="w-full mb-2 p-2 border rounded"
+        value={country}
+        onChange={e => setCountry(e.target.value)}
+        required
+      />
+      <input
+        type="text"
+        placeholder="City"
+        className="w-full mb-2 p-2 border rounded"
+        value={city}
+        onChange={e => setCity(e.target.value)}
+        required
+      />
       <input
         type="email"
         placeholder="Email"

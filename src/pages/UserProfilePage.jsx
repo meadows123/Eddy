@@ -44,7 +44,8 @@ const UserProfilePage = () => {
     last_name: '',
     phone_number: '',
     city: '',
-    country: ''
+    country: '',
+    age: ''
   });
   const [splitPaymentsSent, setSplitPaymentsSent] = useState([]);
   const [splitPaymentsReceived, setSplitPaymentsReceived] = useState([]);
@@ -202,7 +203,8 @@ const UserProfilePage = () => {
               last_name: existingProfile.last_name || '',
               phone_number: existingProfile.phone_number || '',
               city: existingProfile.city || '',
-              country: existingProfile.country || ''
+              country: existingProfile.country || '',
+              age: existingProfile.age || ''
             });
           }
         } else {
@@ -212,7 +214,8 @@ const UserProfilePage = () => {
             last_name: newProfile.last_name || '',
             phone_number: newProfile.phone_number || '',
             city: newProfile.city || '',
-            country: newProfile.country || ''
+            country: newProfile.country || '',
+            age: newProfile.age || ''
           });
         }
       } else if (profileError) {
@@ -224,7 +227,8 @@ const UserProfilePage = () => {
           last_name: profileData.last_name || '',
           phone_number: profileData.phone_number || '',
           city: profileData.city || '',
-          country: profileData.country || ''
+          country: profileData.country || '',
+          age: profileData.age || ''
         });
       }
 
@@ -291,7 +295,8 @@ const UserProfilePage = () => {
           last_name: profileForm.last_name,
           phone_number: profileForm.phone_number,
           city: profileForm.city,
-          country: profileForm.country
+          country: profileForm.country,
+          age: profileForm.age ? parseInt(profileForm.age) : null
         })
         .eq('id', user.id)
         .select()
@@ -612,6 +617,16 @@ const UserProfilePage = () => {
                           placeholder="Enter phone number"
                         />
                       </div>
+                      <div>
+                        <label className="block text-sm font-medium text-brand-burgundy/70 mb-1">Age</label>
+                        <Input
+                          type="number"
+                          value={profileForm.age}
+                          onChange={(e) => setProfileForm(prev => ({...prev, age: e.target.value}))}
+                          placeholder="Enter age"
+                          min={1}
+                        />
+                      </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <label className="block text-sm font-medium text-brand-burgundy/70 mb-1">City</label>
@@ -645,7 +660,8 @@ const UserProfilePage = () => {
                               last_name: profile.last_name || '',
                               phone_number: profile.phone_number || '',
                               city: profile.city || '',
-                              country: profile.country || ''
+                              country: profile.country || '',
+                              age: profile.age || ''
                             });
                           }}
                           variant="outline"
@@ -668,6 +684,10 @@ const UserProfilePage = () => {
                       <div>
                         <label className="block text-sm font-medium text-brand-burgundy/70">Phone</label>
                         <p className="mt-1">{profile.phone_number || 'Not set'}</p>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-brand-burgundy/70">Age</label>
+                        <p className="mt-1">{profile.age || 'Not set'}</p>
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>

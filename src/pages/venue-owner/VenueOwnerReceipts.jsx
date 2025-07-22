@@ -487,6 +487,20 @@ const VenueOwnerReceipts = () => {
                           <div className="text-sm text-brand-burgundy/70">Available Credits</div>
                         </div>
                       </div>
+                      <div className="flex justify-end mt-2">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="border-red-300 text-red-600 hover:bg-red-50"
+                          onClick={() => {
+                            setSelectedMember(null);
+                            setMemberSearchTerm('');
+                          }}
+                        >
+                          Remove Member
+                        </Button>
+                      </div>
                     </div>
                   )}
                 </div>
