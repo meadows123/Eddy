@@ -165,7 +165,7 @@ const UserProfilePage = () => {
     try {
       // Load profile - handle missing profile by creating one
       let { data: profileData, error: profileError } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single();
@@ -174,15 +174,15 @@ const UserProfilePage = () => {
         // Profile doesn't exist, try to create one or update existing
         console.log('Profile not found, attempting to create or update...');
         const { data: newProfile, error: createError } = await supabase
-          .from('user_profiles')
+          .from('profiles')
           .upsert([{
             id: user.id,
             first_name: '',
             last_name: '',
-            phone_number: '',
+            phone: '',
             city: '',
             country: '',
-            credit_balance: 0
+            age: null
           }])
           .select()
           .single();
@@ -191,7 +191,7 @@ const UserProfilePage = () => {
           console.error('Error creating/updating profile:', createError);
           // If upsert fails, try to fetch the existing profile again
           const { data: existingProfile, error: fetchError } = await supabase
-            .from('user_profiles')
+            .from('profiles')
             .select('*')
             .eq('id', user.id)
             .single();
@@ -201,7 +201,7 @@ const UserProfilePage = () => {
             setProfileForm({
               first_name: existingProfile.first_name || '',
               last_name: existingProfile.last_name || '',
-              phone_number: existingProfile.phone_number || '',
+              phone_number: existingProfile.phone || '',
               city: existingProfile.city || '',
               country: existingProfile.country || '',
               age: existingProfile.age || ''
@@ -212,7 +212,7 @@ const UserProfilePage = () => {
           setProfileForm({
             first_name: newProfile.first_name || '',
             last_name: newProfile.last_name || '',
-            phone_number: newProfile.phone_number || '',
+            phone_number: newProfile.phone || '',
             city: newProfile.city || '',
             country: newProfile.country || '',
             age: newProfile.age || ''
@@ -225,7 +225,7 @@ const UserProfilePage = () => {
         setProfileForm({
           first_name: profileData.first_name || '',
           last_name: profileData.last_name || '',
-          phone_number: profileData.phone_number || '',
+          phone_number: profileData.phone || '',
           city: profileData.city || '',
           country: profileData.country || '',
           age: profileData.age || ''
@@ -289,11 +289,11 @@ const UserProfilePage = () => {
   const updateProfile = async () => {
     try {
       const { data: updatedProfile, error } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .update({
           first_name: profileForm.first_name,
           last_name: profileForm.last_name,
-          phone_number: profileForm.phone_number,
+          phone: profileForm.phone_number,
           city: profileForm.city,
           country: profileForm.country,
           age: profileForm.age ? parseInt(profileForm.age) : null
@@ -342,12 +342,12 @@ const UserProfilePage = () => {
       const userId = signUpData.user.id;
       // Use upsert to handle the case where trigger already created a profile
       const { error: profileError } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .upsert([{ 
           id: userId, 
           first_name: signupForm.firstName, 
           last_name: signupForm.lastName, 
-          phone_number: '',
+          phone: '',
           city: signupForm.city,
           country: signupForm.country
         }]);
@@ -658,7 +658,7 @@ const UserProfilePage = () => {
                             setProfileForm({
                               first_name: profile.first_name || '',
                               last_name: profile.last_name || '',
-                              phone_number: profile.phone_number || '',
+                              phone_number: profile.phone || '',
                               city: profile.city || '',
                               country: profile.country || '',
                               age: profile.age || ''
@@ -683,7 +683,7 @@ const UserProfilePage = () => {
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-brand-burgundy/70">Phone</label>
-                        <p className="mt-1">{profile.phone_number || 'Not set'}</p>
+                        <p className="mt-1">{profile.phone || 'Not set'}</p>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-brand-burgundy/70">Age</label>
@@ -1245,7 +1245,7 @@ function PaymentDetailsSection({ user }) {
     if (depositAmount && user) {
       // Update the user's credit_balance in Supabase
       await supabase
-        .from('user_profiles')
+        .from('profiles')
         .update({ credit_balance: supabase.raw('credit_balance + ?', [depositAmount]) })
         .eq('id', user.id);
     }

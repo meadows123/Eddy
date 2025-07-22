@@ -140,25 +140,27 @@ const BookingList = ({ currentUser }) => {
 
       if (bookingsError) throw bookingsError;
 
-      // Fetch user profiles separately to handle potential missing profiles
-      const userIds = bookingsData?.map(b => b.user_id).filter(Boolean) || [];
-      let userProfiles = {};
+      // Fetch user profiles for bookings in batches
+      const userIds = [...new Set(bookingsData?.map(b => b.user_id))].filter(Boolean);
+      const userProfiles = {};
       
       if (userIds.length > 0) {
-        const { data: profilesData } = await supabase
-          .from('user_profiles')
-          .select('id, first_name, last_name')
+        const { data: profiles, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, email, phone')
           .in('id', userIds);
         
-        profilesData?.forEach(profile => {
-          userProfiles[profile.id] = profile;
-        });
+        if (!profilesError && profiles) {
+          profiles.forEach(profile => {
+            userProfiles[profile.id] = profile;
+          });
+        }
       }
 
-      // Combine bookings with user profiles
+      // Attach user profile data to bookings
       const bookingsWithProfiles = bookingsData?.map(booking => ({
         ...booking,
-        user_profiles: userProfiles[booking.user_id] || null
+        profiles: userProfiles[booking.user_id] || null
       })) || [];
 
       setBookings(bookingsWithProfiles);
@@ -230,8 +232,8 @@ const BookingList = ({ currentUser }) => {
   };
 
   const formatCustomerName = (booking) => {
-    if (booking.user_profiles) {
-      return `${booking.user_profiles.first_name || ''} ${booking.user_profiles.last_name || ''}`.trim();
+    if (booking.profiles) {
+      return `${booking.profiles.first_name || ''} ${booking.profiles.last_name || ''}`.trim();
     }
     // Fallback to localStorage data if available
     return booking.customerName || 'Unknown Customer';

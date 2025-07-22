@@ -79,19 +79,20 @@ const VenueOwnerDashboard = () => {
       try {
         // Fetch VIP members who have deposited money (credit_balance > 0)
         const { data, error } = await supabase
-          .from('user_profiles')
+          .from('profiles')
           .select(`
             id,
             first_name,
             last_name,
             credit_balance,
-            phone_number,
+            phone,
             city,
             country,
             created_at
           `)
           .gt('credit_balance', 0)
-          .order('credit_balance', { ascending: false });
+          .order('credit_balance', { ascending: false })
+          .limit(10);
 
         if (error) {
           console.error('Error fetching VIP members:', error);
@@ -792,7 +793,7 @@ const VenueOwnerDashboard = () => {
                             </td>
                             <td className="py-3 px-2">
                               <div className="text-sm text-brand-burgundy/80">
-                                {member.phone_number || 'Not provided'}
+                                {member.phone || 'Not provided'}
                               </div>
                             </td>
                           </tr>

@@ -66,9 +66,9 @@ const SplitPaymentForm = ({
     setIsSearching(true);
     try {
       const { data, error } = await supabase
-        .from('user_profiles')
-        .select('id, first_name, last_name, phone_number')
-        .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%,phone_number.ilike.%${query}%`)
+        .from('profiles')
+        .select('id, first_name, last_name, phone')
+        .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%,phone.ilike.%${query}%`)
         .neq('id', user?.id) // Exclude current user
         .limit(10);
 
@@ -124,6 +124,13 @@ const SplitPaymentForm = ({
       return;
     }
 
+    // Check if user already has a profile
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', user.id)
+      .single();
+
     // Validate that all recipients are selected
     const hasEmptyRecipients = splitRecipients.some(recipient => !recipient);
     if (hasEmptyRecipients) {
@@ -147,7 +154,7 @@ const SplitPaymentForm = ({
         booking_id: realBookingId,
         requester_id: user.id,
         recipient_id: recipient.id,
-        recipient_phone: recipient.phone_number || null,
+        recipient_phone: recipient.phone || null,
         amount: splitAmounts[index],
         payment_link: `${window.location.origin}/split-payment/${realBookingId}/${index}`,
         status: 'pending'
@@ -279,7 +286,7 @@ const SplitPaymentForm = ({
                           {splitRecipients[index].displayName}
                         </div>
                         <div className="text-sm text-muted-foreground">
-                          {splitRecipients[index].phone_number}
+                          {splitRecipients[index].phone}
                         </div>
                       </div>
                     </div>
@@ -367,7 +374,7 @@ const SplitPaymentForm = ({
                     <div>
                       <div className="font-medium">{result.displayName}</div>
                       <div className="text-sm text-muted-foreground">
-                        {result.phone_number}
+                        {result.phone}
                       </div>
                     </div>
                   </div>

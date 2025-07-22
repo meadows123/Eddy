@@ -62,7 +62,7 @@ const CheckoutPage = () => {
       if (user) {
         try {
           const { data, error } = await supabase
-            .from('user_profiles')
+            .from('profiles')
             .select('*')
             .eq('id', user.id)
             .single();
@@ -76,7 +76,7 @@ const CheckoutPage = () => {
               ...prev,
               fullName: `${data.first_name || ''} ${data.last_name || ''}`.trim() || user.user_metadata?.full_name || '',
               email: user.email || '',
-              phone: data.phone_number || user.user_metadata?.phone || ''
+              phone: data.phone || user.user_metadata?.phone || ''
             }));
           }
         } catch (error) {
@@ -278,12 +278,12 @@ const CheckoutPage = () => {
       if (user) {
         // Update user profile with any new information
         const { error: profileError } = await supabase
-          .from('user_profiles')
+          .from('profiles')
           .upsert([{
             id: user.id,
             first_name: userData.fullName.split(' ')[0] || '',
             last_name: userData.fullName.split(' ').slice(1).join(' ') || '',
-            phone_number: userData.phone
+            phone: userData.phone
           }], {
             onConflict: 'id'
           });
@@ -324,12 +324,12 @@ const CheckoutPage = () => {
       // Create user profile if it doesn't exist
       if (newUser.user) {
         const { error: profileError } = await supabase
-          .from('user_profiles')
+          .from('profiles')
           .upsert([{
             id: newUser.user.id,
             first_name: userData.fullName.split(' ')[0] || '',
             last_name: userData.fullName.split(' ').slice(1).join(' ') || '',
-            phone_number: userData.phone
+            phone: userData.phone
           }], {
             onConflict: 'id'
           });

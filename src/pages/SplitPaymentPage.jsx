@@ -47,7 +47,7 @@ const SplitPaymentPage = () => {
               address,
               city
             ),
-            user_profiles!bookings_user_id_fkey (
+            profiles!bookings_user_id_fkey (
               first_name,
               last_name
             )
@@ -226,7 +226,7 @@ const SplitPaymentPage = () => {
                   <div>
                     <Label className="text-muted-foreground">Requested by</Label>
                     <p className="font-medium">
-                      {booking?.user_profiles?.first_name} {booking?.user_profiles?.last_name}
+                      {booking?.profiles?.first_name} {booking?.profiles?.last_name}
                     </p>
                   </div>
                   <div>
