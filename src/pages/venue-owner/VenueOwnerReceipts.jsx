@@ -332,7 +332,7 @@ const VenueOwnerReceipts = () => {
           p_cash_amount_paid: Math.round(parseFloat(receiptForm.cashAmountPaid || 0) * 100),
           p_receipt_date: receiptForm.receiptDate,
           p_notes: receiptForm.notes,
-          p_receipt_items: JSON.stringify(validItems)
+          p_receipt_items: validItems // <-- pass as array, not JSON.stringify(validItems)
         });
 
       if (error) throw error;
