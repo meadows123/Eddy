@@ -22,7 +22,7 @@ const VenueOwnerSettings = () => {
   const [venue, setVenue] = useState(null);
   const [staff, setStaff] = useState([]);
   
-  // Venue Profile Form
+  // Venue Profile Form - Only fields that exist in venues table
   const [venueForm, setVenueForm] = useState({
     name: '',
     description: '',
@@ -32,13 +32,10 @@ const VenueOwnerSettings = () => {
     country: '',
     contact_phone: '',
     contact_email: '',
-    capacity: '',
     price_range: '',
     opening_hours: '',
-    cuisine: [],
-    music: [],
-    ambiance: '',
-    dress_code: ''
+    website_url: '',
+    vibe: ''
   });
 
   // Staff Management
@@ -228,13 +225,12 @@ const VenueOwnerSettings = () => {
         country: venueData.country || '',
         contact_phone: venueData.contact_phone || '',
         contact_email: venueData.contact_email || '',
-        capacity: venueData.capacity || '',
         price_range: venueData.price_range || '',
         opening_hours: venueData.opening_hours || '',
-        cuisine: venueData.cuisine || [],
-        music: venueData.music || [],
-        ambiance: venueData.ambiance || '',
-        dress_code: venueData.dress_code || ''
+        website_url: venueData.website_url || '',
+        vibe: venueData.vibe || '',
+        // Note: capacity should be managed in venue tables, not here
+        // Note: ambiance and dress_code don't exist in venues table
       });
 
       // Fetch staff (simplified implementation)
@@ -285,6 +281,7 @@ const VenueOwnerSettings = () => {
         throw new Error('You do not have permission to update this venue.');
       }
 
+      // Only update columns that exist in the venues table
       const updateData = {
         name: venueForm.name,
         description: venueForm.description,
@@ -294,13 +291,15 @@ const VenueOwnerSettings = () => {
         country: venueForm.country,
         contact_phone: venueForm.contact_phone,
         contact_email: venueForm.contact_email,
-        capacity: venueForm.capacity ? parseInt(venueForm.capacity) : null,
         price_range: venueForm.price_range,
-        opening_hours: venueForm.opening_hours,
-        ambiance: venueForm.ambiance,
-        dress_code: venueForm.dress_code,
+        opening_hours: venueForm.opening_hours || null,
+        website_url: venueForm.website_url || null,
+        vibe: venueForm.vibe || null,
         updated_at: new Date().toISOString()
       };
+
+      // Note: Removed ambiance and dress_code as they don't exist in venues table
+      // Note: Removed capacity as it's not in the venues table (it's in venue_tables)
 
       console.log('📝 Update data:', updateData);
 
@@ -448,14 +447,17 @@ const VenueOwnerSettings = () => {
                     </div>
 
                     <div>
-                      <Label htmlFor="capacity">Capacity</Label>
-                      <Input
-                        id="capacity"
-                        type="number"
-                        value={venueForm.capacity}
-                        onChange={(e) => setVenueForm({...venueForm, capacity: e.target.value})}
-                        placeholder="Maximum capacity"
-                      />
+                      <Label htmlFor="vibe">Venue Vibe</Label>
+                      <Select value={venueForm.vibe} onValueChange={(value) => setVenueForm({...venueForm, vibe: value})}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select venue vibe" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Sophisticated">Sophisticated</SelectItem>
+                          <SelectItem value="Energetic">Energetic</SelectItem>
+                          <SelectItem value="Relaxed">Relaxed</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
 
@@ -523,6 +525,17 @@ const VenueOwnerSettings = () => {
                         value={venueForm.opening_hours}
                         onChange={(e) => setVenueForm({...venueForm, opening_hours: e.target.value})}
                         placeholder="e.g., Mon-Sun: 6PM - 2AM"
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="website_url_contact">Website URL</Label>
+                      <Input
+                        id="website_url_contact"
+                        type="url"
+                        value={venueForm.website_url}
+                        onChange={(e) => setVenueForm({...venueForm, website_url: e.target.value})}
+                        placeholder="https://yourvenuewebsite.com"
                       />
                     </div>
                   </div>
