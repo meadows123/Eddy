@@ -25,7 +25,6 @@ const Navbar = () => {
         <Link to="/" className="flex items-center gap-2">
           <motion.img
             src="/logos/Logo1-Trans-new.png"
-            alt="Eddy Members"
             className="h-16 w-auto object-contain"
             style={{ maxWidth: '250px', minHeight: '64px' }}
             initial={{ opacity: 0, scale: 0.8 }}

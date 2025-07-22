@@ -32,7 +32,6 @@ const Footer = () => {
                   } else {
                     // Show text fallback if all logos fail
                     e.target.style.display = 'none';
-                    e.target.nextSibling.style.display = 'block';
                   }
                 }}
                 onLoad={(e) => {
@@ -41,9 +40,6 @@ const Footer = () => {
                   console.log('📐 Footer logo display size:', e.target.width, 'x', e.target.height);
                 }}
               />
-              <h3 className="text-xl font-heading font-bold text-white" style={{ display: 'none' }}>
-                Eddys Members
-              </h3>
             </div>
             <p className="text-brand-cream/80 mb-4">
               Your premier destination for exclusive venue bookings.
@@ -87,7 +83,6 @@ const Footer = () => {
             <ul className="space-y-2">
               <li><Link to="/venue-owner/login" onClick={handleLinkClick} className="text-brand-cream/80 hover:text-white transition-colors">Venue Login</Link></li>
               <li><Link to="/venue-owner/register" onClick={handleLinkClick} className="text-brand-cream/80 hover:text-white transition-colors">Join as Partner</Link></li>
-              <li><a href="mailto:info@oneeddy.com" className="text-brand-cream/80 hover:text-white transition-colors">Partnership Inquiries</a></li>
             </ul>
           </div>
           <div>
@@ -105,7 +100,7 @@ const Footer = () => {
           </div>
         </div>
         <div className="border-t border-brand-cream/10 mt-8 pt-8 text-center text-brand-cream/60">
-          <p>&copy; {currentYear} Eddys Members. All rights reserved. Built with ❤️ in memory of Eddy.</p>
+          <p>&copy; {currentYear} Eddys Members. All rights reserved. Built in memory of Eddy.</p>
         </div>
       </div>
     </footer>
