@@ -97,9 +97,6 @@ const Navigation = () => {
                 console.log('📏 Logo dimensions:', e.target.naturalWidth, 'x', e.target.naturalHeight);
                 console.log('📐 Logo display size:', e.target.width, 'x', e.target.height);
                 setLogoLoaded(true);
-                // Add temporary border for debugging
-                e.target.style.border = '2px solid red';
-                setTimeout(() => e.target.style.border = 'none', 3000);
               }}
             />
             <div className="flex items-center space-x-2" style={{ display: 'none' }}>

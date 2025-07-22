@@ -39,9 +39,6 @@ const Footer = () => {
                   console.log('✅ Footer logo loaded successfully from:', e.target.src);
                   console.log('📏 Footer logo dimensions:', e.target.naturalWidth, 'x', e.target.naturalHeight);
                   console.log('📐 Footer logo display size:', e.target.width, 'x', e.target.height);
-                  // Add temporary border for debugging
-                  e.target.style.border = '2px solid green';
-                  setTimeout(() => e.target.style.border = 'none', 3000);
                 }}
               />
               <h3 className="text-xl font-heading font-bold text-white" style={{ display: 'none' }}>

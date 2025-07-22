@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Store, Mail, Lock, User, Building2, Phone, MapPin, ArrowRight } from 'lucide-react';
+import { Store, Mail, Lock, User, Building2, Phone, MapPin, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -23,6 +23,7 @@ const VenueOwnerRegister = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState(() => {
     // Try to load saved form data from localStorage
     const savedData = localStorage.getItem('venueRegistrationData');
@@ -598,13 +599,24 @@ const VenueOwnerRegister = () => {
                   <Input
                     id="password"
                     name="password"
-                    type="password"
+                    type={showPassword ? "text" : "password"}
                     required
                     value={formData.password}
                     onChange={handleChange}
-                    className="pl-10 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
+                    className="pl-10 pr-10 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
                     placeholder="Create a password"
                   />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-5 w-5 text-brand-burgundy/50 hover:text-brand-burgundy" />
+                    ) : (
+                      <Eye className="h-5 w-5 text-brand-burgundy/50 hover:text-brand-burgundy" />
+                    )}
+                  </button>
                 </div>
               </div>
 

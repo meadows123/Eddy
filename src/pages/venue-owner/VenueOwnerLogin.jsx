@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Store, Mail, Lock, ArrowRight } from 'lucide-react';
+import { Store, Mail, Lock, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -20,6 +20,7 @@ const VenueOwnerLogin = () => {
     password: '',
   });
   const [error, setError] = useState(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -452,14 +453,25 @@ const VenueOwnerLogin = () => {
                 <Input
                   id="password"
                   name="password"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className="pl-10 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
+                  className="pl-10 pr-10 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
                   placeholder="Enter your password"
                 />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-5 w-5 text-brand-burgundy/50 hover:text-brand-burgundy" />
+                  ) : (
+                    <Eye className="h-5 w-5 text-brand-burgundy/50 hover:text-brand-burgundy" />
+                  )}
+                </button>
               </div>
             </div>
           </div>
