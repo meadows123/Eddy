@@ -10,7 +10,8 @@ import {
   LogOut,
   Table2,
   Users,
-  Wallet
+  Wallet,
+  Receipt
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -504,6 +505,11 @@ const VenueOwnerDashboard = () => {
               <Wallet className="h-4 w-4 mr-2" />
               <span className="hidden sm:inline">Eddys Members Credits</span>
               <span className="sm:hidden">Credits</span>
+            </Button>
+            <Button variant="outline" className="border-brand-burgundy text-brand-burgundy hover:bg-brand-burgundy/10 w-full sm:w-auto" onClick={() => navigate('/venue-owner/receipts')}>
+              <Receipt className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Receipt Management</span>
+              <span className="sm:hidden">Receipts</span>
             </Button>
             <Button className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90 w-full sm:w-auto">
               <QrCode className="h-4 w-4 mr-2" />
