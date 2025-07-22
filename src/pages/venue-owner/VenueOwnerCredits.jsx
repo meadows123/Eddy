@@ -35,10 +35,36 @@ const VenueOwnerCredits = () => {
     usedCredits: 0,
     recentCredits: 0
   });
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   useEffect(() => {
     checkAuthAndFetchData();
   }, []);
+
+  // Add polling for new credit purchases every 30 seconds
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const pollInterval = setInterval(() => {
+      // Silent refresh to check for new credits
+      fetchVenueAndCredits(currentUser.id, true);
+    }, 30000); // Poll every 30 seconds
+
+    return () => clearInterval(pollInterval);
+  }, [currentUser]);
+
+  // Add visibility change listener to refresh when page becomes visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && currentUser) {
+        // Page became visible, refresh data
+        fetchVenueAndCredits(currentUser.id, true);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [currentUser]);
 
   const checkAuthAndFetchData = async () => {
     try {
@@ -91,27 +117,103 @@ const VenueOwnerCredits = () => {
 
       setVenue(venueData);
 
-      // Fetch credits for this venue (without joins for now)
-      const { data: creditsData, error: creditsError } = await supabase
-        .from('venue_credits')
-        .select('*')
-        .eq('venue_id', venueData.id)
-        .order('created_at', { ascending: false });
+      // Try to fetch credits with user profile data (falls back if profiles table not ready)
+      let creditsData;
+      let creditsError;
+      
+      try {
+        // Attempt to fetch with profiles join
+        const { data, error } = await supabase
+          .from('venue_credits')
+          .select(`
+            *,
+            profiles:user_id (
+              id,
+              full_name,
+              email,
+              first_name,
+              last_name
+            )
+          `)
+          .eq('venue_id', venueData.id)
+          .order('created_at', { ascending: false });
+        
+        creditsData = data;
+        creditsError = error;
+        
+        if (creditsError && creditsError.code === 'PGRST200') {
+          // Profiles table not ready yet, fall back to basic query
+          console.log('🔄 Profiles table not ready, using fallback...');
+          const fallbackResult = await supabase
+            .from('venue_credits')
+            .select('*')
+            .eq('venue_id', venueData.id)
+            .order('created_at', { ascending: false });
+          
+          creditsData = fallbackResult.data;
+          creditsError = fallbackResult.error;
+        }
+      } catch (error) {
+        console.error('Error fetching credits:', error);
+        creditsError = error;
+      }
 
       if (creditsError) throw creditsError;
 
-      // Add basic user data for display (will be improved after profiles table is set up)
-      const creditsWithDisplayData = (creditsData || []).map((credit) => {
-        credit.display_data = {
-          name: `Member ${credit.user_id.substring(0, 8)}...`,
-          email: `member-${credit.user_id.substring(0, 8)}@hidden`,
-          initials: credit.user_id.substring(0, 2).toUpperCase()
-        };
+      // Process the credits data based on whether we have profiles or not
+      const processedCredits = (creditsData || []).map((credit) => {
+        if (credit.profiles) {
+          // We have profile data - use it
+          credit.display_data = {
+            name: credit.profiles.full_name || `${credit.profiles.first_name || ''} ${credit.profiles.last_name || ''}`.trim() || `Member ${credit.user_id.substring(0, 8)}...`,
+            email: credit.profiles.email || `member-${credit.user_id.substring(0, 8)}@hidden`,
+            initials: (credit.profiles.full_name || credit.profiles.first_name || credit.user_id).substring(0, 2).toUpperCase()
+          };
+        } else {
+          // No profile data - use fallback
+          credit.display_data = {
+            name: `Member ${credit.user_id.substring(0, 8)}...`,
+            email: `member-${credit.user_id.substring(0, 8)}@hidden`,
+            initials: credit.user_id.substring(0, 2).toUpperCase()
+          };
+        }
         return credit;
       });
 
-      setVenueCredits(creditsWithDisplayData);
-      calculateStats(creditsWithDisplayData);
+      // Check for new credits (only if this is a silent refresh and we have existing data)
+      if (silent && venueCredits.length > 0 && processedCredits.length > venueCredits.length) {
+        const newCreditsCount = processedCredits.length - venueCredits.length;
+        const latestCredit = processedCredits[0];
+        
+        toast({
+          title: "New Member Credit! 🎉",
+          description: `${latestCredit.display_data.name} purchased ₦${(latestCredit.amount / 100).toLocaleString()} credits${newCreditsCount > 1 ? ` (+${newCreditsCount - 1} more)` : ''}`,
+          className: "bg-green-500 text-white",
+        });
+      }
+
+      // Check if we're showing generic member names (profiles table not set up)
+      if (!silent && processedCredits.length > 0) {
+        const hasGenericNames = processedCredits.some(credit => 
+          credit.display_data.name.startsWith('Member ') && credit.display_data.name.includes('...')
+        );
+        
+        if (hasGenericNames) {
+          setTimeout(() => {
+            toast({
+              title: "Member Names Not Available",
+              description: "To see real member names and emails, please set up the profiles table. Check the setup guide for instructions.",
+              variant: "default",
+            });
+          }, 2000);
+        }
+      }
+
+      setVenueCredits(processedCredits);
+      calculateStats(processedCredits);
+      
+      // Update last refreshed timestamp
+      setLastUpdated(new Date());
 
     } catch (error) {
       console.error('Error fetching venue credits:', error);
@@ -180,6 +282,13 @@ const VenueOwnerCredits = () => {
     return `member-${credit.user_id.substring(0, 8)}@hidden`;
   };
 
+  const isNewCredit = (credit) => {
+    const now = new Date();
+    const createdAt = new Date(credit.created_at);
+    const hoursDiff = (now - createdAt) / (1000 * 60 * 60);
+    return hoursDiff <= 24; // Consider "new" if purchased within last 24 hours
+  };
+
   const filteredCredits = venueCredits.filter(credit => {
     const userName = getUserDisplayName(credit).toLowerCase();
     const userEmail = getUserEmail(credit).toLowerCase();
@@ -238,15 +347,25 @@ const VenueOwnerCredits = () => {
               Manage and track member credits for <span className="font-semibold">{venue.name}</span>
             </p>
           </div>
-          <Button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            variant="outline"
-            className="border-brand-gold text-brand-gold hover:bg-brand-gold/10 mt-4 sm:mt-0"
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
+          <div className="flex flex-col items-end mt-4 sm:mt-0">
+            <Button
+              onClick={handleRefresh}
+              disabled={refreshing}
+              variant="outline"
+              className="border-brand-gold text-brand-gold hover:bg-brand-gold/10"
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${refreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+            {lastUpdated && (
+              <p className="text-xs text-brand-burgundy/60 mt-2">
+                Last updated: {lastUpdated.toLocaleTimeString()}
+              </p>
+            )}
+            <p className="text-xs text-brand-burgundy/50 mt-1">
+              Auto-refreshing every 30 seconds
+            </p>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -357,9 +476,16 @@ const VenueOwnerCredits = () => {
                           <User className="h-5 w-5 text-brand-burgundy" />
                         </div>
                         <div>
-                          <h4 className="font-semibold text-brand-burgundy">
-                            {getUserDisplayName(credit)}
-                          </h4>
+                          <div className="flex items-center space-x-2">
+                            <h4 className="font-semibold text-brand-burgundy">
+                              {getUserDisplayName(credit)}
+                            </h4>
+                            {isNewCredit(credit) && (
+                              <Badge className="bg-green-500 text-white text-xs px-2 py-1">
+                                New
+                              </Badge>
+                            )}
+                          </div>
                           <p className="text-sm text-brand-burgundy/70">
                             {getUserEmail(credit)}
                           </p>
