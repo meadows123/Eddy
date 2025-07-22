@@ -91,26 +91,27 @@ const VenueOwnerCredits = () => {
 
       setVenue(venueData);
 
-      // Fetch credits for this venue
+      // Fetch credits for this venue (without joins for now)
       const { data: creditsData, error: creditsError } = await supabase
         .from('venue_credits')
-        .select(`
-          *,
-          profiles:user_id (
-            id,
-            full_name,
-            email,
-            first_name,
-            last_name
-          )
-        `)
+        .select('*')
         .eq('venue_id', venueData.id)
         .order('created_at', { ascending: false });
 
       if (creditsError) throw creditsError;
 
-      setVenueCredits(creditsData || []);
-      calculateStats(creditsData || []);
+      // Add basic user data for display (will be improved after profiles table is set up)
+      const creditsWithDisplayData = (creditsData || []).map((credit) => {
+        credit.display_data = {
+          name: `Member ${credit.user_id.substring(0, 8)}...`,
+          email: `member-${credit.user_id.substring(0, 8)}@hidden`,
+          initials: credit.user_id.substring(0, 2).toUpperCase()
+        };
+        return credit;
+      });
+
+      setVenueCredits(creditsWithDisplayData);
+      calculateStats(creditsWithDisplayData);
 
     } catch (error) {
       console.error('Error fetching venue credits:', error);
@@ -160,6 +161,9 @@ const VenueOwnerCredits = () => {
   };
 
   const getUserDisplayName = (credit) => {
+    if (credit.display_data?.name) {
+      return credit.display_data.name;
+    }
     if (credit.profiles?.full_name) {
       return credit.profiles.full_name;
     }
@@ -167,10 +171,13 @@ const VenueOwnerCredits = () => {
   };
 
   const getUserEmail = (credit) => {
-    if (credit.profiles?.email && credit.profiles.email !== 'Member Email') {
+    if (credit.display_data?.email) {
+      return credit.display_data.email;
+    }
+    if (credit.profiles?.email) {
       return credit.profiles.email;
     }
-    return `member-${credit.user_id.substring(0, 8)}@eddysmembers.com`;
+    return `member-${credit.user_id.substring(0, 8)}@hidden`;
   };
 
   const filteredCredits = venueCredits.filter(credit => {
