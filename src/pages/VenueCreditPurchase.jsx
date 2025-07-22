@@ -166,54 +166,17 @@ const VenueCreditPurchase = () => {
       return;
     }
 
-    setProcessing(true);
-
-    try {
-      // Convert amount to kobo for Stripe (multiply by 100)
-      const totalAmount = getTotalAmount();
-      
-      // Create venue credit record
-      const { data: creditData, error: creditError } = await supabase
-        .from('venue_credits')
-        .insert([{
-          user_id: currentUser.id,
-          venue_id: selectedVenue.id,
-          amount: totalAmount * 1000, // Convert to kobo
-          notes: `Credit purchase for ${selectedVenue.name}`,
-          status: 'active' // In production, this would be 'pending' until payment confirms
-        }])
-        .select()
-        .single();
-
-      if (creditError) throw creditError;
-
-      toast({
-        title: 'Credits Purchased Successfully! 🎉',
-        description: `₦${totalAmount.toLocaleString()} credits added to your ${selectedVenue.name} account`,
-        className: 'bg-green-500 text-white',
-      });
-
-      // Refresh user credits
-      await fetchUserCredits(currentUser.id);
-
-      // Reset form
-      setCreditAmount('');
-      setCustomAmount('');
-      setSelectedVenue(null);
-
-      // Navigate to profile or venue page
-      navigate('/profile');
-      
-    } catch (error) {
-      console.error('Error purchasing credits:', error);
-      toast({
-        title: 'Purchase Failed',
-        description: error.message || 'Failed to process credit purchase',
-        variant: 'destructive',
-      });
-    } finally {
-      setProcessing(false);
-    }
+    // Redirect to checkout page for payment
+    navigate('/checkout', {
+      state: {
+        creditPurchase: true,
+        venueId: selectedVenue.id,
+        venueName: selectedVenue.name,
+        amount: getTotalAmount(),
+        purchaseAmount: purchaseAmount,
+        venue: selectedVenue
+      }
+    });
   };
 
   if (loading) {
