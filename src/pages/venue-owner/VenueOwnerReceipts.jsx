@@ -360,16 +360,18 @@ const VenueOwnerReceipts = () => {
 
       console.log('Processing receipt for member:', memberUserId, 'venue:', venueId, 'amount:', amount);
 
-      const { error: deductError } = await supabase.rpc('deduct_venue_credit', {
-        p_user_id: memberUserId,      // The Eddy Member's user_id (UUID)
-        p_venue_id: venueId,          // The venue's id (UUID)
-        p_amount_to_deduct: amount    // The amount to deduct (integer, e.g. 5000 for ₦5,000)
-      });
+      const { data, error: updateError } = await supabase
+        .from('venue_credits')
+        .update({ used_amount: supabase.raw('used_amount + ?', [amount]) })
+        .eq('user_id', memberUserId)
+        .eq('venue_id', venueId)
+        .eq('status', 'active')
+        .gte('remaining_balance', amount)
+        .order('expires_at', { ascending: true })
+        .limit(1);
 
-      console.log('deduct_venue_credit result:', deductError);
-
-      if (deductError) {
-        console.error('Error deducting credits:', deductError);
+      if (updateError) {
+        console.error('Error updating venue_credits:', updateError);
         // Optionally show an error message to the venue owner
       } else {
         console.log('Credits deducted successfully!');
