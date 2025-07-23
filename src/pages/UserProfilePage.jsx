@@ -28,6 +28,8 @@ const UserProfilePage = () => {
     confirm: '',
     firstName: '',
     lastName: '',
+    age: '',
+    phone: '',
     city: '',
     country: ''
   });
@@ -345,9 +347,10 @@ const UserProfilePage = () => {
           data: {
             first_name: signupForm.firstName,
             last_name: signupForm.lastName,
+            age: signupForm.age,
             city: signupForm.city,
             country: signupForm.country,
-            phone: ''
+            phone: signupForm.phone
           }
         }
       });
@@ -368,7 +371,8 @@ const UserProfilePage = () => {
         id: userId, 
         first_name: signupForm.firstName, 
         last_name: signupForm.lastName, 
-        phone: '',
+        age: signupForm.age ? parseInt(signupForm.age) : null,
+        phone: signupForm.phone,
         city: signupForm.city,
         country: signupForm.country,
         email: signupForm.email
@@ -435,24 +439,43 @@ const UserProfilePage = () => {
               />
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <input
-                  type="text"
-                  name="city"
-                  placeholder="City"
-                  value={signupForm.city}
-                  onChange={e => setSignupForm({ ...signupForm, city: e.target.value })}
+                  type="number"
+                  name="age"
+                  placeholder="Age"
+                  value={signupForm.age}
+                  onChange={e => setSignupForm({ ...signupForm, age: e.target.value })}
                   className="w-full border p-2 rounded bg-white"
+                  min="1"
                   required
                 />
                 <input
-                  type="text"
-                  name="country"
-                  placeholder="Country"
-                  value={signupForm.country}
-                  onChange={e => setSignupForm({ ...signupForm, country: e.target.value })}
+                  type="tel"
+                  name="phone"
+                  placeholder="Phone"
+                  value={signupForm.phone}
+                  onChange={e => setSignupForm({ ...signupForm, phone: e.target.value })}
                   className="w-full border p-2 rounded bg-white"
                   required
                 />
               </div>
+              <input
+                type="text"
+                name="city"
+                placeholder="City"
+                value={signupForm.city}
+                onChange={e => setSignupForm({ ...signupForm, city: e.target.value })}
+                className="w-full border p-2 rounded bg-white"
+                required
+              />
+              <input
+                type="text"
+                name="country"
+                placeholder="Country"
+                value={signupForm.country}
+                onChange={e => setSignupForm({ ...signupForm, country: e.target.value })}
+                className="w-full border p-2 rounded bg-white"
+                required
+              />
               <input
                 type="password"
                 name="password"
