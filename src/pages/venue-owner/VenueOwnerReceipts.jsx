@@ -353,6 +353,29 @@ const VenueOwnerReceipts = () => {
         className: 'bg-green-500 text-white',
       });
 
+      // Replace `memberUserId`, `venueId`, and `amount` with the actual values from your receipt form.
+      const memberUserId = selectedMember.user_id;
+      const venueId = venue.id;
+      const amount = Math.round(parseFloat(receiptForm.creditAmountUsed) * 100);
+
+      console.log('Processing receipt for member:', memberUserId, 'venue:', venueId, 'amount:', amount);
+
+      const { error: deductError } = await supabase.rpc('deduct_venue_credit', {
+        p_user_id: memberUserId,      // The Eddy Member's user_id (UUID)
+        p_venue_id: venueId,          // The venue's id (UUID)
+        p_amount_to_deduct: amount    // The amount to deduct (integer, e.g. 5000 for ₦5,000)
+      });
+
+      console.log('deduct_venue_credit result:', deductError);
+
+      if (deductError) {
+        console.error('Error deducting credits:', deductError);
+        // Optionally show an error message to the venue owner
+      } else {
+        console.log('Credits deducted successfully!');
+        // Optionally show a success message or update the UI
+      }
+
       // Reset form
       setReceiptForm({
         receiptNumber: '',
