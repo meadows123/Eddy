@@ -298,6 +298,16 @@ const VenueOwnerReceipts = () => {
       return;
     }
 
+    // Require receipt image
+    if (!receiptForm.receiptImage) {
+      toast({
+        title: 'Receipt Image Required',
+        description: 'Please upload a receipt image before submitting.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setProcessing(true);
 
     try {
