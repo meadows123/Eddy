@@ -33,6 +33,7 @@ const UserProfilePage = () => {
   });
   const [error, setError] = useState(null);
   const [signupError, setSignupError] = useState(null);
+  const [signupSuccess, setSignupSuccess] = useState(null);
   const [success, setSuccess] = useState(null);
   const [profile, setProfile] = useState(null);
   const [savedVenues, setSavedVenues] = useState([]);
@@ -329,34 +330,69 @@ const UserProfilePage = () => {
       return;
     }
     try {
+      console.log('🔍 DEBUG: UserProfilePage signup payload:', {
+        email: signupForm.email,
+        firstName: signupForm.firstName,
+        lastName: signupForm.lastName,
+        city: signupForm.city,
+        country: signupForm.country
+      });
+
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: signupForm.email,
         password: signupForm.password,
+        options: {
+          data: {
+            first_name: signupForm.firstName,
+            last_name: signupForm.lastName,
+            city: signupForm.city,
+            country: signupForm.country,
+            phone: ''
+          }
+        }
       });
+
+      console.log('📥 DEBUG: Auth response:', { signUpData, signUpError });
+
       if (signUpError) {
-        console.error('Sign up error:', signUpError);
+        console.error('❌ DEBUG: Sign up error:', signUpError);
         setSignupError(signUpError.message);
         return;
       }
 
+      console.log('✅ DEBUG: Auth signup successful, user created:', signUpData.user);
+
       const userId = signUpData.user.id;
       // Use upsert to handle the case where trigger already created a profile
+      const profileData = {
+        id: userId, 
+        first_name: signupForm.firstName, 
+        last_name: signupForm.lastName, 
+        phone: '',
+        city: signupForm.city,
+        country: signupForm.country,
+        email: signupForm.email
+      };
+
+      console.log('📤 DEBUG: Profile data for upsert:', profileData);
+
       const { error: profileError } = await supabase
         .from('profiles')
-        .upsert([{ 
-          id: userId, 
-          first_name: signupForm.firstName, 
-          last_name: signupForm.lastName, 
-          phone: '',
-          city: signupForm.city,
-          country: signupForm.country
-        }]);
+        .upsert([profileData]);
+
+      console.log('📥 DEBUG: Profile upsert result:', { profileError });
+
       if (profileError) {
-        console.error('Upsert error:', profileError);
+        console.error('❌ DEBUG: Upsert error:', profileError);
         setSignupError(profileError.message);
         return;
       }
+
+      console.log('✅ DEBUG: Profile created successfully');
+      setSignupSuccess('Account created successfully! Please check your email to confirm your account.');
+      
     } catch (error) {
+      console.error('💥 DEBUG: Unexpected error during signup:', error);
       setSignupError(error.message);
     }
   };

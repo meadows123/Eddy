@@ -95,7 +95,6 @@ const Navigation = () => {
                 setLogoLoaded(true);
               }}
             />
-            <span className="text-xl font-heading text-brand-burgundy font-bold">Eddys Members</span>
           </Link>
 
           {/* Desktop Navigation */}
