@@ -613,11 +613,6 @@ const UserProfilePage = () => {
               <span className="hidden sm:inline">Settings</span>
               <span className="sm:hidden">Settings</span>
             </TabsTrigger>
-            <TabsTrigger value="member" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 p-2 md:p-3 text-xs md:text-sm col-span-2 md:col-span-1">
-              <span role="img" aria-label="VIP" className="h-3 w-3 md:h-4 md:w-4 text-xs md:text-sm">👑</span>
-              <span className="hidden sm:inline">Member</span>
-              <span className="sm:hidden">VIP</span>
-            </TabsTrigger>
             <TabsTrigger value="split-payments" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 p-2 md:p-3 text-xs md:text-sm">
               <Send className="h-3 w-3 md:h-4 md:w-4" />
               <span className="hidden sm:inline">Split Payments</span>
@@ -893,65 +888,15 @@ const UserProfilePage = () => {
                   <ChangePasswordForm user={user} />
                 </div>
                 {/* Payment Details Section */}
-                <Elements stripe={stripePromise}>
-                  <div className="space-y-2 pb-8 border-b border-brand-burgundy/10">
-                    <PaymentDetailsSection user={user} />
-                  </div>
-                </Elements>
+                <div className="space-y-2 pb-8 border-b border-brand-burgundy/10">
+                  <h2 className="text-xl font-semibold mb-2">Payment Details</h2>
+                  <p className="text-brand-burgundy/70">Payment management coming soon...</p>
+                </div>
                 {/* Referral Codes Section */}
                 <div className="space-y-2">
                   <h2 className="text-xl font-semibold mb-2">Referral Codes</h2>
                   <ReferralCodesSection user={user} />
                 </div>
-              </div>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="member">
-            <Card className="bg-white border-brand-burgundy/10">
-              <div className="p-2 sm:p-4 md:p-6">
-                <h2 className="text-xl font-semibold mb-4">VIP Member Credit</h2>
-                <p className="mb-4 text-brand-burgundy/70">
-                  Deposit funds to your Eddy account and unlock exclusive VIP perks. 
-                  The more you deposit, the more power and privileges you get!
-                </p>
-                {/* Example: Show current credit and butler status */}
-                <div className="mb-6">
-                  <div className="text-lg font-bold">
-                    Credit Balance: <span className="text-brand-gold">${profile?.credit_balance?.toLocaleString() ?? 0}</span>
-                  </div>
-                  <div className="mt-2">
-                    {profile?.credit_balance >= 10000 ? (
-                      <div className="text-green-700 font-semibold flex items-center">
-                        <span role="img" aria-label="butler" className="mr-2">🕴️</span>
-                        You have a personal butler! Contact us for your VIP concierge service.
-                      </div>
-                    ) : (
-                      <div className="text-brand-burgundy/70">
-                        Deposit <span className="font-bold">${(10000 - (profile?.credit_balance ?? 0)).toLocaleString()}</span> more to unlock your personal butler!
-                      </div>
-                    )}
-                  </div>
-                </div>
-                {/* Deposit Form (navigate to checkout) */}
-                <form className="space-y-4 max-w-xs" onSubmit={e => {
-                  e.preventDefault();
-                  if (!depositAmount || isNaN(depositAmount) || Number(depositAmount) < 100) return;
-                  navigate('/checkout/deposit', { state: { depositAmount: Number(depositAmount) } });
-                }}>
-                  <label className="block text-sm font-medium text-brand-burgundy/70">Deposit Amount</label>
-                  <input
-                    type="number"
-                    min="100"
-                    step="100"
-                    className="w-full border p-2 rounded bg-white"
-                    placeholder="Enter amount (USD)"
-                    value={depositAmount}
-                    onChange={e => setDepositAmount(e.target.value)}
-                  />
-                  <Button type="submit" className="w-full bg-brand-burgundy text-white">Deposit</Button>
-                </form>
-                {/* Optionally: Transaction history, perks list, etc. */}
               </div>
             </Card>
           </TabsContent>
