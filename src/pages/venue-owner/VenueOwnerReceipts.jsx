@@ -678,7 +678,9 @@ const VenueOwnerReceipts = () => {
 
                 {/* Receipt Image Upload */}
                 <div className="space-y-2">
-                  <Label>Receipt Image (Optional)</Label>
+                  <Label>
+                    Receipt Image
+                  </Label>
                   <Input
                     type="file"
                     accept="image/*"
