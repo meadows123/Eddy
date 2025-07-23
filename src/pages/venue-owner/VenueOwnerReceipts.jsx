@@ -360,23 +360,24 @@ const VenueOwnerReceipts = () => {
 
       console.log('Processing receipt for member:', memberUserId, 'venue:', venueId, 'amount:', amount);
 
-      const { data, error: updateError } = await supabase
-        .from('venue_credits')
-        .update({ used_amount: supabase.raw('used_amount + ?', [amount]) })
-        .eq('user_id', memberUserId)
-        .eq('venue_id', venueId)
-        .eq('status', 'active')
-        .gte('remaining_balance', amount)
-        .order('expires_at', { ascending: true })
-        .limit(1);
+      // The following block was removed as per the edit hint.
+      // const { data, error: updateError } = await supabase
+      //   .from('venue_credits')
+      //   .update({ used_amount: supabase.raw('used_amount + ?', [amount]) })
+      //   .eq('user_id', memberUserId)
+      //   .eq('venue_id', venueId)
+      //   .eq('status', 'active')
+      //   .gte('remaining_balance', amount)
+      //   .order('expires_at', { ascending: true })
+      //   .limit(1);
 
-      if (updateError) {
-        console.error('Error updating venue_credits:', updateError);
-        // Optionally show an error message to the venue owner
-      } else {
-        console.log('Credits deducted successfully!');
-        // Optionally show a success message or update the UI
-      }
+      // if (updateError) {
+      //   console.error('Error updating venue_credits:', updateError);
+      //   // Optionally show an error message to the venue owner
+      // } else {
+      //   console.log('Credits deducted successfully!');
+      //   // Optionally show a success message or update the UI
+      // }
 
       // Reset form
       setReceiptForm({
