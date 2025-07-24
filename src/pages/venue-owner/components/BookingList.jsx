@@ -10,7 +10,8 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Eye, Check, X } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Eye, Check, X, RefreshCw, Plus } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/components/ui/use-toast';
 
@@ -255,107 +256,201 @@ const BookingList = ({ currentUser }) => {
     );
   }
 
+  // Mobile-optimized booking card component
+  const BookingCard = ({ booking }) => (
+    <Card className="mb-4 border-brand-burgundy/10">
+      <CardContent className="p-4">
+        <div className="flex justify-between items-start mb-3">
+          <div className="flex-1">
+            <h4 className="font-semibold text-brand-burgundy text-sm sm:text-base">
+              {formatCustomerName(booking)}
+            </h4>
+            <p className="text-xs text-brand-burgundy/60">
+              {format(new Date(booking.booking_date), 'MMM d, yyyy')} • {booking.start_time} - {booking.end_time}
+            </p>
+          </div>
+          <Badge className={`${getStatusColor(booking.status)} text-xs`}>
+            {booking.status}
+          </Badge>
+        </div>
+        
+        <div className="grid grid-cols-2 gap-3 mb-3 text-sm">
+          <div>
+            <span className="text-brand-burgundy/60">Table:</span>
+            <span className="ml-1 font-medium">
+              {booking.venue_tables?.table_number ? `Table ${booking.venue_tables.table_number}` : 'Not assigned'}
+            </span>
+          </div>
+          <div>
+            <span className="text-brand-burgundy/60">Guests:</span>
+            <span className="ml-1 font-medium">{booking.number_of_guests}</span>
+          </div>
+          <div className="col-span-2">
+            <span className="text-brand-burgundy/60">Amount:</span>
+            <span className="ml-1 font-medium">₦{(booking.total_amount || 0).toLocaleString()}</span>
+          </div>
+        </div>
+        
+        <div className="flex gap-2 pt-2 border-t border-brand-burgundy/10">
+          <Button variant="ghost" size="sm" className="h-8 px-2 text-brand-burgundy/70 hover:text-brand-burgundy">
+            <Eye className="h-3 w-3 mr-1" />
+            <span className="hidden sm:inline">View</span>
+          </Button>
+          {booking.status === 'pending' && (
+            <>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-8 px-2 text-green-600 hover:text-green-700"
+                onClick={() => updateBookingStatus(booking.id, 'confirmed')}
+              >
+                <Check className="h-3 w-3 mr-1" />
+                <span className="hidden sm:inline">Confirm</span>
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-8 px-2 text-red-600 hover:text-red-700"
+                onClick={() => updateBookingStatus(booking.id, 'cancelled')}
+              >
+                <X className="h-3 w-3 mr-1" />
+                <span className="hidden sm:inline">Cancel</span>
+              </Button>
+            </>
+          )}
+          {booking.status === 'confirmed' && (
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="h-8 px-2 text-blue-600 hover:text-blue-700"
+              onClick={() => updateBookingStatus(booking.id, 'completed')}
+              title="Mark as completed"
+            >
+              <Check className="h-3 w-3 mr-1" />
+              <span className="hidden sm:inline">Complete</span>
+            </Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
+      {/* Header with responsive buttons */}
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-3 sm:space-y-0">
         <h3 className="text-lg font-semibold text-brand-burgundy">Recent Bookings</h3>
         <div className="flex gap-2">
           <Button 
             variant="outline" 
             size="sm" 
-            className="border-brand-gold text-brand-gold hover:bg-brand-gold/10"
+            className="border-brand-gold text-brand-gold hover:bg-brand-gold/10 flex-1 sm:flex-none"
             onClick={fetchBookings}
           >
-            Refresh
+            <RefreshCw className="h-4 w-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Refresh</span>
+            <span className="sm:hidden">Refresh</span>
           </Button>
-          <Button size="sm" className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90">
-            New Booking
+          <Button size="sm" className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90 flex-1 sm:flex-none">
+            <Plus className="h-4 w-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">New Booking</span>
+            <span className="sm:hidden">New</span>
           </Button>
         </div>
       </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Customer</TableHead>
-            <TableHead>Date & Time</TableHead>
-            <TableHead>Table</TableHead>
-            <TableHead>Guests</TableHead>
-            <TableHead>Amount</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {bookings.map((booking) => (
-            <TableRow key={booking.id}>
-              <TableCell className="font-medium">
-                {formatCustomerName(booking)}
-              </TableCell>
-              <TableCell>
-                <div>
-                  <div>{format(new Date(booking.booking_date), 'MMM d, yyyy')}</div>
-                  <div className="text-sm text-brand-burgundy/60">
-                    {booking.start_time} - {booking.end_time}
+      {/* Desktop Table View */}
+      <div className="hidden lg:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Customer</TableHead>
+              <TableHead>Date & Time</TableHead>
+              <TableHead>Table</TableHead>
+              <TableHead>Guests</TableHead>
+              <TableHead>Amount</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {bookings.map((booking) => (
+              <TableRow key={booking.id}>
+                <TableCell className="font-medium">
+                  {formatCustomerName(booking)}
+                </TableCell>
+                <TableCell>
+                  <div>
+                    <div>{format(new Date(booking.booking_date), 'MMM d, yyyy')}</div>
+                    <div className="text-sm text-brand-burgundy/60">
+                      {booking.start_time} - {booking.end_time}
+                    </div>
                   </div>
-                </div>
-              </TableCell>
-              <TableCell>
-                {booking.venue_tables?.table_number ? `Table ${booking.venue_tables.table_number}` : 'No table assigned'}
-              </TableCell>
-              <TableCell>
-                {booking.number_of_guests}
-              </TableCell>
-              <TableCell>
-                ₦{(booking.total_amount || 0).toLocaleString()}
-              </TableCell>
-              <TableCell>
-                <Badge className={getStatusColor(booking.status)}>
-                  {booking.status}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                <div className="flex gap-2">
-                  <Button variant="ghost" size="icon" className="h-8 w-8">
-                    <Eye className="h-4 w-4" />
-                  </Button>
-                  {booking.status === 'pending' && (
-                    <>
+                </TableCell>
+                <TableCell>
+                  {booking.venue_tables?.table_number ? `Table ${booking.venue_tables.table_number}` : 'No table assigned'}
+                </TableCell>
+                <TableCell>
+                  {booking.number_of_guests}
+                </TableCell>
+                <TableCell>
+                  ₦{(booking.total_amount || 0).toLocaleString()}
+                </TableCell>
+                <TableCell>
+                  <Badge className={getStatusColor(booking.status)}>
+                    {booking.status}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-2">
+                    <Button variant="ghost" size="icon" className="h-8 w-8">
+                      <Eye className="h-4 w-4" />
+                    </Button>
+                    {booking.status === 'pending' && (
+                      <>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-green-600 hover:text-green-700"
+                          onClick={() => updateBookingStatus(booking.id, 'confirmed')}
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 text-red-600 hover:text-red-700"
+                          onClick={() => updateBookingStatus(booking.id, 'cancelled')}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
+                    {booking.status === 'confirmed' && (
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        className="h-8 w-8 text-green-600 hover:text-green-700"
-                        onClick={() => updateBookingStatus(booking.id, 'confirmed')}
+                        className="h-8 w-8 text-blue-600 hover:text-blue-700"
+                        onClick={() => updateBookingStatus(booking.id, 'completed')}
+                        title="Mark as completed"
                       >
                         <Check className="h-4 w-4" />
                       </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-8 w-8 text-red-600 hover:text-red-700"
-                        onClick={() => updateBookingStatus(booking.id, 'cancelled')}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </>
-                  )}
-                  {booking.status === 'confirmed' && (
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-8 w-8 text-blue-600 hover:text-blue-700"
-                      onClick={() => updateBookingStatus(booking.id, 'completed')}
-                      title="Mark as completed"
-                    >
-                      <Check className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+
+      {/* Mobile Card View */}
+      <div className="lg:hidden space-y-2">
+        {bookings.map((booking) => (
+          <BookingCard key={booking.id} booking={booking} />
+        ))}
+      </div>
     </div>
   );
 };
