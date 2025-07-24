@@ -42,7 +42,6 @@ const VenueOwnerDashboard = () => {
   const [bookingTrends, setBookingTrends] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [members, setMembers] = useState([]);
   const [currentUser, setCurrentUser] = useState(null);
   const venueId = venue?.id;
   const [loginVenueMessage, setLoginVenueMessage] = useState('');
@@ -73,43 +72,6 @@ const VenueOwnerDashboard = () => {
       }
     };
   }, []);
-
-  useEffect(() => {
-    const fetchMembers = async () => {
-      try {
-        // Fetch VIP members who have deposited money (credit_balance > 0)
-        const { data, error } = await supabase
-          .from('profiles')
-          .select(`
-            id,
-            first_name,
-            last_name,
-            credit_balance,
-            phone,
-            city,
-            country,
-            created_at
-          `)
-          .gt('credit_balance', 0)
-          .order('credit_balance', { ascending: false })
-          .limit(10);
-
-        if (error) {
-          console.error('Error fetching VIP members:', error);
-        } else {
-          console.log('VIP members fetched:', data);
-          setMembers(data || []);
-        }
-      } catch (err) {
-        console.error('Error in fetchMembers:', err);
-      }
-    };
-
-    // Fetch members when component mounts or user changes
-    if (currentUser) {
-      fetchMembers();
-    }
-  }, [currentUser]);
 
   const checkAuth = async () => {
     try {
@@ -175,168 +137,103 @@ const VenueOwnerDashboard = () => {
         throw userError;
       }
       setCurrentUser(user);
-      console.log('Current user:', user);
 
-      // Get all venues for this owner
-      const { data: venuesData, error: venuesError } = await supabase
+      // Get venue owned by this user
+      const { data: venueData, error: venueError } = await supabase
         .from('venues')
         .select('*')
-        .eq('owner_id', user.id);
-      if (venuesError) {
-        console.error('Error fetching venues:', venuesError);
-        throw venuesError;
+        .eq('owner_id', user.id)
+        .single();
+
+      if (venueError) {
+        console.error('Venue fetch error:', venueError);
+        throw venueError;
       }
-      console.log('Venues data:', venuesData);
-      console.log('Number of venues found:', venuesData?.length || 0);
-      
-      // Use the first venue for dashboard context (if you want to support multiple, update UI accordingly)
-      const venueData = venuesData && venuesData.length > 0 ? venuesData[0] : null;
+
       setVenue(venueData);
-      const venueIds = venuesData?.map(v => v.id) || [];
-      console.log('Venue IDs:', venueIds);
 
-      // Set up real-time subscription for these venues (only if not already set up and not silent)
-      if (!subscriptionRef.current && !silent && venueIds.length > 0) {
-        await setupRealtimeSubscription(venueIds);
-      }
+      // Set up real-time subscription for this venue
+      await setupRealtimeSubscription([venueData.id]);
 
-      // Get booking statistics for all venues owned by this user
-      let bookings = [];
-      if (venueIds.length > 0) {
-        console.log('Fetching bookings for venue IDs:', venueIds);
-        const { data: bookingsData, error: bookingsError } = await supabase
-          .from('bookings')
-          .select(`
-            *,
-            venue_tables!table_id (
-              id,
-              table_number,
-              price
-            )
-          `)
-          .in('venue_id', venueIds);
-        
-        if (bookingsError) {
-          console.error('Error fetching bookings with table join:', bookingsError);
-          // Fallback: try to get bookings without the table join
-          console.log('Trying fallback query without table join...');
-          const { data: fallbackBookings, error: fallbackError } = await supabase
-            .from('bookings')
-            .select('*')
-            .in('venue_id', venueIds);
-          
-          if (fallbackError) {
-            console.error('Fallback booking query also failed:', fallbackError);
-            throw fallbackError;
-          } else {
-            console.log('Fallback booking query succeeded:', fallbackBookings);
-            bookings = fallbackBookings || [];
-          }
-        } else {
-          bookings = bookingsData || [];
-          console.log('Raw bookings data:', bookingsData);
-          console.log('Number of bookings found:', bookings.length);
-        }
-      } else {
-        console.log('No venue IDs found, skipping booking fetch');
-      }
-
-      // Also check for any bookings in the database (debug)
-      const { data: allBookings, error: allBookingsError } = await supabase
+      // Fetch booking statistics
+      const { data: bookingsData, error: bookingsError } = await supabase
         .from('bookings')
-        .select('id, venue_id, user_id, status, total_amount, created_at')
-        .limit(10);
-      console.log('All bookings in database (first 10):', allBookings);
-      console.log('Total bookings in database:', allBookings?.length || 0);
-
-      // Test venue_tables structure (debug)
-      const { data: testTables, error: testTablesError } = await supabase
-        .from('venue_tables')
         .select('*')
-        .limit(1);
-      console.log('Sample venue_tables data:', testTables);
-      console.log('venue_tables columns available:', testTables?.[0] ? Object.keys(testTables[0]) : 'No tables found');
-      if (testTablesError) {
-        console.log('venue_tables error:', testTablesError);
-      }
+        .eq('venue_id', venueData.id);
 
-      // Get venue tables count
-      let totalTables = 0;
-      if (venueIds.length > 0) {
-        const { data: tablesData, error: tablesError } = await supabase
-          .from('venue_tables')
-          .select('id')
-          .in('venue_id', venueIds);
-        if (!tablesError) {
-          totalTables = tablesData?.length || 0;
-        }
-        console.log('Total tables found:', totalTables);
+      if (bookingsError) {
+        console.error('Bookings fetch error:', bookingsError);
+        throw bookingsError;
       }
 
       // Calculate statistics
-      const totalBookings = bookings.length;
-      const totalRevenue = bookings.reduce((sum, booking) => sum + (booking.total_amount || 0), 0);
-      const activeBookings = bookings.filter(b => b.status === 'confirmed' || b.status === 'pending').length;
-      const pendingPayouts = bookings
-        .filter(b => b.status === 'confirmed')
-        .reduce((sum, booking) => sum + (booking.total_amount || 0), 0) * 0.8; // Assuming 80% payout after fees
-      
-      // Get popular tables
-      const tableBookings = {};
-      bookings.forEach(booking => {
-        if (booking.venue_tables?.table_number) {
-          tableBookings[booking.venue_tables.table_number] = (tableBookings[booking.venue_tables.table_number] || 0) + 1;
-        } else if (booking.table_id) {
-          // Fallback: use table_id if table details not available
-          tableBookings[`Table ${booking.table_id.slice(-8)}`] = (tableBookings[`Table ${booking.table_id.slice(-8)}`] || 0) + 1;
-        }
-      });
-      const popularTables = Object.entries(tableBookings)
-        .map(([name, count]) => ({ name, count }))
-        .sort((a, b) => b.count - a.count)
+      const totalBookings = bookingsData.length;
+      const totalRevenue = bookingsData.reduce((sum, booking) => sum + (booking.total_amount || 0), 0);
+      const activeBookings = bookingsData.filter(booking => 
+        ['pending', 'confirmed'].includes(booking.status)
+      ).length;
+
+      // Get recent bookings (last 5)
+      const recentBookingsData = bookingsData
+        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
         .slice(0, 5);
+
+      // Calculate booking trends (last 7 days)
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      
+      const recentBookings = bookingsData.filter(booking => 
+        new Date(booking.created_at) >= sevenDaysAgo
+      );
+
+      const bookingTrendsData = [];
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dayBookings = recentBookings.filter(booking => 
+          new Date(booking.created_at).toDateString() === date.toDateString()
+        );
+        bookingTrendsData.push({
+          date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+          bookings: dayBookings.length,
+          revenue: dayBookings.reduce((sum, booking) => sum + (booking.total_amount || 0), 0)
+        });
+      }
+
+      // Get table count
+      const { data: tablesData, error: tablesError } = await supabase
+        .from('venue_tables')
+        .select('*')
+        .eq('venue_id', venueData.id);
+
+      if (tablesError) {
+        console.error('Tables fetch error:', tablesError);
+        throw tablesError;
+      }
 
       setStats({
         totalBookings,
         totalRevenue,
+        averageRating: venueData.rating || 0,
+        popularTables: [],
+        pendingPayouts: totalRevenue * 0.1, // 10% pending payout
         activeBookings,
-        pendingPayouts,
-        totalTables,
-        popularTables
+        totalTables: tablesData.length
       });
 
-      // Get recent bookings
-      const recentBookingsData = bookings
-        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-        .slice(0, 5);
       setRecentBookings(recentBookingsData);
-
-      // Get booking trends (last 7 days)
-      const last7Days = Array.from({ length: 7 }, (_, i) => {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        return date.toISOString().split('T')[0];
-      }).reverse();
-
-      const trends = last7Days.map(date => ({
-        date,
-        bookings: bookings.filter(b => b.created_at && b.created_at.startsWith(date)).length,
-        revenue: bookings
-          .filter(b => b.created_at && b.created_at.startsWith(date))
-          .reduce((sum, b) => sum + (b.total_amount || 0), 0)
-      }));
-
-      setBookingTrends(trends);
-      console.log('Data fetch completed successfully');
+      setBookingTrends(bookingTrendsData);
 
     } catch (error) {
-      console.error('Error in fetchVenueData:', error);
-      setError(error.message);
-      toast({
-        title: 'Error',
-        description: `Failed to fetch venue data: ${error.message}`,
-        variant: 'destructive',
-      });
+      console.error('Error fetching venue data:', error);
+      if (!silent) {
+        setError(error.message);
+        toast({
+          title: 'Error',
+          description: 'Failed to load dashboard data',
+          variant: 'destructive',
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -344,39 +241,33 @@ const VenueOwnerDashboard = () => {
 
   const fetchVenueLoginMessage = async () => {
     try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
-        setLoginVenueMessage('Error fetching user info.');
-        return;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: venueOwner } = await supabase
+          .from('venue_owners')
+          .select('venues(name)')
+          .eq('user_id', user.id)
+          .single();
+        
+        if (venueOwner?.venues?.name) {
+          setLoginVenueMessage(`Welcome back! You are logged in as the owner of ${venueOwner.venues.name}`);
+        }
       }
-      const { data: venues, error: venuesError } = await supabase
-        .from('venues')
-        .select('id, name')
-        .eq('owner_id', user.id);
-      if (venuesError) {
-        setLoginVenueMessage('Error fetching venue.');
-        return;
-      }
-      if (venues && venues.length > 0) {
-        setLoginVenueMessage(`You have successfully logged in to ${venues[0].name}`);
-      } else {
-        setLoginVenueMessage('No venue found for this account.');
-      }
-    } catch (err) {
-      setLoginVenueMessage('Unexpected error fetching venue.');
+    } catch (error) {
+      console.error('Error fetching venue login message:', error);
     }
   };
 
   const handleLogout = async () => {
     try {
       await signOut();
+      navigate('/venue-owner/login');
       toast({
-        title: 'Success',
-        description: 'Successfully logged out',
+        title: 'Logged Out',
+        description: 'You have been successfully logged out',
       });
-      navigate('/');
     } catch (error) {
-      console.error('Error logging out:', error);
+      console.error('Logout error:', error);
       toast({
         title: 'Error',
         description: 'Failed to log out',
@@ -524,8 +415,6 @@ const VenueOwnerDashboard = () => {
           </div>
         </div>
 
-
-
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card className="bg-white border-brand-burgundy/10">
@@ -601,238 +490,88 @@ const VenueOwnerDashboard = () => {
           <TabsContent value="images">
             <Card className="bg-white border-brand-burgundy/10">
               <CardContent className="pt-6">
-                {venue && currentUser ? (
-                  <ImageManagement currentUser={currentUser} />
-                ) : (
-                  <div>Loading venue info...</div>
-                )}
+                <ImageManagement venueId={venueId} />
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="analytics">
             <Card className="bg-white border-brand-burgundy/10">
-              <CardHeader>
-                <CardTitle className="text-brand-burgundy">Revenue Analytics</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Booking Trends Chart */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-4 text-brand-burgundy">Booking Trends (Last 7 Days)</h3>
-                  <div className="h-80">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={bookingTrends}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis dataKey="date" />
-                        <YAxis yAxisId="left" />
-                        <YAxis yAxisId="right" orientation="right" />
-                        <Tooltip />
-                        <Line
-                          yAxisId="left"
-                          type="monotone"
-                          dataKey="bookings"
-                          stroke="#8B4513"
-                          name="Bookings"
-                          strokeWidth={2}
-                        />
-                        <Line
-                          yAxisId="right"
-                          type="monotone"
-                          dataKey="revenue"
-                          stroke="#DAA520"
-                          name="Revenue (₦)"
-                          strokeWidth={2}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
-                {/* Popular Tables */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-4 text-brand-burgundy">Popular Tables</h3>
-                  {stats.popularTables && stats.popularTables.length > 0 ? (
-                    <div className="space-y-4">
-                      {stats.popularTables.map((table, index) => (
-                        <div key={index} className="flex justify-between items-center p-3 bg-brand-cream/30 rounded-lg">
-                          <span className="font-medium text-brand-burgundy">{table.name}</span>
-                          <span className="font-semibold text-brand-gold">{table.count} bookings</span>
-                        </div>
-                      ))}
+              <CardContent className="pt-6">
+                <div className="space-y-6">
+                  {/* Booking Trends Chart */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-brand-burgundy mb-4">Booking Trends (Last 7 Days)</h3>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={bookingTrends}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                          <XAxis 
+                            dataKey="date" 
+                            stroke="#6b7280"
+                            fontSize={12}
+                          />
+                          <YAxis 
+                            stroke="#6b7280"
+                            fontSize={12}
+                          />
+                          <Tooltip 
+                            contentStyle={{ 
+                              backgroundColor: '#fff', 
+                              border: '1px solid #e5e7eb',
+                              borderRadius: '8px'
+                            }}
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="bookings" 
+                            stroke="#8b5cf6" 
+                            strokeWidth={2}
+                            dot={{ fill: '#8b5cf6', strokeWidth: 2, r: 4 }}
+                          />
+                          <Line 
+                            type="monotone" 
+                            dataKey="revenue" 
+                            stroke="#f59e0b" 
+                            strokeWidth={2}
+                            dot={{ fill: '#f59e0b', strokeWidth: 2, r: 4 }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
                     </div>
-                  ) : (
-                    <p className="text-brand-burgundy/70">No booking data available yet.</p>
-                  )}
-                </div>
+                  </div>
 
-                {/* Recent Bookings */}
-                <div>
-                  <h3 className="text-lg font-semibold mb-4 text-brand-burgundy">Recent Bookings</h3>
-                  {recentBookings && recentBookings.length > 0 ? (
-                    <div className="space-y-4">
+                  {/* Recent Bookings */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-brand-burgundy mb-4">Recent Bookings</h3>
+                    <div className="space-y-3">
                       {recentBookings.map((booking) => (
                         <div key={booking.id} className="flex justify-between items-center p-3 bg-brand-cream/30 rounded-lg">
                           <div>
-                            <p className="font-semibold text-brand-burgundy">
-                              {booking.venue_tables?.table_number 
-                                ? `Table ${booking.venue_tables.table_number}` 
-                                : booking.table_id 
-                                ? `Table ${booking.table_id.slice(-8)}` 
-                                : 'Unknown Table'}
-                            </p>
-                            <p className="text-sm text-brand-burgundy/70">
-                              {new Date(booking.created_at).toLocaleDateString()}
-                            </p>
+                            <div className="font-medium text-brand-burgundy">
+                              Booking #{booking.id.slice(0, 8)}...
+                            </div>
+                            <div className="text-sm text-brand-burgundy/60">
+                              {new Date(booking.booking_date).toLocaleDateString()}
+                            </div>
                           </div>
                           <div className="text-right">
-                            <p className="font-semibold text-brand-gold">₦{(booking.total_amount || 0).toLocaleString()}</p>
-                            <p className="text-sm text-brand-burgundy/70 capitalize">
+                            <div className="font-semibold text-brand-gold">
+                              ₦{(booking.total_amount || 0).toLocaleString()}
+                            </div>
+                            <div className="text-xs text-brand-burgundy/60">
                               {booking.status}
-                            </p>
+                            </div>
                           </div>
                         </div>
                       ))}
                     </div>
-                  ) : (
-                    <p className="text-brand-burgundy/70">No recent bookings found.</p>
-                  )}
+                  </div>
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
-
         </Tabs>
-
-        {/* Eddy VIP Members */}
-        <Card className="bg-white border-brand-burgundy/10 mt-8">
-          <CardHeader>
-            <CardTitle className="text-brand-burgundy flex items-center">
-              <Users className="h-5 w-5 mr-2" />
-              Eddy VIP Members
-            </CardTitle>
-            <p className="text-sm text-brand-burgundy/70">
-              VIP members who have deposited funds and are eligible for exclusive perks
-            </p>
-          </CardHeader>
-          <CardContent>
-            {members && members.length > 0 ? (
-              <div className="space-y-4">
-                {/* Summary Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                  <div className="bg-brand-cream/30 p-4 rounded-lg text-center">
-                    <div className="text-2xl font-bold text-brand-burgundy">{members.length}</div>
-                    <div className="text-sm text-brand-burgundy/70">Total VIP Members</div>
-                  </div>
-                  <div className="bg-brand-cream/30 p-4 rounded-lg text-center">
-                    <div className="text-2xl font-bold text-brand-gold">
-                      ${members.reduce((sum, member) => sum + (member.credit_balance || 0), 0).toLocaleString()}
-                    </div>
-                    <div className="text-sm text-brand-burgundy/70">Total Deposits</div>
-                  </div>
-                  <div className="bg-brand-cream/30 p-4 rounded-lg text-center">
-                    <div className="text-2xl font-bold text-brand-burgundy">
-                      {members.filter(m => (m.credit_balance || 0) >= 10000).length}
-                    </div>
-                    <div className="text-sm text-brand-burgundy/70">Premium Members</div>
-                  </div>
-                </div>
-
-                {/* Members Table */}
-                <div className="overflow-x-auto">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="border-b border-brand-burgundy/20">
-                        <th className="text-left py-3 px-2 font-semibold text-brand-burgundy">Member</th>
-                        <th className="text-left py-3 px-2 font-semibold text-brand-burgundy">VIP Status</th>
-                        <th className="text-left py-3 px-2 font-semibold text-brand-burgundy">Credit Balance</th>
-                        <th className="text-left py-3 px-2 font-semibold text-brand-burgundy">Location</th>
-                        <th className="text-left py-3 px-2 font-semibold text-brand-burgundy">Joined</th>
-                        <th className="text-left py-3 px-2 font-semibold text-brand-burgundy">Contact</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {members.map(member => {
-                        const isVIP = (member.credit_balance || 0) >= 1000;
-                        const isPremium = (member.credit_balance || 0) >= 10000;
-                        const memberName = `${member.first_name || ''} ${member.last_name || ''}`.trim() || 'Unknown Member';
-                        const location = [member.city, member.country].filter(Boolean).join(', ') || 'Not specified';
-                        const joinDate = member.created_at ? new Date(member.created_at).toLocaleDateString() : 'Unknown';
-                        
-                        return (
-                          <tr key={member.id} className="border-b border-brand-burgundy/10 hover:bg-brand-cream/20 transition-colors">
-                            <td className="py-3 px-2">
-                              <div>
-                                <div className="font-medium text-brand-burgundy">{memberName}</div>
-                                <div className="text-xs text-brand-burgundy/60">ID: {member.id.slice(0, 8)}...</div>
-                              </div>
-                            </td>
-                            <td className="py-3 px-2">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                isPremium 
-                                  ? 'bg-gradient-to-r from-brand-gold to-yellow-400 text-brand-burgundy'
-                                  : isVIP 
-                                  ? 'bg-brand-burgundy text-white'
-                                  : 'bg-gray-100 text-gray-800'
-                              }`}>
-                                {isPremium ? '👑 Premium VIP' : isVIP ? '⭐ VIP Member' : '📱 Basic Member'}
-                              </span>
-                            </td>
-                            <td className="py-3 px-2">
-                              <div className="font-semibold text-brand-gold">
-                                ${(member.credit_balance || 0).toLocaleString()}
-                              </div>
-                              {isPremium && (
-                                <div className="text-xs text-brand-burgundy/60">Premium Perks Active</div>
-                              )}
-                            </td>
-                            <td className="py-3 px-2">
-                              <div className="text-sm text-brand-burgundy/80">{location}</div>
-                            </td>
-                            <td className="py-3 px-2">
-                              <div className="text-sm text-brand-burgundy/80">{joinDate}</div>
-                            </td>
-                            <td className="py-3 px-2">
-                              <div className="text-sm text-brand-burgundy/80">
-                                {member.phone || 'Not provided'}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* VIP Tiers Info */}
-                <div className="mt-6 p-4 bg-brand-cream/30 rounded-lg">
-                  <h4 className="font-semibold text-brand-burgundy mb-2">VIP Membership Tiers</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                    <div className="flex items-center space-x-2">
-                      <span className="w-3 h-3 bg-gray-100 rounded-full"></span>
-                      <span className="text-brand-burgundy/70">Basic Member: $0 - $999</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="w-3 h-3 bg-brand-burgundy rounded-full"></span>
-                      <span className="text-brand-burgundy/70">VIP Member: $1,000 - $9,999</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="w-3 h-3 bg-brand-gold rounded-full"></span>
-                      <span className="text-brand-burgundy/70">Premium VIP: $10,000+</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <Users className="h-12 w-12 mx-auto text-brand-burgundy/30 mb-4" />
-                <h3 className="text-lg font-medium text-brand-burgundy mb-2">No VIP Members Yet</h3>
-                <p className="text-brand-burgundy/70">
-                  VIP members will appear here once they make their first deposit through the app.
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
 
         {/* Add Table Dialog */}
         <Dialog>
