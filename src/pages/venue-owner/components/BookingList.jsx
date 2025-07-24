@@ -11,7 +11,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Eye, Check, X, RefreshCw, Plus } from 'lucide-react';
+import { Eye, Check, X, RefreshCw } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/components/ui/use-toast';
 
@@ -344,17 +344,12 @@ const BookingList = ({ currentUser }) => {
           <Button 
             variant="outline" 
             size="sm" 
-            className="border-brand-gold text-brand-gold hover:bg-brand-gold/10 flex-1 sm:flex-none"
+            className="border-brand-gold text-brand-gold hover:bg-brand-gold/10"
             onClick={fetchBookings}
           >
             <RefreshCw className="h-4 w-4 mr-1 sm:mr-2" />
             <span className="hidden sm:inline">Refresh</span>
             <span className="sm:hidden">Refresh</span>
-          </Button>
-          <Button size="sm" className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90 flex-1 sm:flex-none">
-            <Plus className="h-4 w-4 mr-1 sm:mr-2" />
-            <span className="hidden sm:inline">New Booking</span>
-            <span className="sm:hidden">New</span>
           </Button>
         </div>
       </div>
