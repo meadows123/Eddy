@@ -56,7 +56,7 @@ const Navigation = () => {
     { name: 'Explore', path: '/explore', icon: Compass },
     { name: 'Venues', path: '/venues', icon: Building2 },
     ...(user ? [{ name: 'My Bookings', path: '/bookings', icon: Calendar }] : []),
-    { name: 'Profile', path: '/profile', icon: User },
+    // Remove Profile from main nav items since it's in the user menu
   ];
 
   const ownerNavItems = [
@@ -113,6 +113,20 @@ const Navigation = () => {
                 <span>{item.name}</span>
               </Link>
             ))}
+            {/* Add Profile link to desktop navigation for customers */}
+            {!isOwner && (
+              <Link
+                to="/profile"
+                className={`flex items-center space-x-2 text-sm font-medium transition-colors
+                  ${location.pathname === '/profile' 
+                    ? 'text-brand-gold' 
+                    : 'text-brand-burgundy/70 hover:text-brand-gold'
+                  }`}
+              >
+                <User className="h-4 w-4" />
+                <span>Profile</span>
+              </Link>
+            )}
           </div>
 
           {/* User Menu */}
