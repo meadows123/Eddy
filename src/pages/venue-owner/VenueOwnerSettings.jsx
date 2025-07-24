@@ -323,7 +323,7 @@ const VenueOwnerSettings = () => {
 
       toast({
         title: 'Success!',
-        description: 'Venue details updated successfully',
+        description: 'Saved settings',
         className: 'bg-green-500 text-white'
       });
 
@@ -351,6 +351,89 @@ const VenueOwnerSettings = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  // Add this new function to handle adding staff members
+  const handleAddStaff = async () => {
+    // Validate required fields
+    if (!newStaff.name.trim() || !newStaff.email.trim() || !newStaff.role.trim()) {
+      toast({
+        title: 'Error',
+        description: 'Please fill in all required fields (Name, Email, and Role)',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newStaff.email)) {
+      toast({
+        title: 'Error',
+        description: 'Please enter a valid email address',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      // Create a new staff member object
+      const staffMember = {
+        id: Date.now(), // Temporary ID for frontend
+        name: newStaff.name.trim(),
+        email: newStaff.email.trim(),
+        role: newStaff.role.trim(),
+        phone: newStaff.phone.trim() || null,
+        venue_id: venue?.id,
+        added_at: new Date().toISOString()
+      };
+
+      // Add to local state
+      setStaff(prev => [...prev, staffMember]);
+
+      // Clear the form
+      setNewStaff({
+        name: '',
+        email: '',
+        role: '',
+        phone: ''
+      });
+
+      // Hide the form
+      setShowAddStaff(false);
+
+      // Show success message
+      toast({
+        title: 'Success!',
+        description: 'Staff member added successfully',
+        className: 'bg-green-500 text-white'
+      });
+
+      // TODO: If you have a staff table in your database, you would save it here
+      // const { data, error } = await supabase
+      //   .from('venue_staff')
+      //   .insert(staffMember);
+      
+      // if (error) throw error;
+
+    } catch (error) {
+      console.error('Error adding staff member:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to add staff member. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  // Add this function to handle removing staff members
+  const handleRemoveStaff = (staffId) => {
+    setStaff(prev => prev.filter(member => member.id !== staffId));
+    toast({
+      title: 'Success!',
+      description: 'Staff member removed successfully',
+      className: 'bg-green-500 text-white'
+    });
   };
 
   if (loading) {
@@ -381,7 +464,7 @@ const VenueOwnerSettings = () => {
         <TabsList className="bg-white p-1 rounded-lg border border-brand-burgundy/10 mb-4 grid grid-cols-3 w-full">
           <TabsTrigger 
             value="profile" 
-            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm"
+            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 p-3 sm:p-4 text-xs sm:text-sm min-h-[60px] sm:min-h-[50px]"
           >
             <Settings className="h-3 w-3 sm:h-4 sm:w-4" />
             <span className="hidden sm:inline">Venue Profile</span>
@@ -389,7 +472,7 @@ const VenueOwnerSettings = () => {
           </TabsTrigger>
           <TabsTrigger 
             value="staff" 
-            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm"
+            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 p-3 sm:p-4 text-xs sm:text-sm min-h-[60px] sm:min-h-[50px]"
           >
             <Users className="h-3 w-3 sm:h-4 sm:w-4" />
             <span className="hidden sm:inline">Staff Management</span>
@@ -397,7 +480,7 @@ const VenueOwnerSettings = () => {
           </TabsTrigger>
           <TabsTrigger 
             value="notifications" 
-            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm"
+            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 p-3 sm:p-4 text-xs sm:text-sm min-h-[60px] sm:min-h-[50px]"
           >
             <Bell className="h-3 w-3 sm:h-4 sm:w-4" />
             <span className="hidden sm:inline">Notifications</span>
@@ -650,7 +733,7 @@ const VenueOwnerSettings = () => {
                       <h4 className="font-semibold mb-4 text-brand-burgundy">Add New Staff Member</h4>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                          <Label htmlFor="staff_name" className="text-sm sm:text-base">Name</Label>
+                          <Label htmlFor="staff_name" className="text-sm sm:text-base">Name *</Label>
                           <Input
                             id="staff_name"
                             value={newStaff.name}
@@ -660,7 +743,7 @@ const VenueOwnerSettings = () => {
                           />
                         </div>
                         <div>
-                          <Label htmlFor="staff_email" className="text-sm sm:text-base">Email</Label>
+                          <Label htmlFor="staff_email" className="text-sm sm:text-base">Email *</Label>
                           <Input
                             id="staff_email"
                             type="email"
@@ -671,7 +754,7 @@ const VenueOwnerSettings = () => {
                           />
                         </div>
                         <div>
-                          <Label htmlFor="staff_role" className="text-sm sm:text-base">Role</Label>
+                          <Label htmlFor="staff_role" className="text-sm sm:text-base">Role *</Label>
                           <Input
                             id="staff_role"
                             value={newStaff.role}
@@ -692,7 +775,11 @@ const VenueOwnerSettings = () => {
                         </div>
                       </div>
                       <div className="flex gap-2 mt-4">
-                        <Button type="button" className="flex-1 sm:flex-none">
+                        <Button 
+                          type="button" 
+                          onClick={handleAddStaff}
+                          className="flex-1 sm:flex-none"
+                        >
                           <UserPlus className="h-4 w-4 mr-2" />
                           <span className="hidden sm:inline">Add Staff Member</span>
                           <span className="sm:hidden">Add</span>
@@ -716,7 +803,7 @@ const VenueOwnerSettings = () => {
                     <p className="text-gray-500 text-center py-8">No staff members added yet.</p>
                   ) : (
                     staff.map((member, index) => (
-                      <Card key={index} className="border-brand-burgundy/10">
+                      <Card key={member.id || index} className="border-brand-burgundy/10">
                         <CardContent className="p-4">
                           <div className="flex justify-between items-start">
                             <div className="flex-1">
@@ -729,7 +816,12 @@ const VenueOwnerSettings = () => {
                                 )}
                               </div>
                             </div>
-                            <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="text-red-500 hover:text-red-700"
+                              onClick={() => handleRemoveStaff(member.id)}
+                            >
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
