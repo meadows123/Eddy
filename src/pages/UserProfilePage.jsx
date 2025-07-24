@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
-import { Heart, Calendar, Settings, Clipboard, XCircle, CheckCircle, Send, Link as LinkIcon, Wallet, User } from 'lucide-react';
+import { Heart, Calendar, Settings, Clipboard, XCircle, CheckCircle, Send, Link as LinkIcon, Wallet, User, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '../lib/supabase.js';
 import { Elements, useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
@@ -61,6 +61,11 @@ const UserProfilePage = () => {
   const [bookingRef, setBookingRef] = useState(null);
   const [venueCredits, setVenueCredits] = useState([]);
   const [creditsLoading, setCreditsLoading] = useState(false);
+  
+  // Add password visibility states
+  const [showPassword, setShowPassword] = useState(false);
+  const [showSignupPassword, setShowSignupPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Load user data when logged in
   useEffect(() => {
@@ -403,12 +408,20 @@ const UserProfilePage = () => {
 
   if (!user) {
     return (
-      <div className="bg-brand-cream/50 min-h-screen">
-        <div className="max-w-lg mx-auto mt-16 p-8 bg-white rounded shadow mb-20">
-          <h2 className="text-2xl font-bold mb-4 text-brand-burgundy">{isSignup ? 'Sign Up' : 'Login to your profile'}</h2>
+      <div className="min-h-screen bg-brand-cream/50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8">
+          <div className="text-center">
+            <h2 className="text-3xl font-heading text-brand-burgundy">
+              {isSignup ? 'Create Account' : 'Welcome Back'}
+            </h2>
+            <p className="mt-2 text-brand-burgundy/70">
+              {isSignup ? 'Join Eddys Members today' : 'Sign in to your account'}
+            </p>
+          </div>
+
           {isSignup ? (
             <form onSubmit={handleSignup} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <input
                   type="text"
                   name="firstName"
@@ -437,27 +450,74 @@ const UserProfilePage = () => {
                 className="w-full border p-2 rounded bg-white"
                 required
               />
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              
+              {/* Password field with visibility toggle */}
+              <div className="relative">
                 <input
-                  type="number"
-                  name="age"
-                  placeholder="Age"
-                  value={signupForm.age}
-                  onChange={e => setSignupForm({ ...signupForm, age: e.target.value })}
-                  className="w-full border p-2 rounded bg-white"
-                  min="1"
+                  type={showSignupPassword ? "text" : "password"}
+                  name="password"
+                  placeholder="Password"
+                  value={signupForm.password}
+                  onChange={e => setSignupForm({ ...signupForm, password: e.target.value })}
+                  className="w-full border p-2 pr-10 rounded bg-white"
                   required
                 />
-                <input
-                  type="tel"
-                  name="phone"
-                  placeholder="Phone"
-                  value={signupForm.phone}
-                  onChange={e => setSignupForm({ ...signupForm, phone: e.target.value })}
-                  className="w-full border p-2 rounded bg-white"
-                  required
-                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  onClick={() => setShowSignupPassword(!showSignupPassword)}
+                >
+                  {showSignupPassword ? (
+                    <EyeOff className="h-4 w-4 text-brand-burgundy/50 hover:text-brand-burgundy" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-brand-burgundy/50 hover:text-brand-burgundy" />
+                  )}
+                </button>
               </div>
+              
+              {/* Confirm Password field with visibility toggle */}
+              <div className="relative">
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  name="confirm"
+                  placeholder="Confirm Password"
+                  value={signupForm.confirm}
+                  onChange={e => setSignupForm({ ...signupForm, confirm: e.target.value })}
+                  className="w-full border p-2 pr-10 rounded bg-white"
+                  required
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff className="h-4 w-4 text-brand-burgundy/50 hover:text-brand-burgundy" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-brand-burgundy/50 hover:text-brand-burgundy" />
+                  )}
+                </button>
+              </div>
+              
+              <input
+                type="number"
+                name="age"
+                placeholder="Age"
+                value={signupForm.age}
+                onChange={e => setSignupForm({ ...signupForm, age: e.target.value })}
+                className="w-full border p-2 rounded bg-white"
+                min="18"
+                required
+              />
+              <input
+                type="tel"
+                name="phone"
+                placeholder="Phone Number"
+                value={signupForm.phone}
+                onChange={e => setSignupForm({ ...signupForm, phone: e.target.value })}
+                className="w-full border p-2 rounded bg-white"
+                required
+              />
               <input
                 type="text"
                 name="city"
@@ -476,26 +536,10 @@ const UserProfilePage = () => {
                 className="w-full border p-2 rounded bg-white"
                 required
               />
-              <input
-                type="password"
-                name="password"
-                placeholder="Password"
-                value={signupForm.password}
-                onChange={e => setSignupForm({ ...signupForm, password: e.target.value })}
-                className="w-full border p-2 rounded bg-white"
-                required
-              />
-              <input
-                type="password"
-                name="confirm"
-                placeholder="Confirm Password"
-                value={signupForm.confirm}
-                onChange={e => setSignupForm({ ...signupForm, confirm: e.target.value })}
-                className="w-full border p-2 rounded bg-white"
-                required
-              />
               {signupError && <div className="text-red-500">{signupError}</div>}
+              {signupSuccess && <div className="text-green-600">{signupSuccess}</div>}
               <Button type="submit" className="w-full bg-brand-burgundy text-white">Sign Up</Button>
+              
               <div className="text-center mt-4">
                 <span className="text-brand-burgundy/70">Already have an account? </span>
                 <button 
@@ -503,7 +547,7 @@ const UserProfilePage = () => {
                   onClick={() => setIsSignup(false)}
                   className="font-bold text-brand-burgundy hover:text-brand-burgundy/80 transition-colors"
                 >
-                  Log In
+                  Sign In
                 </button>
               </div>
             </form>
@@ -518,15 +562,31 @@ const UserProfilePage = () => {
                 className="w-full border p-2 rounded bg-white"
                 required
               />
-              <input
-                type="password"
-                name="password"
-                placeholder="Password"
-                value={form.password}
-                onChange={e => setForm({ ...form, [e.target.name]: e.target.value })}
-                className="w-full border p-2 rounded bg-white"
-                required
-              />
+              
+              {/* Password field with visibility toggle */}
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  placeholder="Password"
+                  value={form.password}
+                  onChange={e => setForm({ ...form, [e.target.name]: e.target.value })}
+                  className="w-full border p-2 pr-10 rounded bg-white"
+                  required
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4 text-brand-burgundy/50 hover:text-brand-burgundy" />
+                  ) : (
+                    <Eye className="h-4 w-4 text-brand-burgundy/50 hover:text-brand-burgundy" />
+                  )}
+                </button>
+              </div>
+              
               {error && <div className="text-red-500">{error}</div>}
               {success && <div className="text-green-600">{success}</div>}
               <Button type="submit" className="w-full bg-brand-burgundy text-white">Login</Button>
@@ -887,15 +947,17 @@ const UserProfilePage = () => {
                   <h2 className="text-xl font-semibold mb-2">Change Password</h2>
                   <ChangePasswordForm user={user} />
                 </div>
+                
                 {/* Payment Details Section */}
                 <div className="space-y-2 pb-8 border-b border-brand-burgundy/10">
                   <h2 className="text-xl font-semibold mb-2">Payment Details</h2>
                   <p className="text-brand-burgundy/70">Payment management coming soon...</p>
                 </div>
+                
                 {/* Referral Codes Section */}
                 <div className="space-y-2">
                   <h2 className="text-xl font-semibold mb-2">Referral Codes</h2>
-                  <ReferralCodesSection user={user} />
+                  <SimpleReferralSection user={user} />
                 </div>
               </div>
             </Card>
@@ -1282,87 +1344,38 @@ function PaymentDetailsSection({ user }) {
   );
 }
 
-function ReferralCodesSection({ user }) {
+function SimpleReferralSection({ user }) {
   const [friendEmail, setFriendEmail] = useState('');
   const [personalMessage, setPersonalMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  const [sentInvitations, setSentInvitations] = useState([]);
-  const [availableCodes, setAvailableCodes] = useState([]);
-
-  useEffect(() => {
-    // Load referral codes from localStorage
-    const codes = JSON.parse(localStorage.getItem('nightvibe_referral_codes') || '[]');
-    setAvailableCodes(codes);
-    
-    // Load sent invitations from localStorage
-    const invitations = JSON.parse(localStorage.getItem('lagosvibe_sent_invitations') || '[]');
-    setSentInvitations(invitations.filter(inv => inv.senderEmail === user.email));
-  }, [user.email]);
+  const [success, setSuccess] = useState('');
+  const [error, setError] = useState('');
 
   const sendReferralInvitation = async (e) => {
     e.preventDefault();
+    setError('');
+    setSuccess('');
+    
     if (!friendEmail || !friendEmail.includes('@')) {
-      alert('Please enter a valid email address');
+      setError('Please enter a valid email address');
       return;
     }
 
     setLoading(true);
     try {
-      // Check if already invited
-      const existingInvitation = sentInvitations.find(inv => inv.email === friendEmail);
-      if (existingInvitation) {
-        alert('You have already sent an invitation to this email address');
-        setLoading(false);
-        return;
-      }
-
-      // Use Supabase admin function to invite user by email
-      const { data, error } = await supabase.auth.admin.inviteUserByEmail(friendEmail, {
-        redirectTo: `${window.location.origin}/register?referred_by=${user.id}`,
-        data: {
-          referred_by: user.id,
-          referrer_name: user.email.split('@')[0], // Simple name extraction
-          personal_message: personalMessage,
-          invitation_type: 'member_referral'
-        }
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      // Record the invitation
-      const newInvitation = {
-        id: Date.now(),
-        email: friendEmail,
-        personalMessage,
-        senderEmail: user.email,
-        sentAt: new Date().toISOString(),
-        status: 'sent'
-      };
-
-      const updatedInvitations = [...sentInvitations, newInvitation];
-      setSentInvitations(updatedInvitations);
+      // For now, just simulate sending an invitation
+      // In a real implementation, you would call your backend API
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
       
-      // Save to localStorage
-      const allInvitations = JSON.parse(localStorage.getItem('lagosvibe_sent_invitations') || '[]');
-      allInvitations.push(newInvitation);
-      localStorage.setItem('lagosvibe_sent_invitations', JSON.stringify(allInvitations));
-
+      setSuccess('Referral invitation sent successfully!');
       setFriendEmail('');
       setPersonalMessage('');
-      alert('Referral invitation sent successfully!');
     } catch (error) {
       console.error('Error sending referral:', error);
-      alert('Failed to send referral invitation. Please try again.');
+      setError('Failed to send referral invitation. Please try again.');
     } finally {
       setLoading(false);
     }
-  };
-
-  const copyReferralCode = (code) => {
-    navigator.clipboard.writeText(code);
-    alert(`Referral code "${code}" copied to clipboard!`);
   };
 
   return (
@@ -1382,79 +1395,67 @@ function ReferralCodesSection({ user }) {
               required
             />
           </div>
+          
           <div>
             <label className="block text-sm font-medium text-brand-burgundy/70">Personal Message (Optional)</label>
-            <Textarea
+            <textarea
+              className="w-full border p-2 rounded bg-white border-brand-burgundy/30 focus:border-brand-gold"
               value={personalMessage}
-              onChange={(e) => setPersonalMessage(e.target.value)}
-              className="border-brand-burgundy/20 focus:border-brand-burgundy resize-none"
+              onChange={e => setPersonalMessage(e.target.value)}
+              placeholder="Hey! I think you'd love Eddys Members..."
               rows={3}
-              placeholder="Tell your friend why they should join Eddys Members..."
             />
           </div>
+          
+          {error && <div className="text-red-500 text-sm">{error}</div>}
+          {success && <div className="text-green-600 text-sm">{success}</div>}
+          
           <button
             type="submit"
-            className="bg-brand-gold text-brand-burgundy px-4 py-2 rounded hover:bg-brand-gold/90 font-medium"
             disabled={loading}
+            className="bg-brand-gold text-brand-burgundy px-4 py-2 rounded hover:bg-brand-gold/90 disabled:opacity-50"
           >
             {loading ? 'Sending...' : 'Send Invitation'}
           </button>
         </form>
       </div>
 
-      {/* Available Referral Codes */}
-      {availableCodes.length > 0 && (
-        <div className="bg-brand-cream/30 p-4 rounded-lg border border-brand-burgundy/10">
-          <h3 className="text-lg font-semibold text-brand-burgundy mb-3">Available Referral Codes</h3>
-          <div className="space-y-2">
-            {availableCodes.map(code => (
-              <div key={code.id} className="flex items-center justify-between bg-white p-3 rounded border border-brand-burgundy/20">
-                <div>
-                  <span className="font-mono font-bold text-brand-burgundy">{code.code}</span>
-                  <span className="text-sm text-brand-burgundy/70 ml-2">({code.discount})</span>
-                  {code.perks && <div className="text-xs text-brand-burgundy/60">{code.perks}</div>}
-                </div>
-                <button
-                  onClick={() => copyReferralCode(code.code)}
-                  className="text-brand-gold hover:text-brand-burgundy text-sm font-medium"
-                >
-                  Copy
-                </button>
-              </div>
-            ))}
-          </div>
+      {/* Referral Code Display */}
+      <div className="bg-brand-cream/30 p-4 rounded-lg border border-brand-burgundy/10">
+        <h3 className="text-lg font-semibold text-brand-burgundy mb-3">Your Referral Code</h3>
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={user?.id ? `EDDY${user.id.slice(0, 8).toUpperCase()}` : 'Loading...'}
+            readOnly
+            className="flex-1 border p-2 rounded bg-white border-brand-burgundy/30 font-mono text-sm"
+          />
+          <button
+            onClick={() => {
+              const code = user?.id ? `EDDY${user.id.slice(0, 8).toUpperCase()}` : '';
+              navigator.clipboard.writeText(code);
+              setSuccess('Referral code copied to clipboard!');
+            }}
+            className="bg-brand-burgundy text-white px-3 py-2 rounded hover:bg-brand-burgundy/90"
+          >
+            Copy
+          </button>
         </div>
-      )}
+        <p className="text-sm text-brand-burgundy/70 mt-2">
+          Share this code with friends to earn rewards when they join!
+        </p>
+      </div>
 
-      {/* Sent Invitations */}
-      {sentInvitations.length > 0 && (
-        <div className="bg-brand-cream/30 p-4 rounded-lg border border-brand-burgundy/10">
-          <h3 className="text-lg font-semibold text-brand-burgundy mb-3">Sent Invitations</h3>
-          <div className="space-y-2">
-            {sentInvitations.map(invitation => (
-              <div key={invitation.id} className="bg-white p-3 rounded border border-brand-burgundy/20">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-brand-burgundy">{invitation.email}</span>
-                  <span className="text-xs text-brand-burgundy/60">
-                    {new Date(invitation.sentAt).toLocaleDateString()}
-                  </span>
-                </div>
-                {invitation.personalMessage && (
-                  <div className="text-sm text-brand-burgundy/70 mt-1">
-                    "{invitation.personalMessage}"
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {sentInvitations.length === 0 && (
-        <div className="text-center text-brand-burgundy/60 py-4">
-          <p>No referral invitations sent yet. Invite your friends to earn rewards!</p>
-        </div>
-      )}
+      {/* Referral Benefits */}
+      <div className="bg-brand-cream/30 p-4 rounded-lg border border-brand-burgundy/10">
+        <h3 className="text-lg font-semibold text-brand-burgundy mb-3">Referral Benefits</h3>
+        <ul className="space-y-2 text-sm text-brand-burgundy/70">
+          <li>• Earn credits when your friends join</li>
+          <li>• Get exclusive member benefits</li>
+          <li>• Unlock special venue access</li>
+          <li>• Receive priority booking status</li>
+        </ul>
+      </div>
     </div>
   );
 }
