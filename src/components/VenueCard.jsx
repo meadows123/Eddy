@@ -1,12 +1,80 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Star, Users, MapPin, Tag } from 'lucide-react';
+import { Star, Users, MapPin, Tag, Heart } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
+import { savedVenuesApi } from '@/lib/api';
+import { toast } from '@/components/ui/use-toast';
 
 const VenueCard = ({ venue }) => {
+  const { user } = useAuth();
+  const [isSaved, setIsSaved] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Check if venue is saved when component mounts
+  useEffect(() => {
+    if (user && venue) {
+      checkIfSaved();
+    }
+  }, [user, venue]);
+
+  const checkIfSaved = async () => {
+    try {
+      const savedVenues = await savedVenuesApi.getSavedVenues(user.id);
+      const isVenueSaved = savedVenues.some(saved => saved.venue_id === venue.id);
+      setIsSaved(isVenueSaved);
+    } catch (error) {
+      console.error('Error checking saved status:', error);
+    }
+  };
+
+  const handleToggleSave = async (e) => {
+    e.preventDefault(); // Prevent navigation when clicking the heart
+    e.stopPropagation();
+    
+    if (!user) {
+      toast({
+        title: "Please sign in",
+        description: "You need to be signed in to save venues",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      if (isSaved) {
+        await savedVenuesApi.removeSavedVenue(user.id, venue.id);
+        setIsSaved(false);
+        toast({
+          title: "Venue removed",
+          description: `${venue.name} has been removed from your saved venues`,
+          className: "bg-red-50 border-red-200"
+        });
+      } else {
+        await savedVenuesApi.saveVenue(user.id, venue.id);
+        setIsSaved(true);
+        toast({
+          title: "Venue saved!",
+          description: `${venue.name} has been added to your saved venues`,
+          className: "bg-green-50 border-green-200"
+        });
+      }
+    } catch (error) {
+      console.error('Error toggling save:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update saved venues. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -25,6 +93,22 @@ const VenueCard = ({ venue }) => {
               : "https://images.unsplash.com/photo-1699990320295-ecd2664079ab"
             } />
           
+          {/* Favorite Button */}
+          <button
+            onClick={handleToggleSave}
+            disabled={isLoading}
+            className={`absolute top-3 left-3 p-2 rounded-full transition-all duration-200 ${
+              isSaved 
+                ? 'bg-red-500 text-white shadow-lg hover:bg-red-600' 
+                : 'bg-white/90 text-gray-600 hover:bg-white hover:text-red-500 shadow-md'
+            } ${isLoading ? 'opacity-50 cursor-not-allowed' : 'hover:scale-110'}`}
+            title={isSaved ? 'Remove from favorites' : 'Add to favorites'}
+          >
+            <Heart 
+              className={`h-5 w-5 ${isSaved ? 'fill-current' : ''}`} 
+            />
+          </button>
+          
           <div className="absolute top-3 right-3 flex gap-2">
             {venue.tags && venue.tags.slice(0, 1).map((tag, index) => (
               <Badge key={index} variant="secondary" className="bg-brand-gold text-brand-burgundy backdrop-blur-sm border-brand-gold/50 shadow-md">
@@ -35,8 +119,9 @@ const VenueCard = ({ venue }) => {
               {venue.price_range || 'N/A'}
             </Badge>
           </div>
-           {venue.isFeatured && (
-            <div className="absolute top-3 left-3">
+          
+          {venue.isFeatured && (
+            <div className="absolute bottom-3 left-3">
               <Badge className="bg-brand-gold text-brand-burgundy font-semibold shadow-lg">Featured</Badge>
             </div>
           )}
