@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
-import { Heart, Calendar, Settings, Clipboard, XCircle, CheckCircle, Send, Link as LinkIcon, Wallet } from 'lucide-react';
+import { Heart, Calendar, Settings, Clipboard, XCircle, CheckCircle, Send, Link as LinkIcon, Wallet, User } from 'lucide-react';
 import { supabase } from '../lib/supabase.js';
 import { Elements, useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
@@ -594,7 +594,7 @@ const UserProfilePage = () => {
         <Tabs defaultValue={location.state?.activeTab || "profile"} className="space-y-4">
           <TabsList className="bg-white p-1 rounded-lg border border-brand-burgundy/10 grid grid-cols-2 md:grid-cols-7 h-auto">
             <TabsTrigger value="profile" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 p-2 md:p-3 text-xs md:text-sm">
-              <Settings className="h-3 w-3 md:h-4 md:w-4" />
+              <User className="h-3 w-3 md:h-4 md:w-4" />
               <span className="hidden sm:inline">Profile</span>
               <span className="sm:hidden">Profile</span>
             </TabsTrigger>
