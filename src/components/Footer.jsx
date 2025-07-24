@@ -74,7 +74,6 @@ const Footer = () => {
             <ul className="space-y-2">
               <li><Link to="/venues" onClick={handleLinkClick} className="text-brand-cream/80 hover:text-white transition-colors">Venues</Link></li>
               <li><Link to="/about" onClick={handleLinkClick} className="text-brand-cream/80 hover:text-white transition-colors">About Us</Link></li>
-              <li><Link to="/contact" onClick={handleLinkClick} className="text-brand-cream/80 hover:text-white transition-colors">Contact</Link></li>
               <li><Link to="/faq" onClick={handleLinkClick} className="text-brand-cream/80 hover:text-white transition-colors">FAQ</Link></li>
             </ul>
           </div>
@@ -93,7 +92,7 @@ const Footer = () => {
                   info@oneeddy.com
                 </a>
               </li>
-              <li className="text-brand-cream/80">Lagos, Nigeria</li>
+              <li><Link to="/contact" onClick={handleLinkClick} className="text-brand-cream/80 hover:text-white transition-colors">Contact</Link></li>
               <li><Link to="/privacy" onClick={handleLinkClick} className="text-brand-cream/80 hover:text-white transition-colors">Privacy Policy</Link></li>
               <li><Link to="/terms" onClick={handleLinkClick} className="text-brand-cream/80 hover:text-white transition-colors">Terms of Service</Link></li>
             </ul>

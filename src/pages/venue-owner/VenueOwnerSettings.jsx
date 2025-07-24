@@ -363,7 +363,7 @@ const VenueOwnerSettings = () => {
 
   if (!venue) {
     return (
-      <div className="container py-20 text-center">
+      <div className="container mx-auto px-4 py-20 text-center">
         <h2 className="text-2xl font-bold mb-4">No Venue Found</h2>
         <p className="text-gray-600 mb-6">You don't have a venue associated with your account.</p>
         <Button onClick={() => navigate('/venue-owner/register')}>
@@ -374,22 +374,34 @@ const VenueOwnerSettings = () => {
   }
 
   return (
-    <div className="container py-8">
-      <h1 className="text-3xl font-heading text-brand-burgundy mb-6">Venue Settings</h1>
+    <div className="container mx-auto px-4 py-4 sm:py-8 max-w-7xl">
+      <h1 className="text-2xl sm:text-3xl font-heading text-brand-burgundy mb-4 sm:mb-6">Venue Settings</h1>
       
       <Tabs defaultValue="profile" className="space-y-4">
-        <TabsList className="bg-white p-1 rounded-lg border border-brand-burgundy/10 mb-4">
-          <TabsTrigger value="profile" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy">
-            <Settings className="h-4 w-4 mr-2" />
-            Venue Profile
+        <TabsList className="bg-white p-1 rounded-lg border border-brand-burgundy/10 mb-4 grid grid-cols-3 w-full">
+          <TabsTrigger 
+            value="profile" 
+            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm"
+          >
+            <Settings className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Venue Profile</span>
+            <span className="sm:hidden">Profile</span>
           </TabsTrigger>
-          <TabsTrigger value="staff" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy">
-            <Users className="h-4 w-4 mr-2" />
-            Staff Management
+          <TabsTrigger 
+            value="staff" 
+            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm"
+          >
+            <Users className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Staff Management</span>
+            <span className="sm:hidden">Staff</span>
           </TabsTrigger>
-          <TabsTrigger value="notifications" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy">
-            <Bell className="h-4 w-4 mr-2" />
-            Notifications
+          <TabsTrigger 
+            value="notifications" 
+            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm"
+          >
+            <Bell className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="hidden sm:inline">Notifications</span>
+            <span className="sm:hidden">Alerts</span>
           </TabsTrigger>
         </TabsList>
 
@@ -397,32 +409,33 @@ const VenueOwnerSettings = () => {
         <TabsContent value="profile">
           <Card className="bg-white border-brand-burgundy/10">
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <Settings className="h-5 w-5 mr-2" />
+              <CardTitle className="flex items-center text-lg sm:text-xl">
+                <Settings className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                 Venue Profile
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 sm:p-6">
               <form onSubmit={handleVenueSubmit} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {/* Basic Information */}
                   <div className="space-y-4">
-                    <h3 className="font-semibold text-brand-burgundy">Basic Information</h3>
+                    <h3 className="font-semibold text-brand-burgundy text-base sm:text-lg">Basic Information</h3>
                     
                     <div>
-                      <Label htmlFor="name">Venue Name</Label>
+                      <Label htmlFor="name" className="text-sm sm:text-base">Venue Name</Label>
                       <Input
                         id="name"
                         value={venueForm.name}
                         onChange={(e) => setVenueForm({...venueForm, name: e.target.value})}
                         placeholder="Enter venue name"
+                        className="mt-1"
                       />
                     </div>
 
                     <div>
-                      <Label htmlFor="type">Venue Type</Label>
+                      <Label htmlFor="type" className="text-sm sm:text-base">Venue Type</Label>
                       <Select value={venueForm.type} onValueChange={(value) => setVenueForm({...venueForm, type: value})}>
-                        <SelectTrigger>
+                        <SelectTrigger className="mt-1">
                           <SelectValue placeholder="Select venue type" />
                         </SelectTrigger>
                         <SelectContent>
@@ -436,20 +449,21 @@ const VenueOwnerSettings = () => {
                     </div>
 
                     <div>
-                      <Label htmlFor="description">Description</Label>
+                      <Label htmlFor="description" className="text-sm sm:text-base">Description</Label>
                       <Textarea
                         id="description"
                         value={venueForm.description}
                         onChange={(e) => setVenueForm({...venueForm, description: e.target.value})}
                         placeholder="Describe your venue"
                         rows={3}
+                        className="mt-1"
                       />
                     </div>
 
                     <div>
-                      <Label htmlFor="vibe">Venue Vibe</Label>
+                      <Label htmlFor="vibe" className="text-sm sm:text-base">Venue Vibe</Label>
                       <Select value={venueForm.vibe} onValueChange={(value) => setVenueForm({...venueForm, vibe: value})}>
-                        <SelectTrigger>
+                        <SelectTrigger className="mt-1">
                           <SelectValue placeholder="Select venue vibe" />
                         </SelectTrigger>
                         <SelectContent>
@@ -463,86 +477,118 @@ const VenueOwnerSettings = () => {
 
                   {/* Contact & Location */}
                   <div className="space-y-4">
-                    <h3 className="font-semibold text-brand-burgundy">Contact & Location</h3>
+                    <h3 className="font-semibold text-brand-burgundy text-base sm:text-lg">Contact & Location</h3>
                     
                     <div>
-                      <Label htmlFor="address">Address</Label>
+                      <Label htmlFor="address" className="text-sm sm:text-base">Address</Label>
                       <Textarea
                         id="address"
                         value={venueForm.address}
                         onChange={(e) => setVenueForm({...venueForm, address: e.target.value})}
                         placeholder="Full address"
                         rows={2}
+                        className="mt-1"
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
-                        <Label htmlFor="city">City</Label>
+                        <Label htmlFor="city" className="text-sm sm:text-base">City</Label>
                         <Input
                           id="city"
                           value={venueForm.city}
                           onChange={(e) => setVenueForm({...venueForm, city: e.target.value})}
                           placeholder="City"
+                          className="mt-1"
                         />
                       </div>
                       <div>
-                        <Label htmlFor="country">Country</Label>
+                        <Label htmlFor="country" className="text-sm sm:text-base">Country</Label>
                         <Input
                           id="country"
                           value={venueForm.country}
                           onChange={(e) => setVenueForm({...venueForm, country: e.target.value})}
                           placeholder="Country"
+                          className="mt-1"
                         />
                       </div>
                     </div>
 
                     <div>
-                      <Label htmlFor="contact_phone">Contact Phone</Label>
+                      <Label htmlFor="contact_phone" className="text-sm sm:text-base">Contact Phone</Label>
                       <Input
                         id="contact_phone"
                         value={venueForm.contact_phone}
                         onChange={(e) => setVenueForm({...venueForm, contact_phone: e.target.value})}
-                        placeholder="+234 xxx xxx xxxx"
+                        placeholder="Phone number"
+                        className="mt-1"
                       />
                     </div>
 
                     <div>
-                      <Label htmlFor="contact_email">Contact Email</Label>
+                      <Label htmlFor="contact_email" className="text-sm sm:text-base">Contact Email</Label>
                       <Input
                         id="contact_email"
                         type="email"
                         value={venueForm.contact_email}
                         onChange={(e) => setVenueForm({...venueForm, contact_email: e.target.value})}
-                        placeholder="contact@venue.com"
+                        placeholder="Email address"
+                        className="mt-1"
                       />
                     </div>
 
                     <div>
-                      <Label htmlFor="opening_hours">Opening Hours</Label>
+                      <Label htmlFor="website_url" className="text-sm sm:text-base">Website URL</Label>
                       <Input
-                        id="opening_hours"
-                        value={venueForm.opening_hours}
-                        onChange={(e) => setVenueForm({...venueForm, opening_hours: e.target.value})}
-                        placeholder="e.g., Mon-Sun: 6PM - 2AM"
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="website_url_contact">Website URL</Label>
-                      <Input
-                        id="website_url_contact"
-                        type="url"
+                        id="website_url"
                         value={venueForm.website_url}
                         onChange={(e) => setVenueForm({...venueForm, website_url: e.target.value})}
-                        placeholder="https://yourvenuewebsite.com"
+                        placeholder="https://yourvenue.com"
+                        className="mt-1"
                       />
                     </div>
                   </div>
                 </div>
 
-                <div className="pt-4 border-t flex gap-4">
-                  <Button type="submit" disabled={saving} className="bg-brand-burgundy text-white hover:bg-brand-burgundy/90">
+                {/* Additional Information - Full Width */}
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-brand-burgundy text-base sm:text-lg">Additional Information</h3>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="price_range" className="text-sm sm:text-base">Price Range</Label>
+                      <Select value={venueForm.price_range} onValueChange={(value) => setVenueForm({...venueForm, price_range: value})}>
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="Select price range" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="budget">Budget</SelectItem>
+                          <SelectItem value="moderate">Moderate</SelectItem>
+                          <SelectItem value="premium">Premium</SelectItem>
+                          <SelectItem value="luxury">Luxury</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="opening_hours" className="text-sm sm:text-base">Opening Hours</Label>
+                      <Input
+                        id="opening_hours"
+                        value={venueForm.opening_hours}
+                        onChange={(e) => setVenueForm({...venueForm, opening_hours: e.target.value})}
+                        placeholder="e.g., Mon-Sun 6PM-2AM"
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-4">
+                  <Button 
+                    type="submit" 
+                    disabled={saving}
+                    className="w-full sm:w-auto"
+                  >
                     {saving ? (
                       <>
                         <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
@@ -577,322 +623,243 @@ const VenueOwnerSettings = () => {
         <TabsContent value="staff">
           <Card className="bg-white border-brand-burgundy/10">
             <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <Users className="h-5 w-5 mr-2" />
-                  Staff Management
-                </div>
-                <Button
-                  onClick={() => setShowAddStaff(true)}
-                  className="bg-brand-burgundy text-white hover:bg-brand-burgundy/90"
-                >
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Add Staff
-                </Button>
+              <CardTitle className="flex items-center text-lg sm:text-xl">
+                <Users className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                Staff Management
               </CardTitle>
             </CardHeader>
-            <CardContent>
-              {/* Add Staff Form */}
-              {showAddStaff && (
-                <Card className="mb-6 border border-brand-gold/20">
-                  <CardHeader>
-                    <CardTitle className="text-lg">Add New Staff Member</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="staff_name">Full Name</Label>
-                        <Input
-                          id="staff_name"
-                          value={newStaff.name}
-                          onChange={(e) => setNewStaff({...newStaff, name: e.target.value})}
-                          placeholder="Enter staff name"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="staff_email">Email</Label>
-                        <Input
-                          id="staff_email"
-                          type="email"
-                          value={newStaff.email}
-                          onChange={(e) => setNewStaff({...newStaff, email: e.target.value})}
-                          placeholder="Enter email address"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="staff_phone">Phone</Label>
-                        <Input
-                          id="staff_phone"
-                          value={newStaff.phone}
-                          onChange={(e) => setNewStaff({...newStaff, phone: e.target.value})}
-                          placeholder="Enter phone number"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="staff_role">Role</Label>
-                        <Select value={newStaff.role} onValueChange={(value) => setNewStaff({...newStaff, role: value})}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select role" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="manager">Manager</SelectItem>
-                            <SelectItem value="host">Host</SelectItem>
-                            <SelectItem value="server">Server</SelectItem>
-                            <SelectItem value="bartender">Bartender</SelectItem>
-                            <SelectItem value="security">Security</SelectItem>
-                            <SelectItem value="admin">Admin</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div className="flex space-x-2 mt-4">
-                      <Button
-                        onClick={() => {
-                          // Add staff member logic here
-                          const newStaffMember = {
-                            id: Date.now(),
-                            ...newStaff
-                          };
-                          setStaff([...staff, newStaffMember]);
-                          setNewStaff({ name: '', email: '', role: '', phone: '' });
-                          setShowAddStaff(false);
-                          toast({
-                            title: 'Success!',
-                            description: 'Staff member added successfully',
-                            className: 'bg-green-500 text-white'
-                          });
-                        }}
-                        className="bg-brand-burgundy text-white hover:bg-brand-burgundy/90"
-                      >
-                        <Plus className="h-4 w-4 mr-2" />
-                        Add Staff
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={() => setShowAddStaff(false)}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+            <CardContent className="p-4 sm:p-6">
+              <div className="space-y-6">
+                {/* Add Staff Button */}
+                <div className="flex justify-between items-center">
+                  <h3 className="font-semibold text-brand-burgundy text-base sm:text-lg">Staff Members</h3>
+                  <Button 
+                    onClick={() => setShowAddStaff(!showAddStaff)}
+                    className="flex items-center gap-2"
+                  >
+                    <Plus className="h-4 w-4" />
+                    <span className="hidden sm:inline">Add Staff</span>
+                    <span className="sm:hidden">Add</span>
+                  </Button>
+                </div>
 
-              {/* Staff List */}
-              <div className="space-y-4">
-                <h3 className="font-semibold text-brand-burgundy">Current Staff</h3>
-                {staff.length === 0 ? (
-                  <div className="text-center py-8 text-brand-burgundy/70">
-                    <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                    <p>No staff members added yet.</p>
-                    <p className="text-sm">Click "Add Staff" to get started.</p>
-                  </div>
-                ) : (
-                  <div className="grid gap-4">
-                    {staff.map((member) => (
-                      <Card key={member.id} className="border border-brand-burgundy/10">
+                {/* Add Staff Form */}
+                {showAddStaff && (
+                  <Card className="border-brand-gold/20 bg-brand-gold/5">
+                    <CardContent className="p-4 sm:p-6">
+                      <h4 className="font-semibold mb-4 text-brand-burgundy">Add New Staff Member</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <Label htmlFor="staff_name" className="text-sm sm:text-base">Name</Label>
+                          <Input
+                            id="staff_name"
+                            value={newStaff.name}
+                            onChange={(e) => setNewStaff({...newStaff, name: e.target.value})}
+                            placeholder="Staff member name"
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="staff_email" className="text-sm sm:text-base">Email</Label>
+                          <Input
+                            id="staff_email"
+                            type="email"
+                            value={newStaff.email}
+                            onChange={(e) => setNewStaff({...newStaff, email: e.target.value})}
+                            placeholder="staff@venue.com"
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="staff_role" className="text-sm sm:text-base">Role</Label>
+                          <Input
+                            id="staff_role"
+                            value={newStaff.role}
+                            onChange={(e) => setNewStaff({...newStaff, role: e.target.value})}
+                            placeholder="Manager, Server, etc."
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="staff_phone" className="text-sm sm:text-base">Phone</Label>
+                          <Input
+                            id="staff_phone"
+                            value={newStaff.phone}
+                            onChange={(e) => setNewStaff({...newStaff, phone: e.target.value})}
+                            placeholder="Phone number"
+                            className="mt-1"
+                          />
+                        </div>
+                      </div>
+                      <div className="flex gap-2 mt-4">
+                        <Button type="button" className="flex-1 sm:flex-none">
+                          <UserPlus className="h-4 w-4 mr-2" />
+                          <span className="hidden sm:inline">Add Staff Member</span>
+                          <span className="sm:hidden">Add</span>
+                        </Button>
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          onClick={() => setShowAddStaff(false)}
+                          className="flex-1 sm:flex-none"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Staff List */}
+                <div className="space-y-3">
+                  {staff.length === 0 ? (
+                    <p className="text-gray-500 text-center py-8">No staff members added yet.</p>
+                  ) : (
+                    staff.map((member, index) => (
+                      <Card key={index} className="border-brand-burgundy/10">
                         <CardContent className="p-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-4">
-                              <div className="h-10 w-10 bg-brand-burgundy/10 rounded-full flex items-center justify-center">
-                                <User className="h-5 w-5 text-brand-burgundy" />
-                              </div>
-                              <div>
-                                <h4 className="font-semibold text-brand-burgundy">{member.name}</h4>
-                                <div className="flex items-center space-x-4 text-sm text-brand-burgundy/70">
-                                  <span className="flex items-center">
-                                    <Mail className="h-3 w-3 mr-1" />
-                                    {member.email}
-                                  </span>
-                                  {member.phone && (
-                                    <span className="flex items-center">
-                                      <Phone className="h-3 w-3 mr-1" />
-                                      {member.phone}
-                                    </span>
-                                  )}
-                                </div>
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <h4 className="font-semibold text-brand-burgundy">{member.name}</h4>
+                              <p className="text-sm text-gray-600">{member.email}</p>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Badge variant="secondary" className="text-xs">{member.role}</Badge>
+                                {member.phone && (
+                                  <span className="text-xs text-gray-500">{member.phone}</span>
+                                )}
                               </div>
                             </div>
-                            <div className="flex items-center space-x-2">
-                              <Badge variant="secondary" className="bg-brand-gold/20 text-brand-burgundy">
-                                {member.role}
-                              </Badge>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setStaff(staff.filter(s => s.id !== member.id));
-                                  toast({
-                                    title: 'Staff Removed',
-                                    description: `${member.name} has been removed`,
-                                  });
-                                }}
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
+                            <Button variant="ghost" size="sm" className="text-red-500 hover:text-red-700">
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
                         </CardContent>
                       </Card>
-                    ))}
-                  </div>
-                )}
+                    ))
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        {/* Notification Preferences Tab */}
+        {/* Notifications Tab */}
         <TabsContent value="notifications">
           <Card className="bg-white border-brand-burgundy/10">
             <CardHeader>
-              <CardTitle className="flex items-center">
-                <Bell className="h-5 w-5 mr-2" />
+              <CardTitle className="flex items-center text-lg sm:text-xl">
+                <Bell className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                 Notification Preferences
               </CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-4 sm:p-6">
               <div className="space-y-6">
-                {/* Email Notifications */}
-                <div>
-                  <h3 className="font-semibold text-brand-burgundy mb-4">Email Notifications</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                  {/* Email Notifications */}
                   <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 border border-brand-burgundy/10 rounded-lg">
-                      <div>
-                        <h4 className="font-medium text-brand-burgundy">New Bookings</h4>
-                        <p className="text-sm text-brand-burgundy/70">Get notified when new reservations are made</p>
-                      </div>
-                      <Switch
-                        checked={notifications.email_bookings}
-                        onCheckedChange={(checked) => 
-                          setNotifications({...notifications, email_bookings: checked})
-                        }
-                      />
-                    </div>
+                    <h3 className="font-semibold text-brand-burgundy text-base sm:text-lg">Email Notifications</h3>
                     
-                    <div className="flex items-center justify-between p-4 border border-brand-burgundy/10 rounded-lg">
-                      <div>
-                        <h4 className="font-medium text-brand-burgundy">Cancellations</h4>
-                        <p className="text-sm text-brand-burgundy/70">Get notified when bookings are cancelled</p>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label className="text-sm sm:text-base">New Bookings</Label>
+                          <p className="text-xs text-gray-500">Get notified when someone books your venue</p>
+                        </div>
+                        <Switch 
+                          checked={notifications.email_bookings}
+                          onCheckedChange={(checked) => setNotifications({...notifications, email_bookings: checked})}
+                        />
                       </div>
-                      <Switch
-                        checked={notifications.email_cancellations}
-                        onCheckedChange={(checked) => 
-                          setNotifications({...notifications, email_cancellations: checked})
-                        }
-                      />
+                      
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label className="text-sm sm:text-base">Cancellations</Label>
+                          <p className="text-xs text-gray-500">Get notified when bookings are cancelled</p>
+                        </div>
+                        <Switch 
+                          checked={notifications.email_cancellations}
+                          onCheckedChange={(checked) => setNotifications({...notifications, email_cancellations: checked})}
+                        />
+                      </div>
+                      
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label className="text-sm sm:text-base">Payment Confirmations</Label>
+                          <p className="text-xs text-gray-500">Get notified when payments are received</p>
+                        </div>
+                        <Switch 
+                          checked={notifications.email_payments}
+                          onCheckedChange={(checked) => setNotifications({...notifications, email_payments: checked})}
+                        />
+                      </div>
                     </div>
+                  </div>
+
+                  {/* SMS Notifications */}
+                  <div className="space-y-4">
+                    <h3 className="font-semibold text-brand-burgundy text-base sm:text-lg">SMS Notifications</h3>
                     
-                    <div className="flex items-center justify-between p-4 border border-brand-burgundy/10 rounded-lg">
-                      <div>
-                        <h4 className="font-medium text-brand-burgundy">Payment Confirmations</h4>
-                        <p className="text-sm text-brand-burgundy/70">Get notified when payments are processed</p>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label className="text-sm sm:text-base">New Bookings</Label>
+                          <p className="text-xs text-gray-500">SMS alerts for new bookings</p>
+                        </div>
+                        <Switch 
+                          checked={notifications.sms_bookings}
+                          onCheckedChange={(checked) => setNotifications({...notifications, sms_bookings: checked})}
+                        />
                       </div>
-                      <Switch
-                        checked={notifications.email_payments}
-                        onCheckedChange={(checked) => 
-                          setNotifications({...notifications, email_payments: checked})
-                        }
-                      />
+                      
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label className="text-sm sm:text-base">Cancellations</Label>
+                          <p className="text-xs text-gray-500">SMS alerts for cancellations</p>
+                        </div>
+                        <Switch 
+                          checked={notifications.sms_cancellations}
+                          onCheckedChange={(checked) => setNotifications({...notifications, sms_cancellations: checked})}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* SMS Notifications */}
-                <div>
-                  <h3 className="font-semibold text-brand-burgundy mb-4">SMS Notifications</h3>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 border border-brand-burgundy/10 rounded-lg">
+                {/* Reports */}
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-brand-burgundy text-base sm:text-lg">Reports</h3>
+                  
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
                       <div>
-                        <h4 className="font-medium text-brand-burgundy">New Bookings</h4>
-                        <p className="text-sm text-brand-burgundy/70">Get SMS alerts for new reservations</p>
+                        <Label className="text-sm sm:text-base">Daily Summary</Label>
+                        <p className="text-xs text-gray-500">Receive daily booking summaries</p>
                       </div>
-                      <Switch
-                        checked={notifications.sms_bookings}
-                        onCheckedChange={(checked) => 
-                          setNotifications({...notifications, sms_bookings: checked})
-                        }
-                      />
-                    </div>
-                    
-                    <div className="flex items-center justify-between p-4 border border-brand-burgundy/10 rounded-lg">
-                      <div>
-                        <h4 className="font-medium text-brand-burgundy">Urgent Cancellations</h4>
-                        <p className="text-sm text-brand-burgundy/70">Get SMS alerts for last-minute cancellations</p>
-                      </div>
-                      <Switch
-                        checked={notifications.sms_cancellations}
-                        onCheckedChange={(checked) => 
-                          setNotifications({...notifications, sms_cancellations: checked})
-                        }
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Reports & Summaries */}
-                <div>
-                  <h3 className="font-semibold text-brand-burgundy mb-4">Reports & Summaries</h3>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 border border-brand-burgundy/10 rounded-lg">
-                      <div>
-                        <h4 className="font-medium text-brand-burgundy">Daily Summary</h4>
-                        <p className="text-sm text-brand-burgundy/70">Daily report of bookings and revenue</p>
-                      </div>
-                      <Switch
+                      <Switch 
                         checked={notifications.daily_summary}
-                        onCheckedChange={(checked) => 
-                          setNotifications({...notifications, daily_summary: checked})
-                        }
+                        onCheckedChange={(checked) => setNotifications({...notifications, daily_summary: checked})}
                       />
                     </div>
                     
-                    <div className="flex items-center justify-between p-4 border border-brand-burgundy/10 rounded-lg">
+                    <div className="flex items-center justify-between">
                       <div>
-                        <h4 className="font-medium text-brand-burgundy">Weekly Report</h4>
-                        <p className="text-sm text-brand-burgundy/70">Comprehensive weekly performance report</p>
+                        <Label className="text-sm sm:text-base">Weekly Report</Label>
+                        <p className="text-xs text-gray-500">Receive weekly performance reports</p>
                       </div>
-                      <Switch
+                      <Switch 
                         checked={notifications.weekly_report}
-                        onCheckedChange={(checked) => 
-                          setNotifications({...notifications, weekly_report: checked})
-                        }
+                        onCheckedChange={(checked) => setNotifications({...notifications, weekly_report: checked})}
                       />
                     </div>
                   </div>
                 </div>
 
-                {/* Save Button */}
-                <div className="pt-4 border-t">
-                  <Button
-                    onClick={() => {
-                      // Save notification preferences logic here
-                      toast({
-                        title: 'Success!',
-                        description: 'Notification preferences updated successfully',
-                        className: 'bg-green-500 text-white'
-                      });
-                    }}
-                    className="bg-brand-burgundy text-white hover:bg-brand-burgundy/90"
-                  >
+                <div className="flex justify-end pt-4">
+                  <Button className="w-full sm:w-auto">
                     <Save className="h-4 w-4 mr-2" />
-                    Save Preferences
+                    <span className="hidden sm:inline">Save Preferences</span>
+                    <span className="sm:hidden">Save</span>
                   </Button>
-                </div>
-
-                {/* Note about email service */}
-                <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <div className="flex items-start">
-                    <Mail className="h-5 w-5 text-blue-600 mt-0.5 mr-2" />
-                    <div>
-                      <h4 className="font-medium text-blue-800">Email Service Status</h4>
-                      <p className="text-sm text-blue-700 mt-1">
-                        Email notifications will be fully functional once SMTP configuration is completed. 
-                        Currently, booking confirmations are still processed but may use fallback methods.
-                      </p>
-                    </div>
-                  </div>
                 </div>
               </div>
             </CardContent>
