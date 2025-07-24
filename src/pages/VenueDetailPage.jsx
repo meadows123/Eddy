@@ -124,12 +124,22 @@ const VenueDetailPage = () => {
       return;
     }
     
+    // Get the guest count from the selected item
+    let guestCount = 2; // Default fallback
+    if (selectedTable) {
+      guestCount = selectedTable.guestCount || selectedTable.capacity || 2;
+    } else if (selectedTicket) {
+      guestCount = selectedTicket.maxGuests || 2;
+    }
+    
     const bookingSelection = {
       venueId: venue.id,
       venueName: venue.name,
       venueImage: venue.images && venue.images.length > 0 ? venue.images[0] : null,
       ticket: selectedTicket,
       table: selectedTable,
+      guests: guestCount, // Add the guest count here
+      guestCount: guestCount, // Also add as guestCount for compatibility
       timestamp: new Date().toISOString()
     };
     

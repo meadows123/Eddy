@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Star, Users, MapPin, Tag, Heart } from 'lucide-react';
+import { Star, Users, MapPin, Tag, Heart, Clock } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -152,6 +152,12 @@ const VenueCard = ({ venue }) => {
               <div className="flex items-center">
                 <Users className="h-3.5 w-3.5 mr-1.5 text-brand-gold" />
                 <span>Up to {venue.capacity} guests</span>
+              </div>
+            )}
+            {venue.opening_hours && (
+              <div className="flex items-center">
+                <Clock className="h-3.5 w-3.5 mr-1.5 text-brand-gold" />
+                <span>{venue.opening_hours}</span>
               </div>
             )}
           </div>
