@@ -6,22 +6,18 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import VenueCard from '@/components/VenueCard';
-// Static data for filters (can be made dynamic later if needed)
-const lagosLocations = ['all', 'Lagos Island', 'Victoria Island', 'Lekki', 'Ikeja', 'Surulere'];
-const venueTypes = ['all', 'Restaurant', 'Club', 'Lounge'];
+// Dynamic filter options will be generated from venue data
 const ratings = [
   { value: '4.5', label: '4.5+ Stars' },
   { value: '4.0', label: '4.0+ Stars' },
   { value: '3.5', label: '3.5+ Stars' },
   { value: '3.0', label: '3.0+ Stars' }
 ];
-const cuisineTypes = ['all', 'Nigerian', 'International', 'Fusion', 'Mediterranean', 'Asian', 'European', 'African', 'American'];
-const musicGenres = ['all', 'Afrobeats', 'Hip Hop', 'R&B', 'House', 'Amapiano', 'Reggae', 'Pop', 'Jazz', 'Live Band', 'DJ Sets'];
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import VenueDetailPage from '@/pages/VenueDetailPage';
 import { toast } from '@/components/ui/use-toast';
-import { supabase } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase.js';
 
 // Fixed table import issues - cache refresh
 const VenuesPage = () => {
@@ -50,6 +46,14 @@ const VenuesPage = () => {
   const [venues, setVenues] = useState([]);
   const [loading, setLoading] = useState(true);
   
+  // Dynamic filter options state
+  const [filterOptions, setFilterOptions] = useState({
+    locations: [],
+    venueTypes: [],
+    cuisineTypes: [],
+    musicGenres: []
+  });
+  
   const [filters, setFilters] = useState({
     location: 'all',
     venueType: mapTypeToVenueType(typeFromUrl),
@@ -58,6 +62,58 @@ const VenuesPage = () => {
     musicGenre: 'all',
   });
 
+  // Function to generate dynamic filter options from venues
+  const generateFilterOptions = (venuesData) => {
+    const locations = [...new Set(venuesData.map(venue => venue.location).filter(Boolean))].sort();
+    const venueTypes = [...new Set(venuesData.map(venue => venue.type).filter(Boolean))].sort();
+    
+    // Fallback options if no data is available
+    const fallbackLocations = ['Lagos Island', 'Victoria Island', 'Lekki', 'Ikeja', 'Surulere'];
+    const fallbackVenueTypes = ['Restaurant', 'Club', 'Lounge'];
+    const fallbackCuisineTypes = ['Nigerian', 'International', 'Fusion', 'Mediterranean', 'Asian', 'European', 'African', 'American'];
+    const fallbackMusicGenres = ['Afrobeats', 'Hip Hop', 'R&B', 'House', 'Amapiano', 'Reggae', 'Pop', 'Jazz', 'Live Band', 'DJ Sets'];
+    
+    // Extract cuisine types from venues
+    const cuisineTypes = [];
+    venuesData.forEach(venue => {
+      if (venue.cuisine && Array.isArray(venue.cuisine)) {
+        venue.cuisine.forEach(cuisine => {
+          if (cuisine && !cuisineTypes.includes(cuisine)) {
+            cuisineTypes.push(cuisine);
+          }
+        });
+      }
+    });
+    cuisineTypes.sort();
+    
+    // Extract music genres from venues
+    const musicGenres = [];
+    venuesData.forEach(venue => {
+      if (venue.music && Array.isArray(venue.music)) {
+        venue.music.forEach(music => {
+          if (music && !musicGenres.includes(music)) {
+            musicGenres.push(music);
+          }
+        });
+      }
+      // Also check musicGenres field if it exists
+      if (venue.musicGenres && Array.isArray(venue.musicGenres)) {
+        venue.musicGenres.forEach(genre => {
+          if (genre && !musicGenres.includes(genre)) {
+            musicGenres.push(genre);
+          }
+        });
+      }
+    });
+    musicGenres.sort();
+    
+    setFilterOptions({
+      locations: locations.length > 0 ? locations : fallbackLocations,
+      venueTypes: venueTypes.length > 0 ? venueTypes : fallbackVenueTypes,
+      cuisineTypes: cuisineTypes.length > 0 ? cuisineTypes : fallbackCuisineTypes,
+      musicGenres: musicGenres.length > 0 ? musicGenres : fallbackMusicGenres
+    });
+  };
 
 
   // Add effect to update filters when URL changes
@@ -83,16 +139,21 @@ const VenuesPage = () => {
       results = results.filter(venue => venue.location === filters.location);
     }
     if (filters.venueType !== 'all') {
-      results = results.filter(venue => venue.type === filters.venueType.toLowerCase());
+      results = results.filter(venue => venue.type && venue.type.toLowerCase() === filters.venueType.toLowerCase());
     }
     if (filters.rating !== 'all') {
       results = results.filter(venue => venue.rating >= parseFloat(filters.rating));
     }
     if (filters.cuisineType !== 'all') {
-      results = results.filter(venue => venue.cuisine && venue.cuisine.includes(filters.cuisineType));
+      results = results.filter(venue => 
+        (venue.cuisine && Array.isArray(venue.cuisine) && venue.cuisine.includes(filters.cuisineType))
+      );
     }
     if (filters.musicGenre !== 'all') {
-      results = results.filter(venue => Array.isArray(venue.musicGenres) && venue.musicGenres.includes(filters.musicGenre));
+      results = results.filter(venue => 
+        (venue.music && Array.isArray(venue.music) && venue.music.includes(filters.musicGenre)) ||
+        (venue.musicGenres && Array.isArray(venue.musicGenres) && venue.musicGenres.includes(filters.musicGenre))
+      );
     }
     setFilteredVenues(results);
   }, [venues, searchTerm, filters]);
@@ -135,6 +196,7 @@ const VenuesPage = () => {
         });
 
         setVenues(venuesWithImages);
+        generateFilterOptions(venuesWithImages); // Generate dynamic options after venues are fetched
       } catch (error) {
         console.error('Error fetching venues:', error);
         toast({
@@ -254,9 +316,14 @@ const VenuesPage = () => {
 
             <div>
               <Label htmlFor="location-filter" className="text-sm font-body font-medium mb-1 block text-brand-burgundy/80 flex items-center"><MapPin className="h-4 w-4 mr-1 text-brand-gold" />Location</Label>
-              <Select value={filters.location} onValueChange={(value) => handleFilterChange('location', value)}>
-                <SelectTrigger id="location-filter" className="h-12 bg-brand-cream/50 border-brand-burgundy/30 text-brand-burgundy rounded-md"><SelectValue placeholder="All Lagos" /></SelectTrigger>
-                <SelectContent><SelectItem value="all">All Lagos</SelectItem>{lagosLocations.map(loc => <SelectItem key={loc} value={loc}>{loc}</SelectItem>)}</SelectContent>
+              <Select value={filters.location} onValueChange={(value) => handleFilterChange('location', value)} disabled={loading}>
+                <SelectTrigger id="location-filter" className="h-12 bg-brand-cream/50 border-brand-burgundy/30 text-brand-burgundy rounded-md">
+                  <SelectValue placeholder={loading ? "Loading..." : "All"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  {filterOptions.locations.map(loc => <SelectItem key={loc} value={loc}>{loc}</SelectItem>)}
+                </SelectContent>
               </Select>
             </div>
 
@@ -265,13 +332,14 @@ const VenuesPage = () => {
               <Select 
                 value={filters.venueType} 
                 onValueChange={(value) => handleFilterChange('venueType', value)}
+                disabled={loading}
               >
                 <SelectTrigger id="type-filter" className="h-12 bg-brand-cream/50 border-brand-burgundy/30 text-brand-burgundy rounded-md">
-                  <SelectValue placeholder="Any Type" />
+                  <SelectValue placeholder={loading ? "Loading..." : "All"} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">Any Type</SelectItem>
-                  {venueTypes.map(type => (
+                  <SelectItem value="all">All</SelectItem>
+                  {filterOptions.venueTypes.map(type => (
                     <SelectItem key={type} value={type}>{type}</SelectItem>
                   ))}
                 </SelectContent>
@@ -280,7 +348,7 @@ const VenuesPage = () => {
             
             <div>
               <Label htmlFor="rating-filter" className="text-sm font-body font-medium mb-1 block text-brand-burgundy/80 flex items-center"><Star className="h-4 w-4 mr-1 text-brand-gold" />Min. Rating</Label>
-              <Select value={filters.rating} onValueChange={(value) => handleFilterChange('rating', value)}>
+              <Select value={filters.rating} onValueChange={(value) => handleFilterChange('rating', value)} disabled={loading}>
                 <SelectTrigger id="rating-filter" className="h-12 bg-brand-cream/50 border-brand-burgundy/30 text-brand-burgundy rounded-md"><SelectValue placeholder="Any Rating" /></SelectTrigger>
                 <SelectContent><SelectItem value="all">Any Rating</SelectItem>{ratings.map(r => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}</SelectContent>
               </Select>
@@ -289,9 +357,9 @@ const VenuesPage = () => {
             {filters.venueType === 'Restaurant' && (
               <div>
                 <Label htmlFor="cuisine-filter" className="text-sm font-body font-medium mb-1 block text-brand-burgundy/80 flex items-center"><Utensils className="h-4 w-4 mr-1 text-brand-gold" />Cuisine Type</Label>
-                <Select value={filters.cuisineType} onValueChange={(value) => handleFilterChange('cuisineType', value)}>
+                <Select value={filters.cuisineType} onValueChange={(value) => handleFilterChange('cuisineType', value)} disabled={loading}>
                   <SelectTrigger id="cuisine-filter" className="h-12 bg-brand-cream/50 border-brand-burgundy/30 text-brand-burgundy rounded-md"><SelectValue placeholder="Any Cuisine" /></SelectTrigger>
-                  <SelectContent><SelectItem value="all">Any Cuisine</SelectItem>{cuisineTypes.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent>
+                  <SelectContent><SelectItem value="all">Any Cuisine</SelectItem>{filterOptions.cuisineTypes.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             )}
@@ -299,9 +367,9 @@ const VenuesPage = () => {
             {(filters.venueType === 'Club' || filters.venueType === 'Lounge') && (
               <div>
                 <Label htmlFor="music-filter" className="text-sm font-body font-medium mb-1 block text-brand-burgundy/80 flex items-center"><Music2 className="h-4 w-4 mr-1 text-brand-gold" />Music Genre</Label>
-                <Select value={filters.musicGenre} onValueChange={(value) => handleFilterChange('musicGenre', value)}>
+                <Select value={filters.musicGenre} onValueChange={(value) => handleFilterChange('musicGenre', value)} disabled={loading}>
                   <SelectTrigger id="music-filter" className="h-12 bg-brand-cream/50 border-brand-burgundy/30 text-brand-burgundy rounded-md"><SelectValue placeholder="Any Genre" /></SelectTrigger>
-                  <SelectContent><SelectItem value="all">Any Genre</SelectItem>{musicGenres.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent>
+                  <SelectContent><SelectItem value="all">Any Genre</SelectItem>{filterOptions.musicGenres.map(type => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
             )}
