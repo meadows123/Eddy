@@ -460,11 +460,11 @@ const VenueOwnerSettings = () => {
     <div className="container mx-auto px-4 py-4 sm:py-8 max-w-7xl">
       <h1 className="text-2xl sm:text-3xl font-heading text-brand-burgundy mb-4 sm:mb-6">Venue Settings</h1>
       
-      <Tabs defaultValue="profile" className="space-y-4">
+      <Tabs defaultValue="profile" className="space-y-4 sm:space-y-6">
         <TabsList className="bg-white p-1 rounded-lg border border-brand-burgundy/10 mb-4 grid grid-cols-3 w-full">
           <TabsTrigger 
             value="profile" 
-            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 p-3 sm:p-4 text-xs sm:text-sm min-h-[60px] sm:min-h-[50px]"
+            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm min-h-[60px] sm:min-h-[50px]"
           >
             <Settings className="h-3 w-3 sm:h-4 sm:w-4" />
             <span className="hidden sm:inline">Venue Profile</span>
@@ -472,7 +472,7 @@ const VenueOwnerSettings = () => {
           </TabsTrigger>
           <TabsTrigger 
             value="staff" 
-            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 p-3 sm:p-4 text-xs sm:text-sm min-h-[60px] sm:min-h-[50px]"
+            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm min-h-[60px] sm:min-h-[50px]"
           >
             <Users className="h-3 w-3 sm:h-4 sm:w-4" />
             <span className="hidden sm:inline">Staff Management</span>
@@ -480,7 +480,7 @@ const VenueOwnerSettings = () => {
           </TabsTrigger>
           <TabsTrigger 
             value="notifications" 
-            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 p-3 sm:p-4 text-xs sm:text-sm min-h-[60px] sm:min-h-[50px]"
+            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm min-h-[60px] sm:min-h-[50px]"
           >
             <Bell className="h-3 w-3 sm:h-4 sm:w-4" />
             <span className="hidden sm:inline">Notifications</span>
@@ -491,7 +491,7 @@ const VenueOwnerSettings = () => {
         {/* Venue Profile Tab */}
         <TabsContent value="profile">
           <Card className="bg-white border-brand-burgundy/10">
-            <CardHeader>
+            <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
               <CardTitle className="flex items-center text-lg sm:text-xl">
                 <Settings className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                 Venue Profile
@@ -691,7 +691,7 @@ const VenueOwnerSettings = () => {
                       type="button" 
                       variant="outline" 
                       onClick={debugVenueOwnership}
-                      className="border-gray-300 text-gray-600 hover:bg-gray-50"
+                      className="border-gray-300 text-gray-600 hover:bg-gray-50 ml-2"
                     >
                       🔍 Debug Ownership
                     </Button>
@@ -705,7 +705,7 @@ const VenueOwnerSettings = () => {
         {/* Staff Management Tab */}
         <TabsContent value="staff">
           <Card className="bg-white border-brand-burgundy/10">
-            <CardHeader>
+            <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
               <CardTitle className="flex items-center text-lg sm:text-xl">
                 <Users className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                 Staff Management
@@ -714,11 +714,11 @@ const VenueOwnerSettings = () => {
             <CardContent className="p-4 sm:p-6">
               <div className="space-y-6">
                 {/* Add Staff Button */}
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center space-y-3 sm:space-y-0">
                   <h3 className="font-semibold text-brand-burgundy text-base sm:text-lg">Staff Members</h3>
                   <Button 
                     onClick={() => setShowAddStaff(!showAddStaff)}
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-2 w-full sm:w-auto"
                   >
                     <Plus className="h-4 w-4" />
                     <span className="hidden sm:inline">Add Staff</span>
@@ -774,7 +774,7 @@ const VenueOwnerSettings = () => {
                           />
                         </div>
                       </div>
-                      <div className="flex gap-2 mt-4">
+                      <div className="flex flex-col sm:flex-row gap-2 mt-4">
                         <Button 
                           type="button" 
                           onClick={handleAddStaff}
@@ -805,12 +805,12 @@ const VenueOwnerSettings = () => {
                     staff.map((member, index) => (
                       <Card key={member.id || index} className="border-brand-burgundy/10">
                         <CardContent className="p-4">
-                          <div className="flex justify-between items-start">
+                          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start space-y-3 sm:space-y-0">
                             <div className="flex-1">
-                              <h4 className="font-semibold text-brand-burgundy">{member.name}</h4>
-                              <p className="text-sm text-gray-600">{member.email}</p>
-                              <div className="flex items-center gap-2 mt-1">
-                                <Badge variant="secondary" className="text-xs">{member.role}</Badge>
+                              <h4 className="font-semibold text-brand-burgundy text-sm sm:text-base">{member.name}</h4>
+                              <p className="text-xs sm:text-sm text-gray-600">{member.email}</p>
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-1">
+                                <Badge variant="secondary" className="text-xs w-fit">{member.role}</Badge>
                                 {member.phone && (
                                   <span className="text-xs text-gray-500">{member.phone}</span>
                                 )}
@@ -819,7 +819,7 @@ const VenueOwnerSettings = () => {
                             <Button 
                               variant="ghost" 
                               size="sm" 
-                              className="text-red-500 hover:text-red-700"
+                              className="text-red-500 hover:text-red-700 self-start sm:self-center"
                               onClick={() => handleRemoveStaff(member.id)}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -838,7 +838,7 @@ const VenueOwnerSettings = () => {
         {/* Notifications Tab */}
         <TabsContent value="notifications">
           <Card className="bg-white border-brand-burgundy/10">
-            <CardHeader>
+            <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
               <CardTitle className="flex items-center text-lg sm:text-xl">
                 <Bell className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                 Notification Preferences
@@ -853,7 +853,7 @@ const VenueOwnerSettings = () => {
                     
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <div>
+                        <div className="flex-1">
                           <Label className="text-sm sm:text-base">New Bookings</Label>
                           <p className="text-xs text-gray-500">Get notified when someone books your venue</p>
                         </div>
@@ -864,7 +864,7 @@ const VenueOwnerSettings = () => {
                       </div>
                       
                       <div className="flex items-center justify-between">
-                        <div>
+                        <div className="flex-1">
                           <Label className="text-sm sm:text-base">Cancellations</Label>
                           <p className="text-xs text-gray-500">Get notified when bookings are cancelled</p>
                         </div>
@@ -875,7 +875,7 @@ const VenueOwnerSettings = () => {
                       </div>
                       
                       <div className="flex items-center justify-between">
-                        <div>
+                        <div className="flex-1">
                           <Label className="text-sm sm:text-base">Payment Confirmations</Label>
                           <p className="text-xs text-gray-500">Get notified when payments are received</p>
                         </div>
@@ -893,7 +893,7 @@ const VenueOwnerSettings = () => {
                     
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <div>
+                        <div className="flex-1">
                           <Label className="text-sm sm:text-base">New Bookings</Label>
                           <p className="text-xs text-gray-500">SMS alerts for new bookings</p>
                         </div>
@@ -904,7 +904,7 @@ const VenueOwnerSettings = () => {
                       </div>
                       
                       <div className="flex items-center justify-between">
-                        <div>
+                        <div className="flex-1">
                           <Label className="text-sm sm:text-base">Cancellations</Label>
                           <p className="text-xs text-gray-500">SMS alerts for cancellations</p>
                         </div>
@@ -923,7 +923,7 @@ const VenueOwnerSettings = () => {
                   
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <div>
+                      <div className="flex-1">
                         <Label className="text-sm sm:text-base">Daily Summary</Label>
                         <p className="text-xs text-gray-500">Receive daily booking summaries</p>
                       </div>
@@ -934,7 +934,7 @@ const VenueOwnerSettings = () => {
                     </div>
                     
                     <div className="flex items-center justify-between">
-                      <div>
+                      <div className="flex-1">
                         <Label className="text-sm sm:text-base">Weekly Report</Label>
                         <p className="text-xs text-gray-500">Receive weekly performance reports</p>
                       </div>

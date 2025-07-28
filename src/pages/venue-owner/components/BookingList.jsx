@@ -258,78 +258,76 @@ const BookingList = ({ currentUser }) => {
 
   // Mobile-optimized booking card component
   const BookingCard = ({ booking }) => (
-    <Card className="mb-4 border-brand-burgundy/10">
-      <CardContent className="p-4">
-        <div className="flex justify-between items-start mb-3">
+    <Card key={booking.id} className="border-brand-burgundy/10 hover:shadow-md transition-shadow">
+      <CardContent className="p-4 sm:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
           <div className="flex-1">
-            <h4 className="font-semibold text-brand-burgundy text-sm sm:text-base">
-              {formatCustomerName(booking)}
-            </h4>
-            <p className="text-xs text-brand-burgundy/60">
-              {format(new Date(booking.booking_date), 'MMM d, yyyy')} • {booking.start_time} - {booking.end_time}
-            </p>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
+              <div>
+                <h4 className="font-semibold text-brand-burgundy text-sm sm:text-base">
+                  {formatCustomerName(booking)}
+                </h4>
+                <p className="text-xs sm:text-sm text-brand-burgundy/60">
+                  {format(new Date(booking.booking_date), 'PPP')} at {booking.booking_time}
+                </p>
+                <p className="text-xs sm:text-sm text-brand-burgundy/60">
+                  {booking.guest_count || 1} guest{booking.guest_count !== 1 ? 's' : ''} • Table {booking.table_number || 'N/A'}
+                </p>
+              </div>
+              <div className="text-left sm:text-right">
+                <div className="font-bold text-brand-gold text-sm sm:text-base">
+                  ₦{(booking.total_amount / 100).toLocaleString()}
+                </div>
+                <Badge className={`mt-1 ${getStatusColor(booking.status)}`}>
+                  {booking.status}
+                </Badge>
+              </div>
+            </div>
+            
+            {booking.special_requests && (
+              <div className="mt-3 p-2 bg-brand-cream/30 rounded text-xs sm:text-sm text-brand-burgundy/70">
+                <strong>Special Requests:</strong> {booking.special_requests}
+              </div>
+            )}
           </div>
-          <Badge className={`${getStatusColor(booking.status)} text-xs`}>
-            {booking.status}
-          </Badge>
-        </div>
-        
-        <div className="grid grid-cols-2 gap-3 mb-3 text-sm">
-          <div>
-            <span className="text-brand-burgundy/60">Table:</span>
-            <span className="ml-1 font-medium">
-              {booking.venue_tables?.table_number ? `Table ${booking.venue_tables.table_number}` : 'Not assigned'}
-            </span>
-          </div>
-          <div>
-            <span className="text-brand-burgundy/60">Guests:</span>
-            <span className="ml-1 font-medium">{booking.number_of_guests}</span>
-          </div>
-          <div className="col-span-2">
-            <span className="text-brand-burgundy/60">Amount:</span>
-            <span className="ml-1 font-medium">₦{(booking.total_amount || 0).toLocaleString()}</span>
-          </div>
-        </div>
-        
-        <div className="flex gap-2 pt-2 border-t border-brand-burgundy/10">
-          <Button variant="ghost" size="sm" className="h-8 px-2 text-brand-burgundy/70 hover:text-brand-burgundy">
-            <Eye className="h-3 w-3 mr-1" />
-            <span className="hidden sm:inline">View</span>
-          </Button>
-          {booking.status === 'pending' && (
-            <>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="h-8 px-2 text-green-600 hover:text-green-700"
-                onClick={() => updateBookingStatus(booking.id, 'confirmed')}
-              >
-                <Check className="h-3 w-3 mr-1" />
-                <span className="hidden sm:inline">Confirm</span>
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="h-8 px-2 text-red-600 hover:text-red-700"
-                onClick={() => updateBookingStatus(booking.id, 'cancelled')}
-              >
-                <X className="h-3 w-3 mr-1" />
-                <span className="hidden sm:inline">Cancel</span>
-              </Button>
-            </>
-          )}
-          {booking.status === 'confirmed' && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              className="h-8 px-2 text-blue-600 hover:text-blue-700"
-              onClick={() => updateBookingStatus(booking.id, 'completed')}
-              title="Mark as completed"
+          
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-brand-burgundy/20 text-brand-burgundy hover:bg-brand-burgundy/10 w-full sm:w-auto"
+              onClick={() => {
+                // Handle view details
+                console.log('View booking details:', booking.id);
+              }}
             >
-              <Check className="h-3 w-3 mr-1" />
-              <span className="hidden sm:inline">Complete</span>
+              <Eye className="h-4 w-4 mr-1" />
+              <span className="hidden sm:inline">View</span>
             </Button>
-          )}
+            
+            {booking.status === 'pending' && (
+              <div className="flex gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-green-300 text-green-600 hover:bg-green-50 flex-1 sm:flex-none"
+                  onClick={() => updateBookingStatus(booking.id, 'confirmed')}
+                >
+                  <Check className="h-4 w-4 mr-1" />
+                  <span className="hidden sm:inline">Accept</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-red-300 text-red-600 hover:bg-red-50 flex-1 sm:flex-none"
+                  onClick={() => updateBookingStatus(booking.id, 'cancelled')}
+                >
+                  <X className="h-4 w-4 mr-1" />
+                  <span className="hidden sm:inline">Decline</span>
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>

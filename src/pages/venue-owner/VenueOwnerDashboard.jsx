@@ -376,112 +376,144 @@ const VenueOwnerDashboard = () => {
 
   return (
     <div className="bg-brand-cream/50 min-h-screen">
-      <div className="container py-8">
+      <div className="container py-4 sm:py-8 px-4 sm:px-6">
         {/* Venue login message */}
         {loginVenueMessage && (
-          <div className="mb-6 p-4 rounded bg-green-50 border border-green-200 text-green-800 text-center">
+          <div className="mb-4 sm:mb-6 p-3 sm:p-4 rounded bg-green-50 border border-green-200 text-green-800 text-center text-sm sm:text-base">
             {loginVenueMessage}
           </div>
         )}
+        
+        {/* Header Section */}
         <div className="flex flex-col space-y-4 sm:flex-row sm:justify-between sm:items-center sm:space-y-0 mb-6 sm:mb-8">
-          <div>
+          <div className="text-center sm:text-left">
             <h1 className="text-2xl sm:text-3xl font-heading text-brand-burgundy mb-2">Venue Dashboard</h1>
             <p className="text-sm sm:text-base text-brand-burgundy/70">Manage your venue, bookings, and revenue</p>
           </div>
-          <div className="flex flex-col space-y-2 sm:flex-row sm:gap-4 sm:space-y-0">
-            <Button variant="outline" className="border-brand-gold text-brand-gold hover:bg-brand-gold/10 w-full sm:w-auto" onClick={() => navigate('/venue-owner/settings')}>
+          
+          {/* Action Buttons - Improved mobile layout */}
+          <div className="flex flex-col space-y-3 sm:flex-row sm:gap-3 sm:space-y-0">
+            <Button 
+              variant="outline" 
+              className="border-brand-gold text-brand-gold hover:bg-brand-gold/10 w-full sm:w-auto text-sm sm:text-base py-2 sm:py-2" 
+              onClick={() => navigate('/venue-owner/settings')}
+            >
               <Settings className="h-4 w-4 mr-2" />
               Settings
             </Button>
-            <Button variant="outline" className="border-brand-burgundy text-brand-burgundy hover:bg-brand-burgundy/10 w-full sm:w-auto" onClick={() => navigate('/venue-owner/credits')}>
+            <Button 
+              variant="outline" 
+              className="border-brand-burgundy text-brand-burgundy hover:bg-brand-burgundy/10 w-full sm:w-auto text-sm sm:text-base py-2 sm:py-2" 
+              onClick={() => navigate('/venue-owner/credits')}
+            >
               <Wallet className="h-4 w-4 mr-2" />
               <span className="hidden sm:inline">Eddys Members Credits</span>
               <span className="sm:hidden">Credits</span>
             </Button>
-            <Button variant="outline" className="border-brand-burgundy text-brand-burgundy hover:bg-brand-burgundy/10 w-full sm:w-auto" onClick={() => navigate('/venue-owner/receipts')}>
+            <Button 
+              variant="outline" 
+              className="border-brand-burgundy text-brand-burgundy hover:bg-brand-burgundy/10 w-full sm:w-auto text-sm sm:text-base py-2 sm:py-2" 
+              onClick={() => navigate('/venue-owner/receipts')}
+            >
               <Receipt className="h-4 w-4 mr-2" />
               <span className="hidden sm:inline">Receipt Management</span>
               <span className="sm:hidden">Receipts</span>
             </Button>
-            <Button className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90 w-full sm:w-auto">
+            <Button className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90 w-full sm:w-auto text-sm sm:text-base py-2 sm:py-2">
               <QrCode className="h-4 w-4 mr-2" />
               <span className="hidden sm:inline">Generate QR Code</span>
               <span className="sm:hidden">QR Code</span>
             </Button>
-            <Button variant="outline" className="border-red-500 text-red-500 hover:bg-red-50 w-full sm:w-auto" onClick={handleLogout}>
+            <Button 
+              variant="outline" 
+              className="border-red-500 text-red-500 hover:bg-red-50 w-full sm:w-auto text-sm sm:text-base py-2 sm:py-2" 
+              onClick={handleLogout}
+            >
               <LogOut className="h-4 w-4 mr-2" />
               Log Out
             </Button>
           </div>
         </div>
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        {/* Quick Stats - Improved mobile grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-6 sm:mb-8">
           <Card className="bg-white border-brand-burgundy/10">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 px-4 sm:px-6">
               <CardTitle className="text-sm font-medium text-brand-burgundy/70">Total Revenue</CardTitle>
               <CreditCard className="h-4 w-4 text-brand-gold" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-brand-burgundy">₦{(stats.totalRevenue ?? 0).toLocaleString()}</div>
+            <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
+              <div className="text-xl sm:text-2xl font-bold text-brand-burgundy">₦{(stats.totalRevenue ?? 0).toLocaleString()}</div>
               <p className="text-xs text-brand-burgundy/70 mt-1">All time earnings</p>
             </CardContent>
           </Card>
 
           <Card className="bg-white border-brand-burgundy/10">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 px-4 sm:px-6">
               <CardTitle className="text-sm font-medium text-brand-burgundy/70">Pending Payouts</CardTitle>
               <TrendingUp className="h-4 w-4 text-brand-gold" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-brand-burgundy">₦{(stats.pendingPayouts ?? 0).toLocaleString()}</div>
+            <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
+              <div className="text-xl sm:text-2xl font-bold text-brand-burgundy">₦{(stats.pendingPayouts ?? 0).toLocaleString()}</div>
               <p className="text-xs text-brand-burgundy/70 mt-1">Available for withdrawal</p>
             </CardContent>
           </Card>
 
           <Card className="bg-white border-brand-burgundy/10">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 px-4 sm:px-6">
               <CardTitle className="text-sm font-medium text-brand-burgundy/70">Active Bookings</CardTitle>
               <Calendar className="h-4 w-4 text-brand-gold" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-brand-burgundy">{stats.activeBookings}</div>
+            <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
+              <div className="text-xl sm:text-2xl font-bold text-brand-burgundy">{stats.activeBookings}</div>
               <p className="text-xs text-brand-burgundy/70 mt-1">Current bookings</p>
             </CardContent>
           </Card>
 
           <Card className="bg-white border-brand-burgundy/10">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardHeader className="flex flex-row items-center justify-between pb-2 px-4 sm:px-6">
               <CardTitle className="text-sm font-medium text-brand-burgundy/70">Total Tables</CardTitle>
               <Table2 className="h-4 w-4 text-brand-gold" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-brand-burgundy">{stats.totalTables}</div>
+            <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
+              <div className="text-xl sm:text-2xl font-bold text-brand-burgundy">{stats.totalTables}</div>
               <p className="text-xs text-brand-burgundy/70 mt-1">Available tables</p>
             </CardContent>
           </Card>
         </div>
 
         {/* Main Content */}
-        <Tabs defaultValue="bookings" className="space-y-4">
-          <TabsList className="bg-white p-1 rounded-lg border border-brand-burgundy/10">
-            <TabsTrigger value="bookings" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy">
-              <Calendar className="h-4 w-4 mr-2" />
-              Bookings
+        <Tabs defaultValue="bookings" className="space-y-4 sm:space-y-6">
+          <TabsList className="bg-white p-1 rounded-lg border border-brand-burgundy/10 w-full">
+            <TabsTrigger 
+              value="bookings" 
+              className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex-1 text-xs sm:text-sm py-2 sm:py-3"
+            >
+              <Calendar className="h-4 w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Bookings</span>
+              <span className="sm:hidden">Bookings</span>
             </TabsTrigger>
-            <TabsTrigger value="images" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy">
-              <Image className="h-4 w-4 mr-2" />
-              Images
+            <TabsTrigger 
+              value="images" 
+              className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex-1 text-xs sm:text-sm py-2 sm:py-3"
+            >
+              <Image className="h-4 w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Images</span>
+              <span className="sm:hidden">Images</span>
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy">
-              <BarChart3 className="h-4 w-4 mr-2" />
-              Analytics
+            <TabsTrigger 
+              value="analytics" 
+              className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex-1 text-xs sm:text-sm py-2 sm:py-3"
+            >
+              <BarChart3 className="h-4 w-4 mr-1 sm:mr-2" />
+              <span className="hidden sm:inline">Analytics</span>
+              <span className="sm:hidden">Analytics</span>
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="bookings">
             <Card className="bg-white border-brand-burgundy/10">
-              <CardContent className="pt-6">
+              <CardContent className="pt-4 sm:pt-6 px-4 sm:px-6">
                 <BookingList currentUser={currentUser} />
               </CardContent>
             </Card>
@@ -489,7 +521,7 @@ const VenueOwnerDashboard = () => {
 
           <TabsContent value="images">
             <Card className="bg-white border-brand-burgundy/10">
-              <CardContent className="pt-6">
+              <CardContent className="pt-4 sm:pt-6 px-4 sm:px-6">
                 <ImageManagement venueId={venueId} />
               </CardContent>
             </Card>
@@ -497,12 +529,12 @@ const VenueOwnerDashboard = () => {
 
           <TabsContent value="analytics">
             <Card className="bg-white border-brand-burgundy/10">
-              <CardContent className="pt-6">
+              <CardContent className="pt-4 sm:pt-6 px-4 sm:px-6">
                 <div className="space-y-6">
                   {/* Booking Trends Chart */}
                   <div>
                     <h3 className="text-lg font-semibold text-brand-burgundy mb-4">Booking Trends (Last 7 Days)</h3>
-                    <div className="h-64">
+                    <div className="h-64 sm:h-80">
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={bookingTrends}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -546,17 +578,17 @@ const VenueOwnerDashboard = () => {
                     <h3 className="text-lg font-semibold text-brand-burgundy mb-4">Recent Bookings</h3>
                     <div className="space-y-3">
                       {recentBookings.map((booking) => (
-                        <div key={booking.id} className="flex justify-between items-center p-3 bg-brand-cream/30 rounded-lg">
-                          <div>
-                            <div className="font-medium text-brand-burgundy">
+                        <div key={booking.id} className="flex flex-col sm:flex-row sm:justify-between sm:items-center p-3 sm:p-4 bg-brand-cream/30 rounded-lg space-y-2 sm:space-y-0">
+                          <div className="flex-1">
+                            <div className="font-medium text-brand-burgundy text-sm sm:text-base">
                               Booking #{booking.id.slice(0, 8)}...
                             </div>
-                            <div className="text-sm text-brand-burgundy/60">
+                            <div className="text-xs sm:text-sm text-brand-burgundy/60">
                               {new Date(booking.booking_date).toLocaleDateString()}
                             </div>
                           </div>
-                          <div className="text-right">
-                            <div className="font-semibold text-brand-gold">
+                          <div className="text-left sm:text-right">
+                            <div className="font-semibold text-brand-gold text-sm sm:text-base">
                               ₦{(booking.total_amount || 0).toLocaleString()}
                             </div>
                             <div className="text-xs text-brand-burgundy/60">
@@ -575,7 +607,7 @@ const VenueOwnerDashboard = () => {
 
         {/* Add Table Dialog */}
         <Dialog>
-          <DialogContent aria-describedby="add-table-desc">
+          <DialogContent aria-describedby="add-table-desc" className="max-w-md sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>Add New Table</DialogTitle>
             </DialogHeader>

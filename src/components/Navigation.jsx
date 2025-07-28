@@ -71,14 +71,14 @@ const Navigation = () => {
   return (
     <nav className="bg-white border-b border-brand-burgundy/10">
       <div className="container mx-auto px-4">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex justify-between items-center h-14 sm:h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
             <img
               src="/logos/Logo1-Trans-new.png"
               alt="Eddys Members"
-              className="h-8 w-auto object-contain sm:h-10"
-              style={{ maxWidth: '150px', minHeight: '32px' }}
+              className="h-6 w-auto object-contain sm:h-8 md:h-10"
+              style={{ maxWidth: '120px', minHeight: '24px' }}
               onError={(e) => {
                 console.log('❌ Navigation logo failed to load from:', e.target.src);
                 if (e.target.src.includes('Logo1-Trans-new.png')) {
@@ -98,7 +98,7 @@ const Navigation = () => {
           </Link>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden md:flex items-center space-x-6 lg:space-x-8">
             {navItems.map((item) => (
               <Link
                 key={item.path}
@@ -182,9 +182,9 @@ const Navigation = () => {
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
             {isMobileMenuOpen ? (
-              <X className="h-6 w-6" />
+              <X className="h-5 w-5 sm:h-6 sm:w-6" />
             ) : (
-              <Menu className="h-6 w-6" />
+              <Menu className="h-5 w-5 sm:h-6 sm:w-6" />
             )}
           </button>
         </div>
@@ -192,15 +192,15 @@ const Navigation = () => {
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
           <div className="md:hidden py-4 border-t border-brand-burgundy/10">
-            <div className="flex flex-col space-y-4">
+            <div className="flex flex-col space-y-3 sm:space-y-4">
               {navItems.map((item) => (
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`flex items-center space-x-2 text-sm font-medium transition-colors
+                  className={`flex items-center space-x-3 text-sm font-medium transition-colors py-2 px-3 rounded-lg
                     ${location.pathname === item.path 
-                      ? 'text-brand-gold' 
-                      : 'text-brand-burgundy/70 hover:text-brand-gold'
+                      ? 'text-brand-gold bg-brand-gold/10' 
+                      : 'text-brand-burgundy/70 hover:text-brand-gold hover:bg-brand-burgundy/5'
                     }`}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
@@ -209,10 +209,10 @@ const Navigation = () => {
                 </Link>
               ))}
               {user ? (
-                <div className="pt-4 border-t border-brand-burgundy/10">
+                <div className="pt-3 sm:pt-4 border-t border-brand-burgundy/10 space-y-3 sm:space-y-4">
                   <Link
                     to={isOwner ? "/venue-owner/dashboard" : "/profile"}
-                    className="flex items-center space-x-2 text-sm font-medium text-brand-burgundy/70 hover:text-brand-gold"
+                    className="flex items-center space-x-3 text-sm font-medium text-brand-burgundy/70 hover:text-brand-gold py-2 px-3 rounded-lg hover:bg-brand-burgundy/5"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     <User className="h-4 w-4" />
@@ -220,7 +220,7 @@ const Navigation = () => {
                   </Link>
                   <Link
                     to={isOwner ? "/venue-owner/settings" : "/settings"}
-                    className="flex items-center space-x-2 text-sm font-medium text-brand-burgundy/70 hover:text-brand-gold mt-4"
+                    className="flex items-center space-x-3 text-sm font-medium text-brand-burgundy/70 hover:text-brand-gold py-2 px-3 rounded-lg hover:bg-brand-burgundy/5"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     <Settings className="h-4 w-4" />
@@ -228,17 +228,17 @@ const Navigation = () => {
                   </Link>
                   <button
                     onClick={handleLogout}
-                    className="flex items-center space-x-2 text-sm font-medium text-red-600 mt-4"
+                    className="flex items-center space-x-3 text-sm font-medium text-red-600 py-2 px-3 rounded-lg hover:bg-red-50 w-full text-left"
                   >
                     <LogOut className="h-4 w-4" />
                     <span>Log out</span>
                   </button>
                 </div>
               ) : (
-                <div className="pt-4 border-t border-brand-burgundy/10">
+                <div className="pt-3 sm:pt-4 border-t border-brand-burgundy/10">
                   <Link
                     to={isOwner ? "/venue-owner/login" : "/profile"}
-                    className="flex items-center space-x-2 text-sm font-medium text-brand-burgundy/70 hover:text-brand-gold"
+                    className="flex items-center space-x-3 text-sm font-medium text-brand-burgundy/70 hover:text-brand-gold py-2 px-3 rounded-lg hover:bg-brand-burgundy/5"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     <User className="h-4 w-4" />

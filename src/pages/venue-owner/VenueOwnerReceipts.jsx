@@ -455,18 +455,18 @@ const VenueOwnerReceipts = () => {
 
   return (
     <div className="bg-brand-cream/50 min-h-screen">
-      <div className="container py-8">
+      <div className="container py-4 sm:py-8 px-4 sm:px-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-heading text-brand-burgundy mb-2">Receipt Management</h1>
-            <p className="text-brand-burgundy/70">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 sm:mb-8">
+          <div className="text-center sm:text-left mb-4 sm:mb-0">
+            <h1 className="text-2xl sm:text-3xl font-heading text-brand-burgundy mb-2">Receipt Management</h1>
+            <p className="text-sm sm:text-base text-brand-burgundy/70">
               Process member purchases and manage credit redemptions for <span className="font-semibold">{venue.name}</span>
             </p>
           </div>
           <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
             <DialogTrigger asChild>
-              <Button className="bg-brand-burgundy text-white hover:bg-brand-burgundy/90 mt-4 sm:mt-0">
+              <Button className="bg-brand-burgundy text-white hover:bg-brand-burgundy/90 w-full sm:w-auto">
                 <Receipt className="h-4 w-4 mr-2" />
                 Process Receipt
               </Button>
@@ -496,11 +496,11 @@ const VenueOwnerReceipts = () => {
                           <button
                             key={member.user_id}
                             onClick={() => selectMember(member)}
-                            className="w-full text-left px-4 py-2 hover:bg-brand-cream/50 border-b border-brand-burgundy/10 last:border-b-0"
+                            className="w-full text-left px-4 py-3 hover:bg-brand-cream/50 border-b border-brand-burgundy/10 last:border-b-0"
                           >
-                            <div className="font-medium text-brand-burgundy">{member.display_name}</div>
-                            <div className="text-sm text-brand-burgundy/70">{member.display_email}</div>
-                            <div className="text-sm text-brand-gold font-semibold">
+                            <div className="font-medium text-brand-burgundy text-sm sm:text-base">{member.display_name}</div>
+                            <div className="text-xs sm:text-sm text-brand-burgundy/70">{member.display_email}</div>
+                            <div className="text-xs sm:text-sm text-brand-gold font-semibold">
                               Available: ₦{(member.remaining_balance / 100).toLocaleString()}
                             </div>
                           </button>
@@ -511,19 +511,19 @@ const VenueOwnerReceipts = () => {
                   
                   {selectedMember && (
                     <div className="p-4 bg-brand-cream/30 rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <h4 className="font-semibold text-brand-burgundy">{selectedMember.display_name}</h4>
-                          <p className="text-sm text-brand-burgundy/70">{selectedMember.display_email}</p>
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-brand-burgundy text-sm sm:text-base">{selectedMember.display_name}</h4>
+                          <p className="text-xs sm:text-sm text-brand-burgundy/70">{selectedMember.display_email}</p>
                         </div>
-                        <div className="text-right">
+                        <div className="text-left sm:text-right">
                           <div className="text-lg font-bold text-brand-gold">
                             ₦{((selectedMember.total_balance || 0) / 100).toLocaleString()}
                           </div>
-                          <div className="text-sm text-brand-burgundy/70">Available Credits</div>
+                          <div className="text-xs sm:text-sm text-brand-burgundy/70">Available Credits</div>
                         </div>
                       </div>
-                      <div className="flex justify-end mt-2">
+                      <div className="flex justify-end mt-3">
                         <Button
                           type="button"
                           variant="outline"
@@ -542,7 +542,7 @@ const VenueOwnerReceipts = () => {
                 </div>
 
                 {/* Receipt Details */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Receipt Number</Label>
                     <Input
@@ -564,7 +564,7 @@ const VenueOwnerReceipts = () => {
                 </div>
 
                 {/* Amount Details */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label>Total Amount (₦)</Label>
                     <Input
@@ -599,14 +599,14 @@ const VenueOwnerReceipts = () => {
 
                 {/* Receipt Items */}
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
                     <Label>Receipt Items (Optional)</Label>
                     <Button
                       type="button"
                       onClick={addReceiptItem}
                       variant="outline"
                       size="sm"
-                      className="border-brand-gold text-brand-gold hover:bg-brand-gold/10"
+                      className="border-brand-gold text-brand-gold hover:bg-brand-gold/10 w-full sm:w-auto"
                     >
                       <Plus className="h-4 w-4 mr-1" />
                       Add Item
@@ -614,8 +614,8 @@ const VenueOwnerReceipts = () => {
                   </div>
                   
                   {receiptItems.map((item, index) => (
-                    <div key={index} className="grid grid-cols-1 md:grid-cols-6 gap-2 p-3 border border-brand-burgundy/10 rounded-lg">
-                      <div className="md:col-span-2">
+                    <div key={index} className="grid grid-cols-1 sm:grid-cols-6 gap-2 p-3 border border-brand-burgundy/10 rounded-lg">
+                      <div className="sm:col-span-2">
                         <Input
                           value={item.itemName}
                           onChange={(e) => updateReceiptItem(index, 'itemName', e.target.value)}
@@ -738,13 +738,13 @@ const VenueOwnerReceipts = () => {
 
         {/* Receipts List */}
         <Card className="bg-white border-brand-burgundy/10">
-          <CardHeader>
-            <CardTitle className="flex items-center">
+          <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
+            <CardTitle className="flex items-center text-lg sm:text-xl">
               <Receipt className="h-5 w-5 mr-2" />
               Recent Receipts ({filteredReceipts.length})
             </CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
             {filteredReceipts.length > 0 ? (
               <div className="space-y-4">
                 {filteredReceipts.map((receipt) => (
@@ -754,19 +754,19 @@ const VenueOwnerReceipts = () => {
                     animate={{ opacity: 1, y: 0 }}
                     className="border border-brand-burgundy/10 rounded-lg p-4 hover:shadow-md transition-shadow"
                   >
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex items-start space-x-4 mb-4 sm:mb-0">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+                      <div className="flex items-start space-x-4">
                         <div className="p-2 bg-brand-burgundy/10 rounded-full">
                           <Receipt className="h-5 w-5 text-brand-burgundy" />
                         </div>
-                        <div>
-                          <h4 className="font-semibold text-brand-burgundy">
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-brand-burgundy text-sm sm:text-base">
                             {receipt.profiles?.full_name || 'Unknown Member'}
                           </h4>
-                          <p className="text-sm text-brand-burgundy/70">
+                          <p className="text-xs sm:text-sm text-brand-burgundy/70">
                             Receipt #{receipt.receipt_number || 'N/A'}
                           </p>
-                          <div className="flex items-center space-x-4 mt-2 text-xs text-brand-burgundy/60">
+                          <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 mt-2 text-xs text-brand-burgundy/60">
                             <div className="flex items-center">
                               <Calendar className="h-3 w-3 mr-1" />
                               {new Date(receipt.created_at).toLocaleDateString()}
@@ -780,16 +780,16 @@ const VenueOwnerReceipts = () => {
                       </div>
                       
                       <div className="flex flex-col sm:items-end space-y-2">
-                        <div className="flex items-center space-x-4">
-                          <div className="text-right">
-                            <div className="font-bold text-brand-burgundy">
+                        <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
+                          <div className="text-left sm:text-right">
+                            <div className="font-bold text-brand-burgundy text-sm sm:text-base">
                               Total: ₦{(receipt.total_amount / 100).toLocaleString()}
                             </div>
-                            <div className="text-sm text-brand-gold">
+                            <div className="text-xs sm:text-sm text-brand-gold">
                               Credits: ₦{(receipt.credit_amount_used / 100).toLocaleString()}
                             </div>
                             {receipt.cash_amount_paid > 0 && (
-                              <div className="text-sm text-brand-burgundy/70">
+                              <div className="text-xs sm:text-sm text-brand-burgundy/70">
                                 Cash: ₦{(receipt.cash_amount_paid / 100).toLocaleString()}
                               </div>
                             )}
@@ -810,7 +810,7 @@ const VenueOwnerReceipts = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => window.open(receipt.receipt_image_url, '_blank')}
-                            className="border-brand-burgundy/20 text-brand-burgundy hover:bg-brand-burgundy/10"
+                            className="border-brand-burgundy/20 text-brand-burgundy hover:bg-brand-burgundy/10 w-full sm:w-auto"
                           >
                             <Eye className="h-4 w-4 mr-1" />
                             View Image
@@ -831,7 +831,7 @@ const VenueOwnerReceipts = () => {
               <div className="text-center py-12">
                 <Receipt className="h-16 w-16 text-brand-burgundy/30 mx-auto mb-4" />
                 <h3 className="text-lg font-semibold text-brand-burgundy mb-2">No Receipts Found</h3>
-                <p className="text-brand-burgundy/60 mb-6">
+                <p className="text-brand-burgundy/60 mb-6 text-sm sm:text-base">
                   {searchTerm ? 'No receipts match your search criteria.' : 'Start processing member receipts to see them here.'}
                 </p>
                 {!searchTerm && (

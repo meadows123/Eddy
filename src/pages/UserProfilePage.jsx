@@ -636,22 +636,22 @@ const UserProfilePage = () => {
 
   return (
     <div className="bg-brand-cream/50 min-h-screen">
-      <div className="container py-8">
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-heading text-brand-burgundy mb-2">My Profile</h1>
-            <p className="text-brand-burgundy/70">Manage your account and preferences</p>
+      <div className="container py-4 sm:py-8 px-4 sm:px-6">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 sm:mb-8">
+          <div className="text-center sm:text-left mb-4 sm:mb-0">
+            <h1 className="text-2xl sm:text-3xl font-heading text-brand-burgundy mb-2">My Profile</h1>
+            <p className="text-sm sm:text-base text-brand-burgundy/70">Manage your account and preferences</p>
           </div>
           <Button 
             onClick={signOut}
             variant="outline" 
-            className="border-brand-burgundy text-brand-burgundy hover:bg-brand-burgundy/10"
+            className="border-brand-burgundy text-brand-burgundy hover:bg-brand-burgundy/10 w-full sm:w-auto"
           >
             Sign Out
-                </Button>
-              </div>
+          </Button>
+        </div>
 
-        <Tabs defaultValue={location.state?.activeTab || "profile"} className="space-y-4">
+        <Tabs defaultValue={location.state?.activeTab || "profile"} className="space-y-4 sm:space-y-6">
           <TabsList className="bg-white p-1 rounded-lg border border-brand-burgundy/10 grid grid-cols-2 md:grid-cols-7 h-auto">
             <TabsTrigger value="profile" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 p-2 md:p-3 text-xs md:text-sm">
               <User className="h-3 w-3 md:h-4 md:w-4" />
@@ -687,14 +687,14 @@ const UserProfilePage = () => {
 
           <TabsContent value="profile">
             <Card className="bg-white border-brand-burgundy/10">
-              <div className="p-2 sm:p-4 md:p-6">
-                <div className="flex justify-between items-center mb-4">
-                  <h2 className="text-xl font-semibold">Profile Information</h2>
+              <div className="p-4 sm:p-6">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 space-y-3 sm:space-y-0">
+                  <h2 className="text-xl font-semibold text-center sm:text-left">Profile Information</h2>
                   {profile && !editingProfile && (
                     <Button
                       onClick={() => setEditingProfile(true)}
                       variant="outline"
-                      className="border-brand-gold text-brand-gold hover:bg-brand-gold/10"
+                      className="border-brand-gold text-brand-gold hover:bg-brand-gold/10 w-full sm:w-auto"
                     >
                       Edit Profile
                     </Button>
