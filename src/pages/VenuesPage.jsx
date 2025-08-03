@@ -63,7 +63,7 @@ const VenuesPage = () => {
   });
 
   // Function to generate dynamic filter options from venues
-  const generateFilterOptions = (venuesData) => {
+  const generateFilterOptions = React.useCallback((venuesData) => {
     const locations = [...new Set(venuesData.map(venue => venue.location).filter(Boolean))].sort();
     const venueTypes = [...new Set(venuesData.map(venue => venue.type).filter(Boolean))].sort();
     
@@ -113,7 +113,7 @@ const VenuesPage = () => {
       cuisineTypes: cuisineTypes.length > 0 ? cuisineTypes : fallbackCuisineTypes,
       musicGenres: musicGenres.length > 0 ? musicGenres : fallbackMusicGenres
     });
-  };
+  }, []);
 
 
   // Add effect to update filters when URL changes
@@ -156,7 +156,7 @@ const VenuesPage = () => {
       );
     }
     setFilteredVenues(results);
-  }, [venues, searchTerm, filters]);
+  }, [venues, searchTerm, filters.location, filters.venueType, filters.rating, filters.cuisineType, filters.musicGenre]);
 
   useEffect(() => {
     const fetchVenues = async () => {
