@@ -28,13 +28,15 @@ const VenuesPage = () => {
   // Map URL type to venue type format
   const mapTypeToVenueType = (type) => {
     if (!type) return 'all';
-    // Map the URL parameters to the correct venue types
     const typeMap = {
       'restaurant': 'Restaurant',
+      'restaurants': 'Restaurant',
       'club': 'Club',
-      'lounge': 'Lounge'
+      'clubs': 'Club',
+      'lounge': 'Lounge',
+      'lounges': 'Lounge',
     };
-    return typeMap[type] || 'all';
+    return typeMap[type.toLowerCase()] || 'all';
   };
 
   if (id) {
@@ -64,15 +66,20 @@ const VenuesPage = () => {
 
   // Function to generate dynamic filter options from venues
   const generateFilterOptions = React.useCallback((venuesData) => {
-    const locations = [...new Set(venuesData.map(venue => venue.location).filter(Boolean))].sort();
-    const venueTypes = [...new Set(venuesData.map(venue => venue.type).filter(Boolean))].sort();
-    
-    // Fallback options if no data is available
     const fallbackLocations = ['Lagos Island', 'Victoria Island', 'Lekki', 'Ikeja', 'Surulere'];
     const fallbackVenueTypes = ['Restaurant', 'Club', 'Lounge'];
     const fallbackCuisineTypes = ['Nigerian', 'International', 'Fusion', 'Mediterranean', 'Asian', 'European', 'African', 'American'];
     const fallbackMusicGenres = ['Afrobeats', 'Hip Hop', 'R&B', 'House', 'Amapiano', 'Reggae', 'Pop', 'Jazz', 'Live Band', 'DJ Sets'];
-    
+
+    const locations = [...new Set(venuesData.map(venue => venue.location).filter(Boolean))].sort();
+    // Merge fallbackVenueTypes with those found in data, removing duplicates
+    const venueTypes = [
+      ...new Set([
+        ...venuesData.map(venue => venue.type).filter(Boolean),
+        ...fallbackVenueTypes
+      ])
+    ].sort();
+
     // Extract cuisine types from venues
     const cuisineTypes = [];
     venuesData.forEach(venue => {
@@ -85,7 +92,7 @@ const VenuesPage = () => {
       }
     });
     cuisineTypes.sort();
-    
+
     // Extract music genres from venues
     const musicGenres = [];
     venuesData.forEach(venue => {
@@ -106,10 +113,10 @@ const VenuesPage = () => {
       }
     });
     musicGenres.sort();
-    
+
     setFilterOptions({
       locations: locations.length > 0 ? locations : fallbackLocations,
-      venueTypes: venueTypes.length > 0 ? venueTypes : fallbackVenueTypes,
+      venueTypes,
       cuisineTypes: cuisineTypes.length > 0 ? cuisineTypes : fallbackCuisineTypes,
       musicGenres: musicGenres.length > 0 ? musicGenres : fallbackMusicGenres
     });

@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { MapPin, Tag, Star, Users } from 'lucide-react';
+import { MapPin, Tag, Star } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
@@ -30,27 +30,30 @@ const VenueCard = ({ venue }) => {
         
         <CardHeader className="pb-3">
           <CardTitle className="text-2xl font-heading text-brand-burgundy">{venue.name}</CardTitle>
+          {/* Location under the name */}
+          {venue.location && (
+            <div className="flex items-center text-sm text-brand-burgundy/70 mt-1">
+              <MapPin className="h-4 w-4 mr-1 text-brand-gold" />
+              {venue.location}
+            </div>
+          )}
         </CardHeader>
         
         <CardContent className="flex-grow pt-0">
           <p className="text-sm text-brand-burgundy/70 mb-3 line-clamp-2">{venue.description}</p>
-          
+          {/* Venue type as a tag */}
+          {venue.type && (
+            <div className="flex items-center text-xs text-brand-burgundy/80 mb-2">
+              <Tag className="h-4 w-4 mr-1 text-brand-gold" />
+              {venue.type}
+            </div>
+          )}
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center text-sm text-brand-gold">
               <Star className="h-4 w-4 fill-current mr-1" /> 
               {venue.rating}
             </div>
-            <div className="flex items-center text-sm text-brand-burgundy/60">
-              <MapPin className="h-4 w-4 mr-1" />
-              {venue.location}
-            </div>
           </div>
-          
-          <div className="flex items-center text-sm text-brand-burgundy/70 mb-2">
-            <Tag className="h-4 w-4 mr-1" />
-            {venue.type}
-          </div>
-          
           {venue.cuisine && Array.isArray(venue.cuisine) && venue.cuisine.length > 0 && (
             <div className="flex flex-wrap gap-1 mb-2">
               {venue.cuisine.slice(0, 2).map((cuisine, index) => (
@@ -63,7 +66,6 @@ const VenueCard = ({ venue }) => {
               )}
             </div>
           )}
-          
           {venue.music && Array.isArray(venue.music) && venue.music.length > 0 && (
             <div className="flex flex-wrap gap-1">
               {venue.music.slice(0, 2).map((music, index) => (
