@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import Map, { Marker } from 'react-map-gl';
 import { Star, MapPin, ArrowLeft, Share2, Heart, CheckCircle, Utensils, Music2, Wifi, Car, Shield, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabase';
+import 'mapbox-gl/dist/mapbox-gl.css';
 
 const VenueDetailPage = () => {
   const { id } = useParams();
@@ -17,7 +19,7 @@ const VenueDetailPage = () => {
     const fetchVenue = async () => {
       setLoading(true);
       try {
-        // Fetch venue data
+        // Fetch venue data with coordinates
         const { data: venueData, error: venueError } = await supabase
           .from('venues')
           .select('*')
@@ -200,9 +202,12 @@ const VenueDetailPage = () => {
           </div>
         </div>
 
+        {/* Section Divider */}
+        <div className="border-t border-gray-200"></div>
+
         {/* Additional Venue Image */}
         {venue.images && venue.images.length > 1 && (
-          <div className="aspect-video rounded-xl overflow-hidden">
+          <div className="aspect-video rounded-2xl overflow-hidden shadow-lg">
             <img
               src={venue.images[1] || venue.images[0]}
               alt={`${venue.name} interior`}
@@ -210,6 +215,9 @@ const VenueDetailPage = () => {
             />
           </div>
         )}
+
+        {/* Section Divider */}
+        <div className="border-t border-gray-200"></div>
 
         {/* What makes this place special */}
         <div>
@@ -229,6 +237,9 @@ const VenueDetailPage = () => {
             </div>
           </div>
         </div>
+
+        {/* Section Divider */}
+        <div className="border-t border-gray-200"></div>
 
         {/* What this place offers */}
         <div>
@@ -250,20 +261,61 @@ const VenueDetailPage = () => {
           </div>
         </div>
 
+        {/* Section Divider */}
+        <div className="border-t border-gray-200"></div>
+
         {/* Location */}
         <div>
           <h2 className="text-xl font-semibold text-brand-burgundy mb-4">Where you'll be</h2>
-          <div className="aspect-video bg-brand-cream rounded-xl flex items-center justify-center mb-3">
-            <div className="text-center text-brand-burgundy/60">
-              <MapPin className="h-8 w-8 mx-auto mb-2" />
-              <p className="text-sm">Interactive map coming soon</p>
-            </div>
+          <div className="aspect-video rounded-2xl overflow-hidden mb-3 border border-gray-200 shadow-lg">
+            <Map
+              initialViewState={{
+                latitude: venue.latitude || 6.5244, // Default to Lagos center
+                longitude: venue.longitude || 3.3792,
+                zoom: 15
+              }}
+              style={{ width: "100%", height: "100%" }}
+              mapboxAccessToken={import.meta.env.VITE_MAPBOX_TOKEN}
+              mapStyle="mapbox://styles/mapbox/light-v11"
+              attributionControl={false}
+              scrollZoom={false}
+              dragPan={false}
+              doubleClickZoom={false}
+              touchZoomRotate={false}
+            >
+              {/* Venue marker */}
+              <Marker 
+                latitude={venue.latitude || 6.5244} 
+                longitude={venue.longitude || 3.3792}
+              >
+                <div className="relative">
+                  <div className="w-8 h-8 bg-brand-burgundy rounded-full border-4 border-white shadow-lg flex items-center justify-center">
+                    <MapPin className="h-4 w-4 text-white" />
+                  </div>
+                  <div className="absolute -top-1 -left-1 w-10 h-10 bg-brand-burgundy/20 rounded-full animate-ping"></div>
+                </div>
+              </Marker>
+            </Map>
           </div>
           <p className="text-brand-burgundy font-medium">{venue.location}, Lagos</p>
           <p className="text-brand-burgundy/60 text-sm mt-1">
-            Located in the heart of Lagos with easy access to major attractions
+            {venue.address ? `${venue.address}, ` : ''}{venue.location}, Lagos
           </p>
+          <Button 
+            variant="outline" 
+            className="w-full mt-3 border-brand-burgundy/20 text-brand-burgundy hover:bg-brand-burgundy/5"
+            onClick={() => {
+              const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${venue.latitude || 6.5244},${venue.longitude || 3.3792}`;
+              window.open(mapsUrl, '_blank');
+            }}
+          >
+            <MapPin className="h-4 w-4 mr-2" />
+            Open in Maps
+          </Button>
         </div>
+
+        {/* Section Divider */}
+        <div className="border-t border-gray-200"></div>
 
         {/* Reviews */}
         <div>
@@ -274,36 +326,105 @@ const VenueDetailPage = () => {
             <span className="text-brand-burgundy/60">{reviewCount} reviews</span>
           </div>
           
-          <div className="space-y-4">
-            {[
-              { name: "Sarah M.", rating: 5, comment: "Amazing atmosphere and excellent service. Perfect for special occasions!", avatar: "SM" },
-              { name: "Mike O.", rating: 4, comment: "Great venue with fantastic food. The live music was a nice touch.", avatar: "MO" },
-              { name: "Jennifer K.", rating: 5, comment: "Loved everything about this place. Will definitely be coming back!", avatar: "JK" }
-            ].map((review, index) => (
-              <div key={index} className="border-b border-gray-100 pb-4 last:border-b-0">
-                <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 bg-brand-burgundy rounded-full flex items-center justify-center">
-                    <span className="text-white font-medium text-sm">{review.avatar}</span>
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium text-brand-burgundy">{review.name}</span>
-                      <div className="flex items-center gap-1">
-                        {[...Array(review.rating)].map((_, i) => (
-                          <Star key={i} className="h-3 w-3 fill-brand-gold text-brand-gold" />
-                        ))}
+          {/* Swipeable Review Cards */}
+          <div className="relative mb-4">
+            <div className="overflow-x-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              <div className="flex gap-4 pb-2" style={{ width: 'max-content' }}>
+                {[
+                  { 
+                    name: "Sarah Mitchell", 
+                    rating: 5, 
+                    comment: "Amazing atmosphere and excellent service. The staff was incredibly attentive and the food was absolutely divine. Perfect for special occasions!", 
+                    avatar: "SM",
+                    date: "2 weeks ago",
+                    verified: true
+                  },
+                  { 
+                    name: "Mike Okafor", 
+                    rating: 4, 
+                    comment: "Great venue with fantastic food. The live music was a nice touch and really elevated the dining experience. Will definitely return!", 
+                    avatar: "MO",
+                    date: "3 weeks ago",
+                    verified: true
+                  },
+                  { 
+                    name: "Jennifer Kim", 
+                    rating: 5, 
+                    comment: "Loved everything about this place. The ambiance is perfect for a night out with friends. The cocktails were expertly crafted!", 
+                    avatar: "JK",
+                    date: "1 month ago",
+                    verified: false
+                  },
+                  { 
+                    name: "David Adebayo", 
+                    rating: 4, 
+                    comment: "Solid venue with good vibes. The location is convenient and the service was prompt. Would recommend for business dinners.", 
+                    avatar: "DA",
+                    date: "1 month ago",
+                    verified: true
+                  },
+                  { 
+                    name: "Emma Thompson", 
+                    rating: 5, 
+                    comment: "Outstanding experience from start to finish. The attention to detail and quality of service exceeded expectations.", 
+                    avatar: "ET",
+                    date: "2 months ago",
+                    verified: true
+                  }
+                ].map((review, index) => (
+                  <div 
+                    key={index} 
+                    className="flex-none w-80 bg-white border border-gray-200 rounded-2xl p-4 shadow-sm"
+                  >
+                    <div className="flex items-start gap-3 mb-3">
+                      <div className="w-12 h-12 bg-brand-burgundy rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-white font-medium text-sm">{review.avatar}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-medium text-brand-burgundy truncate">{review.name}</span>
+                          {review.verified && (
+                            <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                              <CheckCircle className="w-3 h-3 text-white" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mb-2">
+                          <div className="flex items-center gap-1">
+                            {[...Array(review.rating)].map((_, i) => (
+                              <Star key={i} className="h-3 w-3 fill-brand-gold text-brand-gold" />
+                            ))}
+                            {[...Array(5 - review.rating)].map((_, i) => (
+                              <Star key={i} className="h-3 w-3 text-gray-300" />
+                            ))}
+                          </div>
+                          <span className="text-brand-burgundy/60 text-sm">·</span>
+                          <span className="text-brand-burgundy/60 text-sm">{review.date}</span>
+                        </div>
                       </div>
                     </div>
-                    <p className="text-brand-burgundy/80 text-sm">{review.comment}</p>
+                    <p className="text-brand-burgundy/80 text-sm leading-relaxed line-clamp-4">
+                      {review.comment}
+                    </p>
                   </div>
-                </div>
+                ))}
               </div>
-            ))}
+            </div>
+            
+            {/* Scroll indicator */}
+            <div className="flex justify-center mt-4 gap-1">
+              {[0, 1, 2, 3, 4].map((dot, index) => (
+                <div 
+                  key={index} 
+                  className={`w-2 h-2 rounded-full ${index === 0 ? 'bg-brand-burgundy' : 'bg-gray-300'}`}
+                />
+              ))}
+            </div>
           </div>
           
           <Button 
             variant="outline" 
-            className="w-full mt-4 border-brand-burgundy/20 text-brand-burgundy hover:bg-brand-burgundy/5"
+            className="w-full border-brand-burgundy/20 text-brand-burgundy hover:bg-brand-burgundy/5"
           >
             Show all {reviewCount} reviews
           </Button>
