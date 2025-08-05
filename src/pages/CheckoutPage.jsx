@@ -55,6 +55,7 @@ const [splitAmounts, setSplitAmounts] = useState([]);
 const [splitLinks, setSplitLinks] = useState([]);
 const [showShareDialog, setShowShareDialog] = useState(false);
 const [splitPaymentRequests, setSplitPaymentRequests] = useState([]);
+const [currentUserForSplit, setCurrentUserForSplit] = useState(null);
 
 // Fetch user profile if authenticated
 useEffect(() => {
@@ -87,6 +88,13 @@ try {
 
 fetchUserProfile();
 }, [user]);
+
+// Initialize current user for split payments if user is already authenticated
+useEffect(() => {
+  if (user && !currentUserForSplit) {
+    setCurrentUserForSplit(user);
+  }
+}, [user, currentUserForSplit]);
 
 useEffect(() => {
 console.log('CheckoutPage useEffect triggered');
@@ -403,18 +411,21 @@ if (formData.referralCode) {
   applyReferralCode(formData.referralCode);
 }
 
-// Create or update user account
-const currentUser = await createOrUpdateUserAccount({
-  fullName: formData.fullName,
-  email: formData.email,
-  phone: formData.phone,
-  password: formData.password
-});
+        // Create or update user account
+        const currentUser = await createOrUpdateUserAccount({
+          fullName: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+          password: formData.password
+        });
 
-// Validate that we have a valid user
-if (!currentUser || !currentUser.id) {
-  throw new Error('Failed to create or authenticate user account. Please try again.');
-}
+        // Validate that we have a valid user
+        if (!currentUser || !currentUser.id) {
+          throw new Error('Failed to create or authenticate user account. Please try again.');
+        }
+
+        // Set current user for split payments (important for new users)
+        setCurrentUserForSplit(currentUser);
 
         console.log('Current user for booking:', { id: currentUser.id, email: currentUser.email });
 
@@ -747,14 +758,14 @@ location.state?.creditPurchase ? "/venue-credit-purchase" :
         <SplitPaymentForm
           totalAmount={parseFloat(calculateTotal())}
           onSplitCreated={handleSplitPaymentCreated}
-          user={userProfile || user}
+          user={currentUserForSplit || userProfile || user}
           bookingId={selection?.id}
           createBookingIfNeeded={async () => {
             // If booking already exists, return its ID
             if (selection?.id) return selection.id;
             // Otherwise, create a pending booking in the DB
             const bookingData = {
-              user_id: (userProfile || user)?.id,
+              user_id: (currentUserForSplit || userProfile || user)?.id,
               venue_id: selection.venueId || selection.id,
               table_id: selection.table?.id || null,
               booking_date: selection.date || new Date().toISOString().split('T')[0],

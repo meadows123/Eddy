@@ -7,6 +7,7 @@
 - [x] Fix split payment user search UUID error by adding proper user validation (keeping profiles table name)
 - [x] Fix build error caused by corrupted import statements in CheckoutPage.jsx
 - [x] Fix AuthSessionMissingError by removing premature session verification for new users
+- [x] Fix split payment user search "No user ID available" error by passing current user to SplitPaymentForm
 
 ## Current Tasks
 

@@ -63,11 +63,17 @@ const SplitPaymentForm = ({
       return;
     }
 
+    console.log('Searching users with user object:', user);
     setIsSearching(true);
     try {
-      // Validate user exists
+      // Validate user exists and is authenticated
       if (!user?.id) {
-        console.error('No user ID available for search');
+        console.error('No user ID available for search. User object:', user);
+        toast({
+          title: "Authentication Required",
+          description: "Please sign in to search for users to split payments with.",
+          variant: "destructive"
+        });
         setSearchResults([]);
         return;
       }
@@ -117,12 +123,21 @@ const SplitPaymentForm = ({
   };
 
   const openSearchDialog = (index) => {
+    // Check if user is authenticated before opening search dialog
+    if (!user?.id) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to search for users to split payments with.",
+        variant: "destructive"
+      });
+      return;
+    }
     setCurrentSplitIndex(index);
     setShowSearchDialog(true);
   };
 
   const createSplitPaymentRequests = async () => {
-    if (!user) {
+    if (!user?.id) {
       toast({
         title: "Authentication Required",
         description: "Please sign in to create split payment requests.",
@@ -215,6 +230,23 @@ const SplitPaymentForm = ({
 
   return (
     <div className="space-y-6">
+      {/* Authentication Status */}
+      {!user?.id && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-3 text-orange-800">
+              <div className="w-5 h-5 bg-orange-200 rounded-full flex items-center justify-center">
+                <User className="h-3 w-3" />
+              </div>
+              <div>
+                <div className="font-medium">Authentication Required</div>
+                <div className="text-sm">Please sign in to search for users to split payments with.</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Split Count Control */}
       <Card>
         <CardHeader>
@@ -255,7 +287,10 @@ const SplitPaymentForm = ({
                 <div>
                   <div className="font-medium">You</div>
                   <div className="text-sm text-muted-foreground">
-                    {user?.first_name} {user?.last_name}
+                    {user?.first_name && user?.last_name 
+                      ? `${user.first_name} ${user.last_name}`
+                      : user?.email || 'Guest User'
+                    }
                   </div>
                 </div>
               </div>
@@ -310,9 +345,10 @@ const SplitPaymentForm = ({
                     variant="outline"
                     className="w-full"
                     onClick={() => openSearchDialog(index)}
+                    disabled={!user?.id}
                   >
                     <Search className="h-4 w-4 mr-2" />
-                    Search for recipient
+                    {user?.id ? "Search for recipient" : "Sign in to search"}
                   </Button>
                 )}
               </div>
@@ -325,7 +361,7 @@ const SplitPaymentForm = ({
       <Button
         className="w-full bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90"
         onClick={createSplitPaymentRequests}
-        disabled={isCreating || splitRecipients.some(r => !r)}
+        disabled={isCreating || splitRecipients.some(r => !r) || !user?.id}
       >
         {isCreating ? (
           <div className="flex items-center">
@@ -335,7 +371,7 @@ const SplitPaymentForm = ({
         ) : (
           <>
             <Send className="h-4 w-4 mr-2" />
-            Send Payment Requests
+            {user?.id ? "Send Payment Requests" : "Sign in to send requests"}
           </>
         )}
       </Button>
