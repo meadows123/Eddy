@@ -358,30 +358,11 @@ if (!newUser.user) {
 throw new Error('Failed to create user account - no user returned from signup');
 }
 
-console.log('Successfully created user:', newUser.user.id);
+      console.log('Successfully created user:', newUser.user.id);
 
-// Wait a moment and verify the user exists in auth.users
-await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
-
-// Verify user exists in the database with multiple checks
-const { data: userVerification, error: verifyError } = await supabase.auth.getUser();
-if (verifyError || !userVerification.user || userVerification.user.id !== newUser.user.id) {
-console.error('User verification failed:', verifyError);
-
-// Try a more direct approach - wait longer and try again
-await new Promise(resolve => setTimeout(resolve, 2000)); // Wait another 2 seconds
-const { data: retryVerification, error: retryError } = await supabase.auth.getUser();
-
-if (retryError || !retryVerification.user) {
-  throw new Error('User account creation failed - the account was not properly registered. Please try again.');
-}
-
-console.log('User verified on retry:', retryVerification.user.id);
-// Update the user reference to the verified one
-newUser.user = retryVerification.user;
-} else {
-console.log('User verified in database:', userVerification.user.id);
-}
+      // For new users, we don't need to verify the session immediately
+      // The user object from signup is sufficient for creating the profile
+      console.log('New user created successfully, proceeding with profile creation');
 
       // Create user profile if it doesn't exist
       if (newUser.user) {
@@ -435,19 +416,23 @@ if (!currentUser || !currentUser.id) {
   throw new Error('Failed to create or authenticate user account. Please try again.');
 }
 
-console.log('Current user for booking:', { id: currentUser.id, email: currentUser.email });
+        console.log('Current user for booking:', { id: currentUser.id, email: currentUser.email });
 
-// Final verification that user exists before creating booking
-try {
-  const { data: finalCheck, error: finalError } = await supabase.auth.getUser();
-  if (finalError || !finalCheck.user || finalCheck.user.id !== currentUser.id) {
-    throw new Error(`User verification failed before booking: ${finalError?.message || 'User not found'}`);
-  }
-  console.log('Final user verification passed');
-} catch (authError) {
-  console.error('Authentication check failed:', authError);
-  throw new Error('Authentication failed - please try logging in again');
-}
+        // Only verify session for existing users, not newly created ones
+        if (user) { // If user was already authenticated (existing user)
+          try {
+            const { data: finalCheck, error: finalError } = await supabase.auth.getUser();
+            if (finalError || !finalCheck.user || finalCheck.user.id !== currentUser.id) {
+              throw new Error(`User verification failed before booking: ${finalError?.message || 'User not found'}`);
+            }
+            console.log('Final user verification passed');
+          } catch (authError) {
+            console.error('Authentication check failed:', authError);
+            throw new Error('Authentication failed - please try logging in again');
+          }
+        } else {
+          console.log('New user created, skipping session verification');
+        }
 
 // Handle credit purchase flow
 if (selection.isCreditPurchase) {
