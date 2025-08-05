@@ -65,11 +65,18 @@ const SplitPaymentForm = ({
 
     setIsSearching(true);
     try {
+      // Validate user exists
+      if (!user?.id) {
+        console.error('No user ID available for search');
+        setSearchResults([]);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('profiles')
         .select('id, first_name, last_name, phone')
         .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%,phone.ilike.%${query}%`)
-        .neq('id', user?.id) // Exclude current user
+        .neq('id', user.id) // Exclude current user
         .limit(10);
 
       if (error) throw error;
