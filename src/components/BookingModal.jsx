@@ -124,7 +124,7 @@ const BookingModal = ({ isOpen, onClose, venue }) => {
       venueId: venue.id,
       venueName: venue.name,
       venueImage: venue.images?.[0],
-      venueLocation: venue.location,
+      venueLocation: venue.city,
       ...bookingDetails,
       selectedTable: tables.find(t => t.id === bookingDetails.tableId)
     };
@@ -195,7 +195,7 @@ const BookingModal = ({ isOpen, onClose, venue }) => {
                   <h2 className="font-semibold text-brand-burgundy">{venue.name}</h2>
                   <div className="flex items-center gap-2 text-sm text-brand-burgundy/70">
                     <MapPin className="h-4 w-4" />
-                    <span>{venue.location}</span>
+                    <span>{venue.city}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <Star className="h-4 w-4 fill-brand-gold text-brand-gold" />

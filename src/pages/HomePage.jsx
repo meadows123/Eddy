@@ -307,18 +307,17 @@ const HomePage = () => {
               >
                 Find Your Perfect{" "}
                 <motion.span 
-                  className="bg-gradient-to-r from-brand-gold via-yellow-400 to-brand-gold bg-clip-text text-transparent"
+                  className="text-white font-bold"
                   animate={{ 
-                    backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"],
+                    opacity: [0.8, 1, 0.8],
                   }}
                   transition={{ 
                     duration: 3,
                     repeat: Infinity,
                     ease: "easeInOut"
                   }}
-                  style={{ backgroundSize: "200% 200%" }}
                 >
-                  VIP
+                  Eddys Members
                 </motion.span>{" "}
                 Experience
               </motion.h1>

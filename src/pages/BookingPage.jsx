@@ -194,7 +194,7 @@ const BookingPage = () => {
                     <img src="https://images.unsplash.com/photo-1699990320295-ecd2664079ab" alt={selection.venueName} className="w-16 h-16 rounded-lg object-cover mr-4" />
                     <div className="text-right">
                         <p className="font-semibold text-lg">{selection.venueName}</p>
-                        <p className="text-xs text-brand-burgundy/70">{venue.location}</p>
+                        <p className="text-xs text-brand-burgundy/70">{venue.city}</p>
                     </div>
                   </div>
                   

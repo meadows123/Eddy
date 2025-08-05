@@ -199,7 +199,7 @@ const VenueDetailPage = () => {
             <span className="text-brand-burgundy/60">·</span>
             <div className="flex items-center gap-1">
               <MapPin className="h-4 w-4 text-brand-burgundy/60" />
-              <span className="text-brand-burgundy/60">{venue.location}</span>
+                              <span className="text-brand-burgundy/60">{venue.city}</span>
             </div>
           </div>
         </div>
@@ -299,9 +299,9 @@ const VenueDetailPage = () => {
               </Marker>
             </Map>
           </div>
-          <p className="text-brand-burgundy font-medium">{venue.location}, Lagos</p>
+                        <p className="text-brand-burgundy font-medium">{venue.city}, Lagos</p>
           <p className="text-brand-burgundy/60 text-sm mt-1">
-            {venue.address ? `${venue.address}, ` : ''}{venue.location}, Lagos
+                          {venue.address ? `${venue.address}, ` : ''}{venue.city}, Lagos
           </p>
           <Button 
             variant="outline" 

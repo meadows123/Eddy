@@ -48,7 +48,7 @@ const ClubDetailPage = () => {
           (selectedPriceRange === 'all' || venue.priceRange === selectedPriceRange) &&
           (selectedDressCode === 'all' || venue.dressCode?.includes(selectedDressCode)) &&
           (selectedMusicGenre === 'all' || venue.musicGenres?.includes(selectedMusicGenre)) &&
-          (selectedLocation === 'all' || venue.location === selectedLocation)
+          (selectedLocation === 'all' || venue.city === selectedLocation)
         )
       );
     }
@@ -270,7 +270,7 @@ const ClubDetailPage = () => {
               <Link key={venue.id} to={`/clubs/${venue.id}`}>
                 <div className="p-4 border rounded-lg hover:border-brand-gold transition-colors">
                   <h3 className="font-medium">{venue.name}</h3>
-                  <p className="text-sm text-muted-foreground">{venue.location}</p>
+                  <p className="text-sm text-muted-foreground">{venue.city}</p>
                 </div>
               </Link>
             ))}

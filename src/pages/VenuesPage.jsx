@@ -71,7 +71,7 @@ const VenuesPage = () => {
     const fallbackCuisineTypes = ['Nigerian', 'International', 'Fusion', 'Mediterranean', 'Asian', 'European', 'African', 'American'];
     const fallbackMusicGenres = ['Afrobeats', 'Hip Hop', 'R&B', 'House', 'Amapiano', 'Reggae', 'Pop', 'Jazz', 'Live Band', 'DJ Sets'];
 
-    const locations = [...new Set(venuesData.map(venue => venue.location).filter(Boolean))].sort();
+    const locations = [...new Set(venuesData.map(venue => venue.city).filter(Boolean))].sort();
     // Merge fallbackVenueTypes with those found in data, removing duplicates
     const venueTypes = [
       ...new Set([
@@ -143,7 +143,7 @@ const VenuesPage = () => {
       );
     }
     if (filters.location !== 'all') {
-      results = results.filter(venue => venue.location === filters.location);
+      results = results.filter(venue => venue.city === filters.location);
     }
     if (filters.venueType !== 'all') {
       results = results.filter(venue => venue.type && venue.type.toLowerCase() === filters.venueType.toLowerCase());
@@ -246,7 +246,7 @@ const VenuesPage = () => {
             {/* Page Title */}
             <div>
               <h1 className="text-2xl font-semibold text-brand-burgundy">
-                {filteredVenues.length} venues in Lagos
+                Venues
               </h1>
               <p className="text-brand-burgundy/70 mt-1">
                 Find the perfect venue for your next experience

@@ -47,10 +47,10 @@ const VenueCard = ({ venue }) => {
         <CardHeader className="pb-3">
           <CardTitle className="text-xl font-heading text-brand-burgundy">{venue.name}</CardTitle>
           {/* Location under the name */}
-          {venue.location && (
+          {venue.city && (
             <div className="flex items-center text-sm text-brand-burgundy/70 mt-1">
               <MapPin className="h-4 w-4 mr-1 text-brand-gold" />
-              {venue.location}
+              {venue.city}
             </div>
           )}
         </CardHeader>
