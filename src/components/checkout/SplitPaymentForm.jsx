@@ -78,21 +78,21 @@ const SplitPaymentForm = ({
         return;
       }
 
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, phone')
-        .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%,phone.ilike.%${query}%`)
-        .neq('id', user.id) // Exclude current user
-        .limit(10);
+             const { data, error } = await supabase
+         .from('profiles')
+         .select('id, first_name, last_name, phone')
+         .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%,phone.ilike.%${query}%`)
+         .neq('id', user.id) // Exclude current user
+         .limit(10);
 
       if (error) throw error;
 
-      // Transform results
-      const results = (data || []).map(profile => ({
-        ...profile,
-        displayName: `${profile.first_name} ${profile.last_name}`.trim(),
-        type: 'profile'
-      }));
+             // Transform results
+       const results = (data || []).map(profile => ({
+         ...profile,
+         displayName: `${profile.first_name} ${profile.last_name}`.trim(),
+         type: 'profile'
+       }));
 
       setSearchResults(results);
     } catch (error) {
@@ -146,13 +146,6 @@ const SplitPaymentForm = ({
       return;
     }
 
-    // Check if user already has a profile
-    const { data: existingProfile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('id', user.id)
-      .single();
-
     // Validate that all recipients are selected
     const hasEmptyRecipients = splitRecipients.some(recipient => !recipient);
     if (hasEmptyRecipients) {
@@ -164,6 +157,47 @@ const SplitPaymentForm = ({
       return;
     }
 
+         // Ensure user profile exists in profiles table
+     let userProfileId = user.id;
+     const { data: existingProfile, error: profileError } = await supabase
+       .from('profiles')
+       .select('id')
+       .eq('id', user.id)
+       .single();
+
+     if (profileError && profileError.code === 'PGRST116') {
+       // Profile doesn't exist, create it
+       const { data: newProfile, error: createError } = await supabase
+         .from('profiles')
+         .insert([{ 
+           id: user.id,
+           first_name: user.user_metadata?.first_name || user.user_metadata?.full_name?.split(' ')[0] || '',
+           last_name: user.user_metadata?.last_name || user.user_metadata?.full_name?.split(' ').slice(1).join(' ') || '',
+           phone: user.user_metadata?.phone || ''
+         }])
+         .select('id')
+         .single();
+
+       if (createError) {
+         console.error('Error creating user profile:', createError);
+         toast({
+           title: "Profile Error",
+           description: "Failed to create user profile. Please try again.",
+           variant: "destructive"
+         });
+         return;
+       }
+       userProfileId = newProfile.id;
+     } else if (profileError) {
+       console.error('Error checking user profile:', profileError);
+       toast({
+         title: "Profile Error",
+         description: "Failed to verify user profile. Please try again.",
+         variant: "destructive"
+       });
+       return;
+     }
+
     setIsCreating(true);
     try {
       let realBookingId = bookingId;
@@ -172,15 +206,15 @@ const SplitPaymentForm = ({
       }
       if (!realBookingId) throw new Error('Booking could not be created.');
 
-      const splitRequests = splitRecipients.map((recipient, index) => ({
-        booking_id: realBookingId,
-        requester_id: user.id,
-        recipient_id: recipient.id,
-        recipient_phone: recipient.phone || null,
-        amount: splitAmounts[index],
-        payment_link: `${window.location.origin}/split-payment/${realBookingId}/${index}`,
-        status: 'pending'
-      }));
+             const splitRequests = splitRecipients.map((recipient, index) => ({
+         booking_id: realBookingId,
+         requester_id: userProfileId,
+         recipient_id: recipient.id,
+         recipient_phone: recipient.phone || null,
+         amount: splitAmounts[index],
+         payment_link: `${window.location.origin}/split-payment/${realBookingId}/${index}`,
+         status: 'pending'
+       }));
 
       const { data, error } = await supabase
         .from('split_payment_requests')
@@ -189,14 +223,14 @@ const SplitPaymentForm = ({
 
       if (error) throw error;
 
-      // Create notifications for recipients
-      const notifications = data.map(request => ({
-        user_id: request.recipient_id,
-        split_payment_id: request.id,
-        type: 'payment_request',
-        title: 'Payment Request Received',
-        message: `${user.first_name || 'Someone'} has requested ₦${request.amount.toLocaleString()} for a shared booking.`
-      }));
+             // Create notifications for recipients
+       const notifications = data.map(request => ({
+         user_id: request.recipient_id,
+         split_payment_id: request.id,
+         type: 'payment_request',
+         title: 'Payment Request Received',
+         message: `${user.user_metadata?.first_name || user.user_metadata?.full_name?.split(' ')[0] || 'Someone'} has requested ₦${request.amount.toLocaleString()} for a shared booking.`
+       }));
 
       const { error: notifError } = await supabase
         .from('payment_notifications')
@@ -233,14 +267,14 @@ const SplitPaymentForm = ({
       {/* Authentication Status */}
       {!user?.id && (
         <Card className="border-orange-200 bg-orange-50">
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-3 text-orange-800">
-              <div className="w-5 h-5 bg-orange-200 rounded-full flex items-center justify-center">
-                <User className="h-3 w-3" />
+          <CardContent className="pt-4 sm:pt-6">
+            <div className="flex items-center gap-2 sm:gap-3 text-orange-800">
+              <div className="w-4 h-4 sm:w-5 sm:h-5 bg-orange-200 rounded-full flex items-center justify-center flex-shrink-0">
+                <User className="h-2 w-2 sm:h-3 sm:w-3" />
               </div>
-              <div>
-                <div className="font-medium">Authentication Required</div>
-                <div className="text-sm">Please sign in to search for users to split payments with.</div>
+              <div className="min-w-0 flex-1">
+                <div className="font-medium text-sm sm:text-base">Authentication Required</div>
+                <div className="text-xs sm:text-sm">Please sign in to search for users to split payments with.</div>
               </div>
             </div>
           </CardContent>
@@ -253,18 +287,19 @@ const SplitPaymentForm = ({
           <CardTitle className="text-lg">Split Payment Setup</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center gap-4 mb-4">
+          <div className="flex items-center gap-2 sm:gap-4 mb-4">
             <Button
               variant="outline"
               size="icon"
               onClick={() => handleSplitCountChange(splitCount - 1)}
               disabled={splitCount <= 2}
+              className="flex-shrink-0"
             >
               <Minus className="h-4 w-4" />
             </Button>
-            <div className="flex-1 text-center">
-              <Label className="text-lg">Split between {splitCount} people</Label>
-              <div className="text-sm text-muted-foreground">
+            <div className="flex-1 text-center min-w-0">
+              <Label className="text-base sm:text-lg break-words">Split between {splitCount} people</Label>
+              <div className="text-xs sm:text-sm text-muted-foreground">
                 Including you
               </div>
             </div>
@@ -272,21 +307,22 @@ const SplitPaymentForm = ({
               variant="outline"
               size="icon"
               onClick={() => handleSplitCountChange(splitCount + 1)}
+              className="flex-shrink-0"
             >
               <Plus className="h-4 w-4" />
             </Button>
           </div>
 
           {/* Your Amount */}
-          <div className="bg-brand-cream/30 border border-brand-gold/20 rounded-lg p-4 mb-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-brand-gold rounded-full flex items-center justify-center">
-                  <User className="h-4 w-4 text-brand-burgundy" />
+          <div className="bg-brand-cream/30 border border-brand-gold/20 rounded-lg p-3 sm:p-4 mb-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                <div className="w-6 h-6 sm:w-8 sm:h-8 bg-brand-gold rounded-full flex items-center justify-center flex-shrink-0">
+                  <User className="h-3 w-3 sm:h-4 sm:w-4 text-brand-burgundy" />
                 </div>
-                <div>
-                  <div className="font-medium">You</div>
-                  <div className="text-sm text-muted-foreground">
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium text-sm sm:text-base">You</div>
+                  <div className="text-xs sm:text-sm text-muted-foreground truncate">
                     {user?.first_name && user?.last_name 
                       ? `${user.first_name} ${user.last_name}`
                       : user?.email || 'Guest User'
@@ -294,9 +330,9 @@ const SplitPaymentForm = ({
                   </div>
                 </div>
               </div>
-              <div className="text-right">
-                <div className="font-bold text-lg">₦{myAmount.toLocaleString()}</div>
-                <div className="text-sm text-muted-foreground">Your portion</div>
+              <div className="text-right flex-shrink-0">
+                <div className="font-bold text-base sm:text-lg">₦{myAmount.toLocaleString()}</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">Your portion</div>
               </div>
             </div>
           </div>
@@ -311,23 +347,23 @@ const SplitPaymentForm = ({
         <CardContent>
           <div className="space-y-4">
             {splitAmounts.map((amount, index) => (
-              <div key={index} className="border rounded-lg p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <Label>Person {index + 2}</Label>
-                  <div className="font-bold">₦{amount.toLocaleString()}</div>
+              <div key={index} className="border rounded-lg p-3 sm:p-4">
+                <div className="flex items-center justify-between mb-3 gap-2">
+                  <Label className="text-sm sm:text-base">Person {index + 2}</Label>
+                  <div className="font-bold text-sm sm:text-base">₦{amount.toLocaleString()}</div>
                 </div>
                 
                 {splitRecipients[index] ? (
-                  <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                        <User className="h-4 w-4 text-white" />
+                  <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-2 sm:p-3 gap-2">
+                    <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                      <div className="w-6 h-6 sm:w-8 sm:h-8 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
+                        <User className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
                       </div>
-                      <div>
-                        <div className="font-medium">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium text-sm sm:text-base truncate">
                           {splitRecipients[index].displayName}
                         </div>
-                        <div className="text-sm text-muted-foreground">
+                        <div className="text-xs sm:text-sm text-muted-foreground truncate">
                           {splitRecipients[index].phone}
                         </div>
                       </div>
@@ -336,6 +372,7 @@ const SplitPaymentForm = ({
                       variant="ghost"
                       size="sm"
                       onClick={() => removeRecipient(index)}
+                      className="flex-shrink-0"
                     >
                       <X className="h-4 w-4" />
                     </Button>
@@ -343,12 +380,14 @@ const SplitPaymentForm = ({
                 ) : (
                   <Button
                     variant="outline"
-                    className="w-full"
+                    className="w-full text-sm sm:text-base"
                     onClick={() => openSearchDialog(index)}
                     disabled={!user?.id}
                   >
                     <Search className="h-4 w-4 mr-2" />
-                    {user?.id ? "Search for recipient" : "Sign in to search"}
+                    <span className="truncate">
+                      {user?.id ? "Search for recipient" : "Sign in to search"}
+                    </span>
                   </Button>
                 )}
               </div>
@@ -359,28 +398,30 @@ const SplitPaymentForm = ({
 
       {/* Create Split Payment Button */}
       <Button
-        className="w-full bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90"
+        className="w-full bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90 text-sm sm:text-base"
         onClick={createSplitPaymentRequests}
         disabled={isCreating || splitRecipients.some(r => !r) || !user?.id}
       >
         {isCreating ? (
           <div className="flex items-center">
             <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-brand-burgundy mr-2"></div>
-            Creating Requests...
+            <span className="text-sm sm:text-base">Creating Requests...</span>
           </div>
         ) : (
           <>
             <Send className="h-4 w-4 mr-2" />
-            {user?.id ? "Send Payment Requests" : "Sign in to send requests"}
+            <span className="truncate">
+              {user?.id ? "Send Payment Requests" : "Sign in to send requests"}
+            </span>
           </>
         )}
       </Button>
 
       {/* Search Dialog */}
       <Dialog open={showSearchDialog} onOpenChange={setShowSearchDialog}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md max-w-[95vw]">
           <DialogHeader>
-            <DialogTitle>Search for Recipient</DialogTitle>
+            <DialogTitle className="text-lg sm:text-xl">Search for Recipient</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="relative">
@@ -392,7 +433,7 @@ const SplitPaymentForm = ({
                   setSearchQuery(e.target.value);
                   searchUsers(e.target.value);
                 }}
-                className="pl-10"
+                className="pl-10 text-sm sm:text-base"
               />
             </div>
 
@@ -407,21 +448,21 @@ const SplitPaymentForm = ({
               {searchResults.map((result) => (
                 <div
                   key={result.id}
-                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted cursor-pointer"
+                  className="flex items-center justify-between p-2 sm:p-3 border rounded-lg hover:bg-muted cursor-pointer gap-2"
                   onClick={() => selectRecipient(result, currentSplitIndex)}
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-brand-burgundy/10 rounded-full flex items-center justify-center">
-                      <User className="h-4 w-4 text-brand-burgundy" />
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-brand-burgundy/10 rounded-full flex items-center justify-center flex-shrink-0">
+                      <User className="h-3 w-3 sm:h-4 sm:w-4 text-brand-burgundy" />
                     </div>
-                    <div>
-                      <div className="font-medium">{result.displayName}</div>
-                      <div className="text-sm text-muted-foreground">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-sm sm:text-base truncate">{result.displayName}</div>
+                      <div className="text-xs sm:text-sm text-muted-foreground truncate">
                         {result.phone}
                       </div>
                     </div>
                   </div>
-                  <Badge variant="outline">
+                  <Badge variant="outline" className="flex-shrink-0 text-xs">
                     VIP Member
                   </Badge>
                 </div>
@@ -430,8 +471,8 @@ const SplitPaymentForm = ({
 
             {searchQuery && !isSearching && searchResults.length === 0 && (
               <div className="text-center py-4 text-muted-foreground">
-                <p>No users found matching "{searchQuery}"</p>
-                <p className="text-sm mt-1">Try searching by name or phone number</p>
+                <p className="text-sm sm:text-base">No users found matching "{searchQuery}"</p>
+                <p className="text-xs sm:text-sm mt-1">Try searching by name or phone number</p>
               </div>
             )}
           </div>
