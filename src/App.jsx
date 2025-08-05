@@ -8,7 +8,6 @@ import LandingPage from './pages/LandingPage';
 import VenuesPage from './pages/VenuesPage';
 import VenueDetailPage from './pages/VenueDetailPage';
 import CheckoutPage from './pages/CheckoutPage';
-import BookingConfirmationPage from './pages/BookingConfirmationPage';
 import VenueOwnerDashboard from './pages/venue-owner/VenueOwnerDashboard';
 import VenueOwnerLogin from './pages/venue-owner/VenueOwnerLogin';
 import VenueOwnerRegister from './pages/venue-owner/VenueOwnerRegister';
@@ -57,7 +56,6 @@ const App = () => {
             <Route path="/home" element={<HomePage />} />
             <Route path="/venues" element={<VenuesPage />} />
             <Route path="/venues/:id" element={<VenueDetailPage />} />
-            <Route path="/venues/:id/book" element={<BookingConfirmationPage />} />
             <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/checkout/:id" element={<CheckoutPage />} />
             <Route path="/checkout/deposit" element={<CheckoutPage />} />

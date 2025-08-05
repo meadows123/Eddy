@@ -5,6 +5,7 @@ import { Star, MapPin, ArrowLeft, Share2, Heart, CheckCircle, Utensils, Music2, 
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabase';
+import BookingModal from '@/components/BookingModal';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 const VenueDetailPage = () => {
@@ -14,6 +15,7 @@ const VenueDetailPage = () => {
   const [venue, setVenue] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
+  const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchVenue = async () => {
@@ -444,11 +446,18 @@ const VenueDetailPage = () => {
         </div>
         <Button 
           className="w-full bg-brand-burgundy text-brand-cream hover:bg-brand-burgundy/90 h-12 text-base font-medium"
-          onClick={() => navigate(`/venues/${id}/book`)}
+          onClick={() => setIsBookingModalOpen(true)}
         >
           Book Now
         </Button>
       </div>
+
+      {/* Booking Modal */}
+      <BookingModal 
+        isOpen={isBookingModalOpen}
+        onClose={() => setIsBookingModalOpen(false)}
+        venue={venue}
+      />
     </div>
   );
 };
