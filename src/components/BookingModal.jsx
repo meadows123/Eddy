@@ -288,8 +288,9 @@ const BookingModal = ({ isOpen, onClose, venue }) => {
                   <SelectContent>
                     {tables.map(table => (
                       <SelectItem key={table.id} value={table.id}>
-                        Table {table.table_number} (Capacity: {table.capacity} guests)
-                        {table.table_type && ` - ${table.table_type}`}
+                        Table {table.table_number} (Capacity: {table.capacity} guests) - ${table.price_per_hour || 50}/hour
+                        {table.table_type && ` • ${table.table_type}`}
+                        {table.minimum_spend && ` • Min spend: $${table.minimum_spend}`}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -350,13 +351,43 @@ const BookingModal = ({ isOpen, onClose, venue }) => {
                   <span className="text-brand-burgundy font-medium">{bookingDetails.guests}</span>
                 </div>
                 {getSelectedTable() && (
-                  <div className="flex justify-between">
-                    <span className="text-brand-burgundy/70">Table:</span>
-                    <span className="text-brand-burgundy font-medium">
-                      Table {getSelectedTable().table_number}
-                    </span>
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-brand-burgundy/70">Table:</span>
+                      <span className="text-brand-burgundy font-medium">
+                        Table {getSelectedTable().table_number}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-brand-burgundy/70">Price:</span>
+                      <span className="text-brand-burgundy font-medium">
+                        ${getSelectedTable().price_per_hour || 50}/hour
+                      </span>
+                    </div>
+                    {getSelectedTable().minimum_spend && (
+                      <div className="flex justify-between">
+                        <span className="text-brand-burgundy/70">Min Spend:</span>
+                        <span className="text-brand-burgundy font-medium">
+                          ${getSelectedTable().minimum_spend}
+                        </span>
+                      </div>
+                    )}
+                  </>
+                )}
+                
+                {/* Total Cost Summary */}
+                {(getSelectedTable() || (!getSelectedTable() && bookingDetails.date && bookingDetails.time)) && (
+                  <div className="pt-2 border-t border-brand-burgundy/10">
+                    <div className="flex justify-between font-semibold text-brand-burgundy">
+                      <span>Estimated Total:</span>
+                      <span>${getSelectedTable() ? (getSelectedTable().price_per_hour || 50) : 50} + service fees</span>
+                    </div>
+                    <p className="text-xs text-brand-burgundy/60 mt-1">
+                      *Final pricing will be confirmed at checkout
+                    </p>
                   </div>
                 )}
+                
                 {bookingDetails.specialRequests && (
                   <div className="pt-2 border-t border-brand-burgundy/10">
                     <span className="text-brand-burgundy/70">Special Requests:</span>

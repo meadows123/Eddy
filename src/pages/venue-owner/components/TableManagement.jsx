@@ -27,7 +27,8 @@ const TableManagement = ({ currentUser }) => {
   const [newTable, setNewTable] = useState({
     table_number: '',
     capacity: '',
-    price: '',
+    price_per_hour: '',
+    minimum_spend: '',
     table_type: '',
     status: 'available',
     venue_id: '',
@@ -136,7 +137,7 @@ const TableManagement = ({ currentUser }) => {
       toast({ title: 'Error', description: `Failed to ${editingTable ? 'update' : 'add'} table: ${error.message}`, variant: 'destructive' });
     } else {
       toast({ title: `Table ${editingTable ? 'Updated' : 'Added'}`, description: `Table ${editingTable ? 'updated' : 'added'} successfully!` });
-      setNewTable({ table_number: '', capacity: '', price: '', table_type: '', status: 'available', venue_id: '', description: '' });
+      setNewTable({ table_number: '', capacity: '', price_per_hour: '', minimum_spend: '', table_type: '', status: 'available', venue_id: '', description: '' });
       setEditingTable(null);
       setIsAddingTable(false);
       // Refresh table list
@@ -188,7 +189,7 @@ const TableManagement = ({ currentUser }) => {
     if (!open) {
       // Reset form when dialog closes
       setEditingTable(null);
-      setNewTable({ table_number: '', capacity: '', price: '', table_type: '', status: 'available', venue_id: '', description: '' });
+      setNewTable({ table_number: '', capacity: '', price_per_hour: '', minimum_spend: '', table_type: '', status: 'available', venue_id: '', description: '' });
     }
   };
 
@@ -252,13 +253,23 @@ const TableManagement = ({ currentUser }) => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="price">Price (₦)</Label>
+                  <Label htmlFor="price_per_hour">Price per Hour (₦)</Label>
                   <Input
-                    id="price"
+                    id="price_per_hour"
                     type="number"
-                    value={newTable.price}
-                    onChange={(e) => setNewTable({ ...newTable, price: e.target.value })}
-                    placeholder="Table price"
+                    value={newTable.price_per_hour}
+                    onChange={(e) => setNewTable({ ...newTable, price_per_hour: e.target.value })}
+                    placeholder="Hourly rate for this table"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="minimum_spend">Minimum Spend (₦)</Label>
+                  <Input
+                    id="minimum_spend"
+                    type="number"
+                    value={newTable.minimum_spend}
+                    onChange={(e) => setNewTable({ ...newTable, minimum_spend: e.target.value })}
+                    placeholder="Minimum spending requirement"
                   />
                 </div>
                 <div className="space-y-2">

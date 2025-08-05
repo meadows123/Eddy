@@ -2,16 +2,25 @@ import React from 'react';
 import { Calendar, Clock, User } from 'lucide-react';
 
 const OrderSummary = ({ selection, totalAmount, vipPerks }) => {
+  // Handle both old format and new booking modal format
+  const venueName = selection.clubName || selection.venueName || 'Venue';
+  const isFromModal = selection.isFromModal;
+  const hasTable = isFromModal ? selection.selectedTable : selection.table;
+  
   return (
     <div className="bg-secondary/20 border border-border/50 rounded-lg p-6">
       <h3 className="text-xl font-bold mb-4">Order Summary</h3>
       
       <div className="mb-4">
-        <h4 className="font-medium text-lg">{selection.clubName}</h4>
+        <h4 className="font-medium text-lg">{venueName}</h4>
+        {selection.venueLocation && (
+          <p className="text-sm text-muted-foreground">{selection.venueLocation}</p>
+        )}
       </div>
       
       <div className="space-y-4 mb-6">
-        {selection.ticket && (
+        {/* Handle old ticket format */}
+        {selection.ticket && !isFromModal && (
           <div className="p-3 bg-background/50 rounded-lg">
             <div className="flex justify-between items-start mb-1">
               <h4 className="font-medium">{selection.ticket.name}</h4>
@@ -21,26 +30,76 @@ const OrderSummary = ({ selection, totalAmount, vipPerks }) => {
           </div>
         )}
         
-        {selection.table && (
+        {/* Handle general venue booking when no specific table */}
+        {isFromModal && !selection.selectedTable && (
           <div className="p-3 bg-background/50 rounded-lg">
             <div className="flex justify-between items-start mb-1">
-              <h4 className="font-medium">{selection.table.tableName} Table</h4>
-              <span className="font-bold">${selection.table.price}</span>
+              <h4 className="font-medium">General Venue Booking</h4>
+              <span className="font-bold">$50</span>
             </div>
             <div className="flex items-center text-xs text-muted-foreground gap-2 flex-wrap">
               <div className="flex items-center">
                 <Calendar className="h-3 w-3 mr-1" />
-                {selection.table.date}
+                {selection.date}
               </div>
               <div className="flex items-center">
                 <Clock className="h-3 w-3 mr-1" />
-                {selection.table.time}
+                {selection.time}
               </div>
               <div className="flex items-center">
                 <User className="h-3 w-3 mr-1" />
-                {selection.table.guestCount} guests
+                {selection.guests} guests
               </div>
             </div>
+            {selection.specialRequests && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Special requests: {selection.specialRequests}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Handle table booking - both old and new format */}
+        {hasTable && (
+          <div className="p-3 bg-background/50 rounded-lg">
+            <div className="flex justify-between items-start mb-1">
+              <h4 className="font-medium">
+                {isFromModal 
+                  ? `Table ${selection.selectedTable?.table_number || 'Reservation'}`
+                  : `${selection.table.tableName} Table`
+                }
+              </h4>
+              <span className="font-bold">
+                {isFromModal 
+                  ? `$${selection.selectedTable?.price_per_hour || 50}`
+                  : `$${selection.table.price}`
+                }
+              </span>
+            </div>
+            <div className="flex items-center text-xs text-muted-foreground gap-2 flex-wrap">
+              <div className="flex items-center">
+                <Calendar className="h-3 w-3 mr-1" />
+                {isFromModal ? selection.date : selection.table?.date}
+              </div>
+              <div className="flex items-center">
+                <Clock className="h-3 w-3 mr-1" />
+                {isFromModal ? selection.time : selection.table?.time}
+              </div>
+              <div className="flex items-center">
+                <User className="h-3 w-3 mr-1" />
+                {isFromModal ? `${selection.guests} guests` : `${selection.table?.guestCount} guests`}
+              </div>
+            </div>
+            {isFromModal && selection.selectedTable && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Capacity: {selection.selectedTable.capacity} guests • {selection.selectedTable.table_type}
+              </p>
+            )}
+            {isFromModal && selection.specialRequests && (
+              <p className="text-xs text-muted-foreground mt-1">
+                Special requests: {selection.specialRequests}
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -48,7 +107,10 @@ const OrderSummary = ({ selection, totalAmount, vipPerks }) => {
       <div className="border-t border-border pt-4 mb-4">
         <div className="flex justify-between mb-2">
           <span className="text-muted-foreground">Subtotal</span>
-          <span>${(selection.ticket?.price || 0) + (selection.table?.price || 0)}</span>
+          <span>${isFromModal 
+            ? (selection.selectedTable?.price_per_hour || 50)
+            : ((selection.ticket?.price || 0) + (selection.table?.price || 0))
+          }</span>
         </div>
         <div className="flex justify-between mb-2">
           <span className="text-muted-foreground">Service Fee</span>

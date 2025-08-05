@@ -123,33 +123,60 @@ const CheckoutPage = () => {
         venue
       });
     } else {
-      // Original venue booking flow
-      if (!id) {
-        console.log('No venue ID provided, redirecting to venues');
-        navigate('/venues');
-        return;
-      }
+      // Check for new booking data from modal first
+      const pendingBooking = sessionStorage.getItem('pendingBooking');
+      console.log('pendingBooking from sessionStorage:', pendingBooking);
       
-      const savedSelection = localStorage.getItem('lagosvibe_booking_selection');
-      console.log('savedSelection from localStorage:', savedSelection);
-      
-      if (savedSelection) {
-        const parsedSelection = JSON.parse(savedSelection);
-        console.log('parsedSelection:', parsedSelection);
-        console.log('parsedSelection.venueId:', parsedSelection.venueId);
-        console.log('id from params:', id);
-        console.log('Comparison result:', parsedSelection.venueId === id);
+      if (pendingBooking) {
+        const bookingData = JSON.parse(pendingBooking);
+        console.log('Found pendingBooking data:', bookingData);
         
-        if (parsedSelection.venueId === id) {
-          console.log('Venue ID matches, setting selection');
-          setSelection(parsedSelection);
-        } else {
-          console.log('Venue ID mismatch, redirecting to venue page');
-          navigate(`/venues/${id}`); // Redirect if venue ID doesn't match
-        }
+        // Convert booking data to selection format
+        setSelection({
+          venueId: bookingData.venueId,
+          venueName: bookingData.venueName,
+          venueImage: bookingData.venueImage,
+          venueLocation: bookingData.venueLocation,
+          date: bookingData.date,
+          time: bookingData.time,
+          guests: parseInt(bookingData.guests),
+          tableId: bookingData.tableId,
+          selectedTable: bookingData.selectedTable,
+          specialRequests: bookingData.specialRequests,
+          isFromModal: true // Flag to identify this came from the modal
+        });
+        
+        // Clear the pending booking data after using it
+        sessionStorage.removeItem('pendingBooking');
       } else {
-        console.log('No saved selection, redirecting to venue page');
-        navigate(`/venues/${id}`); // Redirect if no selection
+        // Original venue booking flow - check localStorage
+        if (!id) {
+          console.log('No venue ID provided, redirecting to venues');
+          navigate('/venues');
+          return;
+        }
+        
+        const savedSelection = localStorage.getItem('lagosvibe_booking_selection');
+        console.log('savedSelection from localStorage:', savedSelection);
+        
+        if (savedSelection) {
+          const parsedSelection = JSON.parse(savedSelection);
+          console.log('parsedSelection:', parsedSelection);
+          console.log('parsedSelection.venueId:', parsedSelection.venueId);
+          console.log('id from params:', id);
+          console.log('Comparison result:', parsedSelection.venueId === id);
+          
+          if (parsedSelection.venueId === id) {
+            console.log('Venue ID matches, setting selection');
+            setSelection(parsedSelection);
+          } else {
+            console.log('Venue ID mismatch, redirecting to venue page');
+            navigate(`/venues/${id}`); // Redirect if venue ID doesn't match
+          }
+        } else {
+          console.log('No saved selection, redirecting to venue page');
+          navigate(`/venues/${id}`); // Redirect if no selection
+        }
       }
     }
     setLoading(false);
@@ -510,7 +537,18 @@ const CheckoutPage = () => {
       return selection.purchaseAmount.toFixed(2);
     }
     if (!selection) return 0;
-    let total = (selection.ticket?.price || 0) + (selection.table?.price || 0) + 25; // 25 is service fee
+    
+    // Handle new booking modal format vs old format
+    let basePrice = 0;
+    if (selection.isFromModal) {
+      // New format from booking modal
+      basePrice = selection.selectedTable?.price_per_hour || 50;
+    } else {
+      // Old format
+      basePrice = (selection.ticket?.price || 0) + (selection.table?.price || 0);
+    }
+    
+    let total = basePrice + 25; // 25 is service fee
     if (vipPerks.includes("10% Discount Applied")) {
       total *= 0.9; // Apply 10% discount
     }
