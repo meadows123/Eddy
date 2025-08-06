@@ -367,33 +367,92 @@ const VenueOwnerRegister = () => {
 
       console.log('📝 No existing approved record found, creating new pending request...');
 
-      // Use Edge Function to handle user and venue owner creation atomically
-      console.log('🔄 Creating venue owner registration via Edge Function...');
-      console.log('📋 FormData being sent:', formData);
-      
-      const { data: registrationData, error: registrationError } = await supabase.functions.invoke('create-venue-owner-registration', {
-        body: { formData }
+      // First, create the user account immediately
+      console.log('🔄 Creating user account for new venue owner application...');
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/venue-owner/login`,
+          data: {
+            full_name: formData.full_name,
+            phone: formData.phone,
+            venue_name: formData.venue_name
+          }
+        }
       });
-      
-      console.log('📡 Edge Function response:', { registrationData, registrationError });
 
-      if (registrationError) {
-        console.error('❌ Registration failed:', registrationError);
-        setError(`Failed to create venue owner account: ${registrationError.message}`);
+      if (signUpError) {
+        console.error('❌ User creation failed:', signUpError);
+        setError(`Failed to create account: ${signUpError.message}`);
         return;
       }
 
-      if (!registrationData.success) {
-        console.error('❌ Registration returned error:', registrationData.error);
-        setError(`Failed to create venue owner account: ${registrationData.error}`);
+      if (!signUpData.user || !signUpData.user.id) {
+        console.error('❌ No user data returned from signup');
+        setError('Failed to create user account');
         return;
       }
 
-      console.log('✅ Venue owner registration completed successfully!');
-      console.log('✅ User ID:', registrationData.user.id);
-      console.log('✅ Venue Owner ID:', registrationData.venueOwner.id);
+      console.log('✅ User account created successfully:', signUpData.user.id);
 
-      // Continue with existing admin notification workflow
+      // Create venue owner record directly (foreign key constraints should work with new users)
+      const { data: venueOwnerData, error: venueOwnerError } = await supabase
+        .from('venue_owners')
+        .insert([{
+          user_id: signUpData.user.id,
+          venue_name: formData.venue_name,
+          venue_description: formData.venue_description,
+          venue_address: formData.venue_address,
+          venue_city: formData.venue_city,
+          venue_country: formData.venue_country,
+          venue_phone: formData.phone,
+          owner_name: formData.full_name,
+          owner_email: formData.email,
+          owner_phone: formData.phone,
+          venue_type: formData.venue_type,
+          opening_hours: formData.opening_hours || '',
+          capacity: formData.capacity || '',
+          price_range: formData.price_range || '$$',
+          status: 'pending_approval'
+        }])
+        .select()
+        .single();
+
+      if (venueOwnerError) {
+        console.error('❌ Venue owner creation failed:', venueOwnerError);
+        setError(`Failed to create venue owner record: ${venueOwnerError.message}`);
+        return;
+      }
+
+      console.log('✅ Venue owner record created successfully');
+
+      // Also create the pending request for admin tracking
+      const requestData = {
+        user_id: signUpData.user.id,
+        email: formData.email,
+        venue_name: formData.venue_name,
+        venue_address: formData.venue_address,
+        venue_city: formData.venue_city,
+        venue_country: formData.venue_country,
+        contact_name: formData.full_name,
+        contact_phone: formData.phone,
+        additional_info: formData.venue_description,
+        venue_type: formData.venue_type,
+        opening_hours: formData.opening_hours,
+        capacity: formData.capacity,
+        price_range: formData.price_range,
+        status: 'pending'
+      };
+
+      const { data, error } = await supabase
+        .from('pending_venue_owner_requests')
+        .insert([requestData]);
+
+      if (error) {
+        console.warn('⚠️ Failed to create pending request record:', error);
+        // Don't fail the whole process for this
+      }
 
       // Send admin notification email
       const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
