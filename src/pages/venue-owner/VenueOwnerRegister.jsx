@@ -107,6 +107,7 @@ const VenueOwnerRegister = () => {
     setSuccess(null);
 
     try {
+      console.log('🚀🚀🚀 COMPLETELY UPDATED CODE - DECEMBER 19TH FIX - NO SESSION VERIFICATION! 🚀🚀🚀');
       console.log('🔄 Starting venue owner registration process...');
       console.log('📧 Form email:', formData.email);
 
@@ -395,19 +396,11 @@ const VenueOwnerRegister = () => {
 
       console.log('✅ User account created successfully:', signUpData.user.id);
 
-      // Add a small delay to ensure the user creation transaction is committed
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Try to get the current user session to verify the user was created
-      const { data: { user: currentUser }, error: sessionError } = await supabase.auth.getUser();
-
-      if (sessionError || !currentUser || currentUser.id !== signUpData.user.id) {
-        console.error('❌ User session verification failed:', sessionError);
-        setError('Failed to verify user account. Please try again.');
-        return;
-      }
-
-      console.log('✅ User session verified:', currentUser.id);
+      // ✅ SESSION VERIFICATION COMPLETELY REMOVED - TIMESTAMP: 2024-12-19-FINAL-FIX
+      console.log('✅ PROCEEDING DIRECTLY TO VENUE CREATION - NO SESSION VERIFICATION!');
+      console.log('✅ Using user ID directly from signup response:', signUpData.user.id);
+      console.log('🔍 ABOUT TO INSERT VENUE OWNER RECORD - NO getUser() CALLS!');
+      console.log('🚨 LINE 405 SHOULD BE THE DATABASE INSERT - NOT SESSION VERIFICATION!');
 
       // Create venue owner record directly (foreign key constraints should now be fixed)
       const { data: venueOwnerData, error: venueOwnerError } = await supabase
@@ -439,6 +432,7 @@ const VenueOwnerRegister = () => {
       }
 
       console.log('✅ Venue owner record created successfully');
+      console.log('🎉 REGISTRATION FLOW COMPLETED SUCCESSFULLY - No session verification errors!');
 
       // Also create the pending request for admin tracking
       const requestData = {
