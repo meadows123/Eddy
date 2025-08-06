@@ -396,13 +396,11 @@ const VenueOwnerRegister = () => {
 
       console.log('✅ User account created successfully:', signUpData.user.id);
 
-      // ✅ SESSION VERIFICATION COMPLETELY REMOVED - TIMESTAMP: 2024-12-19-FINAL-FIX
-      console.log('✅ PROCEEDING DIRECTLY TO VENUE CREATION - NO SESSION VERIFICATION!');
-      console.log('✅ Using user ID directly from signup response:', signUpData.user.id);
-      console.log('🔍 ABOUT TO INSERT VENUE OWNER RECORD - NO getUser() CALLS!');
-      console.log('🚨 LINE 405 SHOULD BE THE DATABASE INSERT - NOT SESSION VERIFICATION!');
+      // Add a delay to ensure the user is committed to auth.users before foreign key check
+      console.log('⏱️ Waiting for user creation to complete...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Create venue owner record directly (foreign key constraints should now be fixed)
+      // Create venue owner record directly (with delay to handle foreign key timing)
       const { data: venueOwnerData, error: venueOwnerError } = await supabase
         .from('venue_owners')
         .insert([{
