@@ -6,6 +6,7 @@ import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 import { useToast } from '../components/ui/use-toast';
 import { Mail, Phone, MapPin, Clock, Send } from 'lucide-react';
+import { sendContactFormEmail } from '../lib/emailService';
 
 const ContactPage = () => {
   const { toast } = useToast();
@@ -27,18 +28,74 @@ const ContactPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate form data
+    if (!formData.name.trim() || !formData.email.trim() || !formData.subject.trim() || !formData.message.trim()) {
+      toast({
+        title: 'Form Incomplete',
+        description: 'Please fill in all fields before submitting.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      toast({
+        title: 'Invalid Email',
+        description: 'Please enter a valid email address.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    // Validate message length
+    if (formData.message.length < 10) {
+      toast({
+        title: 'Message Too Short',
+        description: 'Please provide a more detailed message (at least 10 characters).',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (formData.message.length > 1000) {
+      toast({
+        title: 'Message Too Long',
+        description: 'Please keep your message under 1000 characters.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     setLoading(true);
 
-    // Simulate form submission
-    setTimeout(() => {
+    try {
+      // Send the contact form email
+      await sendContactFormEmail(formData);
+      
+      // Show success message
       toast({
-        title: 'Message Sent!',
+        title: 'Message Sent Successfully!',
         description: 'Thank you for contacting us. We\'ll get back to you within 24 hours.',
         className: 'bg-green-500 text-white'
       });
+      
+      // Reset form
       setFormData({ name: '', email: '', subject: '', message: '' });
+    } catch (error) {
+      console.error('Contact form submission error:', error);
+      
+      // Show error message
+      toast({
+        title: 'Failed to Send Message',
+        description: error.message || 'There was an error sending your message. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -202,7 +259,11 @@ const ContactPage = () => {
                       className="mt-1 border-brand-burgundy/20 focus:border-brand-burgundy"
                       placeholder="Tell us more about your inquiry..."
                       rows={6}
+                      maxLength={1000}
                     />
+                    <div className="text-xs text-brand-burgundy/50 mt-1 text-right">
+                      {formData.message.length}/1000 characters
+                    </div>
                   </div>
 
                   <Button

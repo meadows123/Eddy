@@ -635,3 +635,109 @@ export const testLocalhostEmail = async (testEmail = 'test@example.com') => {
 if (typeof window !== 'undefined') {
   window.testLocalhostEmail = testLocalhostEmail;
 }
+
+// Test function for contact form emails
+export const testContactFormEmail = async (testData = {}) => {
+  try {
+    console.log('🧪 Testing contact form email...');
+    
+    const testFormData = {
+      name: testData.name || 'Test User',
+      email: testData.email || 'test@example.com',
+      subject: testData.subject || 'Test Contact Form Submission',
+      message: testData.message || 'This is a test message from the contact form to verify the email functionality is working correctly.'
+    };
+
+    console.log('📧 Test form data:', testFormData);
+    
+    const result = await sendContactFormEmail(testFormData);
+    
+    console.log('✅ Contact form email test successful:', result);
+    return { success: true, result };
+  } catch (error) {
+    console.error('❌ Contact form email test failed:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Make test function available globally for debugging
+if (typeof window !== 'undefined') {
+  window.testContactFormEmail = testContactFormEmail;
+}
+
+// Contact form email function
+export const sendContactFormEmail = async (formData) => {
+  try {
+    // Check if EmailJS is configured
+    if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.templateId || !EMAILJS_CONFIG.publicKey) {
+      console.warn('⚠️ EmailJS not fully configured. Check your .env file for:');
+      console.warn('   - VITE_EMAILJS_SERVICE_ID');
+      console.warn('   - VITE_EMAILJS_TEMPLATE_ID'); 
+      console.warn('   - VITE_EMAILJS_PUBLIC_KEY');
+      throw new Error('EmailJS configuration incomplete');
+    }
+
+    // Validate form data
+    if (!formData.name || !formData.email || !formData.subject || !formData.message) {
+      throw new Error('All form fields are required');
+    }
+
+    // Validate email format
+    if (!formData.email.includes('@')) {
+      throw new Error('Please enter a valid email address');
+    }
+
+    // Create email parameters
+    const templateParams = {
+      // EmailJS required fields
+      customerEmail: 'info@oneeddy.com', // Send to info@oneeddy.com
+      to_name: 'Eddys Members Support Team',
+      
+      // Contact form data
+      from_name: formData.name,
+      from_email: formData.email,
+      subject: `Contact Form: ${formData.subject}`,
+      message: formData.message,
+      
+      // Additional context
+      contact_date: new Date().toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }),
+      
+      // Reply information
+      reply_to: formData.email,
+      website_url: window.location.origin
+    };
+
+    console.log('🔄 Sending contact form email:', {
+      from: formData.email,
+      subject: formData.subject,
+      to: 'info@oneeddy.com'
+    });
+
+    // Send email using EmailJS
+    const result = await emailjs.send(
+      EMAILJS_CONFIG.serviceId,
+      EMAILJS_CONFIG.templateId,
+      templateParams
+    );
+
+    console.log('✅ Contact form email sent successfully:', result);
+    
+    return { success: true, result };
+  } catch (error) {
+    console.error('❌ Failed to send contact form email:', error);
+    console.error('Error details:', {
+      message: error.message,
+      status: error.status,
+      text: error.text
+    });
+    
+    throw error;
+  }
+};
