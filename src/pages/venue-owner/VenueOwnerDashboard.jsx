@@ -522,7 +522,7 @@ const VenueOwnerDashboard = () => {
           <TabsContent value="images">
             <Card className="bg-white border-brand-burgundy/10">
               <CardContent className="pt-4 sm:pt-6 px-4 sm:px-6">
-                <ImageManagement venueId={venueId} />
+                <ImageManagement currentUser={currentUser} />
               </CardContent>
             </Card>
           </TabsContent>

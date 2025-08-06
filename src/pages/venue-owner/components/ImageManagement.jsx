@@ -18,14 +18,22 @@ const ImageManagement = ({ currentUser }) => {
   const [addingUrl, setAddingUrl] = useState(false);
 
   useEffect(() => {
-    if (currentUser) {
+    console.log('ImageManagement currentUser:', currentUser);
+    if (currentUser && currentUser.id) {
       fetchVenueAndImages();
+    } else if (currentUser === null) {
+      setLoading(false);
+    } else if (currentUser === undefined) {
+      // Still loading user data
+      setLoading(true);
     }
   }, [currentUser]);
 
   const fetchVenueAndImages = async () => {
     try {
       setLoading(true);
+      
+      console.log('Fetching venue for user:', currentUser?.id);
       
       const { data: venueData, error: venueError } = await supabase
         .from('venues')
@@ -35,9 +43,23 @@ const ImageManagement = ({ currentUser }) => {
 
       if (venueError) {
         console.error('Error fetching venue:', venueError);
+        
+        let errorMessage = 'Failed to load venue data';
+        if (venueError.code === 'PGRST116') {
+          errorMessage = 'No venue found for your account. Please contact support to set up your venue.';
+        } else if (venueError.message) {
+          errorMessage = venueError.message;
+        }
+        
+        toast({
+          title: 'Error',
+          description: errorMessage,
+          variant: 'destructive'
+        });
         return;
       }
 
+      console.log('Venue data:', venueData);
       setVenue(venueData);
 
       const { data: imagesData, error: imagesError } = await supabase
@@ -49,9 +71,15 @@ const ImageManagement = ({ currentUser }) => {
 
       if (imagesError) {
         console.error('Error fetching images:', imagesError);
+        toast({
+          title: 'Error',
+          description: 'Failed to load venue images',
+          variant: 'destructive'
+        });
         return;
       }
 
+      console.log('Images data:', imagesData);
       setImages(imagesData || []);
     } catch (error) {
       console.error('Error in fetchVenueAndImages:', error);
@@ -326,8 +354,11 @@ const ImageManagement = ({ currentUser }) => {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-8">
+      <div className="flex flex-col items-center justify-center p-8 space-y-4">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-gold"></div>
+        <p className="text-brand-burgundy/70 text-sm">
+          {!currentUser ? 'Loading user data...' : 'Loading venue images...'}
+        </p>
       </div>
     );
   }
@@ -335,7 +366,20 @@ const ImageManagement = ({ currentUser }) => {
   if (!venue) {
     return (
       <div className="text-center p-8">
-        <p className="text-brand-burgundy/70">No venue found for your account.</p>
+        <div className="space-y-4">
+          <div className="w-16 h-16 mx-auto bg-brand-burgundy/10 rounded-full flex items-center justify-center">
+            <ImageIcon className="h-8 w-8 text-brand-burgundy/40" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-brand-burgundy mb-2">No Venue Found</h3>
+            <p className="text-brand-burgundy/70 mb-4">
+              No venue has been created for your account yet.
+            </p>
+            <p className="text-sm text-brand-burgundy/50">
+              Please contact support if you believe this is an error.
+            </p>
+          </div>
+        </div>
       </div>
     );
   }

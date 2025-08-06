@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { CreditCard, User, Check, AlertCircle, ArrowLeft } from 'lucide-react';
+import { CreditCard, User, Check, AlertCircle, ArrowLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabase';
@@ -20,12 +18,6 @@ const SplitPaymentPage = () => {
   const [venue, setVenue] = useState(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
-  const [paymentData, setPaymentData] = useState({
-    cardNumber: '',
-    expiryDate: '',
-    cvv: '',
-    cardholderName: ''
-  });
 
   useEffect(() => {
     fetchPaymentRequest();
@@ -96,72 +88,52 @@ const SplitPaymentPage = () => {
     }
   };
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setPaymentData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handlePayment = async (e) => {
-    e.preventDefault();
-    
-    if (!paymentData.cardNumber || !paymentData.expiryDate || !paymentData.cvv || !paymentData.cardholderName) {
-      toast({
-        title: "Missing Information",
-        description: "Please fill in all payment details.",
-        variant: "destructive"
-      });
-      return;
-    }
-
+  const handleStripePayment = async () => {
     setProcessing(true);
     try {
-      // Update the payment request status
-      const { error: updateError } = await supabase
-        .from('split_payment_requests')
-        .update({
-          status: 'paid',
-          paid_at: new Date().toISOString()
+      // Create Stripe Payment Intent
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-split-payment-intent`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          amount: paymentRequest.amount,
+          requestId: paymentRequest.id,
+          email: paymentRequest.recipient_email || ''
         })
-        .eq('id', paymentRequest.id);
+      });
 
-      if (updateError) throw updateError;
-
-      // Create a notification for the requester
-      const { error: notifError } = await supabase
-        .from('payment_notifications')
-        .insert([{
-          user_id: paymentRequest.requester_id,
-          split_payment_id: paymentRequest.id,
-          type: 'payment_received',
-          title: 'Payment Received',
-          message: `Your split payment request of ₦${paymentRequest.amount.toLocaleString()} has been paid.`
-        }]);
-
-      if (notifError) {
-        console.error('Error creating notification:', notifError);
+      if (!response.ok) {
+        throw new Error('Failed to create payment intent');
       }
 
-      toast({
-        title: "Payment Successful!",
-        description: "Your payment has been processed successfully.",
-        className: "bg-green-500 text-white"
+      const { clientSecret, paymentIntentId } = await response.json();
+
+      // Redirect to Stripe Checkout
+      const stripe = await import('@stripe/stripe-js').then(({ loadStripe }) => 
+        loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
+      );
+
+      const { error } = await stripe.redirectToCheckout({
+        mode: 'payment',
+        clientSecret: clientSecret,
+        successUrl: `${window.location.origin}/split-payment-success?payment_intent=${paymentIntentId}&request_id=${paymentRequest.id}`,
+        cancelUrl: `${window.location.origin}/split-payment/${bookingId}/${requestId}`,
       });
 
-      setTimeout(() => {
-        navigate('/');
-      }, 2000);
+      if (error) {
+        throw error;
+      }
 
     } catch (error) {
-      console.error('Error processing payment:', error);
+      console.error('Error initiating Stripe payment:', error);
       toast({
-        title: "Payment Failed",
-        description: "There was an error processing your payment. Please try again.",
+        title: "Payment Error",
+        description: "Failed to initiate payment. Please try again.",
         variant: "destructive"
       });
-    } finally {
       setProcessing(false);
     }
   };
