@@ -90,7 +90,7 @@ const TableManagement = ({ currentUser }) => {
     if (
       !newTable.table_number ||
       !newTable.capacity ||
-      !newTable.price ||
+      !newTable.price_per_hour ||
       !newTable.table_type ||
       !newTable.status
     ) {
@@ -100,7 +100,7 @@ const TableManagement = ({ currentUser }) => {
 
     // Ensure capacity and price are valid integers
     const capacity = parseInt(newTable.capacity, 10);
-    const price = parseInt(newTable.price, 10);
+    const price = parseInt(newTable.price_per_hour, 10);
 
     if (isNaN(capacity) || isNaN(price)) {
       toast({ title: 'Invalid Input', description: 'Capacity and Price must be valid numbers.', variant: 'destructive' });
@@ -111,7 +111,8 @@ const TableManagement = ({ currentUser }) => {
       venue_id: newTable.venue_id,
       table_number: newTable.table_number,
       capacity,
-      price,
+      price_per_hour: price,
+      minimum_spend: newTable.minimum_spend ? parseInt(newTable.minimum_spend, 10) : null,
       table_type: newTable.table_type,
       status: newTable.status,
       description: newTable.description,
@@ -153,7 +154,8 @@ const TableManagement = ({ currentUser }) => {
     setNewTable({
       table_number: table.table_number,
       capacity: table.capacity.toString(),
-      price: table.price.toString(),
+      price_per_hour: table.price_per_hour ? table.price_per_hour.toString() : '',
+      minimum_spend: table.minimum_spend ? table.minimum_spend.toString() : '',
       table_type: table.table_type,
       status: table.status,
       venue_id: table.venue_id,
@@ -197,9 +199,9 @@ const TableManagement = ({ currentUser }) => {
     switch (status) {
       case 'available':
         return 'bg-green-100 text-green-800';
-      case 'booked':
+      case 'reserved':
         return 'bg-yellow-100 text-yellow-800';
-      case 'maintenance':
+      case 'occupied':
         return 'bg-red-100 text-red-800';
       default:
         return 'bg-gray-100 text-gray-800';
@@ -281,9 +283,9 @@ const TableManagement = ({ currentUser }) => {
                     className="w-full border rounded px-2 py-1"
                   >
                     <option value="">Select table type</option>
-                    <option value="standard">Standard</option>
-                    <option value="vip">VIP</option>
-                    <option value="booth">Booth</option>
+                    <option value="indoor">Indoor</option>
+                    <option value="outdoor">Outdoor</option>
+                    <option value="bar">Bar</option>
                   </select>
                 </div>
                 <div className="space-y-2">
@@ -304,8 +306,8 @@ const TableManagement = ({ currentUser }) => {
                     className="w-full border rounded px-2 py-1"
                   >
                     <option value="available">Available</option>
-                    <option value="booked">Booked</option>
-                    <option value="maintenance">Maintenance</option>
+                    <option value="reserved">Reserved</option>
+                    <option value="occupied">Occupied</option>
                   </select>
                 </div>
                 <div className="space-y-2">
