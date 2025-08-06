@@ -395,7 +395,21 @@ const VenueOwnerRegister = () => {
 
       console.log('✅ User account created successfully:', signUpData.user.id);
 
-      // Create venue owner record with user_id and pending approval status
+      // Add a small delay to ensure the user creation transaction is committed
+      await new Promise(resolve => setTimeout(resolve, 1000));
+
+      // Try to get the current user session to verify the user was created
+      const { data: { user: currentUser }, error: sessionError } = await supabase.auth.getUser();
+
+      if (sessionError || !currentUser || currentUser.id !== signUpData.user.id) {
+        console.error('❌ User session verification failed:', sessionError);
+        setError('Failed to verify user account. Please try again.');
+        return;
+      }
+
+      console.log('✅ User session verified:', currentUser.id);
+
+      // Create venue owner record directly (foreign key constraints should now be fixed)
       const { data: venueOwnerData, error: venueOwnerError } = await supabase
         .from('venue_owners')
         .insert([{
@@ -413,7 +427,7 @@ const VenueOwnerRegister = () => {
           opening_hours: formData.opening_hours || '',
           capacity: formData.capacity || '',
           price_range: formData.price_range || '$$',
-          status: 'pending_approval' // NEW status: waiting for admin approval
+          status: 'pending_approval'
         }])
         .select()
         .single();
@@ -428,6 +442,7 @@ const VenueOwnerRegister = () => {
 
       // Also create the pending request for admin tracking
       const requestData = {
+        user_id: signUpData.user.id,
         email: formData.email,
         venue_name: formData.venue_name,
         venue_address: formData.venue_address,
@@ -440,8 +455,7 @@ const VenueOwnerRegister = () => {
         opening_hours: formData.opening_hours,
         capacity: formData.capacity,
         price_range: formData.price_range,
-        status: 'pending',
-        user_id: signUpData.user.id // Link to the created user
+        status: 'pending'
       };
 
       const { data, error } = await supabase
