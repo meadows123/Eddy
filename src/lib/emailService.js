@@ -669,10 +669,9 @@ if (typeof window !== 'undefined') {
 export const sendContactFormEmail = async (formData) => {
   try {
     // Check if EmailJS is configured
-    if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.templateId || !EMAILJS_CONFIG.publicKey) {
+    if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.publicKey) {
       console.warn('⚠️ EmailJS not fully configured. Check your .env file for:');
       console.warn('   - VITE_EMAILJS_SERVICE_ID');
-      console.warn('   - VITE_EMAILJS_TEMPLATE_ID'); 
       console.warn('   - VITE_EMAILJS_PUBLIC_KEY');
       throw new Error('EmailJS configuration incomplete');
     }
@@ -687,38 +686,54 @@ export const sendContactFormEmail = async (formData) => {
       throw new Error('Please enter a valid email address');
     }
 
-    // Create email parameters
-    const templateParams = {
-      // EmailJS required fields
-      customerEmail: 'info@oneeddy.com', // Send to info@oneeddy.com
-      to_name: 'Eddys Members Support Team',
-      
-      // Contact form data
-      from_name: formData.name,
-      from_email: formData.email,
-      subject: `Contact Form: ${formData.subject}`,
-      message: formData.message,
-      
-      // Additional context
-      contact_date: new Date().toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-      }),
-      
-      // Reply information
-      reply_to: formData.email,
-      website_url: window.location.origin
-    };
-
     console.log('🔄 Sending contact form email:', {
       from: formData.email,
       subject: formData.subject,
       to: 'info@oneeddy.com'
     });
+
+    // Create a simple text-based message that works with any template
+    const simpleMessage = `
+NEW CONTACT FORM SUBMISSION
+
+Name: ${formData.name}
+Email: ${formData.email}
+Subject: ${formData.subject}
+Date: ${new Date().toLocaleDateString('en-US', {
+  weekday: 'long',
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+  hour: '2-digit',
+  minute: '2-digit'
+})}
+
+MESSAGE:
+${formData.message}
+
+---
+This message was sent from the Eddys Members contact form.
+Website: ${window.location.origin}
+    `.trim();
+
+    // Use the main template but with minimal, simple data
+    const templateParams = {
+      customerEmail: 'info@oneeddy.com',
+      to_name: 'Eddys Members Support Team',
+      from_name: 'Contact Form',
+      message: simpleMessage,
+      subject: `Contact Form: ${formData.subject}`,
+      reply_to: formData.email,
+      
+      // Add minimal booking-like data to satisfy template requirements
+      customerName: formData.name,
+      bookingReference: 'CONTACT-FORM',
+      venueName: 'Eddys Members Website',
+      bookingDate: new Date().toLocaleDateString(),
+      bookingTime: new Date().toLocaleTimeString(),
+      partySize: '1',
+      totalAmount: '0'
+    };
 
     // Send email using EmailJS
     const result = await emailjs.send(
