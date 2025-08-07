@@ -267,9 +267,9 @@ const TableManagement = ({ currentUser }) => {
                     className="w-full border rounded px-2 py-1"
                   >
                     <option value="">Select table type</option>
-                    <option value="indoor">Indoor</option>
-                    <option value="outdoor">Outdoor</option>
-                    <option value="bar">Bar</option>
+                    <option value="standard">Standard</option>
+                    <option value="vip">VIP</option>
+                    <option value="booth">Booth</option>
                   </select>
                 </div>
 
