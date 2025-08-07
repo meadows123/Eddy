@@ -71,7 +71,7 @@ const OrderSummary = ({ selection, totalAmount, vipPerks }) => {
               </h4>
               <span className="font-bold">
                 {isFromModal 
-                  ? `₦${selection.selectedTable?.price_for_night || 50}`
+                  ? `₦${selection.selectedTable?.price || 50}`
                   : `$${selection.table.price}`
                 }
               </span>
@@ -108,7 +108,7 @@ const OrderSummary = ({ selection, totalAmount, vipPerks }) => {
         <div className="flex justify-between mb-2">
           <span className="text-muted-foreground">Subtotal</span>
           <span>${isFromModal 
-            ? (selection.selectedTable?.price_for_night || 50)
+            ? (selection.selectedTable?.price || 50)
             : ((selection.ticket?.price || 0) + (selection.table?.price || 0))
           }</span>
         </div>

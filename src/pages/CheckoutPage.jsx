@@ -616,7 +616,7 @@ if (!selection) return 0;
 let basePrice = 0;
 if (selection.isFromModal) {
 // New format from booking modal
-basePrice = selection.selectedTable?.price_for_night || 50;
+basePrice = selection.selectedTable?.price || 50;
 } else {
 // Old format
 basePrice = (selection.ticket?.price || 0) + (selection.table?.price || 0);

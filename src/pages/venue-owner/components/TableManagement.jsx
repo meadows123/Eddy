@@ -27,11 +27,10 @@ const TableManagement = ({ currentUser }) => {
   const [newTable, setNewTable] = useState({
     table_number: '',
     capacity: '',
-    price_for_night: '',
+    price: '',
     table_type: '',
     status: 'available',
     venue_id: '',
-    description: '',
   });
 
   // Log the currentUser for debugging
@@ -89,7 +88,7 @@ const TableManagement = ({ currentUser }) => {
     if (
       !newTable.table_number ||
       !newTable.capacity ||
-      !newTable.price_for_night ||
+      !newTable.price ||
       !newTable.table_type ||
       !newTable.status
     ) {
@@ -99,7 +98,7 @@ const TableManagement = ({ currentUser }) => {
 
     // Ensure capacity and price are valid integers
     const capacity = parseInt(newTable.capacity, 10);
-    const price = parseInt(newTable.price_for_night, 10);
+    const price = parseInt(newTable.price, 10);
 
     if (isNaN(capacity) || isNaN(price)) {
       toast({ title: 'Invalid Input', description: 'Capacity and Price must be valid numbers.', variant: 'destructive' });
@@ -110,10 +109,9 @@ const TableManagement = ({ currentUser }) => {
       venue_id: newTable.venue_id,
       table_number: newTable.table_number,
       capacity,
-      price_for_night: price,
+      price: price,
       table_type: newTable.table_type,
       status: newTable.status,
-      description: newTable.description,
     };
 
     let error;
@@ -136,7 +134,7 @@ const TableManagement = ({ currentUser }) => {
       toast({ title: 'Error', description: `Failed to ${editingTable ? 'update' : 'add'} table: ${error.message}`, variant: 'destructive' });
     } else {
       toast({ title: `Table ${editingTable ? 'Updated' : 'Added'}`, description: `Table ${editingTable ? 'updated' : 'added'} successfully!` });
-      setNewTable({ table_number: '', capacity: '', price_for_night: '', table_type: '', status: 'available', venue_id: '', description: '' });
+      setNewTable({ table_number: '', capacity: '', price: '', table_type: '', status: 'available', venue_id: '' });
       setEditingTable(null);
       setIsAddingTable(false);
       // Refresh table list
@@ -152,11 +150,10 @@ const TableManagement = ({ currentUser }) => {
     setNewTable({
       table_number: table.table_number,
       capacity: table.capacity.toString(),
-      price_for_night: table.price_for_night ? table.price_for_night.toString() : '',
+      price: table.price ? table.price.toString() : '',
       table_type: table.table_type,
       status: table.status,
       venue_id: table.venue_id,
-      description: table.description || '',
     });
     setIsAddingTable(true);
   };
@@ -188,7 +185,7 @@ const TableManagement = ({ currentUser }) => {
     if (!open) {
       // Reset form when dialog closes
       setEditingTable(null);
-      setNewTable({ table_number: '', capacity: '', price_for_night: '', table_type: '', status: 'available', venue_id: '', description: '' });
+      setNewTable({ table_number: '', capacity: '', price: '', table_type: '', status: 'available', venue_id: '' });
     }
   };
 
@@ -252,13 +249,13 @@ const TableManagement = ({ currentUser }) => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="price_for_night">Price for Night (₦)</Label>
+                  <Label htmlFor="price">Price (₦)</Label>
                   <Input
-                    id="price_for_night"
+                    id="price"
                     type="number"
-                    value={newTable.price_for_night}
-                    onChange={(e) => setNewTable({ ...newTable, price_for_night: e.target.value })}
-                    placeholder="Price for the entire night"
+                    value={newTable.price}
+                    onChange={(e) => setNewTable({ ...newTable, price: e.target.value })}
+                    placeholder="Price for the table"
                   />
                 </div>
                 <div className="space-y-2">
@@ -275,15 +272,7 @@ const TableManagement = ({ currentUser }) => {
                     <option value="bar">Bar</option>
                   </select>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Input
-                    id="description"
-                    value={newTable.description}
-                    onChange={(e) => setNewTable({ ...newTable, description: e.target.value })}
-                    placeholder="e.g., Near window, VIP section, Corner booth"
-                  />
-                </div>
+
                 <div className="space-y-2">
                   <Label htmlFor="status">Status</Label>
                   <select
@@ -355,11 +344,6 @@ const TableManagement = ({ currentUser }) => {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    {table.description && (
-                      <div className="text-sm text-brand-burgundy/80 italic mb-2">
-                        {table.description}
-                      </div>
-                    )}
                     <div className="flex justify-between text-sm">
                       <span className="text-brand-burgundy/70">Type:</span>
                       <span className="font-medium">{table.table_type}</span>
@@ -368,10 +352,10 @@ const TableManagement = ({ currentUser }) => {
                       <span className="text-brand-burgundy/70">Capacity:</span>
                       <span className="font-medium">{table.capacity} seats</span>
                     </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-brand-burgundy/70">Price:</span>
-                      <span className="font-medium">₦{table.price_for_night?.toLocaleString() || '0'}</span>
-                    </div>
+                                         <div className="flex justify-between text-sm">
+                       <span className="text-brand-burgundy/70">Price:</span>
+                       <span className="font-medium">₦{table.price?.toLocaleString() || '0'}</span>
+                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-brand-burgundy/70">Status:</span>
                       <span className={`px-2 py-1 rounded-full text-xs ${getStatusColor(table.status)}`}>
