@@ -5,6 +5,7 @@ import { Button } from '../../components/ui/button';
 import { supabase } from '../../lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '../../components/ui/use-toast';
+import BackToDashboardButton from '../../components/BackToDashboardButton';
 
 const VenueOwnerTables = () => {
   const [currentUser, setCurrentUser] = useState(null);
@@ -78,6 +79,9 @@ const VenueOwnerTables = () => {
       <div className="container py-8">
         <div className="flex flex-col space-y-4 sm:flex-row sm:justify-between sm:items-center sm:space-y-0 mb-6 sm:mb-8">
           <div>
+            <div className="flex items-center mb-2">
+              <BackToDashboardButton className="mr-4" />
+            </div>
             <h1 className="text-2xl sm:text-3xl font-heading text-brand-burgundy mb-2">Table Management</h1>
             <p className="text-sm sm:text-base text-brand-burgundy/70">Manage your venue's tables and seating arrangements</p>
           </div>

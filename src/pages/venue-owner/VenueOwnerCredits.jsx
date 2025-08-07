@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase.js';
 import { motion } from 'framer-motion';
+import BackToDashboardButton from '../../components/BackToDashboardButton';
 
 const VenueOwnerCredits = () => {
   const { toast } = useToast();
@@ -342,6 +343,9 @@ const VenueOwnerCredits = () => {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-8">
           <div>
+            <div className="flex items-center mb-2">
+              <BackToDashboardButton className="mr-4" />
+            </div>
             <h1 className="text-3xl font-heading text-brand-burgundy mb-2">Eddys Members Credits</h1>
             <p className="text-brand-burgundy/70">
               Manage and track member credits for <span className="font-semibold">{venue.name}</span>

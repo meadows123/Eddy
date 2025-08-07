@@ -16,6 +16,7 @@ import {
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../components/ui/use-toast';
 import { format, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek } from 'date-fns';
+import BackToDashboardButton from '../../components/BackToDashboardButton';
 
 const VenueOwnerAnalytics = () => {
   const { toast } = useToast();
@@ -415,6 +416,9 @@ const VenueOwnerAnalytics = () => {
         {/* Header */}
         <div className="flex flex-col space-y-4 sm:flex-row sm:justify-between sm:items-center sm:space-y-0 mb-6 sm:mb-8">
           <div>
+            <div className="flex items-center mb-2">
+              <BackToDashboardButton className="mr-4" />
+            </div>
             <h1 className="text-2xl sm:text-3xl font-heading text-brand-burgundy mb-2">Analytics Dashboard</h1>
             <p className="text-sm sm:text-base text-brand-burgundy/70">Track your venue's performance and revenue</p>
           </div>

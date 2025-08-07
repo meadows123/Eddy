@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { motion } from 'framer-motion';
+import BackToDashboardButton from '../../components/BackToDashboardButton';
 
 const VenueOwnerReceipts = () => {
   const { toast } = useToast();
@@ -459,6 +460,9 @@ const VenueOwnerReceipts = () => {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 sm:mb-8">
           <div className="text-center sm:text-left mb-4 sm:mb-0">
+            <div className="flex items-center justify-center sm:justify-start mb-2">
+              <BackToDashboardButton className="mr-4" />
+            </div>
             <h1 className="text-2xl sm:text-3xl font-heading text-brand-burgundy mb-2">Receipt Management</h1>
             <p className="text-sm sm:text-base text-brand-burgundy/70">
               Process member purchases and manage credit redemptions for <span className="font-semibold">{venue.name}</span>

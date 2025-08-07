@@ -27,8 +27,7 @@ const TableManagement = ({ currentUser }) => {
   const [newTable, setNewTable] = useState({
     table_number: '',
     capacity: '',
-    price_per_hour: '',
-    minimum_spend: '',
+    price_for_night: '',
     table_type: '',
     status: 'available',
     venue_id: '',
@@ -90,7 +89,7 @@ const TableManagement = ({ currentUser }) => {
     if (
       !newTable.table_number ||
       !newTable.capacity ||
-      !newTable.price_per_hour ||
+      !newTable.price_for_night ||
       !newTable.table_type ||
       !newTable.status
     ) {
@@ -100,7 +99,7 @@ const TableManagement = ({ currentUser }) => {
 
     // Ensure capacity and price are valid integers
     const capacity = parseInt(newTable.capacity, 10);
-    const price = parseInt(newTable.price_per_hour, 10);
+    const price = parseInt(newTable.price_for_night, 10);
 
     if (isNaN(capacity) || isNaN(price)) {
       toast({ title: 'Invalid Input', description: 'Capacity and Price must be valid numbers.', variant: 'destructive' });
@@ -111,8 +110,7 @@ const TableManagement = ({ currentUser }) => {
       venue_id: newTable.venue_id,
       table_number: newTable.table_number,
       capacity,
-      price_per_hour: price,
-      minimum_spend: newTable.minimum_spend ? parseInt(newTable.minimum_spend, 10) : null,
+      price_for_night: price,
       table_type: newTable.table_type,
       status: newTable.status,
       description: newTable.description,
@@ -138,7 +136,7 @@ const TableManagement = ({ currentUser }) => {
       toast({ title: 'Error', description: `Failed to ${editingTable ? 'update' : 'add'} table: ${error.message}`, variant: 'destructive' });
     } else {
       toast({ title: `Table ${editingTable ? 'Updated' : 'Added'}`, description: `Table ${editingTable ? 'updated' : 'added'} successfully!` });
-      setNewTable({ table_number: '', capacity: '', price_per_hour: '', minimum_spend: '', table_type: '', status: 'available', venue_id: '', description: '' });
+      setNewTable({ table_number: '', capacity: '', price_for_night: '', table_type: '', status: 'available', venue_id: '', description: '' });
       setEditingTable(null);
       setIsAddingTable(false);
       // Refresh table list
@@ -154,8 +152,7 @@ const TableManagement = ({ currentUser }) => {
     setNewTable({
       table_number: table.table_number,
       capacity: table.capacity.toString(),
-      price_per_hour: table.price_per_hour ? table.price_per_hour.toString() : '',
-      minimum_spend: table.minimum_spend ? table.minimum_spend.toString() : '',
+      price_for_night: table.price_for_night ? table.price_for_night.toString() : '',
       table_type: table.table_type,
       status: table.status,
       venue_id: table.venue_id,
@@ -191,7 +188,7 @@ const TableManagement = ({ currentUser }) => {
     if (!open) {
       // Reset form when dialog closes
       setEditingTable(null);
-      setNewTable({ table_number: '', capacity: '', price_per_hour: '', minimum_spend: '', table_type: '', status: 'available', venue_id: '', description: '' });
+      setNewTable({ table_number: '', capacity: '', price_for_night: '', table_type: '', status: 'available', venue_id: '', description: '' });
     }
   };
 
@@ -255,23 +252,13 @@ const TableManagement = ({ currentUser }) => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="price_per_hour">Price per Hour (₦)</Label>
+                  <Label htmlFor="price_for_night">Price for Night (₦)</Label>
                   <Input
-                    id="price_per_hour"
+                    id="price_for_night"
                     type="number"
-                    value={newTable.price_per_hour}
-                    onChange={(e) => setNewTable({ ...newTable, price_per_hour: e.target.value })}
-                    placeholder="Hourly rate for this table"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="minimum_spend">Minimum Spend (₦)</Label>
-                  <Input
-                    id="minimum_spend"
-                    type="number"
-                    value={newTable.minimum_spend}
-                    onChange={(e) => setNewTable({ ...newTable, minimum_spend: e.target.value })}
-                    placeholder="Minimum spending requirement"
+                    value={newTable.price_for_night}
+                    onChange={(e) => setNewTable({ ...newTable, price_for_night: e.target.value })}
+                    placeholder="Price for the entire night"
                   />
                 </div>
                 <div className="space-y-2">
@@ -383,7 +370,7 @@ const TableManagement = ({ currentUser }) => {
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-brand-burgundy/70">Price:</span>
-                      <span className="font-medium">₦{table.price.toLocaleString()}</span>
+                      <span className="font-medium">₦{table.price_for_night?.toLocaleString() || '0'}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-brand-burgundy/70">Status:</span>

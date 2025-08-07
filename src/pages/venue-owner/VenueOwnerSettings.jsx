@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../components/ui/use-toast';
 import { Save, Phone, Mail, MapPin, Clock, Users, Plus, Trash2, UserPlus, Settings, Bell, Calendar, User } from 'lucide-react';
+import BackToDashboardButton from '../../components/BackToDashboardButton';
 
 const VenueOwnerSettings = () => {
   const navigate = useNavigate();
@@ -458,6 +459,9 @@ const VenueOwnerSettings = () => {
 
   return (
     <div className="container mx-auto px-4 py-4 sm:py-8 max-w-7xl">
+      <div className="flex items-center mb-4">
+        <BackToDashboardButton className="mr-4" />
+      </div>
       <h1 className="text-2xl sm:text-3xl font-heading text-brand-burgundy mb-4 sm:mb-6">Venue Settings</h1>
       
       <Tabs defaultValue="profile" className="space-y-4 sm:space-y-6">
