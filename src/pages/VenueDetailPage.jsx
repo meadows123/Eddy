@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Map, { Marker } from 'react-map-gl';
 import { Star, MapPin, ArrowLeft, Share2, Heart, CheckCircle, Utensils, Music2, Wifi, Car, Shield, Users } from 'lucide-react';
@@ -16,6 +16,8 @@ const VenueDetailPage = () => {
   const [loading, setLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const galleryRef = useRef(null);
 
   useEffect(() => {
     const fetchVenue = async () => {
@@ -109,6 +111,13 @@ const VenueDetailPage = () => {
     });
   };
 
+  const handleGalleryScroll = () => {
+    const container = galleryRef.current;
+    if (!container) return;
+    const index = Math.round(container.scrollLeft / container.clientWidth);
+    setActiveImageIndex(Math.max(0, Math.min(index, (venue?.images?.length || 1) - 1)));
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-white flex items-center justify-center">
@@ -133,21 +142,37 @@ const VenueDetailPage = () => {
   // Mock data for reviews count
   const reviewCount = Math.floor(Math.random() * 50) + 10;
 
+  const images = (venue.images && venue.images.length > 0)
+    ? venue.images
+    : ["https://images.unsplash.com/photo-1699990320295-ecd2664079ab"]; 
+
   return (
     <div className="min-h-screen bg-white">
       {/* Photo Gallery Header */}
       <div className="relative">
-        <div className="aspect-square sm:aspect-video overflow-hidden">
-          <img
-            src={venue.images && venue.images.length > 0 
-              ? venue.images[0] 
-              : "https://images.unsplash.com/photo-1699990320295-ecd2664079ab"
-            }
-            alt={venue.name}
-            className="w-full h-full object-cover"
-          />
+        <div
+          ref={galleryRef}
+          onScroll={handleGalleryScroll}
+          className="flex overflow-x-auto snap-x snap-mandatory no-scrollbar"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
+          {images.map((src, idx) => (
+            <div key={idx} className="min-w-full aspect-square sm:aspect-video overflow-hidden snap-center">
+              <img
+                src={src}
+                alt={`${venue.name} image ${idx + 1}`}
+                className="w-full h-full object-cover"
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
+            </div>
+          ))}
         </div>
-        
+
+        {/* Counter overlay */}
+        <div className="absolute top-4 right-4 bg-black/55 text-white text-xs px-2 py-1 rounded-full">
+          {activeImageIndex + 1}/{images.length}
+        </div>
+
         {/* Header Icons */}
         <div className="absolute top-6 left-6 right-6 flex justify-between items-center">
           <Button
@@ -199,7 +224,7 @@ const VenueDetailPage = () => {
             <span className="text-brand-burgundy/60">·</span>
             <div className="flex items-center gap-1">
               <MapPin className="h-4 w-4 text-brand-burgundy/60" />
-                              <span className="text-brand-burgundy/60">{venue.city}</span>
+              <span className="text-brand-burgundy/60">{venue.city}</span>
             </div>
           </div>
         </div>
@@ -208,10 +233,10 @@ const VenueDetailPage = () => {
         <div className="border-t border-gray-200"></div>
 
         {/* Additional Venue Image */}
-        {venue.images && venue.images.length > 1 && (
+        {images.length > 1 && (
           <div className="aspect-video rounded-2xl overflow-hidden shadow-lg">
             <img
-              src={venue.images[1] || venue.images[0]}
+              src={images[1]}
               alt={`${venue.name} interior`}
               className="w-full h-full object-cover"
             />
@@ -299,9 +324,9 @@ const VenueDetailPage = () => {
               </Marker>
             </Map>
           </div>
-                        <p className="text-brand-burgundy font-medium">{venue.city}, Lagos</p>
+          <p className="text-brand-burgundy font-medium">{venue.city}, Lagos</p>
           <p className="text-brand-burgundy/60 text-sm mt-1">
-                          {venue.address ? `${venue.address}, ` : ''}{venue.city}, Lagos
+            {venue.address ? `${venue.address}, ` : ''}{venue.city}, Lagos
           </p>
           <Button 
             variant="outline" 

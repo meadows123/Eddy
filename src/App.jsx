@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from './components/ui/toaster';
 import Navigation from './components/Navigation';
 import Footer from './components/Footer';
 import ScrollToTop from './components/ScrollToTop';
+import SplashScreen from './components/SplashScreen';
 import LandingPage from './pages/LandingPage';
 import VenuesPage from './pages/VenuesPage';
 import VenueDetailPage from './pages/VenueDetailPage';
@@ -44,9 +45,11 @@ import FAQPage from './pages/FAQPage';
 import EmailTemplateTest from './components/EmailTemplateTest';
 
 const App = () => {
+  const [showSplashScreen, setShowSplashScreen] = useState(true);
 
   return (
     <AuthProvider>
+      {showSplashScreen && <SplashScreen onComplete={() => setShowSplashScreen(false)} />}
       <div className="min-h-screen bg-gray-50 flex flex-col">
         <ScrollToTop />
         <Navigation />
