@@ -63,6 +63,18 @@ const App = () => {
     const access_token = searchParams.get('access_token') || hashParams.get('access_token');
     const refresh_token = searchParams.get('refresh_token') || hashParams.get('refresh_token');
 
+    const resolveReturnTo = (val) => {
+      if (!val) return null;
+      try {
+        // If absolute URL, convert to app-relative path
+        if (/^https?:\/\//i.test(val)) {
+          const u = new URL(val);
+          return u.pathname + u.search + u.hash;
+        }
+      } catch {}
+      return val;
+    };
+
     (async () => {
       try {
         if (access_token && refresh_token) {
@@ -70,13 +82,20 @@ const App = () => {
         }
       } catch {}
 
-      if (target === 'signup-confirm') {
-        let returnTo = returnToParam;
-        if (!returnTo) {
-          try { returnTo = localStorage.getItem('lagosvibe_return_to') || '/checkout'; } catch { returnTo = '/checkout'; }
-        }
+      // Prefer explicit returnTo or stored one regardless of target presence
+      let returnTo = resolveReturnTo(returnToParam);
+      if (!returnTo) {
+        try { returnTo = resolveReturnTo(localStorage.getItem('lagosvibe_return_to')); } catch {}
+      }
+
+      if (returnTo) {
         try { localStorage.removeItem('lagosvibe_return_to'); } catch {}
         navigate(returnTo, { replace: true });
+        return;
+      }
+
+      if (target === 'signup-confirm') {
+        navigate('/checkout', { replace: true });
       }
     })();
     // run once on mount for current URL
