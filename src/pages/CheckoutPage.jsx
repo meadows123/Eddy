@@ -74,6 +74,17 @@ const EMAIL_REDIRECT = BASE_URL ? `${BASE_URL}/open?target=signup-confirm&return
 const ensureSession = async () => {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
+    // Prefill from checkout form and default to Sign Up
+    try {
+      setAuthMode('signup');
+      setAuthForm(prev => ({
+        ...prev,
+        email: (formData?.email || prev.email || ''),
+        fullName: (formData?.fullName || prev.fullName || ''),
+        phone: (formData?.phone || prev.phone || ''),
+        password: prev.password || ''
+      }));
+    } catch {}
     setLoginOpen(true);
     throw new Error('Please log in to continue');
   }
