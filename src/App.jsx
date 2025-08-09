@@ -53,12 +53,15 @@ const App = () => {
   // Handle app/web redirects (email confirmation, etc.)
   useEffect(() => {
     const url = new URL(window.location.href);
-    const target = url.searchParams.get('target');
-    // Optional: tokens may be in fragment/hash for Supabase; try to extract
+    // Parse query and hash
+    const searchParams = url.searchParams;
     const hash = window.location.hash?.replace('#', '') || '';
     const hashParams = new URLSearchParams(hash);
-    const access_token = url.searchParams.get('access_token') || hashParams.get('access_token');
-    const refresh_token = url.searchParams.get('refresh_token') || hashParams.get('refresh_token');
+
+    const target = searchParams.get('target') || hashParams.get('target');
+    const returnToParam = searchParams.get('returnTo') || hashParams.get('returnTo');
+    const access_token = searchParams.get('access_token') || hashParams.get('access_token');
+    const refresh_token = searchParams.get('refresh_token') || hashParams.get('refresh_token');
 
     (async () => {
       try {
@@ -68,11 +71,10 @@ const App = () => {
       } catch {}
 
       if (target === 'signup-confirm') {
-        let returnTo = url.searchParams.get('returnTo');
+        let returnTo = returnToParam;
         if (!returnTo) {
           try { returnTo = localStorage.getItem('lagosvibe_return_to') || '/checkout'; } catch { returnTo = '/checkout'; }
         }
-        // Clean stored value
         try { localStorage.removeItem('lagosvibe_return_to'); } catch {}
         navigate(returnTo, { replace: true });
       }
