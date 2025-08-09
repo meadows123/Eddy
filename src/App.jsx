@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Toaster } from './components/ui/toaster';
 import Navigation from './components/Navigation';
 import Footer from './components/Footer';
@@ -43,9 +43,43 @@ import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
 import FAQPage from './pages/FAQPage';
 import EmailTemplateTest from './components/EmailTemplateTest';
+import { supabase } from './lib/supabase';
 
 const App = () => {
   const [showSplashScreen, setShowSplashScreen] = useState(true);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Handle app/web redirects (email confirmation, etc.)
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const target = url.searchParams.get('target');
+    // Optional: tokens may be in fragment/hash for Supabase; try to extract
+    const hash = window.location.hash?.replace('#', '') || '';
+    const hashParams = new URLSearchParams(hash);
+    const access_token = url.searchParams.get('access_token') || hashParams.get('access_token');
+    const refresh_token = url.searchParams.get('refresh_token') || hashParams.get('refresh_token');
+
+    (async () => {
+      try {
+        if (access_token && refresh_token) {
+          await supabase.auth.setSession({ access_token, refresh_token });
+        }
+      } catch {}
+
+      if (target === 'signup-confirm') {
+        let returnTo = url.searchParams.get('returnTo');
+        if (!returnTo) {
+          try { returnTo = localStorage.getItem('lagosvibe_return_to') || '/checkout'; } catch { returnTo = '/checkout'; }
+        }
+        // Clean stored value
+        try { localStorage.removeItem('lagosvibe_return_to'); } catch {}
+        navigate(returnTo, { replace: true });
+      }
+    })();
+    // run once on mount for current URL
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <AuthProvider>

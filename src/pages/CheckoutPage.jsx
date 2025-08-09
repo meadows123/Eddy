@@ -57,6 +57,91 @@ const [showShareDialog, setShowShareDialog] = useState(false);
 const [splitPaymentRequests, setSplitPaymentRequests] = useState([]);
 const [currentUserForSplit, setCurrentUserForSplit] = useState(null);
 
+// inside component top-level
+const { user: sessionUser, signIn, signUp } = useAuth();
+const [loginOpen, setLoginOpen] = useState(false);
+const [authMode, setAuthMode] = useState('login'); // 'login' | 'signup'
+const [authForm, setAuthForm] = useState({ email: '', password: '' });
+const [authLoading, setAuthLoading] = useState(false);
+const [authError, setAuthError] = useState('');
+const [awaitingConfirm, setAwaitingConfirm] = useState(false);
+
+// set redirect target for Supabase confirmation emails
+const BASE_URL = import.meta.env.VITE_PUBLIC_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
+const currentPath = (typeof window !== 'undefined') ? (window.location.pathname + window.location.search) : '/checkout';
+const EMAIL_REDIRECT = BASE_URL ? `${BASE_URL}/open?target=signup-confirm&returnTo=${encodeURIComponent(currentPath)}` : undefined;
+
+const ensureSession = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    setLoginOpen(true);
+    throw new Error('Please log in to continue');
+  }
+  return user;
+};
+
+const handleAuthSubmit = async (e) => {
+  e?.preventDefault?.();
+  setAuthLoading(true);
+  setAuthError('');
+  try {
+    if (authMode === 'login') {
+      const { error } = await signIn({ email: authForm.email, password: authForm.password });
+      if (error) throw error;
+      setLoginOpen(false);
+    } else {
+      // Sign up and require email confirmation
+      // Persist intended return path so the app can resume
+      try { localStorage.setItem('lagosvibe_return_to', currentPath); } catch {}
+      const { error } = await supabase.auth.signUp({
+        email: authForm.email,
+        password: authForm.password,
+        options: EMAIL_REDIRECT ? { emailRedirectTo: EMAIL_REDIRECT } : undefined,
+      });
+      if (error) throw error;
+      setAwaitingConfirm(true);
+      // Keep dialog open and guide user to confirm email
+    }
+  } catch (err) {
+    setAuthError(err?.message || 'Authentication failed');
+  } finally {
+    setAuthLoading(false);
+  }
+};
+
+const checkEmailConfirmed = async () => {
+  setAuthLoading(true);
+  setAuthError('');
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      setAwaitingConfirm(false);
+      setLoginOpen(false);
+    } else {
+      setAuthError('Not confirmed yet. Please click the confirmation link in your email.');
+    }
+  } finally {
+    setAuthLoading(false);
+  }
+};
+
+const resendConfirmation = async () => {
+  setAuthLoading(true);
+  setAuthError('');
+  try {
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: authForm.email,
+      options: EMAIL_REDIRECT ? { emailRedirectTo: EMAIL_REDIRECT } : undefined,
+    });
+    if (error) throw error;
+  } catch (err) {
+    setAuthError(err?.message || 'Failed to resend confirmation email');
+  } finally {
+    setAuthLoading(false);
+  }
+};
+
 // Fetch user profile if authenticated
 useEffect(() => {
 const fetchUserProfile = async () => {
@@ -489,8 +574,9 @@ if (!venueId) {
   throw new Error('Venue ID is required for booking');
 }
 
+const sessionCheckUser = await ensureSession();
 const bookingData = {
-  user_id: currentUser.id, // We've already validated this exists
+  user_id: sessionCheckUser.id, // We've already validated this exists
   venue_id: venueId,
   table_id: tableId,
   booking_date: selection.date || new Date().toISOString().split('T')[0],
@@ -761,11 +847,12 @@ location.state?.creditPurchase ? "/venue-credit-purchase" :
           user={currentUserForSplit || userProfile || user}
           bookingId={selection?.id}
           createBookingIfNeeded={async () => {
+            const u = await ensureSession();
             // If booking already exists, return its ID
             if (selection?.id) return selection.id;
             // Otherwise, create a pending booking in the DB
             const bookingData = {
-              user_id: (currentUserForSplit || userProfile || user)?.id,
+              user_id: u.id,
               venue_id: selection.venueId || selection.id,
               table_id: selection.table?.id || null,
               booking_date: selection.date || new Date().toISOString().split('T')[0],
@@ -912,6 +999,60 @@ location.state?.creditPurchase ? "/venue-credit-purchase" :
     </div>
   </div>
 </DialogContent>
+</Dialog>
+
+<Dialog open={loginOpen} onOpenChange={setLoginOpen}>
+  <DialogContent className="sm:max-w-md">
+    <DialogHeader>
+      <DialogTitle className="text-brand-burgundy">
+        {awaitingConfirm ? 'Confirm your email' : (authMode === 'login' ? 'Log in to continue' : 'Create an account')}
+      </DialogTitle>
+    </DialogHeader>
+
+    {!awaitingConfirm ? (
+      <form onSubmit={handleAuthSubmit} className="space-y-4">
+        <div>
+          <Label htmlFor="auth-email" className="text-brand-burgundy">Email</Label>
+          <Input id="auth-email" type="email" value={authForm.email} onChange={(e) => setAuthForm(f => ({ ...f, email: e.target.value }))} required />
+        </div>
+        <div>
+          <Label htmlFor="auth-pass" className="text-brand-burgundy">Password</Label>
+          <Input id="auth-pass" type="password" value={authForm.password} onChange={(e) => setAuthForm(f => ({ ...f, password: e.target.value }))} required />
+        </div>
+        {authError && <div className="text-red-600 text-sm">{authError}</div>}
+        <Button type="submit" disabled={authLoading} className="w-full bg-brand-burgundy text-brand-cream hover:bg-brand-burgundy/90">
+          {authLoading ? 'Please wait...' : (authMode === 'login' ? 'Login' : 'Sign Up')}
+        </Button>
+        <div className="text-center text-sm">
+          {authMode === 'login' ? (
+            <button type="button" className="text-brand-gold" onClick={() => setAuthMode('signup')}>New here? Create an account</button>
+          ) : (
+            <button type="button" className="text-brand-gold" onClick={() => setAuthMode('login')}>Already have an account? Login</button>
+          )}
+        </div>
+      </form>
+    ) : (
+      <div className="space-y-4">
+        <p className="text-sm text-brand-burgundy/80">
+          We sent a confirmation email to <span className="font-medium text-brand-burgundy">{authForm.email}</span>. Please click the link in that email to verify your account. Once confirmed, return to the app.
+        </p>
+        {EMAIL_REDIRECT && (
+          <p className="text-xs text-brand-burgundy/60">
+            Tip: The link opens the app via <span className="font-mono">{EMAIL_REDIRECT}</span>.
+          </p>
+        )}
+        {authError && <div className="text-red-600 text-sm">{authError}</div>}
+        <div className="flex gap-2">
+          <Button onClick={checkEmailConfirmed} disabled={authLoading} className="flex-1 bg-brand-burgundy text-brand-cream hover:bg-brand-burgundy/90">
+            I've confirmed
+          </Button>
+          <Button onClick={resendConfirmation} variant="outline" disabled={authLoading} className="flex-1 border-brand-burgundy text-brand-burgundy">
+            Resend email
+          </Button>
+        </div>
+      </div>
+    )}
+  </DialogContent>
 </Dialog>
 </div>
 );

@@ -39,6 +39,19 @@ const VenuesPage = () => {
     return typeMap[type.toLowerCase()] || 'all';
   };
 
+  // Normalize raw venue type values into a canonical set to avoid duplicates
+  const normalizeVenueType = (rawType) => {
+    if (!rawType || typeof rawType !== 'string') return null;
+    const t = rawType.trim().toLowerCase();
+    if (t.startsWith('rest')) return 'Restaurant';
+    if (t.startsWith('club')) return 'Club';
+    if (t.startsWith('loun')) return 'Lounge';
+    // Fallback: capitalize first letter
+    return rawType.charAt(0).toUpperCase() + rawType.slice(1).toLowerCase();
+  };
+
+  const standardVenueTypes = ['Restaurant', 'Club', 'Lounge'];
+
   if (id) {
     return <VenueDetailPage />;
   }
@@ -67,18 +80,21 @@ const VenuesPage = () => {
   // Function to generate dynamic filter options from venues
   const generateFilterOptions = React.useCallback((venuesData) => {
     const fallbackLocations = ['Lagos Island', 'Victoria Island', 'Lekki', 'Ikeja', 'Surulere'];
-    const fallbackVenueTypes = ['Restaurant', 'Club', 'Lounge'];
     const fallbackCuisineTypes = ['Nigerian', 'International', 'Fusion', 'Mediterranean', 'Asian', 'European', 'African', 'American'];
     const fallbackMusicGenres = ['Afrobeats', 'Hip Hop', 'R&B', 'House', 'Amapiano', 'Reggae', 'Pop', 'Jazz', 'Live Band', 'DJ Sets'];
 
     const locations = [...new Set(venuesData.map(venue => venue.city).filter(Boolean))].sort();
-    // Merge fallbackVenueTypes with those found in data, removing duplicates
+
+    // Normalize venue types from data and merge with standard list, then de-duplicate
+    const foundTypes = venuesData
+      .map(venue => normalizeVenueType(venue.type))
+      .filter(Boolean);
+    const mergedTypes = Array.from(new Set([...foundTypes, ...standardVenueTypes]));
+    // Keep standard types order first, then any extras alphabetically
     const venueTypes = [
-      ...new Set([
-        ...venuesData.map(venue => venue.type).filter(Boolean),
-        ...fallbackVenueTypes
-      ])
-    ].sort();
+      ...standardVenueTypes.filter(t => mergedTypes.includes(t)),
+      ...mergedTypes.filter(t => !standardVenueTypes.includes(t)).sort()
+    ];
 
     // Extract cuisine types from venues
     const cuisineTypes = [];
@@ -103,7 +119,6 @@ const VenuesPage = () => {
           }
         });
       }
-      // Also check musicGenres field if it exists
       if (venue.musicGenres && Array.isArray(venue.musicGenres)) {
         venue.musicGenres.forEach(genre => {
           if (genre && !musicGenres.includes(genre)) {
