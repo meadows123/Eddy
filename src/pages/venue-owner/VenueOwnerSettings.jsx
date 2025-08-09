@@ -13,6 +13,7 @@ import { supabase } from '../../lib/supabase';
 import { useToast } from '../../components/ui/use-toast';
 import { Save, Phone, Mail, MapPin, Clock, Users, Plus, Trash2, UserPlus, Settings, Bell, Calendar, User } from 'lucide-react';
 import BackToDashboardButton from '../../components/BackToDashboardButton';
+import { Checkbox } from '../../components/ui/checkbox';
 
 const VenueOwnerSettings = () => {
   const navigate = useNavigate();
@@ -36,8 +37,11 @@ const VenueOwnerSettings = () => {
     price_range: '',
     opening_hours: '',
     website_url: '',
-    vibe: ''
+    vibe: '',
+    music_genres: []
   });
+
+  const ALL_MUSIC_GENRES = ['Afrobeats', 'Hip Hop', 'R&B', 'House', 'Amapiano', 'Reggae', 'Pop', 'Jazz', 'Live Band', 'DJ Sets'];
 
   // Staff Management
   const [newStaff, setNewStaff] = useState({
@@ -230,8 +234,7 @@ const VenueOwnerSettings = () => {
         opening_hours: venueData.opening_hours || '',
         website_url: venueData.website_url || '',
         vibe: venueData.vibe || '',
-        // Note: capacity should be managed in venue tables, not here
-        // Note: ambiance and dress_code don't exist in venues table
+        music_genres: venueData.music_genres || venueData.musicGenres || []
       });
 
       // Fetch staff (simplified implementation)
@@ -296,6 +299,7 @@ const VenueOwnerSettings = () => {
         opening_hours: venueForm.opening_hours || null,
         website_url: venueForm.website_url || null,
         vibe: venueForm.vibe || null,
+        music_genres: venueForm.music_genres,
         updated_at: new Date().toISOString()
       };
 
@@ -559,6 +563,31 @@ const VenueOwnerSettings = () => {
                           <SelectItem value="Relaxed">Relaxed</SelectItem>
                         </SelectContent>
                       </Select>
+                    </div>
+
+                    <div>
+                      <Label className="text-sm sm:text-base">Music Genres</Label>
+                      <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {ALL_MUSIC_GENRES.map(g => (
+                          <label key={g} className="flex items-center gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={venueForm.music_genres?.includes(g)}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                setVenueForm(v => ({
+                                  ...v,
+                                  music_genres: checked
+                                    ? Array.from(new Set([...(v.music_genres || []), g]))
+                                    : (v.music_genres || []).filter(x => x !== g)
+                                }));
+                              }}
+                            />
+                            <span>{g}</span>
+                          </label>
+                        ))}
+                      </div>
+                      <p className="text-xs text-brand-burgundy/60 mt-1">Select all that apply. These power customer music filters.</p>
                     </div>
                   </div>
 
