@@ -61,7 +61,7 @@ const [currentUserForSplit, setCurrentUserForSplit] = useState(null);
 const { user: sessionUser, signIn, signUp } = useAuth();
 const [loginOpen, setLoginOpen] = useState(false);
 const [authMode, setAuthMode] = useState('login'); // 'login' | 'signup'
-const [authForm, setAuthForm] = useState({ email: '', password: '' });
+const [authForm, setAuthForm] = useState({ email: '', password: '', fullName: '', phone: '' });
 const [authLoading, setAuthLoading] = useState(false);
 const [authError, setAuthError] = useState('');
 const [awaitingConfirm, setAwaitingConfirm] = useState(false);
@@ -90,17 +90,36 @@ const handleAuthSubmit = async (e) => {
       if (error) throw error;
       setLoginOpen(false);
     } else {
-      // Sign up and require email confirmation
-      // Persist intended return path so the app can resume
-      try { localStorage.setItem('lagosvibe_return_to', currentPath); } catch {}
+      // Sign up and require email confirmation; include metadata
+      const firstName = (authForm.fullName || '').trim().split(' ')[0] || '';
+      const lastName = (authForm.fullName || '').trim().split(' ').slice(1).join(' ') || '';
+
+      // Persist intended return path and pending profile data so we can upsert after confirm
+      try {
+        localStorage.setItem('lagosvibe_return_to', currentPath);
+        localStorage.setItem('lagosvibe_pending_profile', JSON.stringify({
+          first_name: firstName,
+          last_name: lastName,
+          phone: authForm.phone || '',
+          full_name: authForm.fullName || ''
+        }));
+      } catch {}
+
       const { error } = await supabase.auth.signUp({
         email: authForm.email,
         password: authForm.password,
-        options: EMAIL_REDIRECT ? { emailRedirectTo: EMAIL_REDIRECT } : undefined,
+        options: {
+          emailRedirectTo: EMAIL_REDIRECT,
+          data: {
+            first_name: firstName,
+            last_name: lastName,
+            phone: authForm.phone || '',
+            full_name: authForm.fullName || ''
+          }
+        },
       });
       if (error) throw error;
       setAwaitingConfirm(true);
-      // Keep dialog open and guide user to confirm email
     }
   } catch (err) {
     setAuthError(err?.message || 'Authentication failed');
@@ -1015,6 +1034,18 @@ location.state?.creditPurchase ? "/venue-credit-purchase" :
           <Label htmlFor="auth-email" className="text-brand-burgundy">Email</Label>
           <Input id="auth-email" type="email" value={authForm.email} onChange={(e) => setAuthForm(f => ({ ...f, email: e.target.value }))} required />
         </div>
+        {authMode === 'signup' && (
+          <>
+            <div>
+              <Label htmlFor="auth-name" className="text-brand-burgundy">Full Name</Label>
+              <Input id="auth-name" type="text" value={authForm.fullName} onChange={(e) => setAuthForm(f => ({ ...f, fullName: e.target.value }))} placeholder="e.g. John Smith" required />
+            </div>
+            <div>
+              <Label htmlFor="auth-phone" className="text-brand-burgundy">Phone (optional)</Label>
+              <Input id="auth-phone" type="tel" value={authForm.phone} onChange={(e) => setAuthForm(f => ({ ...f, phone: e.target.value }))} placeholder="+234 ..." />
+            </div>
+          </>
+        )}
         <div>
           <Label htmlFor="auth-pass" className="text-brand-burgundy">Password</Label>
           <Input id="auth-pass" type="password" value={authForm.password} onChange={(e) => setAuthForm(f => ({ ...f, password: e.target.value }))} required />

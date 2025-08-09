@@ -38,8 +38,20 @@ const OpenRedirect = () => {
         }
       } catch {}
 
-      // Default destinations
-      const defaultAfterConfirm = '/login'; // generic default if no context
+      // After session exists, optionally upsert profile from any pending data
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const raw = localStorage.getItem('lagosvibe_pending_profile');
+          if (raw) {
+            const pending = JSON.parse(raw);
+            await supabase.from('profiles').upsert([{ id: user.id, ...pending }]);
+            localStorage.removeItem('lagosvibe_pending_profile');
+          }
+        }
+      } catch {}
+
+      const defaultAfterConfirm = '/login';
 
       if (target === 'signup-confirm') {
         try { localStorage.removeItem('lagosvibe_return_to'); } catch {}
@@ -47,7 +59,6 @@ const OpenRedirect = () => {
         return;
       }
 
-      // If no target matched, just go home
       navigate('/', { replace: true });
     };
 
