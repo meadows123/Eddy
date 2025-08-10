@@ -8,6 +8,7 @@ const USE_EDGE = (import.meta.env.VITE_USE_EDGE_EMAIL ?? 'true').toString().toLo
 const EMAILJS_CONFIG = {
   serviceId: import.meta.env.VITE_EMAILJS_SERVICE_ID,
   templateId: import.meta.env.VITE_EMAILJS_BOOKING_CONFIRMATION_TEMPLATE,
+  ownerTemplateId: import.meta.env.VITE_EMAILJS_VENUE_OWNER_REQUEST_TEMPLATE,
   publicKey: import.meta.env.VITE_EMAILJS_PUBLIC_KEY,
 };
 
@@ -16,11 +17,15 @@ if (EMAILJS_CONFIG.publicKey) {
 }
 
 export const sendBookingConfirmation = async (booking, venue, customer) => {
-  try {
-    const customerEmail = customer?.email || booking?.customerEmail;
-    if (!customerEmail) throw new Error('Missing customer email');
+  const customerEmail = customer?.email || booking?.customerEmail;
+  if (!customerEmail) {
+    console.error('Missing customer email for booking confirmation');
+    return false;
+  }
 
-    if (USE_EDGE) {
+  // Try Edge Function first (if enabled)
+  if (USE_EDGE) {
+    try {
       const payload = {
         to: customerEmail,
         subject: 'Your booking is confirmed',
@@ -35,59 +40,86 @@ export const sendBookingConfirmation = async (booking, venue, customer) => {
           tableInfo: booking?.tableInfo,
         }
       };
-      const { data, error } = await supabase.functions.invoke('send-email', { body: payload });
-      if (error) throw error;
-      return true;
-    } else {
-      if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.templateId || !EMAILJS_CONFIG.publicKey) {
-        throw new Error('EmailJS not configured');
-      }
-      const params = {
-        to_email: customerEmail,
-        customerName: customer?.fullName || booking?.customerName || 'Guest',
-        venueName: venue?.name || booking?.venueName || 'Your Venue',
-        bookingDate: booking?.bookingDate || booking?.booking_date,
-        bookingId: booking?.bookingId || booking?.id,
-        totalAmount: booking?.totalAmount || booking?.total_amount,
-      };
-      await emailjs.send(EMAILJS_CONFIG.serviceId, EMAILJS_CONFIG.templateId, params);
-      return true;
+      const { error } = await supabase.functions.invoke('send-email', { body: payload });
+      if (!error) return true;
+      console.warn('Edge Function send-email failed, falling back to EmailJS...', error);
+    } catch (err) {
+      console.warn('Edge Function exception, falling back to EmailJS...', err);
     }
-  } catch (error) {
-    console.error('❌ Booking confirmation send failed:', error);
+  }
+
+  // EmailJS fallback
+  try {
+    if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.templateId || !EMAILJS_CONFIG.publicKey) {
+      throw new Error('EmailJS not fully configured');
+    }
+    await emailjs.send(EMAILJS_CONFIG.serviceId, EMAILJS_CONFIG.templateId, {
+      to_email: customerEmail,
+      customerName: customer?.fullName || booking?.customerName || 'Guest',
+      venueName: venue?.name || booking?.venueName || 'Your Venue',
+      bookingDate: booking?.bookingDate || booking?.booking_date,
+      bookingId: booking?.bookingId || booking?.id,
+      totalAmount: booking?.totalAmount || booking?.total_amount,
+    });
+    return true;
+  } catch (fallbackErr) {
+    console.error('❌ Booking confirmation send failed (EmailJS fallback):', fallbackErr);
     return false;
   }
 };
 
-export const sendVenueOwnerNotification = async (booking, venue, customer) => {
-  try {
-    // Check if EmailJS is configured
-    if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.templateId || !EMAILJS_CONFIG.publicKey) {
-      throw new Error('EmailJS configuration incomplete');
+export const sendVenueOwnerNotification = async (booking, venue, customer, venueOwner) => {
+  const ADMIN_EMAIL = venueOwner?.email || 'sales@oneeddy.com';
+
+  // Try Edge Function first (if enabled)
+  if (USE_EDGE) {
+    try {
+      const payload = {
+        to: ADMIN_EMAIL,
+        subject: 'New Booking Received',
+        template: 'admin-venue-owner-registration',
+        data: {
+          ownerName: venueOwner?.name || 'Admin',
+          email: customer?.email || booking?.customerEmail,
+          phone: customer?.phone || booking?.customerPhone || 'Not provided',
+          venueName: venue?.name || booking?.venueName,
+          venueType: venue?.type || 'Not specified',
+          venueAddress: venue?.address || '',
+          venueCity: venue?.city || '',
+          adminUrl: `${window.location.origin}/venue-owner/bookings`
+        }
+      };
+      const { error } = await supabase.functions.invoke('send-email', { body: payload });
+      if (!error) return true;
+      console.warn('Edge Function admin notify failed, falling back to EmailJS...', error);
+    } catch (err) {
+      console.warn('Edge Function exception (admin notify), falling back to EmailJS...', err);
     }
+  }
 
-    const emailData = generateEmailData(booking, venue, customer);
-    const ownerTemplate = venueOwnerNotificationTemplate(emailData);
-    
-    // Send to venue owner
-    const result = await emailjs.send(
-      EMAILJS_CONFIG.serviceId,
-      EMAILJS_CONFIG.templateId,
-      {
-        to_email: venue.contact_email,
-        to_name: 'Venue Manager',
-        subject: `New Booking - ${venue.name}`,
-        html_content: ownerTemplate,
-        from_name: 'Eddys Members',
-        reply_to: 'info@oneeddy.com'
-      }
-    );
-
-    console.log('✅ Venue owner notification sent successfully');
-    return result;
-  } catch (error) {
-    console.error('❌ Failed to send venue owner notification:', error);
-    throw error;
+  // EmailJS fallback for admin notification
+  try {
+    if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.ownerTemplateId || !EMAILJS_CONFIG.publicKey) {
+      throw new Error('EmailJS admin template not configured');
+    }
+    await emailjs.send(EMAILJS_CONFIG.serviceId, EMAILJS_CONFIG.ownerTemplateId, {
+      to_email: ADMIN_EMAIL,
+      to_name: 'Admin',
+      from_name: 'VIPClub System',
+      subject: 'New Booking Received',
+      ownerName: venueOwner?.name || 'Admin',
+      ownerEmail: customer?.email || booking?.customerEmail,
+      ownerPhone: customer?.phone || booking?.customerPhone || 'Not provided',
+      venueName: venue?.name || booking?.venueName,
+      venueType: venue?.type || 'Not specified',
+      venueAddress: venue?.address || '',
+      venueCity: venue?.city || '',
+      applicationDate: new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+    });
+    return true;
+  } catch (fallbackErr) {
+    console.error('❌ Admin notification send failed (EmailJS fallback):', fallbackErr);
+    return false;
   }
 };
 
