@@ -54,7 +54,11 @@ export const sendBookingConfirmation = async (booking, venue, customer) => {
       throw new Error('EmailJS not fully configured');
     }
     await emailjs.send(EMAILJS_CONFIG.serviceId, EMAILJS_CONFIG.templateId, {
+      // Provide multiple aliases so template variable matches
       to_email: customerEmail,
+      email: customerEmail,
+      to: customerEmail,
+      reply_to: 'info@oneeddy.com',
       customerName: customer?.fullName || booking?.customerName || 'Guest',
       venueName: venue?.name || booking?.venueName || 'Your Venue',
       bookingDate: booking?.bookingDate || booking?.booking_date,
@@ -104,6 +108,9 @@ export const sendVenueOwnerNotification = async (booking, venue, customer, venue
     }
     await emailjs.send(EMAILJS_CONFIG.serviceId, EMAILJS_CONFIG.ownerTemplateId, {
       to_email: ADMIN_EMAIL,
+      email: ADMIN_EMAIL,
+      to: ADMIN_EMAIL,
+      reply_to: 'info@oneeddy.com',
       to_name: 'Admin',
       from_name: 'VIPClub System',
       subject: 'New Booking Received',
