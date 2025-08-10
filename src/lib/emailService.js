@@ -1,149 +1,61 @@
 // EmailJS integration for Eddys Members
 import emailjs from '@emailjs/browser';
-import { 
-  bookingConfirmationTemplate, 
-  venueOwnerNotificationTemplate, 
-  cancellationTemplate,
-  generateEmailData 
-} from './emailTemplates';
+import { generateEmailData } from './emailTemplates';
 import { supabase } from '@/lib/supabase.js';
 
-// EmailJS configuration from environment variables
+const USE_EDGE = (import.meta.env.VITE_USE_EDGE_EMAIL ?? 'true').toString().toLowerCase() !== 'false';
+
 const EMAILJS_CONFIG = {
   serviceId: import.meta.env.VITE_EMAILJS_SERVICE_ID,
   templateId: import.meta.env.VITE_EMAILJS_BOOKING_CONFIRMATION_TEMPLATE,
   publicKey: import.meta.env.VITE_EMAILJS_PUBLIC_KEY,
 };
 
-// Initialize EmailJS
 if (EMAILJS_CONFIG.publicKey) {
   emailjs.init(EMAILJS_CONFIG.publicKey);
-} else {
-  console.warn('⚠️ EmailJS not configured: Missing VITE_EMAILJS_PUBLIC_KEY in environment variables');
 }
-
-// Function to optimize email delivery and reduce spam filtering
-const optimizeEmailDelivery = (params) => {
-  return {
-    ...params,
-    subject: params.subject || 'Eddys Members Booking Confirmation',
-    from_name: 'Eddys Members',
-    reply_to: 'info@oneeddy.com'
-  };
-};
 
 export const sendBookingConfirmation = async (booking, venue, customer) => {
   try {
-    // Check if EmailJS is configured
-    if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.templateId || !EMAILJS_CONFIG.publicKey) {
-      console.warn('⚠️ EmailJS not fully configured. Check your .env file for:');
-      console.warn('   - VITE_EMAILJS_SERVICE_ID');
-      console.warn('   - VITE_EMAILJS_TEMPLATE_ID'); 
-      console.warn('   - VITE_EMAILJS_PUBLIC_KEY');
-      throw new Error('EmailJS configuration incomplete');
+    const customerEmail = customer?.email || booking?.customerEmail;
+    if (!customerEmail) throw new Error('Missing customer email');
+
+    if (USE_EDGE) {
+      const payload = {
+        to: customerEmail,
+        subject: 'Your booking is confirmed',
+        template: 'booking-confirmation',
+        data: {
+          customerName: customer?.fullName || booking?.customerName || 'Guest',
+          venueName: venue?.name || booking?.venueName || 'Your Venue',
+          bookingDate: booking?.bookingDate || booking?.booking_date,
+          bookingId: booking?.bookingId || booking?.id,
+          totalAmount: booking?.totalAmount || booking?.total_amount,
+          ticketInfo: booking?.ticketInfo,
+          tableInfo: booking?.tableInfo,
+        }
+      };
+      const { data, error } = await supabase.functions.invoke('send-email', { body: payload });
+      if (error) throw error;
+      return true;
+    } else {
+      if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.templateId || !EMAILJS_CONFIG.publicKey) {
+        throw new Error('EmailJS not configured');
+      }
+      const params = {
+        to_email: customerEmail,
+        customerName: customer?.fullName || booking?.customerName || 'Guest',
+        venueName: venue?.name || booking?.venueName || 'Your Venue',
+        bookingDate: booking?.bookingDate || booking?.booking_date,
+        bookingId: booking?.bookingId || booking?.id,
+        totalAmount: booking?.totalAmount || booking?.total_amount,
+      };
+      await emailjs.send(EMAILJS_CONFIG.serviceId, EMAILJS_CONFIG.templateId, params);
+      return true;
     }
-
-    // Validate customer email
-    const customerEmail = customer.email || customer.customerEmail || customer.full_name;
-    if (!customerEmail || !customerEmail.includes('@')) {
-      console.error('❌ Invalid or missing customer email:', customerEmail);
-      throw new Error('Invalid customer email address');
-    }
-
-    // Use exact parameter names that match the EmailJS template
-    const templateParams = {
-      // EmailJS required fields - these MUST match your template exactly
-      customerEmail: customerEmail, // This matches the template's "To" field
-      to_name: customer.full_name || customer.customerName || customer.name || 'Valued Customer',
-      
-      // Customer Information
-      customerName: customer.full_name || customer.customerName || customer.name || 'Valued Customer',
-      to_email: customerEmail, // Keep this for backward compatibility
-      customerPhone: customer.phone || customer.customerPhone || customer.phone_number || 'N/A',
-      
-      // Booking Information - Use actual booking data
-      bookingReference: booking.booking_reference || `VIP-${booking.id}`,
-      partySize: booking.guest_count || booking.guests || booking.number_of_guests || '2',
-      bookingDate: new Date(booking.booking_date).toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      }),
-      bookingTime: booking.booking_time || booking.start_time || '7:00 PM',
-      bookingDuration: booking.duration || booking.booking_duration || '4',
-      
-      // Table Information - Use actual table data
-      tableNumber: booking.table_number || booking.table_id || 'VIP-001',
-      tableType: booking.table_type || venue.table_type || 'VIP Table',
-      tableCapacity: booking.guest_count || booking.guests || booking.number_of_guests || '2',
-      tableLocation: booking.table_location || venue.table_location || 'Prime Location',
-      tableFeatures: booking.table_features || venue.table_features || 'Premium seating with excellent view',
-      
-      // Venue Information - Use actual venue data
-      venueName: venue.name || 'Premium Venue',
-      venueDescription: venue.description || venue.about || 'Experience luxury dining and entertainment in Lagos\' most exclusive venue.',
-      venueAddress: venue.address || venue.location || 'Lagos, Nigeria',
-      venuePhone: venue.contact_phone || venue.phone || venue.contact_number || '+234 XXX XXX XXXX',
-      venueDressCode: venue.dress_code || venue.dresscode || 'Smart Casual',
-      venueParking: venue.parking || venue.parking_info || 'Valet parking available',
-      venueCuisine: venue.cuisine || venue.cuisine_type || 'International cuisine',
-      venueHours: venue.hours || venue.opening_hours || venue.business_hours || '6:00 PM - 2:00 AM',
-      
-      // Special Information - Use actual booking notes
-      specialRequests: booking.special_requests || booking.notes || booking.additional_notes || 'None specified',
-      
-      // Action URLs (you can update these later)
-      viewBookingUrl: `${window.location.origin}/profile`,
-      modifyBookingUrl: `${window.location.origin}/profile`,
-      cancelBookingUrl: `${window.location.origin}/profile`,
-      websiteUrl: window.location.origin,
-      supportUrl: 'mailto:info@oneeddy.com',
-      unsubscribeUrl: `${window.location.origin}/settings`
-    };
-
-    // Optimize email delivery to reduce spam filtering
-    const optimizedParams = optimizeEmailDelivery(templateParams);
-
-    console.log('🔄 Sending booking confirmation with optimized parameters:', {
-      to_email: optimizedParams.to_email,
-      customerName: optimizedParams.customerName,
-      bookingReference: optimizedParams.bookingReference,
-      venueName: optimizedParams.venueName,
-      subject: optimizedParams.subject
-    });
-    
-    // Send to customer using optimized template parameters
-    const result = await emailjs.send(
-      EMAILJS_CONFIG.serviceId,
-      EMAILJS_CONFIG.templateId,
-      optimizedParams
-    );
-
-    console.log('✅ Booking confirmation email sent successfully:', result);
-    
-    // Log delivery optimization tips
-    console.log('📧 Email Delivery Tips:');
-    console.log('   - Check spam/junk folder if email not received');
-    console.log('   - Mark as "Not Spam" to improve future delivery');
-    console.log('   - Add support@vipclub.com to contacts');
-    
-    return result;
   } catch (error) {
-    console.error('❌ Failed to send booking confirmation:', error);
-    console.error('Error details:', {
-      message: error.message,
-      status: error.status,
-      text: error.text
-    });
-    
-    // Provide more specific error messages
-    if (error.text === 'The recipients address is empty') {
-      console.error('❌ EmailJS template issue: The "To" field in your EmailJS template is missing or incorrectly configured.');
-      console.error('   Please ensure your EmailJS template has {{customerEmail}} in the "To" field.');
-    }
-    
-    throw error;
+    console.error('❌ Booking confirmation send failed:', error);
+    return false;
   }
 };
 

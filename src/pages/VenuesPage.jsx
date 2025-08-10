@@ -126,6 +126,13 @@ const VenuesPage = () => {
           }
         });
       }
+      if (venue.music_genres && Array.isArray(venue.music_genres)) {
+        venue.music_genres.forEach(genre => {
+          if (genre && !musicGenres.includes(genre)) {
+            musicGenres.push(genre);
+          }
+        });
+      }
     });
     musicGenres.sort();
 
