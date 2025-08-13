@@ -402,8 +402,11 @@ export const notifyAdminOfVenueOwnerRegistration = async (venueOwnerData) => {
   const ADMIN_EMAIL = 'info@oneeddy.com';
   try {
     console.log('🔄 Notifying admin of venue owner registration');
+    console.log('🔧 USE_EDGE setting:', USE_EDGE);
+    console.log('📧 Sending to admin email:', ADMIN_EMAIL);
 
     if (USE_EDGE) {
+      console.log('🚀 Attempting Edge Function path...');
       const { data, error } = await supabase.functions.invoke('send-email', {
         body: {
           to: ADMIN_EMAIL,
@@ -417,11 +420,18 @@ export const notifyAdminOfVenueOwnerRegistration = async (venueOwnerData) => {
             venueType: venueOwnerData.venue_type,
             venueAddress: venueOwnerData.venue_address,
             venueCity: venueOwnerData.venue_city,
-            adminUrl: `${window.location.origin}/admin/venue-approvals`
+            adminUrl: `oneeddy://admin/venue-approvals`
           }
         }
       });
-      if (error) throw error;
+      if (error) {
+        console.error('🚨 Edge Function error:', {
+          message: error.message,
+          details: error.details || null,
+          fullError: error
+        });
+        throw error;
+      }
       console.log('✅ Admin notification sent via Edge Function:', data);
       return data;
     }
@@ -452,7 +462,13 @@ export const notifyAdminOfVenueOwnerRegistration = async (venueOwnerData) => {
     console.log('✅ Admin notification sent via EmailJS fallback:', result);
     return result;
   } catch (error) {
-    console.error('❌ Admin notification failed:', error);
+    console.error('❌ Admin notification failed:', {
+      message: error.message,
+      name: error.name,
+      details: error.details || null,
+      cause: error.cause || null,
+      fullError: error
+    });
     throw error;
   }
 };

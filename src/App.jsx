@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { App as CapacitorApp } from '@capacitor/app';
 import { Toaster } from './components/ui/toaster';
 import Navigation from './components/Navigation';
 import Footer from './components/Footer';
@@ -62,6 +63,29 @@ const App = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Handle deep links from mobile app (oneeddy:// scheme)
+  useEffect(() => {
+    const handleAppUrlOpen = (data) => {
+      console.log('📱 Deep link received:', data.url);
+      try {
+        const url = new URL(data.url);
+        if (url.protocol === 'oneeddy:') {
+          const path = url.pathname + url.search;
+          console.log('🔗 Navigating to deep link path:', path);
+          navigate(path, { replace: true });
+        }
+      } catch (error) {
+        console.error('❌ Error handling deep link:', error);
+      }
+    };
+
+    CapacitorApp.addListener('appUrlOpen', handleAppUrlOpen);
+
+    return () => {
+      CapacitorApp.removeAllListeners();
+    };
+  }, [navigate]);
 
   return (
     <AuthProvider>

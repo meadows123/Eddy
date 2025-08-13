@@ -391,8 +391,8 @@ phone: bookingData.customerPhone || formData.phone
 const customerEmailResult = await sendBookingConfirmation(booking, venue, customer);
 
 // Get venue owner info if available for notification
-const venueOwnerEmail = venue.contact_email || selection.ownerEmail || 'info@oneeddy.com';
-if (venueOwnerEmail) {
+const venueOwnerEmail = venue?.contact_email || selection?.ownerEmail || venue?.owner_email;
+if (venueOwnerEmail && venueOwnerEmail.includes('@')) {
 const venueOwner = {
   full_name: 'Venue Owner',
   email: venueOwnerEmail

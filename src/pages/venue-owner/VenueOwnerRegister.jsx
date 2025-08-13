@@ -329,7 +329,13 @@ const VenueOwnerRegister = () => {
           await notifyAdminOfVenueOwnerRegistration(venueOwnerData);
           console.log('✅ Admin notification sent successfully');
         } catch (emailError) {
-          console.error('❌ Failed to send admin notification email:', emailError);
+          console.error('❌ Failed to send admin notification email:', {
+            message: emailError.message || 'Unknown error',
+            name: emailError.name || 'Unknown',
+            details: emailError.details || null,
+            stack: emailError.stack || null,
+            fullError: emailError
+          });
           // Don't fail the registration if email fails
         }
 
@@ -455,45 +461,29 @@ const VenueOwnerRegister = () => {
       }
 
       // Send admin notification email
-      const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
-      const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_VENUE_OWNER_REQUEST_TEMPLATE;
-      const PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
-      
-      if (SERVICE_ID && TEMPLATE_ID && PUBLIC_KEY) {
-        try {
-          emailjs.init(PUBLIC_KEY);
-          await emailjs.send(
-            SERVICE_ID,
-            TEMPLATE_ID,
-            {
-              email: 'info@oneeddy.com',
-              to_name: 'Admin',
-              from_name: 'Eddys Members',
-              subject: 'New Venue Owner Application',
-              ownerName: formData.full_name,
-              ownerEmail: formData.email,
-              ownerPhone: formData.phone,
-              applicationDate: new Date().toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-              }),
-              venueName: formData.venue_name,
-              venueDescription: formData.venue_description,
-              venueType: formData.venue_type || 'Not specified',
-              venueCapacity: formData.capacity || 'Not specified',
-              venueAddress: formData.venue_address,
-              priceRange: formData.price_range || 'Not specified',
-              openingHours: formData.opening_hours || 'Not specified',
-              venuePhone: formData.phone
-            }
-          );
-          console.log('✅ Admin notification email sent');
-        } catch (emailError) {
-          console.error('❌ Failed to send admin notification:', emailError);
-          // Don't fail the registration if email fails
-        }
+      try {
+        const venueOwnerData = {
+          email: formData.email,
+          owner_name: formData.full_name,
+          phone: formData.phone,
+          venue_name: formData.venue_name,
+          venue_type: formData.venue_type,
+          venue_address: formData.venue_address,
+          venue_city: formData.venue_city
+        };
+        
+        // Notify admin of new registration
+        await notifyAdminOfVenueOwnerRegistration(venueOwnerData);
+        console.log('✅ Admin notification sent successfully');
+      } catch (emailError) {
+        console.error('❌ Failed to send admin notification email:', {
+          message: emailError.message || 'Unknown error',
+          name: emailError.name || 'Unknown',
+          details: emailError.details || null,
+          stack: emailError.stack || null,
+          fullError: emailError
+        });
+        // Don't fail the registration if email fails
       }
 
       // Check if email confirmation is required

@@ -3,6 +3,7 @@ import emailjs from '@emailjs/browser';
 import { generateEmailData } from './emailTemplates';
 import { supabase } from '@/lib/supabase.js';
 
+// Force Edge Function usage in mobile app to avoid EmailJS origin restrictions
 const USE_EDGE = (import.meta.env.VITE_USE_EDGE_EMAIL ?? 'true').toString().toLowerCase() !== 'false';
 
 const EMAILJS_CONFIG = {
@@ -17,9 +18,25 @@ if (EMAILJS_CONFIG.publicKey) {
 }
 
 export const sendBookingConfirmation = async (booking, venue, customer) => {
+  // Debug logging for mobile app
+  console.log('🔍 DEBUG - Mobile email service called with:');
+  console.log('   Booking:', booking);
+  console.log('   Venue:', venue);
+  console.log('   Customer:', customer);
+  
   const customerEmail = customer?.email || booking?.customerEmail;
+  console.log('   Customer Email:', customerEmail);
+  
+  // Check environment variables
+  console.log('🔍 DEBUG - Environment variables:');
+  console.log('   USE_EDGE:', USE_EDGE);
+  console.log('   VITE_USE_EDGE_EMAIL:', import.meta.env.VITE_USE_EDGE_EMAIL);
+  console.log('   EmailJS Service ID:', EMAILJS_CONFIG.serviceId ? 'SET' : 'MISSING');
+  console.log('   EmailJS Template ID:', EMAILJS_CONFIG.templateId ? 'SET' : 'MISSING');
+  console.log('   EmailJS Public Key:', EMAILJS_CONFIG.publicKey ? 'SET' : 'MISSING');
+  
   if (!customerEmail) {
-    console.error('Missing customer email for booking confirmation');
+    console.error('❌ Missing customer email for booking confirmation');
     return false;
   }
 
@@ -73,7 +90,11 @@ export const sendBookingConfirmation = async (booking, venue, customer) => {
 };
 
 export const sendVenueOwnerNotification = async (booking, venue, customer, venueOwner) => {
-  const ADMIN_EMAIL = venueOwner?.email || 'sales@oneeddy.com';
+  const ADMIN_EMAIL = venueOwner?.email;
+  if (!ADMIN_EMAIL || !ADMIN_EMAIL.includes('@')) {
+    console.warn('Skipping venue owner notification: missing/invalid owner email');
+    return false;
+  }
 
   // Try Edge Function first (if enabled)
   if (USE_EDGE) {
