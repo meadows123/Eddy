@@ -71,9 +71,27 @@ const App = () => {
       try {
         const url = new URL(data.url);
         if (url.protocol === 'oneeddy:') {
-          const path = url.pathname + url.search;
-          console.log('🔗 Navigating to deep link path:', path);
-          navigate(path, { replace: true });
+          const host = url.host; // e.g. 'admin' for oneeddy://admin/venue-approvals
+          const pathname = url.pathname; // e.g. '/venue-approvals'
+          const search = url.search || '';
+
+          // Build an app route from scheme + host + path
+          // Supports both:
+          // - oneeddy://admin/venue-approvals           -> /admin/venue-approvals
+          // - oneeddy:///admin/venue-approvals          -> /admin/venue-approvals
+          let route = pathname;
+          if (host) {
+            route = `/${host}${pathname}`;
+          }
+
+          // Ensure route starts with '/'
+          if (!route.startsWith('/')) {
+            route = `/${route}`;
+          }
+
+          const finalRoute = `${route}${search}`;
+          console.log('🔗 Navigating to deep link route:', finalRoute);
+          navigate(finalRoute, { replace: true });
         }
       } catch (error) {
         console.error('❌ Error handling deep link:', error);
