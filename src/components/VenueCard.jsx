@@ -9,7 +9,10 @@ import { getAvailableTimeSlots } from '@/lib/api';
 const VenueCard = ({ venue }) => {
   const [selectedDate, setSelectedDate] = useState('');
   const [availableTimes, setAvailableTimes] = useState([]);
+  const [allTimeSlots, setAllTimeSlots] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [selectedTime, setSelectedTime] = useState('');
 
   // Get available times when date changes
   useEffect(() => {
@@ -20,13 +23,21 @@ const VenueCard = ({ venue }) => {
 
   const fetchAvailableTimes = async () => {
     setLoading(true);
+    setErrorMessage(''); // Clear any previous errors
     try {
       const { data, error } = await getAvailableTimeSlots(venue.id, selectedDate);
       if (error) throw error;
+      
       setAvailableTimes(data || []);
+      
+      // Generate all possible time slots for display
+      const allSlots = generateTimeSlots('18:00', '02:00');
+      setAllTimeSlots(allSlots);
     } catch (error) {
       console.error('Error fetching available times:', error);
       setAvailableTimes([]);
+      setAllTimeSlots([]);
+      setErrorMessage('Failed to load availability');
     } finally {
       setLoading(false);
     }
@@ -34,6 +45,45 @@ const VenueCard = ({ venue }) => {
 
   const handleDateChange = (date) => {
     setSelectedDate(date);
+    setSelectedTime(''); // Reset selected time
+    setErrorMessage(''); // Clear errors
+  };
+
+  const handleTimeSelect = (time) => {
+    if (availableTimes.includes(time)) {
+      // Time is available - allow selection
+      setSelectedTime(time);
+      setErrorMessage(''); // Clear any previous errors
+      console.log('Selected available time:', time);
+    } else {
+      // Time is unavailable - show error
+      setErrorMessage(`Sorry, ${time} is not available. This time slot has already been booked.`);
+      setSelectedTime(''); // Clear selection
+      
+      // Auto-hide error after 5 seconds
+      setTimeout(() => {
+        setErrorMessage('');
+      }, 5000);
+    }
+  };
+
+  // Helper function to generate all time slots (same as in API)
+  const generateTimeSlots = (startTime, endTime) => {
+    const slots = [];
+    const start = new Date(`2000-01-01 ${startTime}`);
+    const end = new Date(`2000-01-01 ${endTime}`);
+    
+    if (end < start) {
+      end.setDate(end.getDate() + 1);
+    }
+    
+    const current = new Date(start);
+    while (current < end) {
+      slots.push(current.toTimeString().slice(0, 5));
+      current.setMinutes(current.getMinutes() + 30);
+    }
+    
+    return slots;
   };
 
   return (

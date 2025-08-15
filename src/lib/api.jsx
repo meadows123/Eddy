@@ -473,29 +473,31 @@ export const getAvailableTimeSlots = async (venueId, date, tableId = null) => {
     // Get all existing bookings for this venue and date
     const { data: existingBookings, error } = await supabase
       .from('bookings')
-      .select('start_time, end_time, table_id')
+      .select('start_time, end_time, table_id, status')
       .eq('venue_id', venueId)
       .eq('booking_date', date)
-      .eq('status', 'confirmed'); // Only count confirmed bookings
+      .in('status', ['confirmed', 'pending']); // Count both confirmed and pending bookings
 
     if (error) throw error;
 
     // Generate all possible time slots (e.g., every 30 minutes from opening to closing)
-    const timeSlots = generateTimeSlots('18:00', '02:00'); // Adjust based on your venue hours
+    const allTimeSlots = generateTimeSlots('18:00', '02:00'); // Adjust based on your venue hours
     
     // Filter out unavailable time slots
-    const availableSlots = timeSlots.filter(slot => {
+    const availableSlots = allTimeSlots.filter(slot => {
       const slotStart = new Date(`2000-01-01 ${slot}`);
       const slotEnd = new Date(slotStart.getTime() + 30 * 60000); // 30-minute slots
       
       // Check if this slot conflicts with existing bookings
-      return !existingBookings.some(booking => {
+      const isAvailable = !existingBookings.some(booking => {
         const bookingStart = new Date(`2000-01-01 ${booking.start_time}`);
         const bookingEnd = new Date(`2000-01-01 ${booking.end_time}`);
         
-        // Check for overlap
+        // Check for overlap - if any part of the slot overlaps with a booking, it's unavailable
         return (slotStart < bookingEnd && slotEnd > bookingStart);
       });
+      
+      return isAvailable;
     });
 
     return { data: availableSlots, error: null };

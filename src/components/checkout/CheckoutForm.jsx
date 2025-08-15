@@ -1,7 +1,6 @@
 import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
 import { User, CreditCard, Gift } from 'lucide-react';
 
 const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSubmitting, totalAmount, isAuthenticated = false }) => {
@@ -103,7 +102,6 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
                 <Label htmlFor="cvv">CVV</Label>
                 <Input id="cvv" name="cvv" placeholder="123" value={formData.cvv} onChange={handleInputChange} className={errors.cvv ? 'border-destructive' : ''} />
                 {errors.cvv && <p className="text-destructive text-sm mt-1">{errors.cvv}</p>}
-              </div>
             </div>
           </div>
         </div>
@@ -116,9 +114,7 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
           </div>
         </div>
         
-        <Button type="submit" className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity text-accent-foreground" disabled={isSubmitting}>
-          {isSubmitting ? 'Processing...' : `Pay $${totalAmount}`}
-        </Button>
+        {/* Payment button removed - now only one button in CheckoutPage */}
       </div>
     </form>
   );
