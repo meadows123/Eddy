@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabase';
+import { getAvailableTimeSlots } from '@/lib/api';
 
 const BookingModal = ({ isOpen, onClose, venue }) => {
   const navigate = useNavigate();

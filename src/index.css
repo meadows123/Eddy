@@ -238,3 +238,46 @@
 .btn-outline-gold {
   @apply border-secondary text-secondary hover:bg-secondary/10 hover:text-accent;
 }
+
+.time-slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.time-slot {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 14px;
+}
+
+.time-slot.available:hover {
+  background: #800020;
+  color: white;
+  border-color: #800020;
+}
+
+.time-slot.unavailable {
+  background: #f5f5f5;
+  color: #999;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+.no-times {
+  color: #666;
+  font-style: italic;
+  text-align: center;
+  padding: 20px;
+}
+
+.loading {
+  color: #666;
+  text-align: center;
+  padding: 20px;
+}

@@ -465,6 +465,66 @@ export async function testEmailJSConnection() {
   }
 }
 
+// Add this function to your existing api.jsx file
+
+// Check available time slots for a specific date and venue
+export const getAvailableTimeSlots = async (venueId, date, tableId = null) => {
+  try {
+    // Get all existing bookings for this venue and date
+    const { data: existingBookings, error } = await supabase
+      .from('bookings')
+      .select('start_time, end_time, table_id')
+      .eq('venue_id', venueId)
+      .eq('booking_date', date)
+      .eq('status', 'confirmed'); // Only count confirmed bookings
+
+    if (error) throw error;
+
+    // Generate all possible time slots (e.g., every 30 minutes from opening to closing)
+    const timeSlots = generateTimeSlots('18:00', '02:00'); // Adjust based on your venue hours
+    
+    // Filter out unavailable time slots
+    const availableSlots = timeSlots.filter(slot => {
+      const slotStart = new Date(`2000-01-01 ${slot}`);
+      const slotEnd = new Date(slotStart.getTime() + 30 * 60000); // 30-minute slots
+      
+      // Check if this slot conflicts with existing bookings
+      return !existingBookings.some(booking => {
+        const bookingStart = new Date(`2000-01-01 ${booking.start_time}`);
+        const bookingEnd = new Date(`2000-01-01 ${booking.end_time}`);
+        
+        // Check for overlap
+        return (slotStart < bookingEnd && slotEnd > bookingStart);
+      });
+    });
+
+    return { data: availableSlots, error: null };
+  } catch (error) {
+    console.error('Error getting available time slots:', error);
+    return { data: null, error };
+  }
+};
+
+// Helper function to generate time slots
+const generateTimeSlots = (startTime, endTime) => {
+  const slots = [];
+  const start = new Date(`2000-01-01 ${startTime}`);
+  const end = new Date(`2000-01-01 ${endTime}`);
+  
+  // Handle overnight hours (e.g., 18:00 to 02:00)
+  if (end < start) {
+    end.setDate(end.getDate() + 1);
+  }
+  
+  const current = new Date(start);
+  while (current < end) {
+    slots.push(current.toTimeString().slice(0, 5));
+    current.setMinutes(current.getMinutes() + 30); // 30-minute intervals
+  }
+  
+  return slots;
+};
+
 function VenueOwnersTest() {
   useEffect(() => {
     async function fetchVenueOwners() {

@@ -1,11 +1,41 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { MapPin, Star, Heart } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
+import { getAvailableTimeSlots } from '@/lib/api';
 
 const VenueCard = ({ venue }) => {
+  const [selectedDate, setSelectedDate] = useState('');
+  const [availableTimes, setAvailableTimes] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  // Get available times when date changes
+  useEffect(() => {
+    if (selectedDate && venue.id) {
+      fetchAvailableTimes();
+    }
+  }, [selectedDate, venue.id]);
+
+  const fetchAvailableTimes = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await getAvailableTimeSlots(venue.id, selectedDate);
+      if (error) throw error;
+      setAvailableTimes(data || []);
+    } catch (error) {
+      console.error('Error fetching available times:', error);
+      setAvailableTimes([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDateChange = (date) => {
+    setSelectedDate(date);
+  };
+
   return (
     <motion.div
       whileHover={{ y: -5, boxShadow: "0 10px 20px rgba(0,0,0,0.1)" }}
