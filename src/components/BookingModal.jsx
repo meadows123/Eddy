@@ -1,404 +1,306 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Calendar, Clock, Users, MapPin, Star, CheckCircle, X } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useToast } from '@/components/ui/use-toast';
-import { supabase } from '@/lib/supabase';
-import { getAvailableTimeSlots } from '@/lib/api';
+import { Calendar, Clock, Users, AlertCircle } from 'lucide-react';
+import { checkTableAvailability, getAvailableTables } from '@/lib/api';
+import { useNavigate } from 'react-router-dom';
 
 const BookingModal = ({ isOpen, onClose, venue }) => {
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const [tables, setTables] = useState([]);
-  const [loading, setLoading] = useState(false);
   
-  // Booking form state
-  const [bookingDetails, setBookingDetails] = useState({
-    date: '',
-    time: '',
-    guests: '2',
-    tableId: '',
-    specialRequests: ''
-  });
+  // State for booking form
+  const [selectedDate, setSelectedDate] = useState('');
+  const [selectedTime, setSelectedTime] = useState('');
+  const [selectedTable, setSelectedTable] = useState(null);
+  const [guestCount, setGuestCount] = useState(2);
+  
+  // State for availability checking
+  const [availableTables, setAvailableTables] = useState([]);
+  const [timeAvailability, setTimeAvailability] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
-  // Available time slots
-  const timeSlots = [
-    '18:00', '18:30', '19:00', '19:30', '20:00', '20:30', 
-    '21:00', '21:30', '22:00', '22:30', '23:00', '23:30'
-  ];
-
-  // Guest count options
-  const guestOptions = Array.from({ length: 10 }, (_, i) => i + 1);
-
+  // Load available tables when modal opens
   useEffect(() => {
-    if (isOpen && venue) {
-      fetchTables();
+    if (isOpen && venue?.id) {
+      loadAvailableTables();
     }
-  }, [isOpen, venue]);
+  }, [isOpen, venue?.id]);
 
-  const fetchTables = async () => {
-    if (!venue?.id) return;
-    
-    setLoading(true);
+  // Check availability when date or table changes
+  useEffect(() => {
+    if (selectedDate && selectedTable) {
+      checkAvailability();
+    }
+  }, [selectedDate, selectedTable]);
+
+  const loadAvailableTables = async () => {
     try {
-      const { data: tablesData, error: tablesError } = await supabase
-        .from('venue_tables')
-        .select('*')
-        .eq('venue_id', venue.id)
-        .eq('status', 'available')
-        .order('capacity');
-
-      if (tablesError) {
-        console.error('Error fetching tables:', tablesError);
-      }
-
-      setTables(tablesData || []);
+      const { data, error } = await getAvailableTables(venue.id);
+      if (error) throw error;
+      setAvailableTables(data || []);
     } catch (error) {
-      console.error('Error fetching tables:', error);
+      console.error('Error loading tables:', error);
+      setErrorMessage('Failed to load available tables');
+    }
+  };
+
+  const checkAvailability = async () => {
+    setLoading(true);
+    setErrorMessage('');
+    try {
+      const { data, error } = await checkTableAvailability(venue.id, selectedTable.id, selectedDate);
+      if (error) throw error;
+      
+      setTimeAvailability(data || []);
+    } catch (error) {
+      console.error('Error checking availability:', error);
+      setTimeAvailability([]);
+      setErrorMessage('Failed to load availability');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleInputChange = (field, value) => {
-    setBookingDetails(prev => ({
-      ...prev,
-      [field]: value
-    }));
+  const handleDateChange = (date) => {
+    setSelectedDate(date);
+    setSelectedTime('');
+    setErrorMessage('');
   };
 
-  const validateBooking = () => {
-    if (!bookingDetails.date) {
-      toast({
-        title: "Date Required",
-        description: "Please select a date for your booking",
-        variant: "destructive"
-      });
-      return false;
-    }
-
-    if (!bookingDetails.time) {
-      toast({
-        title: "Time Required",
-        description: "Please select a time for your booking",
-        variant: "destructive"
-      });
-      return false;
-    }
-
-    if (!bookingDetails.tableId && tables.length > 0) {
-      toast({
-        title: "Table Required",
-        description: "Please select a table for your booking",
-        variant: "destructive"
-      });
-      return false;
-    }
-
-    // Check if selected date is not in the past
-    const selectedDate = new Date(bookingDetails.date);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    if (selectedDate < today) {
-      toast({
-        title: "Invalid Date",
-        description: "Please select a future date",
-        variant: "destructive"
-      });
-      return false;
-    }
-
-    return true;
+  const handleTableSelect = (table) => {
+    setSelectedTable(table);
+    setSelectedTime('');
+    setErrorMessage('');
   };
 
-  const proceedToCheckout = () => {
-    if (!validateBooking()) return;
+  const handleTimeSelect = (timeSlot) => {
+    if (timeSlot.available) {
+      setSelectedTime(timeSlot.time);
+      setErrorMessage('');
+    } else {
+      setErrorMessage(`Sorry, ${timeSlot.time} is not available. This time slot has already been booked.`);
+      setSelectedTime('');
+      
+      // Auto-hide error after 5 seconds
+      setTimeout(() => {
+        setErrorMessage('');
+      }, 5000);
+    }
+  };
 
-    // Store booking details in sessionStorage to pass to checkout
+  const handleContinueToCheckout = () => {
+    if (!selectedDate || !selectedTime || !selectedTable) {
+      setErrorMessage('Please select date, time, and table');
+      return;
+    }
+
+    // Prepare the booking data
     const bookingData = {
-      venueId: venue.id,
-      venueName: venue.name,
-      venueImage: venue.images?.[0],
-      venueLocation: venue.city,
-      ...bookingDetails,
-      selectedTable: tables.find(t => t.id === bookingDetails.tableId)
+      venue: venue,
+      table: selectedTable,
+      date: selectedDate,
+      time: selectedTime,
+      endTime: calculateEndTime(selectedTime),
+      guestCount: guestCount
     };
 
-    sessionStorage.setItem('pendingBooking', JSON.stringify(bookingData));
-    onClose(); // Close modal
-    navigate('/checkout'); // Navigate to checkout
-  };
-
-  const getMinDate = () => {
-    const today = new Date();
-    return today.toISOString().split('T')[0];
-  };
-
-  const getSelectedTable = () => {
-    return tables.find(t => t.id === bookingDetails.tableId);
-  };
-
-  const resetForm = () => {
-    setBookingDetails({
-      date: '',
-      time: '',
-      guests: '2',
-      tableId: '',
-      specialRequests: ''
+    console.log('🚀 About to navigate to checkout with data:', bookingData);
+    console.log('📍 Current location:', window.location.href);
+    console.log('📋 Data structure check:', {
+      venue: !!bookingData.venue,
+      venueId: bookingData.venue?.id,
+      table: !!bookingData.table,
+      tableId: bookingData.table?.id,
+      date: !!bookingData.date,
+      time: !!bookingData.time,
+      endTime: !!bookingData.endTime,
+      guestCount: bookingData.guestCount
     });
+
+    // Navigate FIRST, then close modal
+    console.log('🧭 Navigating to /checkout...');
+    navigate('/checkout', {
+      state: bookingData,
+      replace: true
+    });
+    
+    console.log('✅ Navigation call completed');
+    
+    // Close the modal after navigation
+    setTimeout(() => {
+      onClose();
+    }, 100);
   };
 
-  const handleClose = () => {
-    resetForm();
-    onClose();
+  const calculateEndTime = (startTime) => {
+    const start = new Date(`2000-01-01 ${startTime}`);
+    const end = new Date(start.getTime() + 4 * 60 * 60000); // 4 hours later
+    return end.toTimeString().slice(0, 5);
   };
 
-  if (!venue) return null;
+  const getAvailableCount = () => {
+    return timeAvailability.filter(slot => slot.available).length;
+  };
+
+  const getTotalCount = () => {
+    return timeAvailability.length;
+  };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-md mx-auto max-h-[90vh] overflow-y-auto bg-brand-cream">
-        <DialogHeader className="border-b border-brand-burgundy/10 pb-4">
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-xl font-semibold text-brand-burgundy">
-              Book Your Table
-            </DialogTitle>
-            <Button
-              onClick={handleClose}
-              variant="ghost"
-              size="sm"
-              className="text-brand-burgundy/70 hover:text-brand-burgundy hover:bg-brand-burgundy/5"
-            >
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="text-2xl font-bold text-brand-burgundy">
+            Book Your Table
+          </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
-          {/* Venue Summary */}
-          <Card className="border-brand-burgundy/10">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 rounded-xl overflow-hidden">
-                  <img
-                    src={venue.images?.[0] || "https://images.unsplash.com/photo-1699990320295-ecd2664079ab"}
-                    alt={venue.name}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="flex-1">
-                  <h2 className="font-semibold text-brand-burgundy">{venue.name}</h2>
-                  <div className="flex items-center gap-2 text-sm text-brand-burgundy/70">
-                    <MapPin className="h-4 w-4" />
-                    <span>{venue.city}</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <Star className="h-4 w-4 fill-brand-gold text-brand-gold" />
-                    <span className="text-brand-burgundy">{venue.rating}</span>
-                  </div>
-                </div>
+        <div className="space-y-6">
+          {/* Error Message */}
+          {errorMessage && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-red-500" />
+                <span className="text-red-700 text-sm">{errorMessage}</span>
               </div>
-            </CardContent>
-          </Card>
-
-          {/* Booking Form */}
-          <div className="space-y-4">
-            {/* Date Selection */}
-            <div>
-              <Label htmlFor="date" className="text-brand-burgundy mb-2 block">
-                <Calendar className="h-4 w-4 inline mr-2" />
-                Date
-              </Label>
-              <Input
-                id="date"
-                type="date"
-                min={getMinDate()}
-                value={bookingDetails.date}
-                onChange={(e) => handleInputChange('date', e.target.value)}
-                className="border-brand-burgundy/30 focus:border-brand-gold"
-              />
             </div>
+          )}
 
-            {/* Time Selection */}
-            <div>
-              <Label htmlFor="time" className="text-brand-burgundy mb-2 block">
-                <Clock className="h-4 w-4 inline mr-2" />
-                Time
-              </Label>
-              <Select 
-                value={bookingDetails.time} 
-                onValueChange={(value) => handleInputChange('time', value)}
-              >
-                <SelectTrigger className="border-brand-burgundy/30 focus:border-brand-gold">
-                  <SelectValue placeholder="Select time" />
-                </SelectTrigger>
-                <SelectContent>
-                  {timeSlots.map(time => (
-                    <SelectItem key={time} value={time}>{time}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Guest Count */}
-            <div>
-              <Label htmlFor="guests" className="text-brand-burgundy mb-2 block">
-                <Users className="h-4 w-4 inline mr-2" />
-                Number of Guests
-              </Label>
-              <Select 
-                value={bookingDetails.guests} 
-                onValueChange={(value) => handleInputChange('guests', value)}
-              >
-                <SelectTrigger className="border-brand-burgundy/30 focus:border-brand-gold">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {guestOptions.map(count => (
-                    <SelectItem key={count} value={count.toString()}>
-                      {count} {count === 1 ? 'guest' : 'guests'}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Table Selection */}
-            {loading ? (
-              <div className="text-center py-4 text-brand-burgundy/70">
-                Loading tables...
-              </div>
-            ) : tables.length > 0 ? (
-              <div>
-                <Label htmlFor="table" className="text-brand-burgundy mb-2 block">
-                  Table Selection
-                </Label>
-                <Select 
-                  value={bookingDetails.tableId} 
-                  onValueChange={(value) => handleInputChange('tableId', value)}
+          {/* Table Selection */}
+          <div>
+            <Label className="text-sm font-medium text-gray-700 mb-3 block">
+              <Users className="h-4 w-4 inline mr-2" />
+              Select Table
+            </Label>
+            <div className="grid grid-cols-2 gap-3">
+              {availableTables.map((table) => (
+                <button
+                  key={table.id}
+                  onClick={() => handleTableSelect(table)}
+                  className={`p-4 border rounded-lg text-center transition-colors ${
+                    selectedTable?.id === table.id
+                      ? 'border-brand-burgundy bg-brand-burgundy/10 text-brand-burgundy'
+                      : 'border-gray-300 hover:border-gray-400'
+                  }`}
                 >
-                  <SelectTrigger className="border-brand-burgundy/30 focus:border-brand-gold">
-                    <SelectValue placeholder="Select a table" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {tables.map(table => (
-                      <SelectItem key={table.id} value={table.id}>
-                        Table {table.table_number} (Capacity: {table.capacity} guests) - ₦{table.price || 50}
-                          {table.table_type && ` • ${table.table_type}`}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : (
-              <div className="text-center py-4 text-brand-burgundy/70 bg-brand-gold/5 rounded-lg">
-                <p>No tables available at this venue.</p>
-                <p className="text-sm">You can still proceed to make a general booking.</p>
-              </div>
-            )}
-
-            {/* Special Requests */}
-            <div>
-              <Label htmlFor="requests" className="text-brand-burgundy mb-2 block">
-                Special Requests (Optional)
-              </Label>
-              <Input
-                id="requests"
-                placeholder="Any special requirements..."
-                value={bookingDetails.specialRequests}
-                onChange={(e) => handleInputChange('specialRequests', e.target.value)}
-                className="border-brand-burgundy/30 focus:border-brand-gold"
-              />
+                  <div className="font-semibold text-lg">Table {table.table_number}</div>
+                  <div className="text-sm text-gray-600">{table.capacity} guests</div>
+                </button>
+              ))}
             </div>
           </div>
 
-          {/* Booking Summary */}
-          {(bookingDetails.date || bookingDetails.time || bookingDetails.guests) && (
-            <Card className="border-brand-burgundy/10 bg-brand-gold/5">
-              <CardHeader>
-                <CardTitle className="text-brand-burgundy flex items-center gap-2 text-base">
-                  <CheckCircle className="h-5 w-5 text-brand-gold" />
-                  Booking Summary
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2 pt-0">
-                {bookingDetails.date && (
-                  <div className="flex justify-between">
-                    <span className="text-brand-burgundy/70">Date:</span>
-                    <span className="text-brand-burgundy font-medium">
-                      {new Date(bookingDetails.date).toLocaleDateString('en-US', {
-                        weekday: 'long',
-                        month: 'short',
-                        day: 'numeric'
-                      })}
-                    </span>
-                  </div>
-                )}
-                {bookingDetails.time && (
-                  <div className="flex justify-between">
-                    <span className="text-brand-burgundy/70">Time:</span>
-                    <span className="text-brand-burgundy font-medium">{bookingDetails.time}</span>
-                  </div>
-                )}
-                <div className="flex justify-between">
-                  <span className="text-brand-burgundy/70">Guests:</span>
-                  <span className="text-brand-burgundy font-medium">{bookingDetails.guests}</span>
-                </div>
-                {getSelectedTable() && (
-                  <>
-                    <div className="flex justify-between">
-                      <span className="text-brand-burgundy/70">Table:</span>
-                      <span className="text-brand-burgundy font-medium">
-                        Table {getSelectedTable().table_number}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-brand-burgundy/70">Price:</span>
-                      <span className="text-brand-burgundy font-medium">
-                                                 ₦{getSelectedTable().price || 50}
-                      </span>
-                    </div>
-
-                  </>
-                )}
-                
-                {/* Total Cost Summary */}
-                {(getSelectedTable() || (!getSelectedTable() && bookingDetails.date && bookingDetails.time)) && (
-                  <div className="pt-2 border-t border-brand-burgundy/10">
-                    <div className="flex justify-between font-semibold text-brand-burgundy">
-                      <span>Estimated Total:</span>
-                                             <span>₦{getSelectedTable() ? (getSelectedTable().price || 50) : 50} + service fees</span>
-                    </div>
-                    <p className="text-xs text-brand-burgundy/60 mt-1">
-                      *Final pricing will be confirmed at checkout
-                    </p>
-                  </div>
-                )}
-                
-                {bookingDetails.specialRequests && (
-                  <div className="pt-2 border-t border-brand-burgundy/10">
-                    <span className="text-brand-burgundy/70">Special Requests:</span>
-                    <p className="text-brand-burgundy text-sm mt-1">{bookingDetails.specialRequests}</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+          {/* Date Selection */}
+          {selectedTable && (
+            <div>
+              <Label className="text-sm font-medium text-gray-700 mb-3 block">
+                <Calendar className="h-4 w-4 inline mr-2" />
+                Select Date
+              </Label>
+              <Input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => handleDateChange(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-burgundy focus:border-transparent"
+              />
+            </div>
           )}
 
-          {/* Continue Button */}
-          <Button 
-            className="w-full bg-brand-burgundy text-brand-cream hover:bg-brand-burgundy/90 h-12 text-base font-medium"
-            onClick={proceedToCheckout}
-            disabled={!bookingDetails.date || !bookingDetails.time}
-          >
-            Continue to Checkout
-          </Button>
+          {/* Time Selection */}
+          {selectedDate && selectedTable && (
+            <div>
+              <Label className="text-sm font-medium text-gray-700 mb-3 block">
+                <Clock className="h-4 w-4 inline mr-2" />
+                Select Time
+              </Label>
+              
+              {/* Availability Summary */}
+              {timeAvailability.length > 0 && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+                  <div className="text-sm text-blue-700 text-center">
+                    <span className="font-semibold">{getAvailableCount()}</span> of <span className="font-semibold">{getTotalCount()}</span> time slots available
+                  </div>
+                </div>
+              )}
+              
+              {loading ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-burgundy mx-auto mb-2"></div>
+                  <div className="text-sm text-gray-600">Checking availability...</div>
+                </div>
+              ) : timeAvailability.length > 0 ? (
+                <div className="grid grid-cols-4 gap-2">
+                  {timeAvailability.map((timeSlot) => {
+                    const isSelected = selectedTime === timeSlot.time;
+                    return (
+                      <button
+                        key={timeSlot.time}
+                        onClick={() => handleTimeSelect(timeSlot)}
+                        className={`p-3 border rounded-lg text-center transition-colors text-sm ${
+                          isSelected
+                            ? 'border-brand-burgundy bg-brand-burgundy text-white'
+                            : timeSlot.available
+                            ? 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                            : 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
+                        }`}
+                        disabled={!timeSlot.available}
+                        title={timeSlot.available ? `Book at ${timeSlot.time}` : timeSlot.reason}
+                      >
+                        {timeSlot.time}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  No available times for this date
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Guest Count */}
+          {selectedTable && (
+            <div>
+              <Label className="text-sm font-medium text-gray-700 mb-3 block">
+                Number of Guests
+              </Label>
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setGuestCount(Math.max(1, guestCount - 1))}
+                  disabled={guestCount <= 1}
+                >
+                  -
+                </Button>
+                <span className="text-lg font-semibold min-w-[3rem] text-center">{guestCount}</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setGuestCount(Math.min(selectedTable.capacity, guestCount + 1))}
+                  disabled={guestCount >= selectedTable.capacity}
+                >
+                  +
+                </Button>
+                <span className="text-sm text-gray-600">Max: {selectedTable.capacity}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Continue to Checkout Button */}
+          {selectedDate && selectedTime && selectedTable && (
+            <Button
+              onClick={handleContinueToCheckout}
+              className="w-full bg-brand-burgundy text-white hover:bg-brand-burgundy/90 py-3 text-lg"
+            >
+              Continue to Checkout
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>

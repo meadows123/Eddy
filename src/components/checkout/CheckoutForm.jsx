@@ -102,6 +102,7 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
                 <Label htmlFor="cvv">CVV</Label>
                 <Input id="cvv" name="cvv" placeholder="123" value={formData.cvv} onChange={handleInputChange} className={errors.cvv ? 'border-destructive' : ''} />
                 {errors.cvv && <p className="text-destructive text-sm mt-1">{errors.cvv}</p>}
+              </div>
             </div>
           </div>
         </div>

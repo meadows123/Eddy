@@ -57,6 +57,9 @@ const [showShareDialog, setShowShareDialog] = useState(false);
 const [splitPaymentRequests, setSplitPaymentRequests] = useState([]);
 const [currentUserForSplit, setCurrentUserForSplit] = useState(null);
 
+// Add this state to store the booking data from location.state
+const [bookingData, setBookingData] = useState(null);
+
 // inside component top-level
 const { user: sessionUser, signIn, signUp } = useAuth();
 const [loginOpen, setLoginOpen] = useState(false);
@@ -71,239 +74,89 @@ const BASE_URL = import.meta.env.VITE_PUBLIC_BASE_URL || (typeof window !== 'und
 const currentPath = (typeof window !== 'undefined') ? (window.location.pathname + window.location.search) : '/checkout';
 const EMAIL_REDIRECT = BASE_URL ? `${BASE_URL}/open?target=signup-confirm&returnTo=${encodeURIComponent(currentPath)}` : undefined;
 
-const ensureSession = async () => {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    // Prefill from checkout form and default to Sign Up
-    try {
-      setAuthMode('signup');
-      setAuthForm(prev => ({
-        ...prev,
-        email: (formData?.email || prev.email || ''),
-        fullName: (formData?.fullName || prev.fullName || ''),
-        phone: (formData?.phone || prev.phone || ''),
-        password: prev.password || ''
-      }));
-    } catch {}
-    setLoginOpen(true);
-    throw new Error('Please log in to continue');
-  }
-  return user;
-};
-
-const handleAuthSubmit = async (e) => {
-  e?.preventDefault?.();
-  setAuthLoading(true);
-  setAuthError('');
-  try {
-    if (authMode === 'login') {
-      const { error } = await signIn({ email: authForm.email, password: authForm.password });
-      if (error) throw error;
-      setLoginOpen(false);
-    } else {
-      // Sign up and require email confirmation; include metadata
-      const firstName = (authForm.fullName || '').trim().split(' ')[0] || '';
-      const lastName = (authForm.fullName || '').trim().split(' ').slice(1).join(' ') || '';
-
-      // Persist intended return path and pending profile data so we can upsert after confirm
-      try {
-        localStorage.setItem('lagosvibe_return_to', currentPath);
-        localStorage.setItem('lagosvibe_pending_profile', JSON.stringify({
-          first_name: firstName,
-          last_name: lastName,
-          phone: authForm.phone || '',
-          full_name: authForm.fullName || ''
-        }));
-      } catch {}
-
-      const { error } = await supabase.auth.signUp({
-        email: authForm.email,
-        password: authForm.password,
-        options: {
-          emailRedirectTo: EMAIL_REDIRECT,
-          data: {
-            first_name: firstName,
-            last_name: lastName,
-            phone: authForm.phone || '',
-            full_name: authForm.fullName || ''
-          }
-        },
-      });
-      if (error) throw error;
-      setAwaitingConfirm(true);
-    }
-  } catch (err) {
-    setAuthError(err?.message || 'Authentication failed');
-  } finally {
-    setAuthLoading(false);
-  }
-};
-
-const checkEmailConfirmed = async () => {
-  setAuthLoading(true);
-  setAuthError('');
-  try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      setAwaitingConfirm(false);
-      setLoginOpen(false);
-    } else {
-      setAuthError('Not confirmed yet. Please click the confirmation link in your email.');
-    }
-  } finally {
-    setAuthLoading(false);
-  }
-};
-
-const resendConfirmation = async () => {
-  setAuthLoading(true);
-  setAuthError('');
-  try {
-    const { error } = await supabase.auth.resend({
-      type: 'signup',
-      email: authForm.email,
-      options: EMAIL_REDIRECT ? { emailRedirectTo: EMAIL_REDIRECT } : undefined,
-    });
-    if (error) throw error;
-  } catch (err) {
-    setAuthError(err?.message || 'Failed to resend confirmation email');
-  } finally {
-    setAuthLoading(false);
-  }
-};
-
-// Fetch user profile if authenticated
+// Add the useEffect to handle booking data from location.state
 useEffect(() => {
-const fetchUserProfile = async () => {
-if (user) {
-try {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single();
-
-  if (error && error.code !== 'PGRST116') {
-    console.error('Error fetching user profile:', error);
-  } else if (data) {
-    setUserProfile(data);
-    // Pre-fill form with user data
-    setFormData(prev => ({
-      ...prev,
-      fullName: `${data.first_name || ''} ${data.last_name || ''}`.trim() || user.user_metadata?.full_name || '',
-      email: user.email || '',
-      phone: data.phone || user.user_metadata?.phone || ''
-    }));
-  }
-} catch (error) {
-  console.error('Error fetching user profile:', error);
-}
-}
-};
-
-fetchUserProfile();
-}, [user]);
-
-// Initialize current user for split payments if user is already authenticated
-useEffect(() => {
-  if (user && !currentUserForSplit) {
-    setCurrentUserForSplit(user);
-  }
-}, [user, currentUserForSplit]);
-
-useEffect(() => {
-console.log('CheckoutPage useEffect triggered');
-console.log('isDepositFlow:', isDepositFlow);
-console.log('id from params:', id);
-console.log('location.pathname:', location.pathname);
-console.log('location.state:', location.state);
-
-// Check if this is a credit purchase flow
-const isCreditPurchase = location.state?.creditPurchase;
-
-if (isDepositFlow) {
-// For deposit flow, we don't need venue selection
-if (!depositAmount) {
-console.log('No deposit amount, redirecting to profile');
-navigate('/profile'); // Redirect back to profile if no deposit amount
-return;
-}
-setSelection({ 
-depositAmount, 
-isDeposit: true,
-venueName: 'VIP Credit Deposit'
-});
-} else if (isCreditPurchase) {
-// For credit purchase flow, use data from location.state
-console.log('Credit purchase flow detected');
-const { venueId, venueName, amount, purchaseAmount, venue } = location.state;
-setSelection({
-isCreditPurchase: true,
-venueId,
-venueName,
-creditAmount: amount,
-purchaseAmount,
-venue
-});
-} else {
-// Check for new booking data from modal first
-const pendingBooking = sessionStorage.getItem('pendingBooking');
-console.log('pendingBooking from sessionStorage:', pendingBooking);
-
-if (pendingBooking) {
-const bookingData = JSON.parse(pendingBooking);
-console.log('Found pendingBooking data:', bookingData);
-
-// Convert booking data to selection format
-setSelection({
-  venueId: bookingData.venueId,
-  venueName: bookingData.venueName,
-  venueImage: bookingData.venueImage,
-  venueLocation: bookingData.venueLocation,
-  date: bookingData.date,
-  time: bookingData.time,
-  guests: parseInt(bookingData.guests),
-  tableId: bookingData.tableId,
-  selectedTable: bookingData.selectedTable,
-  specialRequests: bookingData.specialRequests,
-  isFromModal: true // Flag to identify this came from the modal
-});
-
-// Clear the pending booking data after using it
-sessionStorage.removeItem('pendingBooking');
-} else {
-// Original venue booking flow - check localStorage
-if (!id) {
-  console.log('No venue ID provided, redirecting to venues');
-  navigate('/venues');
-  return;
-}
-
-const savedSelection = localStorage.getItem('lagosvibe_booking_selection');
-console.log('savedSelection from localStorage:', savedSelection);
-
-if (savedSelection) {
-  const parsedSelection = JSON.parse(savedSelection);
-  console.log('parsedSelection:', parsedSelection);
-  console.log('parsedSelection.venueId:', parsedSelection.venueId);
-  console.log('id from params:', id);
-  console.log('Comparison result:', parsedSelection.venueId === id);
+  console.log('🔍 CheckoutPage useEffect triggered');
+  console.log('📍 Current location:', window.location.href);
+  console.log('📦 Location state:', location.state);
+  console.log(' User:', user);
   
-  if (parsedSelection.venueId === id) {
-    console.log('Venue ID matches, setting selection');
-    setSelection(parsedSelection);
+  if (location.state) {
+    // Get booking data from navigation state
+    const incomingData = location.state;
+    
+    console.log('📋 Booking data received:', incomingData);
+    
+    // Check if we have the minimum required data for a booking
+    if (incomingData.venue && incomingData.date && incomingData.time) {
+      console.log('✅ Valid booking data found, setting form data');
+      
+      // Set the booking data for display
+      setBookingData(incomingData);
+      
+      // Set form data from booking - match the actual data structure
+      setFormData(prev => ({
+        ...prev,
+        venueId: incomingData.venue.id,
+        tableId: incomingData.table.id,
+        date: incomingData.date,
+        startTime: incomingData.time,
+        endTime: incomingData.endTime,
+        numberOfGuests: incomingData.guestCount
+      }));
+      
+      console.log('📝 Form data set successfully');
+      console.log('🎯 Component should now render with data');
+      
+      // 🚨 CRITICAL FIX: Set loading to false when we have data
+      setLoading(false);
+      console.log('✅ Loading set to false');
+      
+    } else {
+      console.log('❌ Incomplete booking data, redirecting to venues');
+      console.log('Missing:', {
+        venue: !incomingData.venue,
+        date: !incomingData.date,
+        time: !incomingData.time
+      });
+      navigate('/venues');
+    }
   } else {
-    console.log('Venue ID mismatch, redirecting to venue page');
-    navigate(`/venues/${id}`); // Redirect if venue ID doesn't match
+    console.log('❌ No location state, redirecting to venues');
+    navigate('/venues');
   }
-} else {
-  console.log('No saved selection, redirecting to venue page');
-  navigate(`/venues/${id}`); // Redirect if no selection
-}
-}
-}
-setLoading(false);
-}, [id, navigate, isDepositFlow, depositAmount, location.state]);
+}, [location.state, navigate, user]);
+
+// Add debugging for the render conditions
+console.log('🎭 Render conditions check:', {
+  loading,
+  selection: !!selection,
+  bookingData: !!bookingData,
+  hasData: !!(selection || bookingData)
+});
+
+// Add this useEffect to handle loading state
+useEffect(() => {
+  console.log('🔄 Loading state changed:', loading);
+  console.log('📊 Current state:', {
+    loading,
+    selection: !!selection,
+    bookingData: !!bookingData,
+    formData: !!formData
+  });
+}, [loading, selection, bookingData, formData]);
+
+  // Add a safety timeout to prevent infinite loading
+  useEffect(() => {
+    const loadingTimeout = setTimeout(() => {
+      if (loading) {
+        console.log('⏰ Loading timeout reached, forcing loading to false');
+        setLoading(false);
+      }
+    }, 5000); // 5 second timeout
+
+    return () => clearTimeout(loadingTimeout);
+  }, [loading]);
 
 const handleInputChange = (e) => {
 const { name, value, type, checked } = e.target;
@@ -547,7 +400,7 @@ if (formData.referralCode) {
         }
 
 // Handle credit purchase flow
-if (selection.isCreditPurchase) {
+if (selection?.isCreditPurchase) {
   // Create venue credit record
   const { data: creditData, error: creditError } = await supabase
     .from('venue_credits')
@@ -582,8 +435,8 @@ if (selection.isCreditPurchase) {
 
 // Original booking flow continues here...
 // Prepare booking data for database
-const venueId = selection.venueId || selection.id;
-const tableId = selection.selectedTable?.id || selection.table?.id || null;
+const venueId = selection?.venueId || bookingData?.venueId || selection?.id;
+const tableId = selection?.selectedTable?.id || bookingData?.tableId || selection?.table?.id || null;
 
 // Validate required fields
 if (!venueId) {
@@ -591,19 +444,19 @@ if (!venueId) {
 }
 
 const sessionCheckUser = await ensureSession();
-const bookingData = {
+const bookingDataToInsert = {
   user_id: sessionCheckUser.id, // We've already validated this exists
   venue_id: venueId,
   table_id: tableId,
-  booking_date: selection.date || new Date().toISOString().split('T')[0],
-  start_time: selection.time || '19:00:00',
-  end_time: selection.endTime || '23:00:00',
-  number_of_guests: parseInt(selection.guests) || parseInt(selection.guestCount) || 2,
+  booking_date: selection?.date || bookingData?.date || new Date().toISOString().split('T')[0],
+  start_time: selection?.time || bookingData?.time || '19:00:00',
+  end_time: selection?.endTime || bookingData?.endTime || '23:00:00',
+  number_of_guests: parseInt(selection?.guests) || parseInt(bookingData?.guestCount) || 2,
   status: 'confirmed',
   total_amount: parseFloat(calculateTotal())
 };
 
-console.log('Booking data to insert:', bookingData);
+console.log('Booking data to insert:', bookingDataToInsert);
 
 // Validate table_id exists if provided
 if (tableId) {
@@ -615,7 +468,7 @@ if (tableId) {
   
   if (tableError || !tableExists) {
     console.warn('Table ID not found, proceeding without table assignment');
-    bookingData.table_id = null;
+    bookingDataToInsert.table_id = null;
   }
 }
 
@@ -623,11 +476,11 @@ if (tableId) {
 const { data: bookingRecord, error: bookingError } = await supabase
   .from('bookings')
   .insert([{
-    ...bookingData,
+    ...bookingDataToInsert,
     // Ensure these keys match the unique index (table_id, booking_date, status)
     status: 'confirmed',
-    booking_date: bookingData.booking_date || (selection.date || new Date().toISOString().split('T')[0]),
-    table_id: bookingData.table_id || tableId || null,
+    booking_date: bookingDataToInsert.booking_date || (selection?.date || bookingData?.date || new Date().toISOString().split('T')[0]),
+    table_id: bookingDataToInsert.table_id || tableId || null,
   }])
   .select()
   .single();
@@ -652,6 +505,7 @@ if (bookingError) {
 const newBooking = {
   id: bookingRecord.id,
   ...selection,
+  ...bookingData, // Include bookingData for backward compatibility
   customerName: formData.fullName,
   customerEmail: formData.email,
   customerPhone: formData.phone,
@@ -674,7 +528,7 @@ localStorage.removeItem('lagosvibe_booking_selection');
 const emailSent = await sendBookingConfirmationEmail({
   ...newBooking,
   bookingId: bookingRecord.id,
-  venueName: selection.venueName || selection.name
+  venueName: selection?.venueName || bookingData?.venueName || selection?.name
 });
 
 // Unlock VIP perks
@@ -730,16 +584,19 @@ return depositAmount.toFixed(2);
 if (selection?.isCreditPurchase) {
 return selection.purchaseAmount.toFixed(2);
 }
-if (!selection) return 0;
+if (!selection && !bookingData) return 0;
 
 // Handle new booking modal format vs old format
 let basePrice = 0;
-if (selection.isFromModal) {
+if (selection?.isFromModal) {
 // New format from booking modal
 basePrice = selection.selectedTable?.price || 50;
+} else if (bookingData?.isFromModal) {
+// New format from booking modal (when bookingData is available)
+basePrice = bookingData.selectedTable?.price || 50;
 } else {
 // Old format
-basePrice = (selection.ticket?.price || 0) + (selection.table?.price || 0);
+basePrice = (selection?.ticket?.price || 0) + (selection?.table?.price || 0);
 }
 
 let total = basePrice + 25; // 25 is service fee
@@ -785,323 +642,348 @@ setSplitPaymentRequests(requests);
 setShowShareDialog(true);
 };
 
-if (loading) {
-return (
-<div className="container py-20 text-center">
-<div className="animate-pulse flex flex-col items-center">
-  <div className="h-8 w-64 bg-secondary rounded mb-4"></div>
-  <div className="h-4 w-48 bg-secondary rounded"></div>
-</div>
-</div>
-);
-}
+  // Add debugging for the render conditions
+  console.log('🎭 Render conditions check:', {
+    loading,
+    selection: !!selection,
+    bookingData: !!bookingData,
+    hasData: !!(selection || bookingData)
+  });
 
-if (!selection) {
-return (
-<div className="container py-20 text-center">
-<h2 className="text-2xl font-bold mb-4">No Selection Found</h2>
-<p className="text-muted-foreground mb-6">Please go back and select a ticket or table first.</p>
-<Link to={
-  isDepositFlow ? "/profile" : 
-  location.state?.creditPurchase ? "/venue-credit-purchase" :
-  `/venues/${id}`
-}>
-  <Button>
-    {isDepositFlow ? "Back to Profile" : 
-     location.state?.creditPurchase ? "Back to Credit Purchase" :
-     "Back to Venue"}
-  </Button>
-</Link>
-</div>
-);
-}
-
-return (
-<div className="container py-10">
-<Link to={
-isDepositFlow ? "/profile" : 
-location.state?.creditPurchase ? "/venue-credit-purchase" :
-`/venues/${id}`
-} className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-6">
-<ArrowLeft className="mr-2 h-4 w-4" />
-{isDepositFlow ? "Back to Profile" : 
- location.state?.creditPurchase ? "Back to Credit Purchase" :
- "Back to Venue"}
-</Link>
-
-<div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-<div className="lg:col-span-2">
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.5 }}
-  >
-    <h1 className="text-3xl font-bold mb-6 flex items-center">
-      <CreditCard className="h-8 w-8 mr-2" />
-      Checkout
-    </h1>
-
-    <Tabs defaultValue="single" className="w-full mb-6">
-      <TabsList className="grid w-full grid-cols-2 mb-6">
-        <TabsTrigger value="single">Single Payment</TabsTrigger>
-        <TabsTrigger value="split">Split Payment</TabsTrigger>
-      </TabsList>
-
-      <TabsContent value="single">
-        <CheckoutForm 
-          formData={formData}
-          errors={errors}
-          handleInputChange={handleInputChange}
-          handleSubmit={handleSubmit}
-          isSubmitting={isSubmitting}
-          totalAmount={calculateTotal()}
-          isAuthenticated={!!user}
-          icons={{
-            user: <User className="h-5 w-5 mr-2" />
-          }}
-        />
-        <Button 
-          type="submit" 
-          disabled={isSubmitting} 
-          className="w-full bg-brand-burgundy text-brand-cream hover:bg-brand-burgundy/90 py-3.5 text-lg rounded-md"
-        >
-          {isSubmitting ? (
-            <div className="flex items-center justify-center">
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-brand-cream mr-2"></div>
-              Processing...
-            </div>
-          ) : `Pay ₦${calculateTotal().toLocaleString()}`}
-        </Button>
-      </TabsContent>
-
-      <TabsContent value="split">
-        <SplitPaymentForm
-          totalAmount={parseFloat(calculateTotal())}
-          onSplitCreated={handleSplitPaymentCreated}
-          user={currentUserForSplit || userProfile || user}
-          bookingId={selection?.id}
-          createBookingIfNeeded={async () => {
-            const u = await ensureSession();
-            // If booking already exists, return its ID
-            if (selection?.id) return selection.id;
-            // Otherwise, create a pending booking in the DB
-            const bookingData = {
-              user_id: u.id,
-              venue_id: selection.venueId || selection.id,
-              table_id: selection.table?.id || null,
-              booking_date: selection.date || new Date().toISOString().split('T')[0],
-              start_time: selection.time || '19:00:00',
-              end_time: selection.endTime || '23:00:00',
-              number_of_guests: selection.guests || selection.guestCount || 2,
-              status: 'pending',
-              total_amount: parseFloat(calculateTotal())
-            };
-            const { data: bookingRecord, error: bookingError } = await supabase
-              .from('bookings')
-              .insert([bookingData])
-              .select()
-              .single();
-            if (bookingError) throw new Error(`Failed to create booking: ${bookingError.message}`);
-            // Update selection state with new booking ID
-            setSelection(prev => ({ ...prev, id: bookingRecord.id }));
-            return bookingRecord.id;
-          }}
-        />
-      </TabsContent>
-    </Tabs>
-  </motion.div>
-</div>
-
-<div>
-  <div className="sticky top-20">
-    <OrderSummary 
-      selection={selection} 
-      totalAmount={calculateTotal()} 
-      vipPerks={vipPerks}
-      icons={{
-        calendar: <Calendar className="h-5 w-5 mr-2" />,
-        clock: <Clock className="h-5 w-5 mr-2" />
-      }}
-    />
-  </div>
-</div>
-</div>
-
-<Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
-<DialogContent className="sm:max-w-md" aria-describedby="checkout-dialog-desc">
-  <div id="checkout-dialog-desc" className="sr-only">Enter your payment details to complete your booking.</div>
-  <DialogHeader>
-    <DialogTitle className="text-center text-2xl">Booking Confirmed!</DialogTitle>
-    <DialogDescription className="text-center">
-      <div className="flex justify-center my-6">
-        <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center">
-          <Check className="h-8 w-8 text-primary" />
+  // Update the loading check to include bookingData
+  if (loading) {
+    console.log('⏳ Showing loading state');
+    return (
+      <div className="container py-20 text-center">
+        <div className="animate-pulse flex flex-col items-center">
+          <div className="h-8 w-64 bg-secondary rounded mb-4"></div>
+          <div className="h-4 w-48 bg-secondary rounded"></div>
         </div>
       </div>
-      <p className="mb-2">
-        Your booking at <span className="font-bold">{selection.venueName}</span> has been confirmed.
-      </p>
-      {vipPerks.length > 0 && (
-        <div className="my-2 text-sm text-green-400">
-          <p className="font-semibold">VIP Perks Applied:</p>
-          <ul className="list-disc list-inside">
-            {vipPerks.map(perk => <li key={perk}>{perk}</li>)}
-          </ul>
-        </div>
-      )}
-      <p className="text-sm">
-        A confirmation email has been sent to {formData.email}. You can show this email or your ID at the entrance.
-      </p>
-    </DialogDescription>
-  </DialogHeader>
-  <div className="flex justify-center mt-4">
-    <Link to="/">
-      <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity text-accent-foreground">
-        Back to Home
-      </Button>
-    </Link>
-  </div>
-</DialogContent>
-</Dialog>
+    );
+  }
 
-{/* Split Payment Requests Dialog */}
-<Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
-<DialogContent aria-describedby="checkout-dialog-desc-2">
-  <div id="checkout-dialog-desc-2" className="sr-only">View and manage your split payment requests.</div>
-  <DialogHeader>
-    <DialogTitle>Split Payment Requests Sent</DialogTitle>
-  </DialogHeader>
-  <div className="space-y-4">
-    {splitPaymentRequests.length > 0 ? (
-      splitPaymentRequests.map((request, index) => (
-        <div key={request.id} className="border rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-brand-burgundy/10 rounded-full flex items-center justify-center">
-                <User className="h-4 w-4 text-brand-burgundy" />
-              </div>
-              <div>
-                <div className="font-medium">Recipient {index + 1}</div>
-                <div className="text-sm text-muted-foreground">
-                  {request.recipient_phone}
+  // Update the selection check to include bookingData
+  if (!selection && !bookingData) {
+    console.log('❌ No data available, showing no selection message');
+    return (
+      <div className="container py-20 text-center">
+        <h2 className="text-2xl font-bold mb-4">No Selection Found</h2>
+        <p className="text-muted-foreground mb-6">Please go back and select a ticket or table first.</p>
+        <Link to={
+          isDepositFlow ? "/profile" : 
+          location.state?.creditPurchase ? "/venue-credit-purchase" :
+          `/venues/${id}`
+        }>
+          <Button>
+            {isDepositFlow ? "Back to Profile" : 
+             location.state?.creditPurchase ? "Back to Credit Purchase" :
+             "Back to Venue"}
+          </Button>
+        </Link>
+      </div>
+    );
+  }
+
+  console.log('🎉 Rendering main checkout content');
+  console.log('📊 Final render data:', {
+    selection,
+    bookingData,
+    formData
+  });
+
+  // Add error boundary for the main render
+  try {
+    return (
+      <div className="container py-10">
+        <Link to={
+          isDepositFlow ? "/profile" : 
+          location.state?.creditPurchase ? "/venue-credit-purchase" :
+          `/venues/${id}`
+        } className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-6">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          {isDepositFlow ? "Back to Profile" : 
+           location.state?.creditPurchase ? "Back to Credit Purchase" :
+           "Back to Venue"}
+        </Link>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <h1 className="text-3xl font-bold mb-6 flex items-center">
+                <CreditCard className="h-8 w-8 mr-2" />
+                Checkout
+              </h1>
+
+              {/* Show the selected booking details */}
+              {(selection || bookingData) && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                  <h3 className="font-semibold text-blue-800 mb-2">Booking Summary</h3>
+                  <div className="text-sm text-blue-700">
+                    <p><strong>Venue:</strong> {(selection || bookingData).venue.name}</p>
+                    <p><strong>Table:</strong> {(selection || bookingData).table.table_number} (Capacity: {(selection || bookingData).table.capacity})</p>
+                    <p><strong>Date:</strong> {(selection || bookingData).date}</p>
+                    <p><strong>Time:</strong> {(selection || bookingData).time} - {(selection || bookingData).endTime}</p>
+                    <p><strong>Guests:</strong> {(selection || bookingData).guestCount}</p>
+                  </div>
                 </div>
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="font-bold">₦{request.amount.toLocaleString()}</div>
-              <Badge variant="outline" className="text-xs">
-                {request.status}
-              </Badge>
-            </div>
+              )}
+
+              <Tabs defaultValue="single" className="w-full mb-6">
+                <TabsList className="grid w-full grid-cols-2 mb-6">
+                  <TabsTrigger value="single">Single Payment</TabsTrigger>
+                  <TabsTrigger value="split">Split Payment</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="single">
+                  <CheckoutForm 
+                    formData={formData}
+                    errors={errors}
+                    handleInputChange={handleInputChange}
+                    handleSubmit={handleSubmit}
+                    isSubmitting={isSubmitting}
+                    totalAmount={calculateTotal()}
+                    isAuthenticated={!!user}
+                    icons={{
+                      user: <User className="h-5 w-5 mr-2" />
+                    }}
+                  />
+                  <Button 
+                    type="submit" 
+                    disabled={isSubmitting} 
+                    className="w-full bg-brand-burgundy text-brand-cream hover:bg-brand-burgundy/90 py-3.5 text-lg rounded-md"
+                    onClick={handleSubmit}
+                  >
+                    {isSubmitting ? (
+                      <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-brand-cream mr-2"></div>
+                        Processing...
+                      </div>
+                    ) : `Pay ₦${calculateTotal().toLocaleString()}`}
+                  </Button>
+                </TabsContent>
+
+                <TabsContent value="split">
+                  <SplitPaymentForm
+                    totalAmount={parseFloat(calculateTotal())}
+                    onSplitCreated={handleSplitPaymentCreated}
+                    user={currentUserForSplit || userProfile || user}
+                    bookingId={selection?.id}
+                    createBookingIfNeeded={async () => {
+                      const u = await ensureSession();
+                      // If booking already exists, return its ID
+                      if (selection?.id) return selection.id;
+                      
+                      // Create new booking
+                      const bookingId = await createBooking();
+                      return bookingId;
+                    }}
+                  />
+                </TabsContent>
+              </Tabs>
+            </motion.div>
           </div>
           
-          <div className="flex items-center gap-2 mt-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => copyToClipboard(request.payment_link)}
-              className="flex-1"
-            >
-              <Copy className="h-4 w-4 mr-2" />
-              Copy Payment Link
-            </Button>
+          <div className="lg:col-span-1">
+            <OrderSummary 
+              selection={selection || bookingData}
+              totalAmount={calculateTotal()}
+              vipPerks={vipPerks}
+            />
           </div>
         </div>
-      ))
-    ) : (
-      <div className="text-center py-8 text-muted-foreground">
-        <p>No split payment requests created yet.</p>
+
+        <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
+          <DialogContent className="sm:max-w-md" aria-describedby="checkout-dialog-desc">
+            <div id="checkout-dialog-desc" className="sr-only">Enter your payment details to complete your booking.</div>
+            <DialogHeader>
+              <DialogTitle className="text-center text-2xl">Booking Confirmed!</DialogTitle>
+              <DialogDescription className="text-center">
+                <div className="flex justify-center my-6">
+                  <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center">
+                    <Check className="h-8 w-8 text-primary" />
+                  </div>
+                </div>
+                <p className="mb-2">
+                  Your booking at <span className="font-bold">{(selection || bookingData)?.venue?.name}</span> has been confirmed.
+                </p>
+                {vipPerks.length > 0 && (
+                  <div className="my-2 text-sm text-green-400">
+                    <p className="font-semibold">VIP Perks Applied:</p>
+                    <ul className="list-disc list-inside">
+                      {vipPerks.map(perk => <li key={perk}>{perk}</li>)}
+                    </ul>
+                  </div>
+                )}
+                <p className="text-sm">
+                  A confirmation email has been sent to {formData.email}. You can show this email or your ID at the entrance.
+                </p>
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex justify-center mt-4">
+              <Link to="/">
+                <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity text-accent-foreground">
+                  Back to Home
+                </Button>
+              </Link>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Split Payment Requests Dialog */}
+        <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+          <DialogContent aria-describedby="checkout-dialog-desc-2">
+            <div id="checkout-dialog-desc-2" className="sr-only">View and manage your split payment requests.</div>
+            <DialogHeader>
+              <DialogTitle>Split Payment Requests Sent</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {splitPaymentRequests.length > 0 ? (
+                splitPaymentRequests.map((request, index) => (
+                  <div key={request.id} className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-brand-burgundy/10 rounded-full flex items-center justify-center">
+                          <User className="h-4 w-4 text-brand-burgundy" />
+                        </div>
+                        <div>
+                          <div className="font-medium">Recipient {index + 1}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {request.recipient_phone}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-bold">₦{request.amount.toLocaleString()}</div>
+                        <Badge variant="outline" className="text-xs">
+                          {request.status}
+                        </Badge>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 mt-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => copyToClipboard(request.payment_link)}
+                        className="flex-1"
+                      >
+                        <Copy className="h-4 w-4 mr-2" />
+                        Copy Payment Link
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>No split payment requests created yet.</p>
+                </div>
+              )}
+              
+              <div className="flex justify-end gap-4 mt-6">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowShareDialog(false)}
+                >
+                  Close
+                </Button>
+                <Button
+                  className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90"
+                  onClick={() => {
+                    setShowShareDialog(false);
+                    navigate('/bookings');
+                  }}
+                >
+                  View All Bookings
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-brand-burgundy">
+                {awaitingConfirm ? 'Confirm your email' : (authMode === 'login' ? 'Log in to continue' : 'Create an account')}
+              </DialogTitle>
+            </DialogHeader>
+
+            {!awaitingConfirm ? (
+              <form onSubmit={handleAuthSubmit} className="space-y-4">
+                <div>
+                  <Label htmlFor="auth-email" className="text-brand-burgundy">Email</Label>
+                  <Input id="auth-email" type="email" value={authForm.email} onChange={(e) => setAuthForm(f => ({ ...f, email: e.target.value }))} required />
+                </div>
+                {authMode === 'signup' && (
+                  <>
+                    <div>
+                      <Label htmlFor="auth-name" className="text-brand-burgundy">Full Name</Label>
+                      <Input id="auth-name" type="text" value={authForm.fullName} onChange={(e) => setAuthForm(f => ({ ...f, fullName: e.target.value }))} placeholder="e.g. John Smith" required />
+                    </div>
+                    <div>
+                      <Label htmlFor="auth-phone" className="text-brand-burgundy">Phone (optional)</Label>
+                      <Input id="auth-phone" type="tel" value={authForm.phone} onChange={(e) => setAuthForm(f => ({ ...f, phone: e.target.value }))} placeholder="+234 ..." />
+                    </div>
+                  </>
+                )}
+                <div>
+                  <Label htmlFor="auth-pass" className="text-brand-burgundy">Password</Label>
+                  <Input id="auth-pass" type="password" value={authForm.password} onChange={(e) => setAuthForm(f => ({ ...f, password: e.target.value }))} required />
+                </div>
+                {authError && <div className="text-red-600 text-sm">{authError}</div>}
+                <Button type="submit" disabled={authLoading} className="w-full bg-brand-burgundy text-brand-cream hover:bg-brand-burgundy/90">
+                  {authLoading ? 'Please wait...' : (authMode === 'login' ? 'Login' : 'Sign Up')}
+                </Button>
+                <div className="text-center text-sm">
+                  {authMode === 'login' ? (
+                    <button type="button" className="text-brand-gold" onClick={() => setAuthMode('signup')}>New here? Create an account</button>
+                  ) : (
+                    <button type="button" className="text-brand-gold" onClick={() => setAuthMode('login')}>Already have an account? Login</button>
+                  )}
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-sm text-brand-burgundy/80">
+                  We sent a confirmation email to <span className="font-medium text-brand-burgundy">{authForm.email}</span>. Please click the link in that email to verify your account. Once confirmed, return to the app.
+                </p>
+                {EMAIL_REDIRECT && (
+                  <p className="text-xs text-brand-burgundy/60">
+                    Tip: The link opens the app via <span className="font-mono">{EMAIL_REDIRECT}</span>.
+                  </p>
+                )}
+                {authError && <div className="text-red-600 text-sm">{authError}</div>}
+                <div className="flex gap-2">
+                  <Button onClick={checkEmailConfirmed} disabled={authLoading} className="flex-1 bg-brand-burgundy text-brand-cream hover:bg-brand-burgundy/90">
+                    I've confirmed
+                  </Button>
+                  <Button onClick={resendConfirmation} variant="outline" disabled={authLoading} className="flex-1 border-brand-burgundy text-brand-burgundy">
+                    Resend email
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
-    )}
-    
-    <div className="flex justify-end gap-4 mt-6">
-      <Button
-        variant="outline"
-        onClick={() => setShowShareDialog(false)}
-      >
-        Close
-      </Button>
-      <Button
-        className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90"
-        onClick={() => {
-          setShowShareDialog(false);
-          navigate('/bookings');
-        }}
-      >
-        View All Bookings
-      </Button>
-    </div>
-  </div>
-</DialogContent>
-</Dialog>
-
-<Dialog open={loginOpen} onOpenChange={setLoginOpen}>
-  <DialogContent className="sm:max-w-md">
-    <DialogHeader>
-      <DialogTitle className="text-brand-burgundy">
-        {awaitingConfirm ? 'Confirm your email' : (authMode === 'login' ? 'Log in to continue' : 'Create an account')}
-      </DialogTitle>
-    </DialogHeader>
-
-    {!awaitingConfirm ? (
-      <form onSubmit={handleAuthSubmit} className="space-y-4">
-        <div>
-          <Label htmlFor="auth-email" className="text-brand-burgundy">Email</Label>
-          <Input id="auth-email" type="email" value={authForm.email} onChange={(e) => setAuthForm(f => ({ ...f, email: e.target.value }))} required />
-        </div>
-        {authMode === 'signup' && (
-          <>
-            <div>
-              <Label htmlFor="auth-name" className="text-brand-burgundy">Full Name</Label>
-              <Input id="auth-name" type="text" value={authForm.fullName} onChange={(e) => setAuthForm(f => ({ ...f, fullName: e.target.value }))} placeholder="e.g. John Smith" required />
-            </div>
-            <div>
-              <Label htmlFor="auth-phone" className="text-brand-burgundy">Phone (optional)</Label>
-              <Input id="auth-phone" type="tel" value={authForm.phone} onChange={(e) => setAuthForm(f => ({ ...f, phone: e.target.value }))} placeholder="+234 ..." />
-            </div>
-          </>
-        )}
-        <div>
-          <Label htmlFor="auth-pass" className="text-brand-burgundy">Password</Label>
-          <Input id="auth-pass" type="password" value={authForm.password} onChange={(e) => setAuthForm(f => ({ ...f, password: e.target.value }))} required />
-        </div>
-        {authError && <div className="text-red-600 text-sm">{authError}</div>}
-        <Button type="submit" disabled={authLoading} className="w-full bg-brand-burgundy text-brand-cream hover:bg-brand-burgundy/90">
-          {authLoading ? 'Please wait...' : (authMode === 'login' ? 'Login' : 'Sign Up')}
+    );
+  } catch (error) {
+    console.error('❌ Error rendering checkout content:', error);
+    return (
+      <div className="container py-20 text-center">
+        <h2 className="text-2xl font-bold mb-4 text-red-600">Error Loading Checkout</h2>
+        <p className="text-muted-foreground mb-6">There was an error loading the checkout page.</p>
+        <Button onClick={() => window.location.reload()}>
+          Reload Page
         </Button>
-        <div className="text-center text-sm">
-          {authMode === 'login' ? (
-            <button type="button" className="text-brand-gold" onClick={() => setAuthMode('signup')}>New here? Create an account</button>
-          ) : (
-            <button type="button" className="text-brand-gold" onClick={() => setAuthMode('login')}>Already have an account? Login</button>
-          )}
-        </div>
-      </form>
-    ) : (
-      <div className="space-y-4">
-        <p className="text-sm text-brand-burgundy/80">
-          We sent a confirmation email to <span className="font-medium text-brand-burgundy">{authForm.email}</span>. Please click the link in that email to verify your account. Once confirmed, return to the app.
-        </p>
-        {EMAIL_REDIRECT && (
-          <p className="text-xs text-brand-burgundy/60">
-            Tip: The link opens the app via <span className="font-mono">{EMAIL_REDIRECT}</span>.
-          </p>
-        )}
-        {authError && <div className="text-red-600 text-sm">{authError}</div>}
-        <div className="flex gap-2">
-          <Button onClick={checkEmailConfirmed} disabled={authLoading} className="flex-1 bg-brand-burgundy text-brand-cream hover:bg-brand-burgundy/90">
-            I've confirmed
-          </Button>
-          <Button onClick={resendConfirmation} variant="outline" disabled={authLoading} className="flex-1 border-brand-burgundy text-brand-burgundy">
-            Resend email
-          </Button>
-        </div>
       </div>
-    )}
-  </DialogContent>
-</Dialog>
-</div>
-);
+    );
+  }
 };
 
 export default CheckoutPage;

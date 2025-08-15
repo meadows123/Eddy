@@ -507,6 +507,51 @@ export const getAvailableTimeSlots = async (venueId, date, tableId = null) => {
   }
 };
 
+// Add this function to check real-time table availability
+export const checkTableAvailability = async (venueId, tableId, date) => {
+  try {
+    // Get all existing bookings for this specific table and date
+    const { data: existingBookings, error } = await supabase
+      .from('bookings')
+      .select('start_time, end_time, status')
+      .eq('venue_id', venueId)
+      .eq('table_id', tableId)
+      .eq('booking_date', date)
+      .in('status', ['confirmed', 'pending']); // Count both confirmed and pending bookings
+
+    if (error) throw error;
+
+    // Generate all possible time slots
+    const allTimeSlots = generateTimeSlots('18:00', '02:00'); // Adjust based on your venue hours
+    
+    // Check which times are available
+    const availability = allTimeSlots.map(time => {
+      const slotStart = new Date(`2000-01-01 ${time}`);
+      const slotEnd = new Date(slotStart.getTime() + 30 * 60000); // 30-minute slots
+      
+      // Check if this slot conflicts with existing bookings
+      const isAvailable = !existingBookings.some(booking => {
+        const bookingStart = new Date(`2000-01-01 ${booking.start_time}`);
+        const bookingEnd = new Date(`2000-01-01 ${booking.end_time}`);
+        
+        // Check for overlap
+        return (slotStart < bookingEnd && slotEnd > bookingStart);
+      });
+      
+      return {
+        time,
+        available: isAvailable,
+        reason: isAvailable ? null : 'Table already booked for this time'
+      };
+    });
+
+    return { data: availability, error: null };
+  } catch (error) {
+    console.error('Error checking table availability:', error);
+    return { data: null, error };
+  }
+};
+
 // Helper function to generate time slots
 const generateTimeSlots = (startTime, endTime) => {
   const slots = [];
@@ -525,6 +570,23 @@ const generateTimeSlots = (startTime, endTime) => {
   }
   
   return slots;
+};
+
+// Get available tables for a venue
+export const getAvailableTables = async (venueId) => {
+  try {
+    const { data, error } = await supabase
+      .from('venue_tables')
+      .select('*')
+      .eq('venue_id', venueId)
+      .eq('status', 'available');
+
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error fetching available tables:', error);
+    return { data: null, error };
+  }
 };
 
 function VenueOwnersTest() {

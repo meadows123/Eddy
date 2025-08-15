@@ -507,3 +507,113 @@
   transform: none;
   box-shadow: none;
 }
+
+/* Add these styles for better availability visualization */
+
+.availability-summary {
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  padding: 12px;
+  margin: 15px 0;
+  text-align: center;
+}
+
+.summary-stats {
+  font-size: 14px;
+  color: #666;
+}
+
+.available-count {
+  color: #28a745;
+  font-weight: bold;
+  font-size: 18px;
+}
+
+.total-count {
+  color: #666;
+  font-weight: bold;
+}
+
+.table-info {
+  display: flex;
+  gap: 15px;
+  margin: 10px 0;
+  padding: 8px 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.table-number {
+  font-weight: bold;
+  color: #800020;
+}
+
+.table-capacity {
+  color: #666;
+}
+
+.time-slot.unavailable {
+  background: #f8d7da;
+  color: #721c24;
+  border-color: #f5c6cb;
+  cursor: not-allowed;
+  opacity: 0.8;
+  position: relative;
+}
+
+.time-slot.unavailable:hover {
+  background: #f8d7da;
+  color: #721c24;
+  transform: none;
+  box-shadow: none;
+}
+
+.unavailable-icon {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: #dc3545;
+  color: white;
+  border-radius: 50%;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8px;
+}
+
+.selected-time-display {
+  background: #d4edda;
+  border: 1px solid #c3e6cb;
+  border-radius: 6px;
+  padding: 12px;
+  margin: 15px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.selected-label {
+  font-weight: bold;
+  color: #155724;
+}
+
+.selected-time {
+  font-size: 18px;
+  font-weight: bold;
+  color: #155724;
+  background: white;
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: 1px solid #155724;
+}
+
+.selected-date {
+  color: #155724;
+  font-size: 14px;
+}

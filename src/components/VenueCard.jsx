@@ -11,8 +11,6 @@ const VenueCard = ({ venue }) => {
   const [availableTimes, setAvailableTimes] = useState([]);
   const [allTimeSlots, setAllTimeSlots] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [selectedTime, setSelectedTime] = useState('');
 
   // Get available times when date changes
   useEffect(() => {
@@ -23,7 +21,6 @@ const VenueCard = ({ venue }) => {
 
   const fetchAvailableTimes = async () => {
     setLoading(true);
-    setErrorMessage(''); // Clear any previous errors
     try {
       const { data, error } = await getAvailableTimeSlots(venue.id, selectedDate);
       if (error) throw error;
@@ -37,7 +34,6 @@ const VenueCard = ({ venue }) => {
       console.error('Error fetching available times:', error);
       setAvailableTimes([]);
       setAllTimeSlots([]);
-      setErrorMessage('Failed to load availability');
     } finally {
       setLoading(false);
     }
@@ -45,25 +41,13 @@ const VenueCard = ({ venue }) => {
 
   const handleDateChange = (date) => {
     setSelectedDate(date);
-    setSelectedTime(''); // Reset selected time
-    setErrorMessage(''); // Clear errors
   };
 
   const handleTimeSelect = (time) => {
+    // Only allow selection of available times
     if (availableTimes.includes(time)) {
-      // Time is available - allow selection
-      setSelectedTime(time);
-      setErrorMessage(''); // Clear any previous errors
-      console.log('Selected available time:', time);
-    } else {
-      // Time is unavailable - show error
-      setErrorMessage(`Sorry, ${time} is not available. This time slot has already been booked.`);
-      setSelectedTime(''); // Clear selection
-      
-      // Auto-hide error after 5 seconds
-      setTimeout(() => {
-        setErrorMessage('');
-      }, 5000);
+      // Handle time selection logic
+      console.log('Selected time:', time);
     }
   };
 
