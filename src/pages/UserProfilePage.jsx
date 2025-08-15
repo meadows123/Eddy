@@ -172,7 +172,7 @@ const UserProfilePage = () => {
   const loadUserData = async () => {
     try {
       // Load profile - handle missing profile by creating one
-      let { data: profileData, error: profileError } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)

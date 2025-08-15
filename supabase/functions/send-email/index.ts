@@ -1,8 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 import { SmtpClient } from 'https://deno.land/x/smtp@v0.7.0/mod.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
-import { loadStripe } from 'https://esm.sh/@supabase/stripe@2.39.3'
-import { Stripe } from 'https://esm.sh/@supabase/stripe@2.39.3'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,12 +20,10 @@ const supabaseClient = createClient(
   }
 )
 
-// ✅ GOOD - Using environment variables
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-
-// ✅ GOOD - Deno environment variables in Edge Functions  
-const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "");
+// Remove unused Stripe dependencies to allow deployment in environments without Stripe module
+const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
+// SendGrid API key (optional). If present, we will use SendGrid HTTP API instead of SMTP
+const SENDGRID_API_KEY = Deno.env.get('SENDGRID_API_KEY') || '';
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -51,18 +47,7 @@ serve(async (req) => {
     console.log('Request data:', body)
 
     const { to, subject, template, data } = body
-
-    const client = new SmtpClient()
-
-    console.log('Connecting to SMTP server...')
-    await client.connectTLS({
-      hostname: Deno.env.get('SMTP_HOSTNAME') || '',
-      port: parseInt(Deno.env.get('SMTP_PORT') || '587'),
-      username: Deno.env.get('SMTP_USERNAME') || '',
-      password: Deno.env.get('SMTP_PASSWORD') || '',
-    })
-    console.log('Connected to SMTP server')
-
+    
     let html = ''
     switch (template) {
       case 'venue-approved':
@@ -105,57 +90,138 @@ serve(async (req) => {
         break
 
       case 'booking-confirmation':
-        html = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="background: linear-gradient(135deg, #8B1538, #D4AF37); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-              <h1 style="color: white; margin: 0; font-size: 28px;">Booking Confirmed!</h1>
-              <p style="color: #F5F5DC; margin: 10px 0 0 0; font-size: 16px;">Your VIPClub experience awaits</p>
+        html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eddys Members - Booking Confirmation</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Arial', sans-serif; background-color: #f5f5f5; color: #333; line-height: 1.6; }
+        .email-container { max-width: 600px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 10px 30px rgba(128, 0, 32, 0.1); }
+        .header { background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); padding: 40px 30px; text-align: center; position: relative; }
+        .header::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="%23FFD700" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="%23FFD700" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="%23FFD700" opacity="0.15"/><circle cx="10" cy="60" r="0.5" fill="%23FFD700" opacity="0.15"/><circle cx="90" cy="40" r="0.5" fill="%23FFD700" opacity="0.15"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>') repeat; opacity: 0.3; }
+        .logo { position: relative; z-index: 2; }
+        .logo-image { width: 120px; height: 120px; border-radius: 50%; margin-bottom: 15px; box-shadow: 0 8px 20px rgba(255, 215, 0, 0.3); border: 3px solid #FFD700; }
+        .brand-name { color: #FFF5E6; font-size: 32px; font-weight: bold; letter-spacing: 2px; margin: 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        .tagline { color: #FFF5E6; font-size: 14px; opacity: 0.9; margin-top: 8px; font-weight: 300; letter-spacing: 1px; }
+        .content { padding: 50px 40px; background-color: #ffffff; }
+        .title { color: #800020; font-size: 28px; font-weight: bold; margin-bottom: 20px; text-align: center; }
+        .subtitle { color: #555; font-size: 16px; margin-bottom: 30px; text-align: center; line-height: 1.7; }
+        .booking-section { background: linear-gradient(135deg, #FFF5E6 0%, #ffffff 100%); border: 2px solid #FFD700; border-radius: 15px; padding: 35px; margin: 35px 0; position: relative; }
+        .booking-section::before { content: '🎉'; position: absolute; top: -15px; left: 50%; transform: translateX(-50%); background: #FFD700; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; }
+        .booking-title { color: #800020; font-size: 20px; font-weight: bold; margin-bottom: 20px; text-align: center; }
+        .booking-reference { background: #800020; color: #FFF5E6; padding: 15px 25px; border-radius: 25px; text-align: center; margin-bottom: 25px; font-weight: bold; font-size: 18px; letter-spacing: 1px; }
+        .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px; }
+        .detail-item { background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #FFD700; }
+        .detail-label { color: #800020; font-weight: bold; font-size: 12px; text-transform: uppercase; margin-bottom: 5px; }
+        .detail-value { color: #666; font-size: 14px; word-break: break-word; }
+        .venue-section { background: #f8f9fa; border-left: 4px solid #FFD700; padding: 25px; margin: 30px 0; border-radius: 8px; }
+        .venue-title { color: #800020; font-weight: bold; font-size: 18px; margin-bottom: 15px; display: flex; align-items: center; }
+        .venue-description { color: #666; font-size: 14px; line-height: 1.6; margin-bottom: 20px; }
+        .venue-details { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 13px; }
+        .venue-detail-item { color: #666; }
+        .venue-detail-label { color: #800020; font-weight: bold; margin-right: 5px; }
+        .table-info { background: rgba(255, 215, 0, 0.1); border: 2px solid #FFD700; border-radius: 12px; padding: 25px; margin: 25px 0; text-align: center; }
+        .table-number { color: #800020; font-size: 24px; font-weight: bold; margin-bottom: 10px; }
+        .table-details { color: #666; font-size: 14px; line-height: 1.6; }
+        .special-requests { background: rgba(128, 0, 32, 0.05); border: 1px solid rgba(128, 0, 32, 0.2); border-radius: 10px; padding: 20px; margin: 25px 0; }
+        .special-requests-title { color: #800020; font-weight: bold; font-size: 14px; margin-bottom: 10px; }
+        .special-requests-text { color: #666; font-size: 14px; line-height: 1.6; }
+        .action-buttons { text-align: center; margin: 30px 0; }
+        .action-button { display: inline-block; text-decoration: none; padding: 16px 30px; border-radius: 50px; font-weight: bold; font-size: 16px; letter-spacing: 1px; transition: all 0.3s ease; margin: 0 10px 10px 10px; box-shadow: 0 8px 25px rgba(128, 0, 32, 0.3); border: 2px solid #FFD700; }
+        .primary-button { background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); color: #FFF5E6; }
+        .primary-button:hover { transform: translateY(-2px); box-shadow: 0 12px 35px rgba(128, 0, 32, 0.4); background: linear-gradient(135deg, #A71D2A 0%, #800020 100%); }
+        .secondary-button { background: linear-gradient(135deg, #FFD700 0%, #FFF5E6 100%); color: #800020; }
+        .secondary-button:hover { transform: translateY(-2px); box-shadow: 0 12px 35px rgba(255, 215, 0, 0.4); background: linear-gradient(135deg, #FFF5E6 0%, #FFD700 100%); }
+        .features-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin: 30px 0; }
+        .feature-item { background: #f8f9fa; padding: 20px; border-radius: 10px; text-align: center; border: 1px solid rgba(128, 0, 32, 0.1); }
+        .feature-icon { font-size: 24px; margin-bottom: 10px; }
+        .feature-title { color: #800020; font-weight: bold; font-size: 14px; margin-bottom: 5px; }
+        .feature-text { color: #666; font-size: 12px; }
+        .important-notice { background: rgba(255, 215, 0, 0.1); border: 1px solid #FFD700; border-radius: 10px; padding: 20px; margin: 25px 0; text-align: center; }
+        .important-notice-text { color: #800020; font-size: 14px; font-weight: bold; }
+        .footer { background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); color: #FFF5E6; padding: 40px 30px; text-align: center; }
+        .footer-content { margin-bottom: 20px; }
+        .footer-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; }
+        .footer-text { font-size: 14px; opacity: 0.9; line-height: 1.6; }
+        .footer-bottom { border-top: 1px solid rgba(255, 245, 230, 0.2); padding-top: 20px; font-size: 12px; opacity: 0.8; color: #FFF5E6; }
+        .footer-link { color: #FFD700; text-decoration: none; }
+        @media (max-width: 600px) { .email-container { margin: 0; box-shadow: none; } .header { padding: 30px 20px; } .logo-image { width: 90px; height: 90px; } .brand-name { font-size: 24px; } .content { padding: 30px 20px; } .title { font-size: 24px; } .booking-section { padding: 25px 20px; margin: 25px 0; } .details-grid { grid-template-columns: 1fr; gap: 15px; } .action-button { display: block; margin: 10px 0; padding: 14px 25px; font-size: 15px; } .venue-details { grid-template-columns: 1fr; gap: 10px; } .features-grid { grid-template-columns: 1fr; gap: 15px; } .footer { padding: 30px 20px; } }
+    </style>
+    </head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <div class="logo">
+                <img src="https://res.cloudinary.com/dq1l3wltu/image/upload/v1753338476/Eddy_Logo-07_vagzzy.jpg" alt="Eddys Members Logo" class="logo-image">
+                <h1 class="brand-name">EDDYS MEMBERS</h1>
+                <p class="tagline">Your Gateway to Exclusive Experiences</p>
             </div>
-            
-            <div style="background: white; padding: 30px; border: 1px solid #ddd; border-top: none;">
-              <p style="font-size: 18px; color: #333; margin-bottom: 20px;">Dear ${data.customerName},</p>
-              
-              <p style="color: #333; line-height: 1.6;">Thank you for choosing VIPClub! Your booking has been confirmed and we're excited to welcome you.</p>
-              
-              <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                <h2 style="color: #8B1538; margin-top: 0;">Booking Details</h2>
-                <p><strong>Venue:</strong> ${data.venueName}</p>
-                <p><strong>Booking Date:</strong> ${data.bookingDate}</p>
-                <p><strong>Booking ID:</strong> #${data.bookingId}</p>
-                ${data.ticketInfo ? `<p><strong>Ticket:</strong> ${data.ticketInfo}</p>` : ''}
-                ${data.tableInfo ? `<p><strong>Table:</strong> ${data.tableInfo}</p>` : ''}
-                <p><strong>Total Amount:</strong> ₦${data.totalAmount}</p>
-              </div>
-              
-              <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                <h3 style="color: #2e7d32; margin-top: 0;">What's Next?</h3>
-                <ul style="color: #333; margin: 0; padding-left: 20px;">
-                  <li>Arrive at the venue on your booking date</li>
-                  <li>Show this email or your booking ID at the entrance</li>
-                  <li>Present a valid ID for verification</li>
-                  <li>Enjoy your VIP experience!</li>
-                </ul>
-              </div>
-              
-              <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #D4AF37;">
-                <p style="margin: 0; color: #856404;"><strong>Important:</strong> Please save this email as your booking confirmation. You may be asked to present it at the venue.</p>
-              </div>
-              
-              <p style="color: #333; line-height: 1.6;">If you have any questions or need to make changes to your booking, please contact our support team.</p>
-              
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="${Deno.env.get('APP_URL')}/profile" style="background: linear-gradient(135deg, #8B1538, #D4AF37); color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-weight: bold;">View My Bookings</a>
-              </div>
-              
-              <p style="color: #333;">Thank you for choosing VIPClub!</p>
-              <p style="color: #666; font-size: 14px;">Best regards,<br>The VIPClub Team</p>
+        </div>
+        <div class="content">
+            <h2 class="title">Booking Confirmed! 🎉</h2>
+            <p class="subtitle">Congratulations ${data.customerName || 'Guest'}! Your VIP table reservation has been successfully confirmed.</p>
+            <div class="booking-section">
+                <h3 class="booking-title">Your Reservation Details</h3>
+                <div class="booking-reference">Booking Reference: ${data.bookingId || ''}</div>
+                <div class="details-grid">
+                    <div class="detail-item"><div class="detail-label">Guest Name</div><div class="detail-value">${data.customerName || ''}</div></div>
+                    <div class="detail-item"><div class="detail-label">Contact Email</div><div class="detail-value">${data.customerEmail || ''}</div></div>
+                    <div class="detail-item"><div class="detail-label">Phone Number</div><div class="detail-value">${data.customerPhone || ''}</div></div>
+                    <div class="detail-item"><div class="detail-label">Party Size</div><div class="detail-value">${data.partySize || ''}</div></div>
+                    <div class="detail-item"><div class="detail-label">Date & Time</div><div class="detail-value">${data.bookingDate || ''} ${data.bookingTime ? 'at ' + data.bookingTime : ''}</div></div>
+                    <div class="detail-item"><div class="detail-label">Duration</div><div class="detail-value">${data.bookingDuration || ''}</div></div>
+                </div>
             </div>
-            
-            <div style="background: #f8f9fa; padding: 20px; text-align: center; border-radius: 0 0 10px 10px; border: 1px solid #ddd; border-top: none;">
-              <p style="color: #666; font-size: 12px; margin: 0;">This is an automated message. Please do not reply to this email.</p>
+            <div class="table-info">
+                <div class="table-number">Table ${data.tableNumber || ''}</div>
+                <div class="table-details"><strong>${data.tableType || ''}</strong> • Seats up to ${data.tableCapacity || ''} guests<br>${data.tableLocation || ''} • ${data.tableFeatures || ''}</div>
             </div>
-          </div>
-        `
+            <div class="venue-section">
+                <h4 class="venue-title">🏛️ Venue Information</h4>
+                <div class="venue-description"><strong>${data.venueName || ''}</strong><br>${data.venueDescription || ''}</div>
+                <div class="venue-details">
+                    <div class="venue-detail-item"><span class="venue-detail-label">Address:</span>${data.venueAddress || ''}</div>
+                    <div class="venue-detail-item"><span class="venue-detail-label">Phone:</span>${data.venuePhone || ''}</div>
+                    <div class="venue-detail-item"><span class="venue-detail-label">Dress Code:</span>${data.venueDressCode || ''}</div>
+                    <div class="venue-detail-item"><span class="venue-detail-label">Parking:</span>${data.venueParking || ''}</div>
+                    <div class="venue-detail-item"><span class="venue-detail-label">Cuisine:</span>${data.venueCuisine || ''}</div>
+                    <div class="venue-detail-item"><span class="venue-detail-label">Hours:</span>${data.venueHours || ''}</div>
+                </div>
+            </div>
+            <div class="special-requests">
+                <div class="special-requests-title">🌟 Special Requests & Notes</div>
+                <div class="special-requests-text">${data.specialRequests || ''}</div>
+            </div>
+            <div class="action-buttons">
+                <a href="${data.viewBookingUrl || (Deno.env.get('APP_URL') || '') + '/profile'}" class="action-button primary-button">📅 VIEW BOOKING DETAILS</a>
+                <a href="${data.modifyBookingUrl || (Deno.env.get('APP_URL') || '') + '/profile'}" class="action-button secondary-button">✏️ MODIFY RESERVATION</a>
+                <a href="${data.cancelBookingUrl || (Deno.env.get('APP_URL') || '') + '/profile'}" class="action-button secondary-button">❌ CANCEL BOOKING</a>
+            </div>
+            <div class="features-grid">
+                <div class="feature-item"><div class="feature-icon">🍾</div><div class="feature-title">Premium Service</div><div class="feature-text">Dedicated VIP host</div></div>
+                <div class="feature-item"><div class="feature-icon">🎵</div><div class="feature-title">Perfect Ambiance</div><div class="feature-text">Curated music & lighting</div></div>
+                <div class="feature-item"><div class="feature-icon">🍸</div><div class="feature-title">Signature Cocktails</div><div class="feature-text">Exclusive drink menu</div></div>
+                <div class="feature-item"><div class="feature-icon">⭐</div><div class="feature-title">VIP Treatment</div><div class="feature-text">Priority seating & service</div></div>
+            </div>
+            <div class="important-notice"><p class="important-notice-text">⏰ Please arrive 15 minutes before your reservation time. Late arrivals may result in table reassignment.</p></div>
+            <p style="text-align: center; color: #666; font-size: 14px; margin-top: 30px;">Need to make changes to your booking? Contact us at <a href="mailto:sales@oneeddy.com" style="color: #800020; text-decoration: none; font-weight: bold;">sales@oneeddy.com</a> or call <a href="tel:${data.venuePhone || ''}" style="color: #800020; text-decoration: none; font-weight: bold;">${data.venuePhone || ''}</a></p>
+        </div>
+        <div class="footer">
+            <div class="footer-content">
+                <h3 class="footer-title">Thank You for Choosing Eddys Members</h3>
+                <p class="footer-text">Experience Lagos' finest venues with premium service, exclusive access, and unforgettable moments. Your VIP journey starts here.</p>
+            </div>
+            <div class="footer-bottom">
+                <p style="color: #FFF5E6;">© 2025 Eddys Members. All rights reserved.</p>
+                <p style="margin-top: 10px; color: #FFF5E6;"><a href="${data.websiteUrl || (Deno.env.get('APP_URL') || '')}" class="footer-link">Visit Website</a> | <a href="${data.supportUrl || (Deno.env.get('APP_URL') || '') + '/contact'}" class="footer-link">Support</a> | <a href="${data.unsubscribeUrl || (Deno.env.get('APP_URL') || '') + '/profile'}" class="footer-link">Unsubscribe</a></p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>`
         break
 
       case 'admin-venue-submitted':
@@ -166,6 +232,66 @@ serve(async (req) => {
           <p>Please review and approve or reject the venue in the admin dashboard.</p>
           <p>Best regards,<br>The Eddy Team</p>
         `
+        break
+
+      case 'venue-owner-notification':
+        html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VIPClub – New Booking Notification</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; background: #f5f5f5; color: #333; line-height: 1.6; }
+    .email-container { max-width: 600px; margin: 0 auto; background: #fff; box-shadow: 0 10px 30px rgba(128,0,32,0.08); }
+    .header { background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); padding: 28px 24px; text-align: center; }
+    .brand { color: #FFF5E6; font-size: 22px; font-weight: 700; letter-spacing: 1.2px; }
+    .content { padding: 28px 24px; }
+    .section { background:#f8f8f8; border:1px solid #eee; border-radius:10px; padding:14px 16px; margin-top:14px; }
+    .section h3 { margin:0 0 8px 0; color:#800020; font-size:16px; }
+    .row { margin: 4px 0; font-size: 14px; }
+    .label { color:#800020; font-weight:700; display:inline-block; min-width:120px; }
+    .cta { text-align:center; margin:20px 0 6px; }
+    .btn { display:inline-block; text-decoration:none; padding:12px 22px; border-radius:28px; font-weight:700; font-size:14px; letter-spacing:.3px; border:2px solid #FFD700; box-shadow:0 6px 18px rgba(128,0,32,.18); }
+    .btn-primary { background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); color: #FFF5E6; }
+    .footer { background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); color: #FFF5E6; padding: 18px; text-align: center; font-size:12px; }
+  </style>
+  </head>
+  <body>
+    <div class="email-container">
+      <div class="header">
+        <div class="brand">EDDYS MEMBERS</div>
+      </div>
+      <div class="content">
+        <h2 style="color:#800020; text-align:center; margin-bottom:12px;">New Booking Received</h2>
+        <p style="text-align:center; color:#555; margin-bottom:16px;">A new booking has been placed for <strong>${(data.venueName||'Your Venue')}</strong>.</p>
+
+        <div class="section">
+          <h3>Booking Details</h3>
+          <div class="row"><span class="label">Booking ID:</span> ${(data.bookingId||'')}</div>
+          <div class="row"><span class="label">Date:</span> ${(data.bookingDate||'')}</div>
+          <div class="row"><span class="label">Time:</span> ${(data.bookingTime||'')}</div>
+          <div class="row"><span class="label">Party Size:</span> ${(data.partySize||'')}</div>
+          <div class="row"><span class="label">Table:</span> ${(data.tableNumber||data.tableName||'')}</div>
+          <div class="row"><span class="label">Amount:</span> ${(data.totalAmount||'')}</div>
+        </div>
+
+        <div class="section">
+          <h3>Customer</h3>
+          <div class="row"><span class="label">Name:</span> ${(data.customerName||'')}</div>
+          <div class="row"><span class="label">Email:</span> ${(data.customerEmail||'')}</div>
+          <div class="row"><span class="label">Phone:</span> ${(data.customerPhone||'')}</div>
+        </div>
+
+        <div class="cta">
+          ${ (data.adminUrl || (Deno.env.get('APP_URL')||'') + '/admin/venue-approvals') ? `<a class="btn btn-primary" href="${data.adminUrl || (Deno.env.get('APP_URL')||'') + '/admin/venue-approvals'}">Open Admin Dashboard</a>` : '' }
+        </div>
+      </div>
+      <div class="footer">© ${new Date().getFullYear()} Eddys Members</div>
+    </div>
+  </body>
+</html>`
         break
 
       case 'venue-owner-invitation':
@@ -203,11 +329,140 @@ serve(async (req) => {
           throw new Error(`Failed to send Supabase invitation: ${inviteError.message}`);
         }
 
+      case 'admin-venue-owner-registration':
+        html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VIPClub – New Venue Owner Registration</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; background: #f5f5f5; color: #333; line-height: 1.6; }
+    .email-container { max-width: 600px; margin: 0 auto; background: #fff; box-shadow: 0 10px 30px rgba(128,0,32,0.08); }
+    .header { background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); padding: 36px 28px; text-align: center; position: relative; }
+    .header::before { content: ''; position: absolute; inset: 0; opacity: .25;
+      background: url('data:image/svg+xml,<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 100 100\"><defs><pattern id=\"grain\" width=\"100\" height=\"100\" patternUnits=\"userSpaceOnUse\"><circle cx=\"25\" cy=\"25\" r=\"1\" fill=\"%23FFD700\" opacity=\"0.12\"/><circle cx=\"75\" cy=\"75\" r=\"1\" fill=\"%23FFD700\" opacity=\"0.12\"/></pattern></defs><rect width=\"100\" height=\"100\" fill=\"url(%23grain)\"/></svg>') repeat; }
+    .logo { position: relative; z-index: 1; }
+    .logo-image { width: 110px; height: 110px; border-radius: 50%; border: 3px solid #FFD700; box-shadow: 0 8px 20px rgba(255,215,0,.28); margin-bottom: 12px; }
+    .brand { color: #FFF5E6; font-size: 26px; font-weight: 700; letter-spacing: 1.5px; }
+    .content { padding: 40px 32px; }
+    .title { color: #800020; font-size: 22px; font-weight: 700; text-align: center; margin-bottom: 18px; }
+    .subtitle { color: #555; font-size: 14px; text-align: center; margin-bottom: 26px; }
+    .card { background: linear-gradient(135deg, #FFF5E6 0%, #ffffff 100%); border: 2px solid #FFD700; border-radius: 14px; padding: 24px; margin: 18px 0; }
+    .section-title { color: #800020; font-weight: 700; font-size: 14px; margin-bottom: 12px; text-transform: uppercase; letter-spacing: .5px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .item { background: #f8f9fa; padding: 12px; border-radius: 8px; border-left: 4px solid #FFD700; }
+    .label { color: #800020; font-weight: 700; font-size: 11px; margin-bottom: 4px; text-transform: uppercase; }
+    .value { color: #666; font-size: 13px; word-break: break-word; }
+    .cta { text-align: center; margin: 24px 0 6px; }
+    .btn { display: inline-block; text-decoration: none; padding: 14px 26px; border-radius: 28px; font-weight: 700; font-size: 14px; letter-spacing: .5px; border: 2px solid #FFD700; box-shadow: 0 8px 22px rgba(128,0,32,.26); }
+    .btn-primary { background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); color: #FFF5E6; }
+    .notice { background: rgba(255,215,0,.12); border: 1px solid #FFD700; border-radius: 10px; padding: 14px; text-align: center; color: #800020; font-size: 13px; font-weight: 700; margin-top: 18px; }
+    .footer { background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); color: #FFF5E6; padding: 30px 26px; text-align: center; }
+    .foot-note { border-top: 1px solid rgba(255,245,230,.22); margin-top: 14px; padding-top: 12px; font-size: 12px; opacity: .85; }
+    @media (max-width: 600px) { .content { padding: 28px 20px; } .grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="header">
+      <div class="logo">
+        <img class="logo-image" src="https://res.cloudinary.com/dq1l3wltu/image/upload/v1753338476/Eddy_Logo-07_vagzzy.jpg" alt="VIPClub" />
+        <div class="brand">EDDYS MEMBERS</div>
+      </div>
+    </div>
+    <div class="content">
+      <div class="title">New Venue Owner Registration</div>
+      <div class="subtitle">A new venue owner has just completed registration. Review their details below.</div>
+
+      <div class="card">
+        <div class="section-title">Venue Owner</div>
+        <div class="grid">
+          <div class="item"><div class="label">Name</div><div class="value">${data.ownerName || ''}</div></div>
+          <div class="item"><div class="label">Email</div><div class="value">${data.email || ''}</div></div>
+          <div class="item"><div class="label">Phone</div><div class="value">${data.phone || 'Not provided'}</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title">Venue</div>
+        <div class="grid">
+          <div class="item"><div class="label">Name</div><div class="value">${data.venueName || ''}</div></div>
+          <div class="item"><div class="label">Type</div><div class="value">${data.venueType || 'Not specified'}</div></div>
+          <div class="item"><div class="label">Address</div><div class="value">${(data.venueAddress || '')}${data.venueCity ? ', ' + data.venueCity : ''}</div></div>
+        </div>
+      </div>
+
+      <div class="cta">
+        ${data.adminUrl ? `<a class="btn btn-primary" href="${data.adminUrl}">Open Admin Dashboard</a>` : ''}
+      </div>
+      <div class="notice">Please review and approve or reject this venue owner account.</div>
+    </div>
+    <div class="footer">
+      <div>Thank you for keeping the VIPClub community high-quality.</div>
+      <div class="foot-note">© 2025 Eddys Members. All rights reserved.</div>
+    </div>
+  </div>
+</body>
+</html>`
+        break
+
       default:
         throw new Error('Invalid template')
     }
 
-    console.log('Sending email...')
+    // Prefer SendGrid HTTP API if configured
+    if (SENDGRID_API_KEY) {
+      console.log('Sending email via SendGrid API...')
+      const sgResponse = await fetch('https://api.sendgrid.com/v3/mail/send', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${SENDGRID_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          personalizations: [
+            { to: [{ email: to }] }
+          ],
+          from: {
+            email: Deno.env.get('SMTP_FROM') || 'info@oneeddy.com',
+            name: 'VIPClub'
+          },
+          subject,
+          content: [
+            { type: 'text/html', value: html }
+          ]
+        })
+      })
+
+      if (!sgResponse.ok) {
+        const errorText = await sgResponse.text()
+        throw new Error(`SendGrid API error (${sgResponse.status}): ${errorText}`)
+      }
+
+      console.log('Email sent successfully via SendGrid API')
+      return new Response(
+        JSON.stringify({ success: true }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200,
+        },
+      )
+    }
+
+    // Fallback to SMTP (implicit TLS expected if using port 465)
+    const client = new SmtpClient()
+    console.log('Connecting to SMTP server...')
+    await client.connectTLS({
+      hostname: Deno.env.get('SMTP_HOSTNAME') || '',
+      port: parseInt(Deno.env.get('SMTP_PORT') || '465'),
+      username: Deno.env.get('SMTP_USERNAME') || '',
+      password: Deno.env.get('SMTP_PASSWORD') || '',
+    })
+    console.log('Connected to SMTP server')
+
+    console.log('Sending email via SMTP...')
     await client.send({
       from: Deno.env.get('SMTP_FROM') || '',
       to: to,
@@ -215,7 +470,7 @@ serve(async (req) => {
       content: html,
       html: html,
     })
-    console.log('Email sent successfully')
+    console.log('Email sent successfully via SMTP')
 
     await client.close()
 

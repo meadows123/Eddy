@@ -66,33 +66,8 @@ const RegisterForm = () => {
       console.log('✅ DEBUG: Auth signup successful, user created:', data.user);
       setSuccess('Registration successful! Please check your email to confirm your account.');
       
-      // Insert into profiles table (for immediate profile availability)
-      if (data.user) {
-        console.log('🔍 DEBUG: Creating profile record...');
-        const profileData = {
-          id: data.user.id,
-          full_name: name,
-          age: age ? parseInt(age) : null,
-          country,
-          city,
-          email,
-          phone
-        };
-        
-        console.log('📤 DEBUG: Profile data:', profileData);
-        
-        const { data: profileResult, error: profileError } = await supabase.from('profiles').upsert(profileData);
-        
-        console.log('📥 DEBUG: Profile upsert result:', { profileResult, profileError });
-        
-        if (profileError) {
-          console.error('❌ DEBUG: Profile creation error:', profileError);
-          setError(`Profile Error: ${profileError.message}`);
-          return;
-        }
-        
-        console.log('✅ DEBUG: Profile created successfully');
-      }
+      // Do not write to profiles here; a DB trigger creates it on user creation.
+      // You can update profile fields after the user logs in (when a session exists).
       
       // Call Edge Function to send custom welcome email
       const functionUrl = `${import.meta.env.VITE_SUPABASE_URL.replace('.supabase.co', '.functions.supabase.co')}/send-email`;

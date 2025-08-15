@@ -8,40 +8,38 @@ const handleError = (error, operation) => {
 
 // User Profile API
 export const userApi = {
-  // Get user profile
-  getProfile: async (userId) => {
+  async getProfile(userId) {
     try {
       console.log('Fetching profile for user:', userId)
       const { data, error } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single()
+        .single();
       
-      if (error) handleError(error, 'getProfile')
-      console.log('Profile data:', data)
-      return data
+      if (error) throw error;
+      return data;
     } catch (error) {
-      handleError(error, 'getProfile')
+      console.error('Error fetching profile:', error);
+      throw error;
     }
   },
 
-  // Update user profile
-  updateProfile: async (userId, updates) => {
+  async updateProfile(userId, updates) {
     try {
       console.log('Updating profile for user:', userId, 'with updates:', updates)
       const { data, error } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .update(updates)
         .eq('id', userId)
         .select()
-        .single()
+        .single();
       
-      if (error) handleError(error, 'updateProfile')
-      console.log('Updated profile:', data)
-      return data
+      if (error) throw error;
+      return data;
     } catch (error) {
-      handleError(error, 'updateProfile')
+      console.error('Error updating profile:', error);
+      throw error;
     }
   }
 }

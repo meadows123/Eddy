@@ -51,7 +51,7 @@ async function testRLSFunctionality() {
       
       // Test reading own profile
       const { data: profile, error: profileError } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single();
@@ -81,7 +81,7 @@ async function testRLSFunctionality() {
     // Test 4: Check specific table policies
     console.log('\n4. Checking policies for key tables...');
     
-    const keyTables = ['venues', 'bookings', 'user_profiles', 'split_payment_requests'];
+    const keyTables = ['venues', 'bookings', 'profiles', 'split_payment_requests'];
     
     for (const tableName of keyTables) {
       const { data: policies, error: policiesError } = await supabase

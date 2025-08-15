@@ -487,23 +487,9 @@ throw new Error('Failed to create user account - no user returned from signup');
       // The user object from signup is sufficient for creating the profile
       console.log('New user created successfully, proceeding with profile creation');
 
-      // Create user profile if it doesn't exist
-      if (newUser.user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .upsert([{
-            id: newUser.user.id,
-            first_name: userData.fullName.split(' ')[0] || '',
-            last_name: userData.fullName.split(' ').slice(1).join(' ') || '',
-            phone: userData.phone
-          }], {
-            onConflict: 'id'
-          });
-
-if (profileError) {
-  console.error('Error creating user profile:', profileError);
-}
-}
+      // Skip client-side profile upsert here to avoid RLS errors during email-confirmation flow.
+      // Profiles are auto-created by DB trigger on auth.users insert.
+      // Optionally update profile after the user logs in (when a session exists).
 
 return newUser.user;
 } catch (error) {
@@ -633,14 +619,32 @@ if (tableId) {
   }
 }
 
-// Save booking to database
+// Save booking to database (DB enforces one booking per table per day for confirmed)
 const { data: bookingRecord, error: bookingError } = await supabase
   .from('bookings')
-  .insert([bookingData])
+  .insert([{
+    ...bookingData,
+    // Ensure these keys match the unique index (table_id, booking_date, status)
+    status: 'confirmed',
+    booking_date: bookingData.booking_date || (selection.date || new Date().toISOString().split('T')[0]),
+    table_id: bookingData.table_id || tableId || null,
+  }])
   .select()
   .single();
 
 if (bookingError) {
+  const msg = bookingError.message || '';
+  const isUnique = bookingError.code === '23505' || /duplicate key value|bookings_one_per_day/i.test(msg);
+  if (isUnique) {
+    toast({
+      title: 'Table already booked for this date',
+      description: 'Please choose another table or another date.',
+      variant: 'destructive',
+      className: 'bg-red-500 text-white',
+    });
+    setIsSubmitting(false);
+    return;
+  }
   throw new Error(`Failed to create booking: ${bookingError.message}`);
 }
 

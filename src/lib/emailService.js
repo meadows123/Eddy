@@ -102,16 +102,23 @@ export const sendVenueOwnerNotification = async (booking, venue, customer, venue
       const payload = {
         to: ADMIN_EMAIL,
         subject: 'New Booking Received',
-        template: 'admin-venue-owner-registration',
+        template: 'venue-owner-notification',
         data: {
           ownerName: venueOwner?.name || 'Admin',
-          email: customer?.email || booking?.customerEmail,
-          phone: customer?.phone || booking?.customerPhone || 'Not provided',
+          customerName: customer?.full_name || customer?.fullName || booking?.customerName || 'Guest',
+          customerEmail: customer?.email || booking?.customerEmail,
+          customerPhone: customer?.phone || booking?.customerPhone || 'Not provided',
           venueName: venue?.name || booking?.venueName,
           venueType: venue?.type || 'Not specified',
           venueAddress: venue?.address || '',
           venueCity: venue?.city || '',
-          adminUrl: `${window.location.origin}/venue-owner/bookings`
+          bookingId: booking?.bookingId || booking?.id,
+          bookingDate: booking?.bookingDate || booking?.booking_date,
+          bookingTime: booking?.booking_time || booking?.bookingTime,
+          partySize: booking?.guest_count || booking?.guests || booking?.guestCount,
+          tableNumber: booking?.table_number || booking?.tableNumber || booking?.table?.name,
+          totalAmount: booking?.totalAmount || booking?.total_amount,
+          adminUrl: `${window.location.origin}/admin/venue-approvals`
         }
       };
       const { error } = await supabase.functions.invoke('send-email', { body: payload });
