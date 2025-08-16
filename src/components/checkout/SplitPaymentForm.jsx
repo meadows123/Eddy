@@ -1,485 +1,1178 @@
 import React, { useState, useEffect } from 'react';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { ArrowLeft, CreditCard, Calendar, Clock, User, Check, Share2, Plus, Minus, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useToast } from '@/components/ui/use-toast';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import CheckoutForm from '@/components/checkout/CheckoutForm';
+import OrderSummary from '@/components/checkout/OrderSummary';
+import SplitPaymentForm from '@/components/checkout/SplitPaymentForm';
+import { validateCheckoutForm } from '@/lib/formValidation';
+import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { useToast } from '@/components/ui/use-toast';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { supabase } from '@/lib/supabase';
-import { 
-  Plus, 
-  Minus, 
-  Search, 
-  User, 
-  Mail, 
-  Phone, 
-  X, 
-  Send, 
-  Copy,
-  Check,
-  Clock
-} from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { sendBookingConfirmation, sendVenueOwnerNotification, debugBookingEmail } from '../lib/emailService.js';
 
-const SplitPaymentForm = ({ 
-  totalAmount, 
-  onSplitCreated, 
-  user, 
-  bookingId, 
-  createBookingIfNeeded // new prop
-}) => {
-  const { toast } = useToast();
-  const [splitCount, setSplitCount] = useState(2);
-  const [splitAmounts, setSplitAmounts] = useState([]);
-  const [splitRecipients, setSplitRecipients] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [showSearchDialog, setShowSearchDialog] = useState(false);
-  const [currentSplitIndex, setCurrentSplitIndex] = useState(0);
-  const [isCreating, setIsCreating] = useState(false);
+const CheckoutPage = () => {
+const { id } = useParams();
+const navigate = useNavigate();
+const location = useLocation();
+const { toast } = useToast();
+const { user } = useAuth();
 
-  // Initialize split amounts when count changes
-  useEffect(() => {
-    const amountPerPerson = Math.ceil(totalAmount / splitCount);
-    const amounts = Array(splitCount - 1).fill(amountPerPerson); // Exclude current user
-    
-    // Adjust the last amount to account for rounding
-    const totalSplit = amounts.reduce((sum, amount) => sum + amount, 0);
-    const remainingAmount = totalAmount - totalSplit;
-    
-    setSplitAmounts(amounts);
-    setSplitRecipients(Array(splitCount - 1).fill(null));
-  }, [splitCount, totalAmount]);
+// Check if this is a deposit flow
+const isDepositFlow = location.pathname.includes('/deposit');
+const depositAmount = location.state?.depositAmount;
 
-  const handleSplitCountChange = (newCount) => {
-    if (newCount < 2) return;
-    setSplitCount(newCount);
-  };
+const [selection, setSelection] = useState(null);
+const [loading, setLoading] = useState(true);
+const [formData, setFormData] = useState({
+fullName: '',
+email: '',
+phone: '',
+password: '',
+cardNumber: '',
+expiryDate: '',
+cvv: '',
+agreeToTerms: false,
+referralCode: ''
+});
+const [userProfile, setUserProfile] = useState(null);
+const [errors, setErrors] = useState({});
+const [isSubmitting, setIsSubmitting] = useState(false);
+const [showConfirmation, setShowConfirmation] = useState(false);
+const [vipPerks, setVipPerks] = useState([]);
+const [venue, setVenue] = useState(null);
+const [paymentMethod, setPaymentMethod] = useState('card');
+const [splitCount, setSplitCount] = useState(1);
+const [splitAmounts, setSplitAmounts] = useState([]);
+const [splitLinks, setSplitLinks] = useState([]);
+const [showShareDialog, setShowShareDialog] = useState(false);
+const [splitPaymentRequests, setSplitPaymentRequests] = useState([]);
+const [currentUserForSplit, setCurrentUserForSplit] = useState(null);
 
-  const searchUsers = async (query) => {
-    if (!query.trim()) {
-      setSearchResults([]);
-      return;
-    }
+// Add this state to store the booking data from location.state
+const [bookingData, setBookingData] = useState(null);
 
-    console.log('Searching users with user object:', user);
-    setIsSearching(true);
-    try {
-      // Validate user exists and is authenticated
-      if (!user?.id) {
-        console.error('No user ID available for search. User object:', user);
+// Add these missing auth functions here
+const handleAuthSubmit = async (e) => {
+  e.preventDefault();
+  setAuthLoading(true);
+  setAuthError('');
+
+  try {
+    if (authMode === 'login') {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: authForm.email,
+        password: authForm.password
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        setLoginOpen(false);
         toast({
-          title: "Authentication Required",
-          description: "Please sign in to search for users to split payments with.",
-          variant: "destructive"
+          title: "Login successful!",
+          description: "Welcome back!",
         });
-        setSearchResults([]);
-        return;
       }
-
-             const { data, error } = await supabase
-         .from('profiles')
-         .select('id, first_name, last_name, phone')
-         .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%,phone.ilike.%${query}%`)
-         .neq('id', user.id) // Exclude current user
-         .limit(10);
+    } else {
+      // Signup
+      const { data, error } = await supabase.auth.signUp({
+        email: authForm.email,
+        password: authForm.password,
+        options: {
+          data: {
+            full_name: authForm.fullName,
+            phone: authForm.phone
+          }
+        }
+      });
 
       if (error) throw error;
 
-             // Transform results
-       const results = (data || []).map(profile => ({
-         ...profile,
-         displayName: `${profile.first_name} ${profile.last_name}`.trim(),
-         type: 'profile'
-       }));
-
-      setSearchResults(results);
-    } catch (error) {
-      console.error('Error searching users:', error);
-      toast({
-        title: "Search Error",
-        description: "Failed to search users. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  const selectRecipient = (recipient, index) => {
-    const newRecipients = [...splitRecipients];
-    newRecipients[index] = recipient;
-    setSplitRecipients(newRecipients);
-    setShowSearchDialog(false);
-    setSearchQuery('');
-    setSearchResults([]);
-  };
-
-  const removeRecipient = (index) => {
-    const newRecipients = [...splitRecipients];
-    newRecipients[index] = null;
-    setSplitRecipients(newRecipients);
-  };
-
-  const openSearchDialog = (index) => {
-    // Check if user is authenticated before opening search dialog
-    if (!user?.id) {
-      toast({
-        title: "Authentication Required",
-        description: "Please sign in to search for users to split payments with.",
-        variant: "destructive"
-      });
-      return;
-    }
-    setCurrentSplitIndex(index);
-    setShowSearchDialog(true);
-  };
-
-  const createSplitPaymentRequests = async () => {
-    if (!user?.id) {
-      toast({
-        title: "Authentication Required",
-        description: "Please sign in to create split payment requests.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    // Validate that all recipients are selected
-    const hasEmptyRecipients = splitRecipients.some(recipient => !recipient);
-    if (hasEmptyRecipients) {
-      toast({
-        title: "Missing Recipients",
-        description: "Please select recipients for all split payments.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-         // Ensure user profile exists in profiles table
-     let userProfileId = user.id;
-     const { data: existingProfile, error: profileError } = await supabase
-       .from('profiles')
-       .select('id')
-       .eq('id', user.id)
-       .single();
-
-     if (profileError && profileError.code === 'PGRST116') {
-       // Profile doesn't exist, create it
-       const { data: newProfile, error: createError } = await supabase
-         .from('profiles')
-         .insert([{ 
-           id: user.id,
-           first_name: user.user_metadata?.first_name || user.user_metadata?.full_name?.split(' ')[0] || '',
-           last_name: user.user_metadata?.last_name || user.user_metadata?.full_name?.split(' ').slice(1).join(' ') || '',
-           phone: user.user_metadata?.phone || ''
-         }])
-         .select('id')
-         .single();
-
-       if (createError) {
-         console.error('Error creating user profile:', createError);
-         toast({
-           title: "Profile Error",
-           description: "Failed to create user profile. Please try again.",
-           variant: "destructive"
-         });
-         return;
-       }
-       userProfileId = newProfile.id;
-     } else if (profileError) {
-       console.error('Error checking user profile:', profileError);
-       toast({
-         title: "Profile Error",
-         description: "Failed to verify user profile. Please try again.",
-         variant: "destructive"
-       });
-       return;
-     }
-
-    setIsCreating(true);
-    try {
-      let realBookingId = bookingId;
-      if (!realBookingId && typeof createBookingIfNeeded === 'function') {
-        realBookingId = await createBookingIfNeeded();
+      if (data.user) {
+        setAwaitingConfirm(true);
+        toast({
+          title: "Account created!",
+          description: "Please check your email to confirm your account.",
+        });
       }
-      if (!realBookingId) throw new Error('Booking could not be created.');
-
-             const splitRequests = splitRecipients.map((recipient, index) => ({
-         booking_id: realBookingId,
-         requester_id: userProfileId,
-         recipient_id: recipient.id,
-         recipient_phone: recipient.phone || null,
-         amount: splitAmounts[index],
-         payment_link: `${window.location.origin}/split-payment/${realBookingId}/${index}`,
-         status: 'pending'
-       }));
-
-      const { data, error } = await supabase
-        .from('split_payment_requests')
-        .insert(splitRequests)
-        .select();
-
-      if (error) throw error;
-
-             // Create notifications for recipients
-       const notifications = data.map(request => ({
-         user_id: request.recipient_id,
-         split_payment_id: request.id,
-         type: 'payment_request',
-         title: 'Payment Request Received',
-         message: `${user.user_metadata?.first_name || user.user_metadata?.full_name?.split(' ')[0] || 'Someone'} has requested ₦${request.amount.toLocaleString()} for a shared booking.`
-       }));
-
-      const { error: notifError } = await supabase
-        .from('payment_notifications')
-        .insert(notifications);
-
-      if (notifError) {
-        console.error('Error creating notifications:', notifError);
-      }
-
-      toast({
-        title: "Split Payment Requests Created!",
-        description: `Successfully sent ${data.length} payment requests.`,
-        className: "bg-green-500 text-white"
-      });
-
-      onSplitCreated(data);
-
-    } catch (error) {
-      console.error('Error creating split payment requests:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create split payment requests. Please try again.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsCreating(false);
     }
-  };
-
-  const myAmount = totalAmount - splitAmounts.reduce((sum, amount) => sum + amount, 0);
-
-  return (
-    <div className="space-y-6">
-      {/* Authentication Status */}
-      {!user?.id && (
-        <Card className="border-orange-200 bg-orange-50">
-          <CardContent className="pt-4 sm:pt-6">
-            <div className="flex items-center gap-2 sm:gap-3 text-orange-800">
-              <div className="w-4 h-4 sm:w-5 sm:h-5 bg-orange-200 rounded-full flex items-center justify-center flex-shrink-0">
-                <User className="h-2 w-2 sm:h-3 sm:w-3" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="font-medium text-sm sm:text-base">Authentication Required</div>
-                <div className="text-xs sm:text-sm">Please sign in to search for users to split payments with.</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Split Count Control */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Split Payment Setup</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center gap-2 sm:gap-4 mb-4">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => handleSplitCountChange(splitCount - 1)}
-              disabled={splitCount <= 2}
-              className="flex-shrink-0"
-            >
-              <Minus className="h-4 w-4" />
-            </Button>
-            <div className="flex-1 text-center min-w-0">
-              <Label className="text-base sm:text-lg break-words">Split between {splitCount} people</Label>
-              <div className="text-xs sm:text-sm text-muted-foreground">
-                Including you
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => handleSplitCountChange(splitCount + 1)}
-              className="flex-shrink-0"
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
-
-          {/* Your Amount */}
-          <div className="bg-brand-cream/30 border border-brand-gold/20 rounded-lg p-3 sm:p-4 mb-4">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                <div className="w-6 h-6 sm:w-8 sm:h-8 bg-brand-gold rounded-full flex items-center justify-center flex-shrink-0">
-                  <User className="h-3 w-3 sm:h-4 sm:w-4 text-brand-burgundy" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="font-medium text-sm sm:text-base">You</div>
-                  <div className="text-xs sm:text-sm text-muted-foreground truncate">
-                    {user?.first_name && user?.last_name 
-                      ? `${user.first_name} ${user.last_name}`
-                      : user?.email || 'Guest User'
-                    }
-                  </div>
-                </div>
-              </div>
-              <div className="text-right flex-shrink-0">
-                <div className="font-bold text-base sm:text-lg">₦{myAmount.toLocaleString()}</div>
-                <div className="text-xs sm:text-sm text-muted-foreground">Your portion</div>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Recipients */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Select Recipients</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {splitAmounts.map((amount, index) => (
-              <div key={index} className="border rounded-lg p-3 sm:p-4">
-                <div className="flex items-center justify-between mb-3 gap-2">
-                  <Label className="text-sm sm:text-base">Person {index + 2}</Label>
-                  <div className="font-bold text-sm sm:text-base">₦{amount.toLocaleString()}</div>
-                </div>
-                
-                {splitRecipients[index] ? (
-                  <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg p-2 sm:p-3 gap-2">
-                    <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                      <div className="w-6 h-6 sm:w-8 sm:h-8 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
-                        <User className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="font-medium text-sm sm:text-base truncate">
-                          {splitRecipients[index].displayName}
-                        </div>
-                        <div className="text-xs sm:text-sm text-muted-foreground truncate">
-                          {splitRecipients[index].phone}
-                        </div>
-                      </div>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeRecipient(index)}
-                      className="flex-shrink-0"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    variant="outline"
-                    className="w-full text-sm sm:text-base"
-                    onClick={() => openSearchDialog(index)}
-                    disabled={!user?.id}
-                  >
-                    <Search className="h-4 w-4 mr-2" />
-                    <span className="truncate">
-                      {user?.id ? "Search for recipient" : "Sign in to search"}
-                    </span>
-                  </Button>
-                )}
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Create Split Payment Button */}
-      <Button
-        className="w-full bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90 text-sm sm:text-base"
-        onClick={createSplitPaymentRequests}
-        disabled={isCreating || splitRecipients.some(r => !r) || !user?.id}
-      >
-        {isCreating ? (
-          <div className="flex items-center">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-brand-burgundy mr-2"></div>
-            <span className="text-sm sm:text-base">Creating Requests...</span>
-          </div>
-        ) : (
-          <>
-            <Send className="h-4 w-4 mr-2" />
-            <span className="truncate">
-              {user?.id ? "Send Payment Requests" : "Sign in to send requests"}
-            </span>
-          </>
-        )}
-      </Button>
-
-      {/* Search Dialog */}
-      <Dialog open={showSearchDialog} onOpenChange={setShowSearchDialog}>
-        <DialogContent className="sm:max-w-md max-w-[95vw]">
-          <DialogHeader>
-            <DialogTitle className="text-lg sm:text-xl">Search for Recipient</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by name or phone..."
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  searchUsers(e.target.value);
-                }}
-                className="pl-10 text-sm sm:text-base"
-              />
-            </div>
-
-            {isSearching && (
-              <div className="text-center py-4">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-burgundy mx-auto"></div>
-                <p className="text-sm text-muted-foreground mt-2">Searching...</p>
-              </div>
-            )}
-
-            <div className="max-h-60 overflow-y-auto space-y-2">
-              {searchResults.map((result) => (
-                <div
-                  key={result.id}
-                  className="flex items-center justify-between p-2 sm:p-3 border rounded-lg hover:bg-muted cursor-pointer gap-2"
-                  onClick={() => selectRecipient(result, currentSplitIndex)}
-                >
-                  <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-brand-burgundy/10 rounded-full flex items-center justify-center flex-shrink-0">
-                      <User className="h-3 w-3 sm:h-4 sm:w-4 text-brand-burgundy" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="font-medium text-sm sm:text-base truncate">{result.displayName}</div>
-                      <div className="text-xs sm:text-sm text-muted-foreground truncate">
-                        {result.phone}
-                      </div>
-                    </div>
-                  </div>
-                  <Badge variant="outline" className="flex-shrink-0 text-xs">
-                    VIP Member
-                  </Badge>
-                </div>
-              ))}
-            </div>
-
-            {searchQuery && !isSearching && searchResults.length === 0 && (
-              <div className="text-center py-4 text-muted-foreground">
-                <p className="text-sm sm:text-base">No users found matching "{searchQuery}"</p>
-                <p className="text-xs sm:text-sm mt-1">Try searching by name or phone number</p>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
+  } catch (error) {
+    console.error('Auth error:', error);
+    setAuthError(error.message);
+  } finally {
+    setAuthLoading(false);
+  }
 };
 
-export default SplitPaymentForm; 
+const checkEmailConfirmed = async () => {
+  setAuthLoading(true);
+  setAuthError('');
+
+  try {
+    const { data, error } = await supabase.auth.getUser();
+    if (error) throw error;
+
+    if (data.user?.email_confirmed_at) {
+      setAwaitingConfirm(false);
+      setLoginOpen(false);
+      toast({
+        title: "Email confirmed!",
+        description: "Your account is now active.",
+      });
+    } else {
+      setAuthError('Email not yet confirmed. Please check your inbox and click the confirmation link.');
+    }
+  } catch (error) {
+    console.error('Email confirmation check error:', error);
+    setAuthError(error.message);
+  } finally {
+    setAuthLoading(false);
+  }
+};
+
+const resendConfirmation = async () => {
+  setAuthLoading(true);
+  setAuthError('');
+
+  try {
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: authForm.email
+    });
+
+    if (error) throw error;
+
+    toast({
+      title: "Confirmation email sent!",
+      description: "Please check your inbox.",
+    });
+  } catch (error) {
+    console.error('Resend confirmation error:', error);
+    setAuthError(error.message);
+  } finally {
+    setAuthLoading(false);
+  }
+};
+
+const ensureSession = async () => {
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) {
+    throw new Error('No authenticated user found');
+  }
+  return user;
+};
+
+const createBooking = async () => {
+  try {
+    // Prepare booking data for database - use the correct data structure
+    const venueId = selection?.venue?.id || bookingData?.venue?.id || selection?.venueId || selection?.id;
+    const tableId = selection?.table?.id || bookingData?.table?.id || selection?.selectedTable?.id || selection?.tableId || null;
+
+    console.log('🔍 Debug venue ID lookup:', {
+      'selection?.venue?.id': selection?.venue?.id,
+      'bookingData?.venue?.id': bookingData?.venue?.id,
+      'selection?.venueId': selection?.venueId,
+      'selection?.id': selection?.id,
+      'final venueId': venueId
+    });
+
+    // Validate required fields
+    if (!venueId) {
+      throw new Error('Venue ID is required for booking');
+    }
+
+    const sessionCheckUser = await ensureSession();
+    const bookingDataToInsert = {
+      user_id: sessionCheckUser.id,
+      venue_id: venueId,
+      table_id: tableId,
+      booking_date: selection?.date || bookingData?.date || new Date().toISOString().split('T')[0],
+      start_time: selection?.time || bookingData?.time || '19:00:00',
+      end_time: selection?.endTime || bookingData?.endTime || '23:00:00',
+      number_of_guests: parseInt(selection?.guests) || parseInt(bookingData?.guestCount) || 2,
+      status: 'pending', // Use 'pending' for split payments
+      total_amount: parseFloat(calculateTotal())
+    };
+
+    console.log('Creating booking for split payment:', bookingDataToInsert);
+
+    // Save booking to database
+    const { data: bookingRecord, error: bookingError } = await supabase
+      .from('bookings')
+      .insert([bookingDataToInsert])
+      .select()
+      .single();
+
+    if (bookingError) {
+      throw new Error(`Failed to create booking: ${bookingError.message}`);
+    }
+
+    console.log('Split payment booking created:', bookingRecord.id);
+    return bookingRecord.id;
+
+  } catch (error) {
+    console.error('Error creating booking for split payment:', error);
+    throw error;
+  }
+};
+
+// inside component top-level
+const { user: sessionUser, signIn, signUp } = useAuth();
+const [loginOpen, setLoginOpen] = useState(false);
+const [authMode, setAuthMode] = useState('login'); // 'login' | 'signup'
+const [authForm, setAuthForm] = useState({ email: '', password: '', fullName: '', phone: '' });
+const [authLoading, setAuthLoading] = useState(false);
+const [authError, setAuthError] = useState('');
+const [awaitingConfirm, setAwaitingConfirm] = useState(false);
+
+// Add the useEffect to handle booking data from location.state
+useEffect(() => {
+  console.log('🔍 CheckoutPage useEffect triggered');
+  console.log('📍 Current location:', window.location.href);
+  console.log('📦 Location state:', location.state);
+  console.log(' User:', user);
+  
+  if (location.state) {
+    // Get booking data from navigation state
+    const incomingData = location.state;
+    
+    console.log('📋 Booking data received:', incomingData);
+    
+    // Check if we have the minimum required data for a booking
+    if (incomingData.venue && incomingData.date && incomingData.time) {
+      console.log('✅ Valid booking data found, setting form data');
+      
+      // Set the booking data for display
+      setBookingData(incomingData);
+      
+      // Set form data from booking - match the actual data structure
+      setFormData(prev => ({
+        ...prev,
+        venueId: incomingData.venue.id,
+        tableId: incomingData.table.id,
+        date: incomingData.date,
+        startTime: incomingData.time,
+        endTime: incomingData.endTime,
+        numberOfGuests: incomingData.guestCount
+      }));
+      
+      console.log('📝 Form data set successfully');
+      console.log('🎯 Component should now render with data');
+      
+      // 🚨 CRITICAL FIX: Set loading to false when we have data
+      setLoading(false);
+      console.log('✅ Loading set to false');
+      
+    } else {
+      console.log('❌ Incomplete booking data, redirecting to venues');
+      console.log('Missing:', {
+        venue: !incomingData.venue,
+        date: !incomingData.date,
+        time: !incomingData.time
+      });
+      navigate('/venues');
+    }
+  } else {
+    console.log('❌ No location state, redirecting to venues');
+    navigate('/venues');
+  }
+}, [location.state, navigate, user]);
+
+// Add debugging for the render conditions
+console.log('🎭 Render conditions check:', {
+  loading,
+  selection: !!selection,
+  bookingData: !!bookingData,
+  hasData: !!(selection || bookingData)
+});
+
+// Add this useEffect to handle loading state
+useEffect(() => {
+  console.log('🔄 Loading state changed:', loading);
+  console.log('📊 Current state:', {
+    loading,
+    selection: !!selection,
+    bookingData: !!bookingData,
+    formData: !!formData
+  });
+}, [loading, selection, bookingData, formData]);
+
+  // Add a safety timeout to prevent infinite loading
+  useEffect(() => {
+    const loadingTimeout = setTimeout(() => {
+      if (loading) {
+        console.log('⏰ Loading timeout reached, forcing loading to false');
+        setLoading(false);
+      }
+    }, 5000); // 5 second timeout
+
+    return () => clearTimeout(loadingTimeout);
+  }, [loading]);
+
+// Add this useEffect after your existing useEffects to populate form data for authenticated users
+useEffect(() => {
+  if (user && !formData.fullName && !formData.email) {
+    console.log(' User authenticated, populating form with profile data');
+    
+    // Populate form with user's profile information
+    setFormData(prev => ({
+      ...prev,
+      fullName: user.user_metadata?.full_name || user.user_metadata?.name || '',
+      email: user.email || '',
+      phone: user.user_metadata?.phone || ''
+    }));
+    
+    console.log('✅ Form populated with user data:', {
+      fullName: user.user_metadata?.full_name || user.user_metadata?.name || '',
+      email: user.email || '',
+      phone: user.user_metadata?.phone || ''
+    });
+  }
+}, [user, formData.fullName, formData.email]);
+
+const handleInputChange = (e) => {
+const { name, value, type, checked } = e.target;
+setFormData(prev => ({
+...prev,
+[name]: type === 'checkbox' ? checked : value
+}));
+if (errors[name]) {
+setErrors(prev => ({ ...prev, [name]: null }));
+}
+};
+
+const applyReferralCode = (code) => {
+if (code === "VIP2025") {
+toast({ title: "Referral code applied!", description: "You've unlocked 10% off!" });
+// This is a mock, in a real app this would adjust price or add perks
+setVipPerks(prev => [...prev, "10% Discount Applied"]);
+return true;
+}
+toast({ title: "Invalid referral code", variant: "destructive" });
+return false;
+};
+
+const sendBookingConfirmationEmail = async (bookingData) => {
+let booking, venue, customer;
+
+try {
+// Use the actual database booking record if available
+if (bookingData.dbRecord) {
+booking = bookingData.dbRecord;
+} else {
+// Fallback to constructed data
+booking = {
+  id: bookingData.bookingId || bookingData.id,
+  booking_date: bookingData.bookingDate || new Date().toISOString(),
+  booking_time: selection.time || '19:00:00',
+  guest_count: selection.guests || selection.guestCount || 2,
+  table_number: selection.table?.name || selection.table?.table_number,
+  total_amount: bookingData.totalAmount,
+  status: 'confirmed'
+};
+}
+
+// Fetch actual venue data from database if venue_id is available
+if (booking.venue_id) {
+const { data: venueData, error: venueError } = await supabase
+  .from('venues')
+  .select('*')
+  .eq('id', booking.venue_id)
+  .single();
+
+if (!venueError && venueData) {
+  venue = venueData;
+} else {
+  console.warn('Could not fetch venue data, using fallback:', venueError);
+  venue = {
+    name: bookingData.venueName || selection.venueName,
+    address: selection.venueAddress || 'Lagos, Nigeria',
+    contact_phone: selection.venuePhone || '+234 XXX XXX XXXX',
+    contact_email: selection.venueEmail || 'info@oneeddy.com',
+    images: selection.venueImage ? [selection.venueImage] : [],
+    dress_code: 'Smart casual'
+  };
+}
+} else {
+// Fallback venue data
+venue = {
+  name: bookingData.venueName || selection.venueName,
+  address: selection.venueAddress || 'Lagos, Nigeria',
+  contact_phone: selection.venuePhone || '+234 XXX XXX XXXX',
+  contact_email: selection.venueEmail || 'info@oneeddy.com',
+  images: selection.venueImage ? [selection.venueImage] : [],
+  dress_code: 'Smart casual'
+};
+}
+
+// Use actual customer data from form or user profile
+customer = {
+full_name: bookingData.customerName || formData.fullName,
+email: bookingData.customerEmail || formData.email,
+phone: bookingData.customerPhone || formData.phone
+};
+
+// Send customer confirmation email using EmailJS
+const customerEmailResult = await sendBookingConfirmation(booking, venue, customer);
+
+// Get venue owner info if available for notification
+const venueOwnerEmail = venue?.contact_email || selection?.ownerEmail || venue?.owner_email;
+if (venueOwnerEmail && venueOwnerEmail.includes('@')) {
+const venueOwner = {
+  full_name: 'Venue Owner',
+  email: venueOwnerEmail
+};
+
+// Send venue owner notification (non-blocking)
+sendVenueOwnerNotification(booking, venue, customer, venueOwner)
+  .catch(error => console.log('Venue owner notification failed:', error));
+}
+
+console.log('✅ Email service result:', customerEmailResult);
+return true;
+} catch (error) {
+console.error('❌ Failed to send booking emails:', error);
+
+// If it's the "recipients address is empty" error, run debug function
+if ((error.text === 'The recipients address is empty' || error.message?.includes('recipients address is empty')) && booking && venue && customer) {
+console.log('🔍 Running email debug function...');
+try {
+  await debugBookingEmail(booking, venue, customer);
+} catch (debugError) {
+  console.error('❌ Debug function also failed:', debugError);
+}
+}
+
+return false;
+}
+};
+
+const createOrUpdateUserAccount = async (userData) => {
+try {
+// If user is already authenticated, just update their profile if needed
+if (user) {
+        // Update user profile with any new information
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert([{
+            id: user.id,
+            first_name: userData.fullName.split(' ')[0] || '',
+            last_name: userData.fullName.split(' ').slice(1).join(' ') || '',
+            phone: userData.phone
+          }], {
+            onConflict: 'id'
+          });
+
+if (profileError) {
+  console.error('Error updating user profile:', profileError);
+}
+
+return user;
+}
+
+// For new users, create account
+// First check if user already exists by trying to sign them in
+const { data: existingUser, error: checkError } = await supabase.auth.signInWithPassword({
+email: userData.email,
+password: userData.password
+});
+
+if (existingUser?.user) {
+// User already exists, just sign them in
+console.log('User already exists, signed in:', existingUser.user.id);
+return existingUser.user;
+}
+
+console.log('Creating new user account for:', userData.email);
+
+// Create new user account
+const { data: newUser, error: signUpError } = await supabase.auth.signUp({
+email: userData.email,
+password: userData.password,
+options: {
+  data: {
+    full_name: userData.fullName,
+    phone: userData.phone
+  }
+}
+});
+
+if (signUpError) {
+console.error('Signup error:', signUpError);
+throw signUpError;
+}
+
+if (!newUser.user) {
+throw new Error('Failed to create user account - no user returned from signup');
+}
+
+      console.log('Successfully created user:', newUser.user.id);
+
+      // For new users, we don't need to verify the session immediately
+      // The user object from signup is sufficient for creating the profile
+      console.log('New user created successfully, proceeding with profile creation');
+
+      // Skip client-side profile upsert here to avoid RLS errors during email-confirmation flow.
+      // Profiles are auto-created by DB trigger on auth.users insert.
+      // Optionally update profile after the user logs in (when a session exists).
+
+return newUser.user;
+} catch (error) {
+console.error('Error with user account:', error);
+throw error;
+}
+};
+
+const handleSubmit = async (e) => {
+e.preventDefault();
+const formErrors = validateCheckoutForm(formData, !!user);
+setErrors(formErrors);
+
+if (Object.keys(formErrors).length === 0) {
+setIsSubmitting(true);
+
+try {
+// Apply referral code if provided
+if (formData.referralCode) {
+  applyReferralCode(formData.referralCode);
+}
+
+        // Create or update user account
+        const currentUser = await createOrUpdateUserAccount({
+          fullName: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+          password: formData.password
+        });
+
+        // Validate that we have a valid user
+        if (!currentUser || !currentUser.id) {
+          throw new Error('Failed to create or authenticate user account. Please try again.');
+        }
+
+        // Set current user for split payments (important for new users)
+        setCurrentUserForSplit(currentUser);
+
+        console.log('Current user for booking:', { id: currentUser.id, email: currentUser.email });
+
+        // Only verify session for existing users, not newly created ones
+        if (user) { // If user was already authenticated (existing user)
+          try {
+            const { data: finalCheck, error: finalError } = await supabase.auth.getUser();
+            if (finalError || !finalCheck.user || finalCheck.user.id !== currentUser.id) {
+              throw new Error(`User verification failed before booking: ${finalError?.message || 'User not found'}`);
+            }
+            console.log('Final user verification passed');
+          } catch (authError) {
+            console.error('Authentication check failed:', authError);
+            throw new Error('Authentication failed - please try logging in again');
+          }
+        } else {
+          console.log('New user created, skipping session verification');
+        }
+
+// Handle credit purchase flow
+if (selection?.isCreditPurchase) {
+  // Create venue credit record
+  const { data: creditData, error: creditError } = await supabase
+    .from('venue_credits')
+    .insert([{
+      user_id: currentUser?.id,
+      venue_id: selection.venueId,
+      amount: selection.creditAmount * 100, // Convert to kobo/cents
+      notes: `Credit purchase for ${selection.venueName}`,
+      status: 'active'
+    }])
+    .select()
+    .single();
+
+  if (creditError) {
+    throw new Error(`Failed to create venue credits: ${creditError.message}`);
+  }
+
+  // Show success message
+  toast({
+    title: "Credits Purchased Successfully! 🎉",
+    description: `₦${selection.creditAmount.toLocaleString()} credits added to your ${selection.venueName} account`,
+    className: "bg-green-500 text-white",
+  });
+
+  // Navigate back to profile/wallet
+  setTimeout(() => {
+    navigate('/profile', { state: { activeTab: 'wallet' } });
+  }, 2000);
+
+  return; // Exit early for credit purchase flow
+}
+
+// Original booking flow continues here...
+// Prepare booking data for database - use the correct data structure
+const venueId = selection?.venue?.id || bookingData?.venue?.id || selection?.venueId || selection?.id;
+const tableId = selection?.table?.id || bookingData?.table?.id || selection?.selectedTable?.id || selection?.tableId || null;
+
+console.log('🔍 Debug venue ID lookup in handleSubmit:', {
+  'selection?.venue?.id': selection?.venue?.id,
+  'bookingData?.venue?.id': bookingData?.venue?.id,
+  'selection?.venueId': selection?.venueId,
+  'selection?.id': selection?.id,
+  'final venueId': venueId
+});
+
+// Validate required fields
+if (!venueId) {
+  throw new Error('Venue ID is required for booking');
+}
+
+const sessionCheckUser = await ensureSession();
+const bookingDataToInsert = {
+  user_id: sessionCheckUser.id, // We've already validated this exists
+  venue_id: venueId,
+  table_id: tableId,
+  booking_date: selection?.date || bookingData?.date || new Date().toISOString().split('T')[0],
+  start_time: selection?.time || bookingData?.time || '19:00:00',
+  end_time: selection?.endTime || bookingData?.endTime || '23:00:00',
+  number_of_guests: parseInt(selection?.guests) || parseInt(bookingData?.guestCount) || 2,
+  status: 'confirmed',
+  total_amount: parseFloat(calculateTotal())
+};
+
+console.log('Booking data to insert:', bookingDataToInsert);
+
+// Validate table_id exists if provided
+if (tableId) {
+  const { data: tableExists, error: tableError } = await supabase
+    .from('venue_tables')
+    .select('id')
+    .eq('id', tableId)
+    .single();
+  
+  if (tableError || !tableExists) {
+    console.warn('Table ID not found, proceeding without table assignment');
+    bookingDataToInsert.table_id = null;
+  }
+}
+
+// Save booking to database (DB enforces one booking per table per day for confirmed)
+const { data: bookingRecord, error: bookingError } = await supabase
+  .from('bookings')
+  .insert([{
+    ...bookingDataToInsert,
+    // Ensure these keys match the unique index (table_id, booking_date, status)
+    status: 'confirmed',
+    booking_date: bookingDataToInsert.booking_date || (selection?.date || bookingData?.date || new Date().toISOString().split('T')[0]),
+    table_id: bookingDataToInsert.table_id || tableId || null,
+  }])
+  .select()
+  .single();
+
+if (bookingError) {
+  const msg = bookingError.message || '';
+  const isUnique = bookingError.code === '23505' || /duplicate key value|bookings_one_per_day/i.test(msg);
+  if (isUnique) {
+    toast({
+      title: 'Table already booked for this date',
+      description: 'Please choose another table or another date.',
+      variant: 'destructive',
+      className: 'bg-red-500 text-white',
+    });
+    setIsSubmitting(false);
+    return;
+  }
+  throw new Error(`Failed to create booking: ${bookingError.message}`);
+}
+
+// Create booking record for localStorage (for backward compatibility)
+const newBooking = {
+  id: bookingRecord.id,
+  ...selection,
+  ...bookingData, // Include bookingData for backward compatibility
+  customerName: formData.fullName,
+  customerEmail: formData.email,
+  customerPhone: formData.phone,
+  userId: currentUser?.id,
+  bookingDate: new Date().toISOString(),
+  status: 'confirmed',
+  referralCode: formData.referralCode,
+  vipPerksApplied: vipPerks,
+  totalAmount: calculateTotal(),
+  dbRecord: bookingRecord // Reference to database record
+};
+
+// Save booking to localStorage (for backward compatibility with existing components)
+const bookings = JSON.parse(localStorage.getItem('lagosvibe_bookings') || '[]');
+bookings.push(newBooking);
+localStorage.setItem('lagosvibe_bookings', JSON.stringify(bookings));
+localStorage.removeItem('lagosvibe_booking_selection');
+
+// Send confirmation email (non-blocking)
+const emailSent = await sendBookingConfirmationEmail({
+  ...newBooking,
+  bookingId: bookingRecord.id,
+  venueName: selection?.venueName || bookingData?.venueName || selection?.name
+});
+
+// Unlock VIP perks
+const unlockedPerks = ["Free Welcome Drink", "Priority Queue"];
+localStorage.setItem('lagosvibe_vip_perks', JSON.stringify(unlockedPerks));
+
+// Show success message regardless of email status
+const isNewUser = !user;
+toast({ 
+  title: isNewUser ? "Account Created & Booking Confirmed!" : "Booking Confirmed!", 
+  description: emailSent 
+    ? (isNewUser ? "Welcome to VIPClub! Check your email for confirmation." : "Your booking is confirmed! Check your email for confirmation.")
+    : (isNewUser ? "Welcome to VIPClub! Your booking is confirmed. You can view details in your profile." : "Your booking is confirmed. You can view details in your profile."),
+  className: "bg-green-500 text-white"
+});
+
+// If email failed, show a separate notification
+if (!emailSent) {
+  setTimeout(() => {
+    toast({
+      title: "Email Notification",
+      description: "Confirmation email could not be sent, but your booking is saved. You can view it in your profile.",
+      variant: "default"
+    });
+  }, 3000);
+}
+
+setShowConfirmation(true);
+
+} catch (error) {
+console.error('Error processing booking:', error);
+toast({
+  title: "Booking Error",
+  description: error.message || "There was an error processing your booking. Please try again.",
+  variant: "destructive",
+});
+} finally {
+setIsSubmitting(false);
+}
+} else {
+toast({
+title: "Form validation failed",
+description: "Please check the form and fix the errors.",
+variant: "destructive",
+});
+}
+};
+
+const calculateTotal = () => {
+if (isDepositFlow && depositAmount) {
+return depositAmount.toFixed(2);
+}
+if (selection?.isCreditPurchase) {
+return selection.purchaseAmount.toFixed(2);
+}
+if (!selection && !bookingData) return 0;
+
+// Handle new booking modal format vs old format
+let basePrice = 0;
+if (selection?.isFromModal) {
+// New format from booking modal
+basePrice = selection.selectedTable?.price || 50;
+} else if (bookingData?.isFromModal) {
+// New format from booking modal (when bookingData is available)
+basePrice = bookingData.selectedTable?.price || 50;
+} else {
+// Old format
+basePrice = (selection?.ticket?.price || 0) + (selection?.table?.price || 0);
+}
+
+let total = basePrice + 25; // 25 is service fee
+if (vipPerks.includes("10% Discount Applied")) {
+total *= 0.9; // Apply 10% discount
+}
+return total.toFixed(2);
+};
+
+const handleSplitCountChange = (newCount) => {
+if (newCount < 1) return;
+setSplitCount(newCount);
+const amountPerPerson = Math.ceil(venue.price / newCount);
+const amounts = Array(newCount).fill(amountPerPerson);
+// Adjust the last amount to account for rounding
+const total = amounts.reduce((sum, amount) => sum + amount, 0);
+if (total !== venue.price) {
+amounts[amounts.length - 1] = venue.price - (amounts.slice(0, -1).reduce((sum, amount) => sum + amount, 0));
+}
+setSplitAmounts(amounts);
+setSplitLinks(Array(newCount).fill(''));
+};
+
+const generateSplitLinks = () => {
+const links = splitAmounts.map((amount, index) => {
+// In a real app, this would generate a unique payment link
+return `${window.location.origin}/split-payment/${id}/${index + 1}/${amount}`;
+});
+setSplitLinks(links);
+setShowShareDialog(true);
+};
+
+const copyToClipboard = (text) => {
+navigator.clipboard.writeText(text);
+toast({
+title: "Link copied!",
+description: "Share this link with your friends to collect payment.",
+});
+};
+
+const handleSplitPaymentCreated = (requests) => {
+setSplitPaymentRequests(requests);
+setShowShareDialog(true);
+};
+
+  // Add debugging for the render conditions
+  console.log('🎭 Render conditions check:', {
+    loading,
+    selection: !!selection,
+    bookingData: !!bookingData,
+    hasData: !!(selection || bookingData)
+  });
+
+  // Update the loading check to include bookingData
+  if (loading) {
+    console.log('⏳ Showing loading state');
+    return (
+      <div className="container py-20 text-center">
+        <div className="animate-pulse flex flex-col items-center">
+          <div className="h-8 w-64 bg-secondary rounded mb-4"></div>
+          <div className="h-4 w-48 bg-secondary rounded"></div>
+        </div>
+      </div>
+    );
+  }
+
+  // Update the selection check to include bookingData
+  if (!selection && !bookingData) {
+    console.log('❌ No data available, showing no selection message');
+    return (
+      <div className="container py-20 text-center">
+        <h2 className="text-2xl font-bold mb-4">No Selection Found</h2>
+        <p className="text-muted-foreground mb-6">Please go back and select a ticket or table first.</p>
+        <Link to={
+          isDepositFlow ? "/profile" : 
+          location.state?.creditPurchase ? "/venue-credit-purchase" :
+          `/venues/${id}`
+        }>
+          <Button>
+            {isDepositFlow ? "Back to Profile" : 
+             location.state?.creditPurchase ? "Back to Credit Purchase" :
+             "Back to Venue"}
+          </Button>
+        </Link>
+      </div>
+    );
+  }
+
+  console.log('🎉 Rendering main checkout content');
+  console.log('📊 Final render data:', {
+    selection,
+    bookingData,
+    formData
+  });
+
+  // Add error boundary for the main render
+  try {
+    return (
+      <div className="container py-10">
+        <Link to={
+          isDepositFlow ? "/profile" : 
+          location.state?.creditPurchase ? "/venue-credit-purchase" :
+          `/venues/${id}`
+        } className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-6">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          {isDepositFlow ? "Back to Profile" : 
+           location.state?.creditPurchase ? "Back to Credit Purchase" :
+           "Back to Venue"}
+        </Link>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <h1 className="text-3xl font-bold mb-6 flex items-center">
+                <CreditCard className="h-8 w-8 mr-2" />
+                Checkout
+              </h1>
+
+              {/* Show the selected booking details */}
+              {(selection || bookingData) && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                  <h3 className="font-semibold text-blue-800 mb-2">Booking Summary</h3>
+                  <div className="text-sm text-blue-700">
+                    <p><strong>Venue:</strong> {(selection || bookingData).venue.name}</p>
+                    <p><strong>Table:</strong> {(selection || bookingData).table.table_number} (Capacity: {(selection || bookingData).table.capacity})</p>
+                    <p><strong>Date:</strong> {(selection || bookingData).date}</p>
+                    <p><strong>Time:</strong> {(selection || bookingData).time} - {(selection || bookingData).endTime}</p>
+                    <p><strong>Guests:</strong> {(selection || bookingData).guestCount}</p>
+                  </div>
+                </div>
+              )}
+
+              <Tabs defaultValue="single" className="w-full mb-6">
+                <TabsList className="grid w-full grid-cols-2 mb-6">
+                  <TabsTrigger value="single">Single Payment</TabsTrigger>
+                  <TabsTrigger value="split">Split Payment</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="single">
+                  <CheckoutForm 
+                    formData={formData}
+                    errors={errors}
+                    handleInputChange={handleInputChange}
+                    handleSubmit={handleSubmit}
+                    isSubmitting={isSubmitting}
+                    totalAmount={calculateTotal()}
+                    isAuthenticated={!!user}
+                    icons={{
+                      user: <User className="h-5 w-5 mr-2" />
+                    }}
+                  />
+                  <Button 
+                    type="submit" 
+                    disabled={isSubmitting} 
+                    className="w-full bg-brand-burgundy text-brand-cream hover:bg-brand-burgundy/90 py-3.5 text-lg rounded-md"
+                    onClick={handleSubmit}
+                  >
+                    {isSubmitting ? (
+                      <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-brand-cream mr-2"></div>
+                        Processing...
+                      </div>
+                    ) : `Pay ₦${calculateTotal().toLocaleString()}`}
+                  </Button>
+                </TabsContent>
+
+                <TabsContent value="split">
+                  <SplitPaymentForm
+                    totalAmount={parseFloat(calculateTotal())}
+                    onSplitCreated={handleSplitPaymentCreated}
+                    user={currentUserForSplit || userProfile || user}
+                    bookingId={selection?.id}
+                    createBookingIfNeeded={async () => {
+                      const u = await ensureSession();
+                      // If booking already exists, return its ID
+                      if (selection?.id) return selection.id;
+                      
+                      // Create new booking
+                      const bookingId = await createBooking();
+                      return bookingId;
+                    }}
+                  />
+                </TabsContent>
+              </Tabs>
+            </motion.div>
+          </div>
+          
+          <div className="lg:col-span-1">
+            <OrderSummary 
+              selection={selection || bookingData}
+              totalAmount={calculateTotal()}
+              vipPerks={vipPerks}
+            />
+          </div>
+        </div>
+
+        <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
+          <DialogContent className="sm:max-w-md" aria-describedby="checkout-dialog-desc">
+            <div id="checkout-dialog-desc" className="sr-only">Enter your payment details to complete your booking.</div>
+            <DialogHeader>
+              <DialogTitle className="text-center text-2xl">Booking Confirmed!</DialogTitle>
+              <DialogDescription className="text-center">
+                <div className="flex justify-center my-6">
+                  <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center">
+                    <Check className="h-8 w-8 text-primary" />
+                  </div>
+                </div>
+                <p className="mb-2">
+                  Your booking at <span className="font-bold">{(selection || bookingData)?.venue?.name}</span> has been confirmed.
+                </p>
+                {vipPerks.length > 0 && (
+                  <div className="my-2 text-sm text-green-400">
+                    <p className="font-semibold">VIP Perks Applied:</p>
+                    <ul className="list-disc list-inside">
+                      {vipPerks.map(perk => <li key={perk}>{perk}</li>)}
+                    </ul>
+                  </div>
+                )}
+                <p className="text-sm">
+                  A confirmation email has been sent to {formData.email}. You can show this email or your ID at the entrance.
+                </p>
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex justify-center mt-4">
+              <Link to="/">
+                <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity text-accent-foreground">
+                  Back to Home
+                </Button>
+              </Link>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Split Payment Requests Dialog */}
+        <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+          <DialogContent aria-describedby="checkout-dialog-desc-2">
+            <div id="checkout-dialog-desc-2" className="sr-only">View and manage your split payment requests.</div>
+            <DialogHeader>
+              <DialogTitle>Split Payment Requests Sent</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {splitPaymentRequests.length > 0 ? (
+                splitPaymentRequests.map((request, index) => (
+                  <div key={request.id} className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-brand-burgundy/10 rounded-full flex items-center justify-center">
+                          <User className="h-4 w-4 text-brand-burgundy" />
+                        </div>
+                        <div>
+                          <div className="font-medium">Recipient {index + 1}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {request.recipient_phone}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-bold">₦{request.amount.toLocaleString()}</div>
+                        <Badge variant="outline" className="text-xs">
+                          {request.status}
+                        </Badge>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 mt-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => copyToClipboard(request.payment_link)}
+                        className="flex-1"
+                      >
+                        <Copy className="h-4 w-4 mr-2" />
+                        Copy Payment Link
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>No split payment requests created yet.</p>
+                </div>
+              )}
+              
+              <div className="flex justify-end gap-4 mt-6">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowShareDialog(false)}
+                >
+                  Close
+                </Button>
+                <Button
+                  className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90"
+                  onClick={() => {
+                    setShowShareDialog(false);
+                    navigate('/bookings');
+                  }}
+                >
+                  View All Bookings
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-brand-burgundy">
+                {awaitingConfirm ? 'Confirm your email' : (authMode === 'login' ? 'Log in to continue' : 'Create an account')}
+              </DialogTitle>
+            </DialogHeader>
+
+            {!awaitingConfirm ? (
+              <form onSubmit={handleAuthSubmit} className="space-y-4">
+                <div>
+                  <Label htmlFor="auth-email" className="text-brand-burgundy">Email</Label>
+                  <Input id="auth-email" type="email" value={authForm.email} onChange={(e) => setAuthForm(f => ({ ...f, email: e.target.value }))} required />
+                </div>
+                {authMode === 'signup' && (
+                  <>
+                    <div>
+                      <Label htmlFor="auth-name" className="text-brand-burgundy">Full Name</Label>
+                      <Input id="auth-name" type="text" value={authForm.fullName} onChange={(e) => setAuthForm(f => ({ ...f, fullName: e.target.value }))} placeholder="e.g. John Smith" required />
+                    </div>
+                    <div>
+                      <Label htmlFor="auth-phone" className="text-brand-burgundy">Phone (optional)</Label>
+                      <Input id="auth-phone" type="tel" value={authForm.phone} onChange={(e) => setAuthForm(f => ({ ...f, phone: e.target.value }))} placeholder="+234 ..." />
+                    </div>
+                  </>
+                )}
+                <div>
+                  <Label htmlFor="auth-pass" className="text-brand-burgundy">Password</Label>
+                  <Input id="auth-pass" type="password" value={authForm.password} onChange={(e) => setAuthForm(f => ({ ...f, password: e.target.value }))} required />
+                </div>
+                {authError && <div className="text-red-600 text-sm">{authError}</div>}
+                <Button type="submit" disabled={authLoading} className="w-full bg-brand-burgundy text-brand-cream hover:bg-brand-burgundy/90">
+                  {authLoading ? 'Please wait...' : (authMode === 'login' ? 'Login' : 'Sign Up')}
+                </Button>
+                <div className="text-center text-sm">
+                  {authMode === 'login' ? (
+                    <button type="button" className="text-brand-gold" onClick={() => setAuthMode('signup')}>New here? Create an account</button>
+                  ) : (
+                    <button type="button" className="text-brand-gold" onClick={() => setAuthMode('login')}>Already have an account? Login</button>
+                  )}
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-sm text-brand-burgundy/80">
+                  We sent a confirmation email to <span className="font-medium text-brand-burgundy">{authForm.email}</span>. Please click the link in that email to verify your account. Once confirmed, return to the app.
+                </p>
+                {EMAIL_REDIRECT && (
+                  <p className="text-xs text-brand-burgundy/60">
+                    Tip: The link opens the app via <span className="font-mono">{EMAIL_REDIRECT}</span>.
+                  </p>
+                )}
+                {authError && <div className="text-red-600 text-sm">{authError}</div>}
+                <div className="flex gap-2">
+                  <Button onClick={checkEmailConfirmed} disabled={authLoading} className="flex-1 bg-brand-burgundy text-brand-cream hover:bg-brand-burgundy/90">
+                    I've confirmed
+                  </Button>
+                  <Button onClick={resendConfirmation} variant="outline" disabled={authLoading} className="flex-1 border-brand-burgundy text-brand-burgundy">
+                    Resend email
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      </div>
+    );
+  } catch (error) {
+    console.error('❌ Error rendering checkout content:', error);
+    return (
+      <div className="container py-20 text-center">
+        <h2 className="text-2xl font-bold mb-4 text-red-600">Error Loading Checkout</h2>
+        <p className="text-muted-foreground mb-6">There was an error loading the checkout page.</p>
+        <Button onClick={() => window.location.reload()}>
+          Reload Page
+        </Button>
+      </div>
+    );
+  }
+};
+
+export default CheckoutPage;
