@@ -60,6 +60,117 @@ const [currentUserForSplit, setCurrentUserForSplit] = useState(null);
 // Add this state to store the booking data from location.state
 const [bookingData, setBookingData] = useState(null);
 
+// Add these missing auth functions here
+const handleAuthSubmit = async (e) => {
+  e.preventDefault();
+  setAuthLoading(true);
+  setAuthError('');
+
+  try {
+    if (authMode === 'login') {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: authForm.email,
+        password: authForm.password
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        setLoginOpen(false);
+        toast({
+          title: "Login successful!",
+          description: "Welcome back!",
+        });
+      }
+    } else {
+      // Signup
+      const { data, error } = await supabase.auth.signUp({
+        email: authForm.email,
+        password: authForm.password,
+        options: {
+          data: {
+            full_name: authForm.fullName,
+            phone: authForm.phone
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        setAwaitingConfirm(true);
+        toast({
+          title: "Account created!",
+          description: "Please check your email to confirm your account.",
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Auth error:', error);
+    setAuthError(error.message);
+  } finally {
+    setAuthLoading(false);
+  }
+};
+
+const checkEmailConfirmed = async () => {
+  setAuthLoading(true);
+  setAuthError('');
+
+  try {
+    const { data, error } = await supabase.auth.getUser();
+    if (error) throw error;
+
+    if (data.user?.email_confirmed_at) {
+      setAwaitingConfirm(false);
+      setLoginOpen(false);
+      toast({
+        title: "Email confirmed!",
+        description: "Your account is now active.",
+      });
+    } else {
+      setAuthError('Email not yet confirmed. Please check your inbox and click the confirmation link.');
+    }
+  } catch (error) {
+    console.error('Email confirmation check error:', error);
+    setAuthError(error.message);
+  } finally {
+    setAuthLoading(false);
+  }
+};
+
+const resendConfirmation = async () => {
+  setAuthLoading(true);
+  setAuthError('');
+
+  try {
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: authForm.email
+    });
+
+    if (error) throw error;
+
+    toast({
+      title: "Confirmation email sent!",
+      description: "Please check your inbox.",
+    });
+  } catch (error) {
+    console.error('Resend confirmation error:', error);
+    setAuthError(error.message);
+  } finally {
+    setAuthLoading(false);
+  }
+};
+
+const ensureSession = async () => {
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) {
+    throw new Error('No authenticated user found');
+  }
+  return user;
+};
+
 // inside component top-level
 const { user: sessionUser, signIn, signUp } = useAuth();
 const [loginOpen, setLoginOpen] = useState(false);
@@ -68,11 +179,6 @@ const [authForm, setAuthForm] = useState({ email: '', password: '', fullName: ''
 const [authLoading, setAuthLoading] = useState(false);
 const [authError, setAuthError] = useState('');
 const [awaitingConfirm, setAwaitingConfirm] = useState(false);
-
-// set redirect target for Supabase confirmation emails
-const BASE_URL = import.meta.env.VITE_PUBLIC_BASE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
-const currentPath = (typeof window !== 'undefined') ? (window.location.pathname + window.location.search) : '/checkout';
-const EMAIL_REDIRECT = BASE_URL ? `${BASE_URL}/open?target=signup-confirm&returnTo=${encodeURIComponent(currentPath)}` : undefined;
 
 // Add the useEffect to handle booking data from location.state
 useEffect(() => {
