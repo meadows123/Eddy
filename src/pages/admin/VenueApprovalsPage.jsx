@@ -142,12 +142,21 @@ const VenueApprovalsPage = () => {
         // Don't fail the approval if email fails
       }
 
-      // Refresh the list with a small delay to ensure database commit
+      // Update the approval success section (around line 140)
+      // Add a delay and force refresh to ensure the UI updates
+      console.log('✅ Approval completed, refreshing UI in 2 seconds...');
+
+      // Force refresh after a delay to ensure database commit
       setTimeout(async () => {
         console.log('🔄 Refreshing requests list after approval...');
-        await loadRequests();
-      }, 1000);
-      
+        try {
+          await loadRequests();
+          console.log('✅ Requests list refreshed successfully');
+        } catch (error) {
+          console.error('❌ Failed to refresh requests:', error);
+        }
+      }, 2000);
+
       alert(`Venue owner approved successfully! ${req.contact_name} can now access their venue dashboard. The venue "${req.venue_name}" is now live with proper owner linking.`);
     } catch (error) {
       console.error('Error approving request:', error);
