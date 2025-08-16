@@ -27,8 +27,7 @@ const SplitPaymentForm = ({
   onSplitCreated, 
   user, 
   bookingId, 
-  createBookingIfNeeded,
-  onInitiatorPayment // Add this new prop
+  createBookingIfNeeded
 }) => {
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -494,24 +493,14 @@ const SplitPaymentForm = ({
               <Button 
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white h-12 text-base font-medium"
                 onClick={() => {
-                  // This will trigger the main checkout payment flow for the initiator's portion
                   toast({
-                    title: "Processing Payment",
-                    description: "Redirecting to payment processing...",
+                    title: "Split Payment Created",
+                    description: "Your split payment requests have been sent. You can now complete your own payment using the main checkout form above.",
                     variant: "default"
                   });
-                  
-                  // Call the onInitiatorPayment callback to handle the payment
-                  if (onInitiatorPayment) {
-                    onInitiatorPayment({
-                      amount: myAmount,
-                      splitRequests: createdSplitRequests,
-                      totalAmount: totalAmount
-                    });
-                  }
                 }}
               >
-                Pay ₦{myAmount.toLocaleString()} Now
+                Split Payment Complete
               </Button>
               </div>
           </CardContent>

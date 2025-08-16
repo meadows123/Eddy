@@ -960,7 +960,7 @@ setShowShareDialog(true);
                   <SplitPaymentForm
                     totalAmount={parseFloat(calculateTotal())}
                     onSplitCreated={handleSplitPaymentCreated}
-                    user={currentUserForSplit || userProfile || user}
+                    user={user}
                     bookingId={selection?.id || bookingData?.id}
                     createBookingIfNeeded={async () => {
                       const u = await ensureSession();
