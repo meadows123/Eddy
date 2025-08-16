@@ -678,10 +678,9 @@ const VenueOwnerSettings = () => {
                           <SelectValue placeholder="Select price range" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="budget">Budget</SelectItem>
-                          <SelectItem value="moderate">Moderate</SelectItem>
-                          <SelectItem value="premium">Premium</SelectItem>
-                          <SelectItem value="luxury">Luxury</SelectItem>
+                          <SelectItem value="$">$ (Budget)</SelectItem>
+                          <SelectItem value="$$">$$ (Moderate)</SelectItem>
+                          <SelectItem value="$$$">$$$ (Premium)</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
