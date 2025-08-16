@@ -239,6 +239,22 @@ const VenueOwnerAnalytics = () => {
 
       setBookings(bookingsData || []);
       
+      // Debug logging
+      console.log('📥 Fetched bookings data:', {
+        totalBookings: bookingsData?.length || 0,
+        sampleBooking: bookingsData?.[0],
+        venueIds,
+        dateRange: `${sixMonthsAgo.toISOString()} to ${new Date().toISOString()}`
+      });
+
+      if (bookingsData && bookingsData.length > 0) {
+        console.log('💰 Sample revenue data:', {
+          totalAmounts: bookingsData.map(b => b.total_amount).slice(0, 5),
+          statuses: bookingsData.map(b => b.status).slice(0, 5),
+          dates: bookingsData.map(b => b.booking_date || b.created_at).slice(0, 5)
+        });
+      }
+
       if (!silentRefresh) {
         console.log('Analytics data refreshed successfully');
       }
@@ -287,11 +303,30 @@ const VenueOwnerAnalytics = () => {
   const calculateAnalytics = () => {
     const { start, end } = getDateRange();
     
+    console.log('🔍 Calculating analytics for period:', { start, end });
+    console.log('📊 Total bookings available:', bookings.length);
+    
     // Filter bookings for current period
     const currentPeriodBookings = bookings.filter(booking => {
       const bookingDate = new Date(booking.booking_date || booking.created_at);
-      return bookingDate >= start && bookingDate <= end;
+      const isInPeriod = bookingDate >= start && bookingDate <= end;
+      
+      // Debug logging for first few bookings
+      if (bookings.indexOf(booking) < 3) {
+        console.log('📦 Booking date check:', {
+          bookingId: booking.id,
+          bookingDate: booking.booking_date,
+          createdAt: booking.created_at,
+          parsedDate: bookingDate,
+          isInPeriod,
+          totalAmount: booking.total_amount
+        });
+      }
+      
+      return isInPeriod;
     });
+
+    console.log('✅ Current period bookings:', currentPeriodBookings.length);
 
     // Get comparison period (previous month/week)
     const prevStart = timeRange.includes('Month') 
@@ -307,13 +342,22 @@ const VenueOwnerAnalytics = () => {
     });
 
     // Calculate metrics
-    const totalRevenue = currentPeriodBookings.reduce((sum, booking) => 
-      sum + (booking.total_amount || 0), 0
-    );
+    const totalRevenue = currentPeriodBookings.reduce((sum, booking) => {
+      const amount = parseFloat(booking.total_amount) || 0;
+      return sum + amount;
+    }, 0);
     
-    const prevRevenue = prevPeriodBookings.reduce((sum, booking) => 
-      sum + (booking.total_amount || 0), 0
-    );
+    const prevRevenue = prevPeriodBookings.reduce((sum, booking) => {
+      const amount = parseFloat(booking.total_amount) || 0;
+      return sum + amount;
+    }, 0);
+
+    console.log('💰 Revenue calculation:', {
+      totalRevenue,
+      prevRevenue,
+      currentBookings: currentPeriodBookings.length,
+      prevBookings: prevPeriodBookings.length
+    });
 
     const totalBookings = currentPeriodBookings.length;
     const prevBookings = prevPeriodBookings.length;
@@ -333,7 +377,7 @@ const VenueOwnerAnalytics = () => {
       ? ((totalBookings - prevBookings) / prevBookings) * 100 
       : totalBookings > 0 ? 100 : 0;
 
-    // Daily revenue for chart (last 30 days)
+    // Daily revenue for chart (last 30 days) - FIXED LOGIC
     const last30Days = Array.from({ length: 30 }, (_, i) => {
       const date = new Date();
       date.setDate(date.getDate() - (29 - i));
@@ -343,15 +387,33 @@ const VenueOwnerAnalytics = () => {
     const dailyRevenue = last30Days.map(date => {
       const dayBookings = bookings.filter(booking => {
         const bookingDate = new Date(booking.booking_date || booking.created_at);
+        // Compare dates by date string (ignoring time)
         return bookingDate.toDateString() === date.toDateString();
       });
       
+      const dayRevenue = dayBookings.reduce((sum, booking) => {
+        const amount = parseFloat(booking.total_amount) || 0;
+        return sum + amount;
+      }, 0);
+      
+      // Debug logging for days with revenue
+      if (dayRevenue > 0) {
+        console.log('📈 Day with revenue:', {
+          date: date.toDateString(),
+          revenue: dayRevenue,
+          bookings: dayBookings.length,
+          bookingIds: dayBookings.map(b => b.id)
+        });
+      }
+      
       return {
         date: format(date, 'MMM dd'),
-        revenue: dayBookings.reduce((sum, booking) => sum + (booking.total_amount || 0), 0),
+        revenue: dayRevenue,
         bookings: dayBookings.length
       };
     });
+
+    console.log('📊 Daily revenue data:', dailyRevenue);
 
     // Status breakdown
     const statusBreakdown = {
@@ -364,7 +426,7 @@ const VenueOwnerAnalytics = () => {
     // Recent bookings (last 5)
     const recentBookings = currentPeriodBookings.slice(0, 5);
 
-    setAnalytics({
+    const newAnalytics = {
       totalRevenue,
       totalBookings,
       averageBookingValue,
@@ -376,7 +438,10 @@ const VenueOwnerAnalytics = () => {
       dailyRevenue,
       statusBreakdown,
       recentBookings
-    });
+    };
+
+    console.log('📈 Final analytics:', newAnalytics);
+    setAnalytics(newAnalytics);
   };
 
   const formatCurrency = (amount) => {
