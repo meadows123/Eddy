@@ -461,8 +461,8 @@ const VenueDetailPage = () => {
         <div className="h-20"></div>
       </div>
 
-      {/* Fixed Book Button */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 bg-white border-t border-gray-200">
+      {/* Fixed Book Button - Moved up for better mobile UX */}
+      <div className="fixed bottom-4 left-4 right-4 p-4 bg-white border border-gray-200 rounded-lg shadow-lg">
         <div className="flex items-center justify-between mb-3">
           <div>
             <div className="text-lg font-semibold text-brand-burgundy">Ready to book?</div>

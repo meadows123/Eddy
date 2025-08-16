@@ -60,9 +60,16 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
                   <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center mr-3">
                     <User className="h-3 w-3 text-white" />
                   </div>
-                  <div>
+                  <div className="flex-1">
                     <p className="text-sm font-medium text-green-800">Signed in to your VIPClub account</p>
                     <p className="text-xs text-green-600">Your booking will be saved to your profile</p>
+                    {formData.fullName && (
+                      <div className="mt-2 text-xs text-green-700">
+                        <p><strong>Name:</strong> {formData.fullName}</p>
+                        <p><strong>Email:</strong> {formData.email}</p>
+                        {formData.phone && <p><strong>Phone:</strong> {formData.phone}</p>}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

@@ -318,6 +318,27 @@ useEffect(() => {
     return () => clearTimeout(loadingTimeout);
   }, [loading]);
 
+// Add this useEffect after your existing useEffects to populate form data for authenticated users
+useEffect(() => {
+  if (user && !formData.fullName && !formData.email) {
+    console.log(' User authenticated, populating form with profile data');
+    
+    // Populate form with user's profile information
+    setFormData(prev => ({
+      ...prev,
+      fullName: user.user_metadata?.full_name || user.user_metadata?.name || '',
+      email: user.email || '',
+      phone: user.user_metadata?.phone || ''
+    }));
+    
+    console.log('✅ Form populated with user data:', {
+      fullName: user.user_metadata?.full_name || user.user_metadata?.name || '',
+      email: user.email || '',
+      phone: user.user_metadata?.phone || ''
+    });
+  }
+}, [user, formData.fullName, formData.email]);
+
 const handleInputChange = (e) => {
 const { name, value, type, checked } = e.target;
 setFormData(prev => ({
