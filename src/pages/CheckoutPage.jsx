@@ -171,6 +171,52 @@ const ensureSession = async () => {
   return user;
 };
 
+const createBooking = async () => {
+  try {
+    // Prepare booking data for database
+    const venueId = selection?.venueId || bookingData?.venueId || selection?.id;
+    const tableId = selection?.selectedTable?.id || bookingData?.tableId || selection?.table?.id || null;
+
+    // Validate required fields
+    if (!venueId) {
+      throw new Error('Venue ID is required for booking');
+    }
+
+    const sessionCheckUser = await ensureSession();
+    const bookingDataToInsert = {
+      user_id: sessionCheckUser.id,
+      venue_id: venueId,
+      table_id: tableId,
+      booking_date: selection?.date || bookingData?.date || new Date().toISOString().split('T')[0],
+      start_time: selection?.time || bookingData?.time || '19:00:00',
+      end_time: selection?.endTime || bookingData?.endTime || '23:00:00',
+      number_of_guests: parseInt(selection?.guests) || parseInt(bookingData?.guestCount) || 2,
+      status: 'pending', // Use 'pending' for split payments
+      total_amount: parseFloat(calculateTotal())
+    };
+
+    console.log('Creating booking for split payment:', bookingDataToInsert);
+
+    // Save booking to database
+    const { data: bookingRecord, error: bookingError } = await supabase
+      .from('bookings')
+      .insert([bookingDataToInsert])
+      .select()
+      .single();
+
+    if (bookingError) {
+      throw new Error(`Failed to create booking: ${bookingError.message}`);
+    }
+
+    console.log('Split payment booking created:', bookingRecord.id);
+    return bookingRecord.id;
+
+  } catch (error) {
+    console.error('Error creating booking for split payment:', error);
+    throw error;
+  }
+};
+
 // inside component top-level
 const { user: sessionUser, signIn, signUp } = useAuth();
 const [loginOpen, setLoginOpen] = useState(false);
