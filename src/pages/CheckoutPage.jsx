@@ -961,7 +961,7 @@ setShowShareDialog(true);
                     totalAmount={parseFloat(calculateTotal())}
                     onSplitCreated={handleSplitPaymentCreated}
                     user={currentUserForSplit || userProfile || user}
-                    bookingId={selection?.id}
+                    bookingId={selection?.id || bookingData?.id}
                     createBookingIfNeeded={async () => {
                       const u = await ensureSession();
                       // If booking already exists, return its ID
@@ -971,7 +971,6 @@ setShowShareDialog(true);
                       const bookingId = await createBooking();
                       return bookingId;
                     }}
-                    onInitiatorPayment={handleInitiatorPayment} // Add this prop
                   />
                 </TabsContent>
               </Tabs>
