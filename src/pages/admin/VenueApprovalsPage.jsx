@@ -30,6 +30,7 @@ const VenueApprovalsPage = () => {
   const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [processing, setProcessing] = useState(false);
+  const [approvalCompleted, setApprovalCompleted] = useState(false);
 
   useEffect(() => {
     loadRequests();
@@ -37,13 +38,39 @@ const VenueApprovalsPage = () => {
 
   const loadRequests = async () => {
     try {
+      console.log('🔄 Loading venue owner requests...');
+      
       const { data, error } = await supabase
         .from('pending_venue_owner_requests')
         .select('*')
         .order('created_at', { ascending: false });
       
       if (error) throw error;
+      
+      console.log('✅ Loaded requests:', data?.length || 0, 'requests');
+      console.log('📊 Request statuses:', data?.map(r => ({ id: r.id, status: r.status, email: r.email })) || []);
+      
       setRequests(data || []);
+      
+      // If approval was just completed, force a second refresh after a delay
+      if (approvalCompleted) {
+        console.log('🔄 Approval was completed, doing final refresh in 3 seconds...');
+        setTimeout(async () => {
+          console.log('🔄 Final refresh after approval...');
+          const { data: finalData, error: finalError } = await supabase
+            .from('pending_venue_owner_requests')
+            .select('*')
+            .order('created_at', { ascending: false });
+          
+          if (!finalError) {
+            setRequests(finalData || []);
+            console.log('✅ Final refresh completed');
+          }
+        }, 3000);
+        
+        // Reset the flag
+        setApprovalCompleted(false);
+      }
     } catch (error) {
       console.error('Error loading requests:', error);
     } finally {
@@ -142,9 +169,12 @@ const VenueApprovalsPage = () => {
         // Don't fail the approval if email fails
       }
 
-      // Update the approval success section (around line 140)
+      // Update the approval success section
       // Add a delay and force refresh to ensure the UI updates
       console.log('✅ Approval completed, refreshing UI in 2 seconds...');
+
+      // Set the approval completed flag
+      setApprovalCompleted(true);
 
       // Force refresh after a delay to ensure database commit
       setTimeout(async () => {
