@@ -142,8 +142,11 @@ const VenueApprovalsPage = () => {
         // Don't fail the approval if email fails
       }
 
-      // Refresh the list
-      await loadRequests();
+      // Refresh the list with a small delay to ensure database commit
+      setTimeout(async () => {
+        console.log('🔄 Refreshing requests list after approval...');
+        await loadRequests();
+      }, 1000);
       
       alert(`Venue owner approved successfully! ${req.contact_name} can now access their venue dashboard. The venue "${req.venue_name}" is now live with proper owner linking.`);
     } catch (error) {

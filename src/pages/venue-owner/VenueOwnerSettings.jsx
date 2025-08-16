@@ -469,28 +469,29 @@ const VenueOwnerSettings = () => {
       <h1 className="text-2xl sm:text-3xl font-heading text-brand-burgundy mb-4 sm:mb-6">Venue Settings</h1>
       
       <Tabs defaultValue="profile" className="space-y-4 sm:space-y-6">
-        <TabsList className="bg-white p-1 rounded-lg border border-brand-burgundy/10 mb-4 grid grid-cols-3 w-full">
+        {/* Updated TabsList with better sizing and spacing */}
+        <TabsList className="bg-white p-2 rounded-lg border border-brand-burgundy/10 mb-6 grid grid-cols-3 w-full max-w-4xl mx-auto">
           <TabsTrigger 
             value="profile" 
-            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm min-h-[60px] sm:min-h-[50px]"
+            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-2 p-3 sm:p-4 text-sm sm:text-base min-h-[70px] sm:min-h-[60px] transition-all duration-200 hover:bg-brand-gold/10"
           >
-            <Settings className="h-3 w-3 sm:h-4 sm:w-4" />
+            <Settings className="h-4 w-4 sm:h-5 sm:w-5" />
             <span className="hidden sm:inline">Venue Profile</span>
             <span className="sm:hidden">Profile</span>
           </TabsTrigger>
           <TabsTrigger 
             value="staff" 
-            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm min-h-[60px] sm:min-h-[50px]"
+            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-2 p-3 sm:p-4 text-sm sm:text-base min-h-[70px] sm:min-h-[60px] transition-all duration-200 hover:bg-brand-gold/10"
           >
-            <Users className="h-3 w-3 sm:h-4 sm:w-4" />
+            <Users className="h-4 w-4 sm:h-5 sm:w-5" />
             <span className="hidden sm:inline">Staff Management</span>
             <span className="sm:hidden">Staff</span>
           </TabsTrigger>
           <TabsTrigger 
             value="notifications" 
-            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm min-h-[60px] sm:min-h-[50px]"
+            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-2 p-3 sm:p-4 text-sm sm:text-base min-h-[70px] sm:min-h-[60px] transition-all duration-200 hover:bg-brand-gold/10"
           >
-            <Bell className="h-3 w-3 sm:h-4 sm:w-4" />
+            <Bell className="h-4 w-4 sm:h-5 sm:w-5" />
             <span className="hidden sm:inline">Notifications</span>
             <span className="sm:hidden">Alerts</span>
           </TabsTrigger>
