@@ -506,6 +506,76 @@ const SplitPaymentForm = ({
           </CardContent>
         </Card>
             )}
+
+      {/* Search Dialog */}
+      <Dialog open={showSearchDialog} onOpenChange={setShowSearchDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Search for Recipient</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Search Input */}
+            <div className="space-y-2">
+              <Label htmlFor="searchQuery">Search by name or phone</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="searchQuery"
+                  placeholder="Enter name or phone number..."
+                  value={searchQuery}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    // Simple search without debouncing for now
+                    searchUsers(e.target.value);
+                  }}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+
+            {/* Search Results */}
+            {isSearching && (
+              <div className="text-center py-4">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div>
+                <p className="text-sm text-muted-foreground mt-2">Searching...</p>
+              </div>
+            )}
+
+            {!isSearching && searchResults.length > 0 && (
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {searchResults.map((result) => (
+                  <div
+                    key={result.id}
+                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted cursor-pointer"
+                    onClick={() => selectRecipient(result, currentSplitIndex)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                        <User className="h-4 w-4 text-white" />
+                      </div>
+                      <div>
+                        <div className="font-medium">{result.displayName}</div>
+                        <div className="text-sm text-muted-foreground">{result.phone}</div>
+                      </div>
+                    </div>
+                    <Button variant="ghost" size="sm">
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {!isSearching && searchQuery && searchResults.length === 0 && (
+              <div className="text-center py-4 text-muted-foreground">
+                <p>No users found matching "{searchQuery}"</p>
+                <p className="text-sm">Try searching by first name, last name, or phone number</p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
