@@ -142,11 +142,27 @@ const VenueApprovalsPage = () => {
 
       if (venueOwnerUpdateError) throw venueOwnerUpdateError;
 
-      // Update request status
-      await supabase
+      // Update the request status with proper error handling (around line 140)
+      console.log('🔄 Updating request status to approved...');
+
+      const { data: updatedRequest, error: requestUpdateError } = await supabase
         .from('pending_venue_owner_requests')
         .update({ status: 'approved' })
-        .eq('id', req.id);
+        .eq('id', req.id)
+        .select()
+        .single();
+
+      if (requestUpdateError) {
+        console.error('❌ Failed to update request status:', requestUpdateError);
+        throw new Error(`Failed to update request status: ${requestUpdateError.message}`);
+      }
+
+      if (!updatedRequest || updatedRequest.status !== 'approved') {
+        console.error('❌ Request status not updated correctly:', updatedRequest);
+        throw new Error('Request status update failed - status not changed to approved');
+      }
+
+      console.log('✅ Request status updated successfully:', updatedRequest);
 
       // Send approval notification email to venue owner
       try {
