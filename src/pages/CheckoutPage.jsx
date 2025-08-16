@@ -615,9 +615,17 @@ if (selection?.isCreditPurchase) {
 }
 
 // Original booking flow continues here...
-// Prepare booking data for database
-const venueId = selection?.venueId || bookingData?.venueId || selection?.id;
-const tableId = selection?.selectedTable?.id || bookingData?.tableId || selection?.table?.id || null;
+// Prepare booking data for database - use the correct data structure
+const venueId = selection?.venue?.id || bookingData?.venue?.id || selection?.venueId || selection?.id;
+const tableId = selection?.table?.id || bookingData?.table?.id || selection?.selectedTable?.id || selection?.tableId || null;
+
+console.log('🔍 Debug venue ID lookup in handleSubmit:', {
+  'selection?.venue?.id': selection?.venue?.id,
+  'bookingData?.venue?.id': bookingData?.venue?.id,
+  'selection?.venueId': selection?.venueId,
+  'selection?.id': selection?.id,
+  'final venueId': venueId
+});
 
 // Validate required fields
 if (!venueId) {
