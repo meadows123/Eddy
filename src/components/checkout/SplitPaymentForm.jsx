@@ -20,15 +20,18 @@ import {
   Check,
   Clock
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const SplitPaymentForm = ({ 
   totalAmount, 
   onSplitCreated, 
   user, 
   bookingId, 
-  createBookingIfNeeded // new prop
+  createBookingIfNeeded,
+  onInitiatorPayment // Add this new prop
 }) => {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [splitCount, setSplitCount] = useState(2);
   const [splitAmounts, setSplitAmounts] = useState([]);
   const [splitRecipients, setSplitRecipients] = useState([]);
@@ -149,15 +152,15 @@ const SplitPaymentForm = ({
       if (!realBookingId) throw new Error('Booking could not be created.');
 
       const userProfileId = user.id;
-      const splitRequests = splitRecipients.map((recipient, index) => ({
-        booking_id: realBookingId,
-        requester_id: userProfileId,
-        recipient_id: recipient.id,
-        recipient_phone: recipient.phone || null,
-        amount: splitAmounts[index],
-        payment_link: `${window.location.origin}/split-payment/${realBookingId}/${index}`,
-        status: 'pending'
-      }));
+             const splitRequests = splitRecipients.map((recipient, index) => ({
+         booking_id: realBookingId,
+         requester_id: userProfileId,
+         recipient_id: recipient.id,
+         recipient_phone: recipient.phone || null,
+         amount: splitAmounts[index],
+         payment_link: `${window.location.origin}/split-payment/${realBookingId}/${index}`,
+         status: 'pending'
+       }));
 
       const { data, error } = await supabase
         .from('split_payment_requests')
@@ -166,14 +169,14 @@ const SplitPaymentForm = ({
 
       if (error) throw error;
 
-      // Create notifications for recipients
-      const notifications = data.map(request => ({
-        user_id: request.recipient_id,
-        split_payment_id: request.id,
-        type: 'payment_request',
-        title: 'Payment Request Received',
-        message: `${user.user_metadata?.first_name || user.user_metadata?.full_name?.split(' ')[0] || 'Someone'} has requested ₦${request.amount.toLocaleString()} for a shared booking.`
-      }));
+             // Create notifications for recipients
+       const notifications = data.map(request => ({
+         user_id: request.recipient_id,
+         split_payment_id: request.id,
+         type: 'payment_request',
+         title: 'Payment Request Received',
+         message: `${user.user_metadata?.first_name || user.user_metadata?.full_name?.split(' ')[0] || 'Someone'} has requested ₦${request.amount.toLocaleString()} for a shared booking.`
+       }));
 
       const { error: notifError } = await supabase
         .from('payment_notifications')
@@ -367,7 +370,7 @@ const SplitPaymentForm = ({
                   <div className="text-2xl font-bold text-green-800">₦{myAmount.toLocaleString()}</div>
                   <div className="text-sm text-green-600">You pay this now</div>
                 </div>
-              </div>
+          </div>
               
               <div className="bg-white p-3 rounded-lg border border-green-200">
                 <div className="text-sm text-green-700 mb-2">
@@ -387,22 +390,27 @@ const SplitPaymentForm = ({
                     <span>₦{myAmount.toLocaleString()}</span>
                   </div>
                 </div>
-              </div>
-              
+            </div>
+
               <Button 
                 className="w-full bg-green-600 hover:bg-green-700 text-white"
                 onClick={() => {
-                  // This will trigger the main checkout payment flow for the initiator's portion
-                  toast({
-                    title: "Pay Your Portion",
-                    description: `You'll be redirected to complete your payment of ₦${myAmount.toLocaleString()}`,
+                  // Navigate to checkout with split payment data
+                  navigate('/checkout', {
+                    state: {
+                      ...location.state, // Keep existing booking data
+                      isSplitPayment: true,
+                      initiatorAmount: myAmount,
+                      splitRequests: createdSplitRequests,
+                      totalAmount: totalAmount
+                    },
+                    replace: true
                   });
-                  // You can add navigation logic here or trigger the main payment flow
                 }}
               >
                 Pay Your Portion (₦{myAmount.toLocaleString()})
               </Button>
-            </div>
+              </div>
           </CardContent>
         </Card>
       )}
@@ -436,9 +444,9 @@ const SplitPaymentForm = ({
                       <span>Your Payment Due:</span>
                       <span className="text-lg">₦{myAmount.toLocaleString()}</span>
                     </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
 
               {/* Payment Form */}
               <div className="bg-white p-4 rounded-lg border border-blue-200">
@@ -480,7 +488,7 @@ const SplitPaymentForm = ({
                     />
                   </div>
                 </div>
-              </div>
+            </div>
 
               {/* Payment Button */}
               <Button 
@@ -489,109 +497,26 @@ const SplitPaymentForm = ({
                   // This will trigger the main checkout payment flow for the initiator's portion
                   toast({
                     title: "Processing Payment",
-                    description: `Processing your payment of ₦${myAmount.toLocaleString()}`,
+                    description: "Redirecting to payment processing...",
+                    variant: "default"
                   });
-                  // You can add actual payment processing logic here
-                  // For now, this will redirect to the main checkout flow
+                  
+                  // Call the onInitiatorPayment callback to handle the payment
+                  if (onInitiatorPayment) {
+                    onInitiatorPayment({
+                      amount: myAmount,
+                      splitRequests: createdSplitRequests,
+                      totalAmount: totalAmount
+                    });
+                  }
                 }}
               >
-                Pay ₦{myAmount.toLocaleString()} to Complete Booking
+                Pay ₦{myAmount.toLocaleString()} Now
               </Button>
-
-              {/* Status Info */}
-              <div className="text-center text-sm text-blue-600">
-                <p>✅ Split payment requests sent to {createdSplitRequests.length} people</p>
-                <p>⏳ Complete your payment to finalize the booking</p>
               </div>
-            </div>
           </CardContent>
         </Card>
-      )}
-
-      {/* Create Split Payment Button - Only show when not created yet */}
-      {!splitRequestsCreated && (
-        <Button
-          className="w-full bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90 text-sm sm:text-base"
-          onClick={createSplitPaymentRequests}
-          disabled={isCreating || splitRecipients.some(r => !r) || !user?.id}
-        >
-          {isCreating ? (
-            <div className="flex items-center">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-brand-burgundy mr-2"></div>
-              <span className="text-sm sm:text-base">Creating Requests...</span>
-            </div>
-          ) : (
-            <>
-              <Send className="h-4 w-4 mr-2" />
-              <span className="truncate">
-                {user?.id ? "Send Payment Requests" : "Sign in to send requests"}
-              </span>
-            </>
-          )}
-        </Button>
-      )}
-
-      {/* Search Dialog */}
-      <Dialog open={showSearchDialog} onOpenChange={setShowSearchDialog}>
-        <DialogContent className="sm:max-w-md max-w-[95vw]">
-          <DialogHeader>
-            <DialogTitle className="text-lg sm:text-xl">Search for Recipient</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by name or phone..."
-                value={searchQuery}
-                onChange={(e) => {
-                  setSearchQuery(e.target.value);
-                  searchUsers(e.target.value);
-                }}
-                className="pl-10 text-sm sm:text-base"
-              />
-            </div>
-
-            {isSearching && (
-              <div className="text-center py-4">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-burgundy mx-auto"></div>
-                <p className="text-sm text-muted-foreground mt-2">Searching...</p>
-              </div>
             )}
-
-            <div className="max-h-60 overflow-y-auto space-y-2">
-              {searchResults.map((result) => (
-                <div
-                  key={result.id}
-                  className="flex items-center justify-between p-2 sm:p-3 border rounded-lg hover:bg-muted cursor-pointer gap-2"
-                  onClick={() => selectRecipient(result, currentSplitIndex)}
-                >
-                  <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-brand-burgundy/10 rounded-full flex items-center justify-center flex-shrink-0">
-                      <User className="h-3 w-3 sm:h-4 sm:w-4 text-brand-burgundy" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="font-medium text-sm sm:text-base truncate">{result.displayName}</div>
-                      <div className="text-xs sm:text-sm text-muted-foreground truncate">
-                        {result.phone}
-                      </div>
-                    </div>
-                  </div>
-                  <Badge variant="outline" className="flex-shrink-0 text-xs">
-                    VIP Member
-                  </Badge>
-                </div>
-              ))}
-            </div>
-
-            {searchQuery && !isSearching && searchResults.length === 0 && (
-              <div className="text-center py-4 text-muted-foreground">
-                <p className="text-sm sm:text-base">No users found matching "{searchQuery}"</p>
-                <p className="text-xs sm:text-sm mt-1">Try searching by name or phone number</p>
-              </div>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

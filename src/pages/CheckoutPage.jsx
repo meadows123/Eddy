@@ -971,6 +971,7 @@ setShowShareDialog(true);
                       const bookingId = await createBooking();
                       return bookingId;
                     }}
+                    onInitiatorPayment={handleInitiatorPayment} // Add this prop
                   />
                 </TabsContent>
               </Tabs>
