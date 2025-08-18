@@ -84,6 +84,37 @@ const VenueApprovalsPage = () => {
       console.log('🚀 Starting approval process for:', req.email);
       console.log('📝 Request data:', req);
       
+      // ADD THIS DEBUGGING SECTION:
+      console.log('🔍 DEBUGGING: Let me check what exists in the database...');
+      
+      // Check what's in pending_venue_owner_requests
+      const { data: pendingCheck, error: pendingError } = await supabase
+        .from('pending_venue_owner_requests')
+        .select('*')
+        .eq('email', req.email);
+      
+      if (pendingError) {
+        console.error('❌ Error checking pending requests:', pendingError);
+      } else {
+        console.log('📊 Pending requests found:', pendingCheck);
+      }
+      
+      // Check what's in venue_owners
+      const { data: venueOwnerCheck, error: venueOwnerError } = await supabase
+        .from('venue_owners')
+        .select('*')
+        .eq('owner_email', req.email);
+      
+      if (venueOwnerError) {
+        console.error('❌ Error checking venue_owners:', venueOwnerError);
+      } else {
+        console.log('📊 Venue owners found:', venueOwnerCheck);
+      }
+      
+      // STOP HERE FOR NOW - don't continue with approval
+      console.log('⏸️ Stopping here for debugging. Please check console and tell me what you see.');
+      return;
+      
       // Use the actual venue type from the request, with a reasonable fallback
       const venueType = req.venue_type || 'restaurant';
       
@@ -162,7 +193,7 @@ const VenueApprovalsPage = () => {
 
       console.log('📝 Venue data to create:', venueData);
 
-      const { data: newVenue, error: venueError } = await supabase
+      let { data: newVenue, error: venueError } = await supabase
         .from('venues')
         .insert(venueData)
         .select()
