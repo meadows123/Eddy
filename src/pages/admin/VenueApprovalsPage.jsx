@@ -137,42 +137,29 @@ const VenueApprovalsPage = () => {
         console.log('⚠️ No user_id found, will create venue without owner_id initially');
       }
 
-      // First, update the venue owner status to 'active'
-      console.log('🔄 Updating venue owner status to active...');
-      const { data: updatedVenueOwner, error: updateError } = await supabase
-        .from('venue_owners')
-        .update({ status: 'active' })
-        .eq('id', existingVenueOwner.id)
-        .select()
-        .single();
-
-      if (updateError) {
-        console.error('❌ Failed to update venue owner status:', updateError);
-        throw new Error(`Failed to update venue owner status: ${updateError.message}`);
-      }
-
-      console.log('✅ Venue owner status updated successfully:', updatedVenueOwner);
+      // SKIP THE FIRST STATUS UPDATE - just log what we're going to do
+      console.log('⏸️ Skipping first status update - will update everything at once later');
 
       // Now create the venue record
       console.log('🏗️ Creating venue record...');
       const venueData = {
-        name: req.venue_name,
-        description: req.additional_info,
-        type: venueType,
-        price_range: req.price_range || '$$',
-        address: req.venue_address,
-        city: req.venue_city,
+          name: req.venue_name,
+          description: req.additional_info,
+          type: venueType,
+          price_range: req.price_range || '$$',
+          address: req.venue_address,
+          city: req.venue_city,
         state: req.venue_city,
-        country: req.venue_country,
+          country: req.venue_country,
         latitude: 6.5244,
-        longitude: 3.3792,
-        contact_phone: req.contact_phone,
-        contact_email: req.email,
+          longitude: 3.3792,
+          contact_phone: req.contact_phone,
+          contact_email: req.email,
         owner_id: existingVenueOwner.user_id,
-        status: 'approved',
-        is_active: true
+          status: 'approved',
+          is_active: true
       };
-      
+
       console.log('📝 Venue data to create:', venueData);
 
       const { data: newVenue, error: venueError } = await supabase
@@ -194,9 +181,9 @@ const VenueApprovalsPage = () => {
           const { data: retryVenue, error: retryError } = await supabase
             .from('venues')
             .insert(venueDataWithoutOwner)
-            .select()
-            .single();
-            
+        .select()
+        .single();
+
           if (retryError) {
             throw new Error(`Failed to create venue even without owner_id: ${retryError.message}`);
           }
@@ -210,22 +197,68 @@ const VenueApprovalsPage = () => {
         console.log('✅ Venue created successfully:', newVenue);
       }
 
-      // Update the venue_owners record with the venue_id
-      console.log('🔄 Updating venue_owners with venue_id...');
-      const { error: venueOwnerUpdateError } = await supabase
+      // Add this debugging BEFORE the final update:
+
+      console.log('🔍 DEBUGGING FINAL UPDATE:');
+      console.log('  - existingVenueOwner.id:', existingVenueOwner.id);
+      console.log('  - existingVenueOwner.owner_email:', existingVenueOwner.owner_email);
+      console.log('  - existingVenueOwner.status:', existingVenueOwner.status);
+
+      // Let's verify this record still exists in the database
+      const { data: verifyRecord, error: verifyError } = await supabase
         .from('venue_owners')
-        .update({ 
-          venue_id: newVenue.id,
-          status: 'active'
-        })
+        .select('*')
         .eq('id', existingVenueOwner.id);
 
-      if (venueOwnerUpdateError) {
-        console.error('❌ Failed to update venue_owners with venue_id:', venueOwnerUpdateError);
-        throw new Error(`Failed to update venue_owners: ${venueOwnerUpdateError.message}`);
+      if (verifyError) {
+        console.error('❌ Error verifying record:', verifyError);
+      } else {
+        console.log('📊 Record verification result:', verifyRecord);
+        if (verifyRecord && verifyRecord.length > 0) {
+          console.log('✅ Record found with status:', verifyRecord[0].status);
+        } else {
+          console.log('❌ No record found with this ID');
+        }
       }
 
-      console.log('✅ Venue owner record updated with venue_id successfully');
+      // Find the venue owner record AGAIN right before updating (in case it changed)
+      console.log('🔄 Finding venue owner record again before final update...');
+      const { data: currentVenueOwner, error: findError } = await supabase
+        .from('venue_owners')
+        .select('*')
+        .eq('owner_email', req.email)
+        .eq('status', 'pending_approval')
+        .single();
+
+      if (findError || !currentVenueOwner) {
+        console.error('❌ Could not find venue owner record for final update:', findError);
+        throw new Error('Venue owner record not found for final update');
+      }
+
+      console.log('✅ Found current venue owner record:', currentVenueOwner.id);
+
+      // NOW do the final update using the fresh record
+      console.log('🔄 Updating venue_owners with final status and venue_id...');
+      const { data: finalUpdateResult, error: finalUpdateError } = await supabase
+        .from('venue_owners')
+        .update({ 
+          status: 'active',
+          venue_id: newVenue.id
+        })
+        .eq('id', currentVenueOwner.id)  // Use the fresh record ID
+        .select();
+
+      if (finalUpdateError) {
+        console.error('❌ Failed to finalize venue owner update:', finalUpdateError);
+        throw new Error(`Failed to finalize venue owner update: ${finalUpdateError.message}`);
+      }
+
+      // Check if we got any results
+      if (!finalUpdateResult || finalUpdateResult.length === 0) {
+        throw new Error('No venue owner record was finalized');
+      }
+
+      console.log('✅ Venue owner record finalized successfully:', finalUpdateResult[0]);
 
       // Update the pending request status
       console.log('🔄 Updating pending request status...');
@@ -265,13 +298,13 @@ const VenueApprovalsPage = () => {
       setTimeout(async () => {
         console.log('🔄 Refreshing requests list after approval...');
         try {
-          await loadRequests();
+      await loadRequests();Why
           console.log('✅ Requests list refreshed successfully');
         } catch (error) {
           console.error('❌ Failed to refresh requests:', error);
         }
       }, 2000);
-
+      
       alert(`Venue owner approved successfully! ${req.contact_name} can now access their venue dashboard. The venue "${req.venue_name}" is now live with proper owner linking.`);
     } catch (error) {
       console.error('❌ Error in approval process:', error);
