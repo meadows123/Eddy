@@ -128,22 +128,33 @@ const VenueApprovalsPage = () => {
       console.log('✅ Found existing venue owner record:', existingVenueOwner);
       console.log('📊 Current status:', existingVenueOwner.status);
       console.log('🆔 Record ID:', existingVenueOwner.id);
+      console.log('👤 User ID:', existingVenueOwner.user_id);
       console.log('📧 Owner Email:', existingVenueOwner.owner_email);
 
-      // Check if the venue owner already has a valid user_id
+      // Check if the user_id exists in the record
       if (existingVenueOwner.user_id) {
-        console.log('✅ Venue owner already has user_id:', existingVenueOwner.user_id);
-        var ownerUserId = existingVenueOwner.user_id;
+        console.log('✅ User ID found in record:', existingVenueOwner.user_id);
       } else {
-        console.log('❌ No user_id found in venue_owners record');
-        console.log('💡 This means the venue owner registration didn\'t complete properly');
-        console.log('💡 They need to complete their email confirmation first');
-        
-        throw new Error('Venue owner needs to complete their registration first. Please ask them to check their email and click the confirmation link before approval.');
+        console.error('❌ No user_id found in venue_owners record');
+        throw new Error('Venue owner needs to complete their registration first. Please ask them to check their email and complete the signup process.');
+      }
+
+      // Check if this venue owner is already approved
+      if (existingVenueOwner.status === 'active') {
+        console.log('⚠️ Venue owner is already approved');
+        alert('This venue owner is already approved and active.');
+        return;
+      }
+
+      // Check if a venue already exists for this owner
+      if (existingVenueOwner.venue_id) {
+        console.log('⚠️ Venue already exists for this owner:', existingVenueOwner.venue_id);
+        alert('A venue already exists for this owner. They may already be approved.');
+        return;
       }
 
       // Now create the venue with the existing user_id
-      console.log('🏗️ Creating venue record with owner_id:', ownerUserId);
+      console.log('🏗️ Creating venue record with owner_id:', existingVenueOwner.user_id);
       const venueData = {
         name: req.venue_name,
         description: req.additional_info,
@@ -157,7 +168,7 @@ const VenueApprovalsPage = () => {
         longitude: 3.3792,
         contact_phone: req.contact_phone,
         contact_email: req.email,
-        owner_id: ownerUserId,
+        owner_id: existingVenueOwner.user_id,
         status: 'approved',
         is_active: true
       };
@@ -181,39 +192,16 @@ const VenueApprovalsPage = () => {
       // Update the venue owner record with the venue_id and status
       console.log('🔄 Updating venue owner record...');
 
-      // First, let's see how many records we're updating
-      const { data: recordsToUpdate, error: countError } = await supabase
-        .from('venue_owners')
-        .select('id, owner_email, status')
-        .eq('owner_email', req.email)
-        .eq('status', 'pending_approval');
-
-      if (countError) {
-        console.error('❌ Error checking records to update:', countError);
-        throw countError;
-      }
-
-      console.log('📊 Records to update:', recordsToUpdate);
-      console.log('📊 Number of records:', recordsToUpdate ? recordsToUpdate.length : 0);
-
-      if (!recordsToUpdate || recordsToUpdate.length === 0) {
-        throw new Error('No pending venue owner records found to update');
-      }
-
-      if (recordsToUpdate.length > 1) {
-        console.warn('⚠️ Multiple records found, updating all of them');
-      }
-
-      // Update all matching records (remove .single())
+      // Update using the specific record ID to avoid duplicates
       const { data: updateResult, error: venueOwnerUpdateError } = await supabase
         .from('venue_owners')
         .update({ 
           venue_id: newVenue.id,
           status: 'active'
         })
-        .eq('owner_email', req.email)
-        .eq('status', 'pending_approval')
-        .select();  // Remove .single() to handle multiple rows
+        .eq('id', existingVenueOwner.id)  // ✅ Use specific record ID
+        .select()
+        .single();
 
       if (venueOwnerUpdateError) {
         console.error('❌ Failed to update venue owner status:', venueOwnerUpdateError);
@@ -221,43 +209,26 @@ const VenueApprovalsPage = () => {
       }
 
       console.log('✅ Venue owner update result:', updateResult);
-      console.log('✅ Number of records updated:', updateResult ? updateResult.length : 0);
+      console.log('✅ New status:', updateResult.status);
+      console.log('✅ New venue_id:', updateResult.venue_id);
 
       // Verify the update actually worked
       const { data: verifyRecord, error: verifyError } = await supabase
         .from('venue_owners')
         .select('*')
-        .eq('owner_email', req.email);
+        .eq('id', existingVenueOwner.id)  // ✅ Check specific record
+        .single();
 
       if (verifyError) {
         console.error('❌ Error verifying update:', verifyError);
       } else {
         console.log('✅ Verification - Current record state:', verifyRecord);
-        if (verifyRecord && verifyRecord.length > 0) {
-          console.log('📊 Final statuses:', verifyRecord.map(r => ({ id: r.id, status: r.status, venue_id: r.venue_id })));
-        }
+        console.log('📊 Final status:', verifyRecord.status);
+        console.log('📊 Final venue_id:', verifyRecord.venue_id);
       }
 
-      // Update the request status with proper error handling
+      // Update the request status
       console.log('🔄 Updating request status to approved...');
-      console.log('📝 Request ID being updated:', req.id);
-      console.log('📧 Request email:', req.email);
-
-      // First, let's check the current status
-      const { data: currentRequest, error: checkError } = await supabase
-        .from('pending_venue_owner_requests')
-        .select('status')
-        .eq('id', req.id)
-        .single();
-
-      if (checkError) {
-        console.error('❌ Failed to check current request status:', checkError);
-        throw new Error(`Failed to check current request status: ${checkError.message}`);
-      }
-
-      console.log('📊 Current request status:', currentRequest?.status);
-
-      // Now update the status
       const { data: updatedRequest, error: requestUpdateError } = await supabase
         .from('pending_venue_owner_requests')
         .update({ status: 'approved' })
@@ -270,14 +241,9 @@ const VenueApprovalsPage = () => {
         throw new Error(`Failed to update request status: ${requestUpdateError.message}`);
       }
 
-      if (!updatedRequest || updatedRequest.status !== 'approved') {
-        console.error('❌ Request status not updated correctly:', updatedRequest);
-        throw new Error('Request status update failed - status not changed to approved');
-      }
-
       console.log('✅ Request status updated successfully:', updatedRequest);
 
-      // Send approval notification email to venue owner
+      // Send approval notification email
       try {
         const venueOwnerData = {
           email: req.email,
@@ -289,23 +255,15 @@ const VenueApprovalsPage = () => {
           venue_city: req.venue_city
         };
         
-        // Import the email service
         const { sendVenueOwnerApplicationApproved } = await import('../../lib/venueOwnerEmailService');
         await sendVenueOwnerApplicationApproved(venueOwnerData);
         console.log('✅ Approval notification email sent');
       } catch (emailError) {
         console.error('❌ Failed to send approval email:', emailError);
-        // Don't fail the approval if email fails
       }
 
-      // Update the approval success section
-      // Add a delay and force refresh to ensure the UI updates
-      console.log('✅ Approval completed, refreshing UI in 2 seconds...');
-
-      // Set the approval completed flag
+      // Set approval completed and refresh
       setApprovalCompleted(true);
-
-      // Force refresh after a delay to ensure database commit
       setTimeout(async () => {
         console.log('🔄 Refreshing requests list after approval...');
         try {

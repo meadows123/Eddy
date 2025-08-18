@@ -1,4 +1,5 @@
-// Email templates for Eddys Members booking confirmations
+// Email templates for Eddys Members with deep linking support
+import { emailDeepLinks, generateSmartButton, generateFallbackLink, generateEmailFooter } from './deepLinking.js';
 
 export const bookingConfirmationTemplate = (bookingData) => {
   return `
@@ -26,7 +27,7 @@ export const bookingConfirmationTemplate = (bookingData) => {
     <div style="border-top: 6px solid #5B0202; padding: 16px;" class="mobile-padding">
       <a
         style="text-decoration: none; outline: none; margin-right: 8px; vertical-align: middle"
-        href="https://vipclub.com"
+        href="${emailDeepLinks.openApp()}"
         target="_blank"
       >
         <img
@@ -100,50 +101,33 @@ export const bookingConfirmationTemplate = (bookingData) => {
           <td style="padding: 4px 8px; white-space: nowrap">₦${bookingData.serviceCharge}</td>
         </tr>
         ` : ''}
-        <tr>
+        <tr style="border-top: 2px solid #333;">
           <td style="width: 60%;"></td>
-          <td style="border-top: 2px solid #333; padding: 8px;">
-            <strong style="white-space: nowrap">Total Amount</strong>
-          </td>
-          <td style="padding: 8px; border-top: 2px solid #333; white-space: nowrap">
-            <strong>₦${bookingData.totalAmount}</strong>
-          </td>
+          <td style="padding: 4px 8px; font-weight: bold;">Total</td>
+          <td style="padding: 4px 8px; font-weight: bold; white-space: nowrap">₦${bookingData.totalAmount}</td>
         </tr>
       </table>
 
-      <!-- Important Information -->
-      <div style="margin-top: 24px; padding: 16px; background-color: #f8f8f8; border-radius: 8px;" class="mobile-padding">
-        <h3 style="margin: 0 0 12px 0; color: #5B0202;" class="mobile-title">Important Information</h3>
-        <ul style="margin: 0; padding-left: 20px;" class="mobile-text">
-          <li style="margin-bottom: 8px;">Please arrive 15 minutes before your reservation time</li>
-          <li style="margin-bottom: 8px;">Bring a valid ID for verification</li>
-          <li style="margin-bottom: 8px;">Dress code: ${bookingData.dressCode || 'Smart casual'}</li>
-          <li>For cancellations, contact us at least 24 hours in advance</li>
-        </ul>
+      <!-- Customer Information -->
+      <div style="margin-top: 24px; padding: 16px; background-color: #f8f8f8; border-radius: 8px;">
+        <h3 style="margin: 0 0 12px 0; color: #5B0202;">Customer Details</h3>
+        <p style="margin: 0;">
+          <strong>Name:</strong> ${bookingData.customerName}<br>
+          <strong>Email:</strong> ${bookingData.customerEmail}<br>
+          <strong>Phone:</strong> ${bookingData.customerPhone}
+        </p>
       </div>
 
-      <!-- Contact Information -->
-      <div style="margin-top: 24px; padding: 16px; border: 1px solid #ddd; border-radius: 8px;" class="mobile-padding">
-        <h3 style="margin: 0 0 12px 0; color: #5B0202;" class="mobile-title">Venue Contact</h3>
-        <p style="margin: 0;" class="mobile-text">
-          <strong>${bookingData.venueName}</strong><br>
-          📍 ${bookingData.venueAddress}<br>
-          📞 ${bookingData.venuePhone}<br>
-          ✉️ ${bookingData.venueEmail}
-        </p>
+      <!-- Action Buttons with Deep Linking -->
+      <div style="text-align: center; margin: 24px 0;">
+        ${generateSmartButton('View Booking in App', 'bookings', { id: bookingData.bookingId })}
+        ${generateFallbackLink('/bookings', { id: bookingData.bookingId })}
       </div>
     </div>
   </div>
-  <div style="max-width: 600px; margin: auto;">
-    <p style="color: #999; text-align: center; padding: 16px;" class="mobile-text mobile-padding">
-      This email was sent to ${bookingData.customerEmail}<br>
-      You received this email because you made a reservation with Eddys Members
-    </p>
-    <p style="color: #999; text-align: center; font-size: 12px;" class="mobile-text">
-      Eddys Members - Your Premier Destination for Exclusive Venue Bookings<br>
-      Lagos, Nigeria | www.vipclub.com
-    </p>
-  </div>
+  
+  <!-- App Download Footer -->
+  ${generateEmailFooter()}
 </div>
   `;
 };
@@ -163,7 +147,7 @@ export const venueOwnerNotificationTemplate = (bookingData, venueOwnerData) => {
     <div style="border-top: 6px solid #D4AF37; padding: 16px">
       <a
         style="text-decoration: none; outline: none; margin-right: 8px; vertical-align: middle"
-        href="https://vipclub.com/venue-owner/dashboard"
+        href="https://oneeddy.com/venue-owner/dashboard"
         target="_blank"
       >
         <img
@@ -223,7 +207,7 @@ export const venueOwnerNotificationTemplate = (bookingData, venueOwnerData) => {
 
       <!-- Action Buttons -->
       <div style="text-align: center; margin: 24px 0;">
-        <a href="https://vipclub.com/venue-owner/bookings" 
+        <a href="https://oneeddy.com/venue-owner/bookings" 
            style="
              display: inline-block;
              padding: 12px 24px;
@@ -241,7 +225,7 @@ export const venueOwnerNotificationTemplate = (bookingData, venueOwnerData) => {
   <div style="max-width: 600px; margin: auto">
     <p style="color: #999; text-align: center; padding: 16px;">
       Eddys Members Venue Owner Portal<br>
-      Manage your bookings at vipclub.com/venue-owner
+      Manage your bookings at oneeddy.com/venue-owner
     </p>
   </div>
 </div>
@@ -263,7 +247,7 @@ export const cancellationTemplate = (bookingData) => {
     <div style="border-top: 6px solid #dc2626; padding: 16px">
       <a
         style="text-decoration: none; outline: none; margin-right: 8px; vertical-align: middle"
-        href="https://vipclub.com"
+        href="${emailDeepLinks.openApp()}"
         target="_blank"
       >
         <img
@@ -321,14 +305,95 @@ export const cancellationTemplate = (bookingData) => {
       <p style="margin-top: 24px;">
         We're sorry to see you cancel your reservation. We hope to welcome you to Eddys Members in the future!
       </p>
+
+      <!-- Action Buttons with Deep Linking -->
+      <div style="text-align: center; margin: 24px 0;">
+        ${generateSmartButton('Book Another Venue', 'venues')}
+        ${generateFallbackLink('/venues')}
+      </div>
     </div>
   </div>
-  <div style="max-width: 600px; margin: auto">
-    <p style="color: #999; text-align: center; padding: 16px;">
-      Eddys Members - Your Premier Destination for Exclusive Venue Bookings<br>
-      Lagos, Nigeria | www.vipclub.com
-    </p>
+  
+  <!-- App Download Footer -->
+  ${generateEmailFooter()}
+</div>
+  `;
+};
+
+// New signup confirmation template with deep linking
+export const signupConfirmationTemplate = (userData) => {
+  return `
+<div
+  style="
+    font-family: system-ui, sans-serif, Arial;
+    font-size: 14px;
+    color: #333;
+    padding: 14px 8px;
+    background-color: #f5f5f5;
+  "
+>
+  <div style="max-width: 600px; margin: auto; background-color: #fff">
+    <div style="border-top: 6px solid #5B0202; padding: 16px">
+      <a
+        style="text-decoration: none; outline: none; margin-right: 8px; vertical-align: middle"
+        href="${emailDeepLinks.openApp()}"
+        target="_blank"
+      >
+        <img
+          style="height: 32px; vertical-align: middle"
+          height="32px"
+          src="cid:logo.png"
+          alt="Eddys Members"
+        />
+      </a>
+      <span
+        style="
+          font-size: 16px;
+          vertical-align: middle;
+          border-left: 1px solid #333;
+          padding-left: 8px;
+        "
+      >
+        <strong>Welcome to VIPClub!</strong>
+      </span>
+    </div>
+    <div style="padding: 0 16px">
+      <h1 style="color: #5B0202; text-align: center; margin: 24px 0;">Welcome to VIPClub!</h1>
+      
+      <p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+        Hi ${userData.firstName || userData.email}! Thank you for joining VIPClub - your premier destination for exclusive venue bookings.
+      </p>
+
+      <div style="background-color: #f8f8f8; padding: 20px; border-radius: 8px; margin: 20px 0;">
+        <h3 style="color: #5B0202; margin: 0 0 15px 0;">What's Next?</h3>
+        <ul style="margin: 0; padding-left: 20px;">
+          <li style="margin-bottom: 8px;">Complete your profile to personalize your experience</li>
+          <li style="margin-bottom: 8px;">Browse exclusive venues and make your first booking</li>
+          <li style="margin-bottom: 8px;">Earn loyalty points with every reservation</li>
+          <li style="margin-bottom: 8px;">Get priority access to premium tables and events</li>
+        </ul>
+      </div>
+
+      <!-- Action Buttons with Deep Linking -->
+      <div style="text-align: center; margin: 30px 0;">
+        ${generateSmartButton('Complete Profile', 'profile')}
+        ${generateFallbackLink('/profile')}
+      </div>
+
+      <div style="text-align: center; margin: 20px 0;">
+        ${generateSmartButton('Browse Venues', 'venues')}
+        ${generateFallbackLink('/venues')}
+      </div>
+
+      <div style="text-align: center; margin: 20px 0;">
+        ${generateSmartButton('Open App', 'home')}
+        ${generateFallbackLink('/')}
+      </div>
+    </div>
   </div>
+  
+  <!-- App Download Footer -->
+  ${generateEmailFooter()}
 </div>
   `;
 };
@@ -360,4 +425,11 @@ export const generateEmailData = (booking, venue, customer) => {
     dressCode: venue.dress_code,
     status: booking.status
   };
+};
+
+export default {
+  bookingConfirmationTemplate,
+  cancellationTemplate,
+  signupConfirmationTemplate,
+  generateEmailData
 }; 
