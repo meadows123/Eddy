@@ -172,19 +172,34 @@ const VenueApprovalsPage = () => {
         status: 'active' 
       });
       
+      // Use owner_email instead of id for the update to be more reliable
       const { data: updateResult, error: venueOwnerUpdateError } = await supabase
         .from('venue_owners')
         .update({ 
           venue_id: newVenue.id,
           status: 'active'
         })
-        .eq('id', existingVenueOwner.id)
+        .eq('owner_email', req.email)  // ✅ Use email instead of ID for more reliable lookup
+        .eq('status', 'pending_approval')  // ✅ Add status check for safety
         .select()
         .single();
 
       if (venueOwnerUpdateError) {
         console.error('❌ Failed to update venue owner status:', venueOwnerUpdateError);
         console.error('❌ Error details:', venueOwnerUpdateError);
+        
+        // Let's see what happened with the update
+        const { data: checkAfterUpdate, error: checkError } = await supabase
+          .from('venue_owners')
+          .select('*')
+          .eq('owner_email', req.email);
+        
+        if (checkError) {
+          console.error('❌ Error checking records after update attempt:', checkError);
+        } else {
+          console.log('📊 Records after update attempt:', checkAfterUpdate);
+        }
+        
         throw venueOwnerUpdateError;
       }
 
@@ -196,7 +211,7 @@ const VenueApprovalsPage = () => {
       const { data: verifyRecord, error: verifyError } = await supabase
         .from('venue_owners')
         .select('*')
-        .eq('id', existingVenueOwner.id)
+        .eq('owner_email', req.email)
         .single();
       
       if (verifyError) {
