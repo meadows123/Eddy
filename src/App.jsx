@@ -46,6 +46,7 @@ import FAQPage from './pages/FAQPage';
 import EmailTemplateTest from './components/EmailTemplateTest';
 import { supabase } from './lib/supabase';
 import OpenRedirect from './pages/OpenRedirect';
+import AppRedirectPage from './pages/AppRedirectPage.jsx';
 
 const App = () => {
   const [showSplashScreen, setShowSplashScreen] = useState(true);
@@ -125,6 +126,7 @@ const App = () => {
             <Route path="/split-payment-success" element={<SplitPaymentSuccessPage />} />
             <Route path="/explore" element={<ExplorePage />} />
             <Route path="/open" element={<OpenRedirect />} />
+            <Route path="/app-redirect" element={<AppRedirectPage />} />
 
             {/* Customer Routes */}
             <Route path="/profile" element={<ProfilePage />} />
