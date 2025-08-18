@@ -219,6 +219,31 @@ const VenueApprovalsPage = () => {
 
       // Update the venue owner record with the correct user_id and status
       console.log('🔄 Updating venue owner record...');
+
+      // First, let's see how many records we're updating
+      const { data: recordsToUpdate, error: countError } = await supabase
+        .from('venue_owners')
+        .select('id, owner_email, status')
+        .eq('owner_email', req.email)
+        .eq('status', 'pending_approval');
+
+      if (countError) {
+        console.error('❌ Error checking records to update:', countError);
+        throw countError;
+      }
+
+      console.log('📊 Records to update:', recordsToUpdate);
+      console.log('📊 Number of records:', recordsToUpdate ? recordsToUpdate.length : 0);
+
+      if (!recordsToUpdate || recordsToUpdate.length === 0) {
+        throw new Error('No pending venue owner records found to update');
+      }
+
+      if (recordsToUpdate.length > 1) {
+        console.warn('⚠️ Multiple records found, updating all of them');
+      }
+
+      // Update all matching records (remove .single())
       const { data: updateResult, error: venueOwnerUpdateError } = await supabase
         .from('venue_owners')
         .update({ 
@@ -228,27 +253,29 @@ const VenueApprovalsPage = () => {
         })
         .eq('owner_email', req.email)
         .eq('status', 'pending_approval')
-        .select()
-        .single();
+        .select();  // ✅ Remove .single() to handle multiple rows
 
       if (venueOwnerUpdateError) {
         console.error('❌ Failed to update venue owner status:', venueOwnerUpdateError);
         throw venueOwnerUpdateError;
       }
 
-      console.log('✅ Venue owner updated successfully:', updateResult);
+      console.log('✅ Venue owner update result:', updateResult);
+      console.log('✅ Number of records updated:', updateResult ? updateResult.length : 0);
 
       // Verify the update actually worked
       const { data: verifyRecord, error: verifyError } = await supabase
         .from('venue_owners')
         .select('*')
-        .eq('owner_email', req.email)
-        .single();
-      
+        .eq('owner_email', req.email);
+
       if (verifyError) {
         console.error('❌ Error verifying update:', verifyError);
       } else {
         console.log('✅ Verification - Current record state:', verifyRecord);
+        if (verifyRecord && verifyRecord.length > 0) {
+          console.log('📊 Final statuses:', verifyRecord.map(r => ({ id: r.id, status: r.status, venue_id: r.venue_id })));
+        }
       }
 
       // Update the request status with proper error handling (around line 140)
