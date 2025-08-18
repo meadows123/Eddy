@@ -128,9 +128,61 @@ const VenueApprovalsPage = () => {
       console.log('✅ Found existing venue owner record:', existingVenueOwner);
       console.log('📊 Current status:', existingVenueOwner.status);
       console.log('🆔 Record ID:', existingVenueOwner.id);
+      console.log('👤 User ID:', existingVenueOwner.user_id);  // ✅ Add this line
+      console.log('📧 Owner Email:', existingVenueOwner.owner_email);
 
-      // Create a venue record with the correct owner_id
-      console.log('🏗️ Creating venue record...');
+      // Check if the user_id actually exists in auth.users
+      if (existingVenueOwner.user_id) {
+        const { data: userCheck, error: userCheckError } = await supabase.auth.admin.getUserById(existingVenueOwner.user_id);
+        if (userCheckError) {
+          console.error('❌ User ID check failed:', userCheckError);
+        } else {
+          console.log('✅ User ID exists:', userCheck);
+        }
+      } else {
+        console.error('❌ No user_id found in venue_owners record');
+      }
+
+      // First, check if a user exists with this email
+      console.log('🔍 Checking if user exists with email:', req.email);
+      const { data: existingUser, error: userFindError } = await supabase.auth.admin.listUsers();
+
+      if (userFindError) {
+        console.error('❌ Error listing users:', userFindError);
+        throw new Error('Failed to check existing users');
+      }
+
+      // Find user by email
+      const user = existingUser.users.find(u => u.email === req.email);
+
+      if (!user) {
+        console.log('👤 No existing user found, creating new user account...');
+        
+        // Create a new user account
+        const { data: newUser, error: createUserError } = await supabase.auth.admin.createUser({
+          email: req.email,
+          password: 'tempPassword123!', // They can reset this later
+          email_confirm: true,
+          user_metadata: {
+            full_name: req.contact_name,
+            role: 'venue_owner'
+          }
+        });
+        
+        if (createUserError) {
+          console.error('❌ Failed to create user:', createUserError);
+          throw new Error('Failed to create user account');
+        }
+        
+        console.log('✅ New user created:', newUser.user.id);
+        var ownerUserId = newUser.user.id;
+      } else {
+        console.log('✅ Existing user found:', user.id);
+        var ownerUserId = user.id;
+      }
+
+      // Now create the venue with the correct owner_id
+      console.log('🏗️ Creating venue record with owner_id:', ownerUserId);
       const venueData = {
         name: req.venue_name,
         description: req.additional_info,
@@ -144,7 +196,7 @@ const VenueApprovalsPage = () => {
         longitude: 3.3792,
         contact_phone: req.contact_phone,
         contact_email: req.email,
-        owner_id: existingVenueOwner.user_id,
+        owner_id: ownerUserId,  // ✅ Use the verified user ID
         status: 'approved',
         is_active: true
       };
@@ -165,47 +217,26 @@ const VenueApprovalsPage = () => {
       console.log('✅ Venue created successfully:', newVenue);
       console.log('✅ Venue owner_id:', newVenue.owner_id);
 
-      // Update the venue owner record: set status to active and link venue
-      console.log('🔄 Updating venue owner status to active...');
-      console.log(' Update data:', { 
-        venue_id: newVenue.id, 
-        status: 'active' 
-      });
-      
-      // Use owner_email instead of id for the update to be more reliable
+      // Update the venue owner record with the correct user_id and status
+      console.log('🔄 Updating venue owner record...');
       const { data: updateResult, error: venueOwnerUpdateError } = await supabase
         .from('venue_owners')
         .update({ 
+          user_id: ownerUserId,  // ✅ Update with correct user_id
           venue_id: newVenue.id,
           status: 'active'
         })
-        .eq('owner_email', req.email)  // ✅ Use email instead of ID for more reliable lookup
-        .eq('status', 'pending_approval')  // ✅ Add status check for safety
+        .eq('owner_email', req.email)
+        .eq('status', 'pending_approval')
         .select()
         .single();
 
       if (venueOwnerUpdateError) {
         console.error('❌ Failed to update venue owner status:', venueOwnerUpdateError);
-        console.error('❌ Error details:', venueOwnerUpdateError);
-        
-        // Let's see what happened with the update
-        const { data: checkAfterUpdate, error: checkError } = await supabase
-          .from('venue_owners')
-          .select('*')
-          .eq('owner_email', req.email);
-        
-        if (checkError) {
-          console.error('❌ Error checking records after update attempt:', checkError);
-        } else {
-          console.log('📊 Records after update attempt:', checkAfterUpdate);
-        }
-        
         throw venueOwnerUpdateError;
       }
 
-      console.log('✅ Venue owner status updated successfully:', updateResult);
-      console.log('📊 New status:', updateResult.status);
-      console.log('📊 New venue_id:', updateResult.venue_id);
+      console.log('✅ Venue owner updated successfully:', updateResult);
 
       // Verify the update actually worked
       const { data: verifyRecord, error: verifyError } = await supabase
