@@ -143,45 +143,27 @@ const VenueApprovalsPage = () => {
         console.error('❌ No user_id found in venue_owners record');
       }
 
-      // First, check if a user exists with this email
-      console.log('🔍 Checking if user exists with email:', req.email);
-      const { data: existingUser, error: userFindError } = await supabase.auth.admin.listUsers();
+      // Instead of listing all users, let's use the existing venue_owners record
+      console.log('🔍 Using existing venue owner record for user ID');
+      console.log('👤 Existing venue owner:', existingVenueOwner);
 
-      if (userFindError) {
-        console.error('❌ Error listing users:', userFindError);
-        throw new Error('Failed to check existing users');
-      }
-
-      // Find user by email
-      const user = existingUser.users.find(u => u.email === req.email);
-
-      if (!user) {
-        console.log('👤 No existing user found, creating new user account...');
-        
-        // Create a new user account
-        const { data: newUser, error: createUserError } = await supabase.auth.admin.createUser({
-          email: req.email,
-          password: 'tempPassword123!', // They can reset this later
-          email_confirm: true,
-          user_metadata: {
-            full_name: req.contact_name,
-            role: 'venue_owner'
-          }
-        });
-        
-        if (createUserError) {
-          console.error('❌ Failed to create user:', createUserError);
-          throw new Error('Failed to create user account');
-        }
-        
-        console.log('✅ New user created:', newUser.user.id);
-        var ownerUserId = newUser.user.id;
+      // Check if the venue owner already has a valid user_id
+      if (existingVenueOwner.user_id) {
+        console.log('✅ Venue owner already has user_id:', existingVenueOwner.user_id);
+        var ownerUserId = existingVenueOwner.user_id;
       } else {
-        console.log('✅ Existing user found:', user.id);
-        var ownerUserId = user.id;
+        console.log('❌ No user_id found, we need to create a user account');
+        
+        // Since we can't use admin APIs, let's create the user through the registration flow
+        // For now, let's skip user creation and just update the venue owner status
+        console.log('⚠️ Skipping user creation due to admin permissions');
+        console.log('💡 The venue owner will need to complete their registration separately');
+        
+        // Use a placeholder or skip the venue creation for now
+        throw new Error('Venue owner needs to complete their registration first. Please ask them to check their email and complete the signup process.');
       }
 
-      // Now create the venue with the correct owner_id
+      // Now create the venue with the existing user_id
       console.log('🏗️ Creating venue record with owner_id:', ownerUserId);
       const venueData = {
         name: req.venue_name,
@@ -196,7 +178,7 @@ const VenueApprovalsPage = () => {
         longitude: 3.3792,
         contact_phone: req.contact_phone,
         contact_email: req.email,
-        owner_id: ownerUserId,  // ✅ Use the verified user ID
+        owner_id: ownerUserId,
         status: 'approved',
         is_active: true
       };
@@ -217,7 +199,7 @@ const VenueApprovalsPage = () => {
       console.log('✅ Venue created successfully:', newVenue);
       console.log('✅ Venue owner_id:', newVenue.owner_id);
 
-      // Update the venue owner record with the correct user_id and status
+      // Update the venue owner record with the venue_id and status
       console.log('🔄 Updating venue owner record...');
 
       // First, let's see how many records we're updating
@@ -247,13 +229,12 @@ const VenueApprovalsPage = () => {
       const { data: updateResult, error: venueOwnerUpdateError } = await supabase
         .from('venue_owners')
         .update({ 
-          user_id: ownerUserId,  // ✅ Update with correct user_id
           venue_id: newVenue.id,
           status: 'active'
         })
         .eq('owner_email', req.email)
         .eq('status', 'pending_approval')
-        .select();  // ✅ Remove .single() to handle multiple rows
+        .select();  // Remove .single() to handle multiple rows
 
       if (venueOwnerUpdateError) {
         console.error('❌ Failed to update venue owner status:', venueOwnerUpdateError);
