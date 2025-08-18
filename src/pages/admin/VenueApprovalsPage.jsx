@@ -100,7 +100,7 @@ const VenueApprovalsPage = () => {
         .from('venue_owners')
         .select('*')
         .eq('owner_email', req.email)
-        .eq('status', 'pending_approval')
+        .eq('status', 'pending')
         .single();
 
       if (venueOwnerFindError || !existingVenueOwner) {
@@ -223,39 +223,57 @@ const VenueApprovalsPage = () => {
 
       // Find the venue owner record AGAIN right before updating (in case it changed)
       console.log('🔄 Finding venue owner record again before final update...');
+      console.log('🔍 Searching for email:', req.email);
+      console.log('🔍 Searching for status: pending_approval');
+
       const { data: currentVenueOwner, error: findError } = await supabase
         .from('venue_owners')
         .select('*')
         .eq('owner_email', req.email)
-        .eq('status', 'pending_approval')
+        .eq('status', 'pending')
         .single();
 
-      if (findError || !currentVenueOwner) {
-        console.error('❌ Could not find venue owner record for final update:', findError);
-        throw new Error('Venue owner record not found for final update');
+      if (findError) {
+        console.error('❌ Error finding venue owner record:', findError);
+        console.error('❌ Error details:', findError.message, findError.code);
+        throw new Error(`Failed to find venue owner record: ${findError.message}`);
+      }
+
+      if (!currentVenueOwner) {
+        console.error('❌ No venue owner record found for final update');
+        throw new Error('No venue owner record found for final update');
       }
 
       console.log('✅ Found current venue owner record:', currentVenueOwner.id);
+      console.log('📊 Current record status:', currentVenueOwner.status);
+      console.log('📧 Current record email:', currentVenueOwner.owner_email);
 
       // NOW do the final update using the fresh record
       console.log('🔄 Updating venue_owners with final status and venue_id...');
+      console.log('🔗 Updating record ID:', currentVenueOwner.id);
+      console.log('🔗 Setting status to: active');
+      console.log('🔗 Setting venue_id to:', newVenue.id);
+
       const { data: finalUpdateResult, error: finalUpdateError } = await supabase
         .from('venue_owners')
         .update({ 
           status: 'active',
           venue_id: newVenue.id
         })
-        .eq('id', currentVenueOwner.id)  // Use the fresh record ID
+        .eq('id', currentVenueOwner.id)
         .select();
 
       if (finalUpdateError) {
         console.error('❌ Failed to finalize venue owner update:', finalUpdateError);
+        console.error('❌ Error details:', finalUpdateError.message, finalUpdateError.code);
         throw new Error(`Failed to finalize venue owner update: ${finalUpdateError.message}`);
       }
 
       // Check if we got any results
       if (!finalUpdateResult || finalUpdateResult.length === 0) {
-        throw new Error('No venue owner record was finalized');
+        console.error('❌ Update returned 0 rows');
+        console.error('❌ Update query:', `UPDATE venue_owners SET status='active', venue_id='${newVenue.id}' WHERE id='${currentVenueOwner.id}'`);
+        throw new Error('No venue owner record was finalized - update returned 0 rows');
       }
 
       console.log('✅ Venue owner record finalized successfully:', finalUpdateResult[0]);
