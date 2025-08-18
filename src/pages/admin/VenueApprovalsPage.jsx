@@ -128,39 +128,18 @@ const VenueApprovalsPage = () => {
       console.log('✅ Found existing venue owner record:', existingVenueOwner);
       console.log('📊 Current status:', existingVenueOwner.status);
       console.log('🆔 Record ID:', existingVenueOwner.id);
-      console.log('👤 User ID:', existingVenueOwner.user_id);  // ✅ Add this line
       console.log('📧 Owner Email:', existingVenueOwner.owner_email);
-
-      // Check if the user_id actually exists in auth.users
-      if (existingVenueOwner.user_id) {
-        const { data: userCheck, error: userCheckError } = await supabase.auth.admin.getUserById(existingVenueOwner.user_id);
-        if (userCheckError) {
-          console.error('❌ User ID check failed:', userCheckError);
-        } else {
-          console.log('✅ User ID exists:', userCheck);
-        }
-      } else {
-        console.error('❌ No user_id found in venue_owners record');
-      }
-
-      // Instead of listing all users, let's use the existing venue_owners record
-      console.log('🔍 Using existing venue owner record for user ID');
-      console.log('👤 Existing venue owner:', existingVenueOwner);
 
       // Check if the venue owner already has a valid user_id
       if (existingVenueOwner.user_id) {
         console.log('✅ Venue owner already has user_id:', existingVenueOwner.user_id);
         var ownerUserId = existingVenueOwner.user_id;
       } else {
-        console.log('❌ No user_id found, we need to create a user account');
+        console.log('❌ No user_id found in venue_owners record');
+        console.log('💡 This means the venue owner registration didn\'t complete properly');
+        console.log('💡 They need to complete their email confirmation first');
         
-        // Since we can't use admin APIs, let's create the user through the registration flow
-        // For now, let's skip user creation and just update the venue owner status
-        console.log('⚠️ Skipping user creation due to admin permissions');
-        console.log('💡 The venue owner will need to complete their registration separately');
-        
-        // Use a placeholder or skip the venue creation for now
-        throw new Error('Venue owner needs to complete their registration first. Please ask them to check their email and complete the signup process.');
+        throw new Error('Venue owner needs to complete their registration first. Please ask them to check their email and click the confirmation link before approval.');
       }
 
       // Now create the venue with the existing user_id
@@ -259,7 +238,7 @@ const VenueApprovalsPage = () => {
         }
       }
 
-      // Update the request status with proper error handling (around line 140)
+      // Update the request status with proper error handling
       console.log('🔄 Updating request status to approved...');
       console.log('📝 Request ID being updated:', req.id);
       console.log('📧 Request email:', req.email);
