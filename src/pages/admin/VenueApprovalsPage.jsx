@@ -113,7 +113,7 @@ const VenueApprovalsPage = () => {
       
       // STOP HERE FOR NOW - don't continue with approval
       console.log('⏸️ Stopping here for debugging. Please check console and tell me what you see.');
-      return;
+      //return;
       
       // Use the actual venue type from the request, with a reasonable fallback
       const venueType = req.venue_type || 'restaurant';
