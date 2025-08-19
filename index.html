@@ -19,49 +19,6 @@
 	</head>
 	<body>
 		<div id="root"></div>
-		<a href="https://oneeddy.com/confirm?token={{ .Token }}" class="confirm-button" id="deepLinkButton">
-    CONFIRM & LOGIN
-</a>
-
-<script>
-// Deep linking logic that actually tries mobile app first
-(function() {
-    const button = document.getElementById('deepLinkButton');
-    const webFallbackUrl = 'https://oneeddy.com/confirm?token={{ .Token }}';
-    
-    // Function to try opening mobile app
-    function tryOpenMobileApp() {
-        // Check if we're on mobile
-        if (/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-            console.log('📱 Mobile detected, trying mobile app first...');
-            
-            // Try to open mobile app
-            const mobileAppUrl = 'oneeddy://confirm?token={{ .Token }}';
-            console.log(' Attempting to open:', mobileAppUrl);
-            
-            // Use window.open to try the deep link
-            const appWindow = window.open(mobileAppUrl, '_self');
-            
-            // Set timeout to redirect to web app if mobile app doesn't open
-            setTimeout(function() {
-                console.log('⏰ Mobile app didn\'t open, redirecting to web app');
-                window.location.href = webFallbackUrl;
-            }, 2000);
-            
-        } else {
-            // On desktop, go directly to web app
-            console.log('💻 Desktop detected, going to web app');
-            window.location.href = webFallbackUrl;
-        }
-    }
-    
-    // Add click event
-    button.addEventListener('click', function(e) {
-        e.preventDefault();
-        console.log('🖱️ Button clicked, starting deep link process...');
-        tryOpenMobileApp();
-    });
-})();
-</script>
+		<script type="module" src="/src/main.jsx"></script>
 	</body>
 </html>
