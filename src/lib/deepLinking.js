@@ -3,16 +3,16 @@
 
 // App scheme and universal link configuration
 const APP_CONFIG = {
-  // iOS App Store ID (replace with your actual ID)
+  // iOS App Store ID (replace with your actual ID when you have one)
   iosAppStoreId: 'YOUR_IOS_APP_STORE_ID',
   
-  // Android package name (replace with your actual package name)
-  androidPackageName: 'com.oneeddy.app',
+  // Android package name (this should match your actual package name)
+  androidPackageName: 'com.oneeddy.members', // Updated to match your actual package
   
-  // App scheme for deep linking
+  // App scheme for deep linking (should match your AndroidManifest.xml)
   appScheme: 'oneeddy://',
   
-  // Universal link domain (your domain that handles app links)
+  // Universal link domain (your actual domain)
   universalLinkDomain: 'https://oneeddy.com',
   
   // Web fallback URLs
@@ -32,28 +32,29 @@ const APP_CONFIG = {
 };
 
 /**
- * Generate deep link URL that tries app first, then falls back to web
- * @param {string} path - The path within the app (e.g., 'bookings', 'profile')
+ * Generate simple deep link that tries app first, then falls back to web
+ * @param {string} path - The path within the app
  * @param {Object} params - Query parameters to pass
- * @param {string} fallbackPath - Web fallback path (optional)
  * @returns {string} - Deep link URL
  */
-export function generateDeepLink(path, params = {}, fallbackPath = null) {
-  const webPath = fallbackPath || path;
-  const webUrl = `${APP_CONFIG.universalLinkDomain}${webPath}`;
-  
+export function generateSimpleDeepLink(path, params = {}) {
   // Build query string from params
   const queryString = Object.keys(params)
     .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
     .join('&');
   
-  const webUrlWithParams = queryString ? `${webUrl}?${queryString}` : webUrl;
-  
   // Create app deep link
   const appDeepLink = `${APP_CONFIG.appScheme}${path}${queryString ? `?${queryString}` : ''}`;
   
-  // Return universal link that will try app first, then web
-  return `${APP_CONFIG.universalLinkDomain}/app-redirect?path=${encodeURIComponent(path)}&params=${encodeURIComponent(JSON.stringify(params))}&fallback=${encodeURIComponent(webUrlWithParams)}`;
+  // Create web fallback URL
+  const webUrl = `${APP_CONFIG.universalLinkDomain}${path}${queryString ? `?${queryString}` : ''}`;
+  
+  return {
+    appDeepLink,
+    webUrl,
+    // Return the app deep link - the fallback logic will be in the email template
+    deepLink: appDeepLink
+  };
 }
 
 /**
@@ -61,43 +62,40 @@ export function generateDeepLink(path, params = {}, fallbackPath = null) {
  */
 export const emailDeepLinks = {
   // User signup confirmation
-  signupConfirmation: (email) => generateDeepLink('signup/confirm', { email }),
+  signupConfirmation: (token) => generateSimpleDeepLink('confirm', { token }),
   
   // User login
-  userLogin: () => generateDeepLink('login'),
+  userLogin: () => generateSimpleDeepLink('login'),
   
   // User profile
-  userProfile: () => generateDeepLink('profile'),
+  userProfile: () => generateSimpleDeepLink('profile'),
   
   // User bookings
-  userBookings: () => generateDeepLink('bookings'),
+  userBookings: () => generateSimpleDeepLink('bookings'),
   
   // Venue detail
-  venueDetail: (venueId) => generateDeepLink('venue', { id: venueId }),
+  venueDetail: (venueId) => generateSimpleDeepLink('venue', { id: venueId }),
   
   // Venue owner login
-  venueOwnerLogin: () => generateDeepLink('venue-owner/login'),
+  venueOwnerLogin: () => generateSimpleDeepLink('venue-owner/login'),
   
   // Venue owner dashboard
-  venueOwnerDashboard: () => generateDeepLink('venue-owner/dashboard'),
+  venueOwnerDashboard: () => generateSimpleDeepLink('venue-owner/dashboard'),
   
   // Venue owner settings
-  venueOwnerSettings: () => generateDeepLink('venue-owner/settings'),
+  venueOwnerSettings: () => generateSimpleDeepLink('venue-owner/settings'),
   
   // Admin dashboard
-  adminDashboard: () => generateDeepLink('admin/dashboard'),
+  adminDashboard: () => generateSimpleDeepLink('admin/dashboard'),
   
   // Checkout
-  checkout: (bookingId) => generateDeepLink('checkout', { bookingId }),
+  checkout: (bookingId) => generateSimpleDeepLink('checkout', { bookingId }),
   
   // Split payment
-  splitPayment: (paymentId) => generateDeepLink('split-payment', { id: paymentId }),
-  
-  // Loyalty program
-  loyalty: () => generateDeepLink('loyalty'),
+  splitPayment: (paymentId) => generateSimpleDeepLink('split-payment', { id: paymentId }),
   
   // General app open
-  openApp: () => generateDeepLink('home'),
+  openApp: () => generateSimpleDeepLink('home'),
   
   // Web fallback for when app isn't available
   webFallback: (path, params = {}) => {
@@ -109,38 +107,73 @@ export const emailDeepLinks = {
 };
 
 /**
- * Generate smart button HTML for emails
+ * Generate HTML button with deep linking for email templates
  * @param {string} text - Button text
  * @param {string} deepLinkPath - App path
  * @param {Object} params - Query parameters
  * @param {string} fallbackPath - Web fallback path
- * @param {string} buttonStyle - CSS styles for the button
  * @returns {string} - HTML button with deep linking
  */
-export function generateSmartButton(text, deepLinkPath, params = {}, fallbackPath = null, buttonStyle = '') {
-  const deepLink = emailDeepLinks[deepLinkPath] ? 
-    emailDeepLinks[deepLinkPath](params) : 
-    generateDeepLink(deepLinkPath, params, fallbackPath);
-  
-  const defaultStyle = `
-    display: inline-block;
-    padding: 12px 24px;
-    background: linear-gradient(135deg, #8B1538 0%, #D4AF37 100%);
-    color: white;
-    text-decoration: none;
-    border-radius: 25px;
-    font-weight: bold;
-    text-align: center;
-    box-shadow: 0 4px 15px rgba(139, 21, 56, 0.3);
-    transition: all 0.3s ease;
-  `;
-  
-  const finalStyle = buttonStyle || defaultStyle;
+export function generateEmailButton(text, deepLinkPath, params = {}, fallbackPath = null) {
+  const { appDeepLink, webUrl } = generateSimpleDeepLink(deepLinkPath, params);
   
   return `
-    <a href="${deepLink}" style="${finalStyle}">
+    <a href="${appDeepLink}" class="confirm-button" id="deepLinkButton" style="
+      display: inline-block;
+      background: linear-gradient(135deg, #800020 0%, #A71D2A 100%);
+      color: #FFF5E6;
+      text-decoration: none;
+      padding: 16px 40px;
+      border-radius: 50px;
+      font-weight: bold;
+      font-size: 16px;
+      letter-spacing: 1px;
+      transition: all 0.3s ease;
+      box-shadow: 0 8px 25px rgba(128, 0, 32, 0.3);
+      border: 2px solid #FFD700;
+    ">
       ${text}
     </a>
+    
+    <script>
+    // Deep linking logic for email templates
+    (function() {
+      const button = document.getElementById('deepLinkButton');
+      const webFallbackUrl = '${webUrl}';
+      
+      function tryOpenMobileApp() {
+        // Check if we're on mobile
+        if (/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+          console.log('📱 Mobile detected, trying mobile app...');
+          
+          // Try to open mobile app
+          const mobileAppUrl = '${appDeepLink}';
+          console.log(' Attempting to open:', mobileAppUrl);
+          
+          // Use window.open to try the deep link
+          const appWindow = window.open(mobileAppUrl, '_self');
+          
+          // Set timeout to redirect to web app if mobile app doesn't open
+          setTimeout(function() {
+            console.log('⏰ Mobile app didn\'t open, redirecting to web app');
+            window.location.href = webFallbackUrl;
+          }, 2000);
+          
+        } else {
+          // On desktop, go directly to web app
+          console.log('💻 Desktop detected, going to web app');
+          window.location.href = webFallbackUrl;
+        }
+      }
+      
+      // Add click event
+      button.addEventListener('click', function(e) {
+        e.preventDefault();
+        console.log('🖱️ Button clicked, starting deep link process...');
+        tryOpenMobileApp();
+      });
+    })();
+    </script>
   `;
 }
 
@@ -194,9 +227,9 @@ export function generateEmailFooter() {
 }
 
 export default {
-  generateDeepLink,
+  generateSimpleDeepLink,
   emailDeepLinks,
-  generateSmartButton,
+  generateEmailButton,
   generateFallbackLink,
   generateEmailFooter,
   APP_CONFIG
