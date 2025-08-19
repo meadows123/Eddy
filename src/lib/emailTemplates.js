@@ -1,5 +1,5 @@
 // Email templates for Eddys Members with deep linking support
-import { emailDeepLinks, generateSmartButton, generateFallbackLink, generateEmailFooter } from './deepLinking.js';
+import { emailDeepLinks, generateEmailButton, generateFallbackLink, generateEmailFooter } from './deepLinking.js';
 
 export const bookingConfirmationTemplate = (bookingData) => {
   return `
@@ -120,7 +120,7 @@ export const bookingConfirmationTemplate = (bookingData) => {
 
       <!-- Action Buttons with Deep Linking -->
       <div style="text-align: center; margin: 24px 0;">
-        ${generateSmartButton('View Booking in App', 'bookings', { id: bookingData.bookingId })}
+        ${generateEmailButton('View Booking in App', 'bookings', { id: bookingData.bookingId })}
         ${generateFallbackLink('/bookings', { id: bookingData.bookingId })}
       </div>
     </div>
@@ -308,7 +308,7 @@ export const cancellationTemplate = (bookingData) => {
 
       <!-- Action Buttons with Deep Linking -->
       <div style="text-align: center; margin: 24px 0;">
-        ${generateSmartButton('Book Another Venue', 'venues')}
+        ${generateEmailButton('Book Another Venue', 'venues')}
         ${generateFallbackLink('/venues')}
       </div>
     </div>
@@ -376,17 +376,17 @@ export const signupConfirmationTemplate = (userData) => {
 
       <!-- Action Buttons with Deep Linking -->
       <div style="text-align: center; margin: 30px 0;">
-        ${generateSmartButton('Complete Profile', 'profile')}
+        ${generateEmailButton('Complete Profile', 'profile')}
         ${generateFallbackLink('/profile')}
       </div>
 
       <div style="text-align: center; margin: 20px 0;">
-        ${generateSmartButton('Browse Venues', 'venues')}
+        ${generateEmailButton('Browse Venues', 'venues')}
         ${generateFallbackLink('/venues')}
       </div>
 
       <div style="text-align: center; margin: 20px 0;">
-        ${generateSmartButton('Open App', 'home')}
+        ${generateEmailButton('Open App', 'home')}
         ${generateFallbackLink('/')}
       </div>
     </div>
