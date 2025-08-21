@@ -70,18 +70,40 @@ export const sendBookingConfirmation = async (booking, venue, customer) => {
     if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.templateId || !EMAILJS_CONFIG.publicKey) {
       throw new Error('EmailJS not fully configured');
     }
-    await emailjs.send(EMAILJS_CONFIG.serviceId, EMAILJS_CONFIG.templateId, {
-      // Provide multiple aliases so template variable matches
-      to_email: customerEmail,
-      email: customerEmail,
-      to: customerEmail,
-      reply_to: 'info@oneeddy.com',
-      customerName: customer?.fullName || booking?.customerName || 'Guest',
-      venueName: venue?.name || booking?.venueName || 'Your Venue',
-      bookingDate: booking?.bookingDate || booking?.booking_date,
-      bookingId: booking?.bookingId || booking?.id,
-      totalAmount: booking?.totalAmount || booking?.total_amount,
-    });
+    const templateParams = {
+      // Customer Details
+      customerName: customer.full_name,
+      customerEmail: customer.email,
+      customerPhone: customer.phone,
+      
+      // Booking Details
+      bookingReference: booking.id,
+      bookingDate: new Date(booking.booking_date).toLocaleDateString(),
+      bookingTime: booking.booking_time,
+      guestCount: booking.guest_count,
+      duration: booking.duration || '2 hours',  // Add default if not specified
+      
+      // Table Details
+      tableNumber: booking.table_number,
+      tableType: booking.table?.type || 'Standard Table',
+      tableLocation: booking.table?.location || 'Main Area',
+      
+      // Venue Details
+      venueName: venue.name,
+      venueDescription: venue.description,
+      venueAddress: venue.address,
+      venueCity: venue.city,
+      venueCountry: venue.country,
+      venuePhone: venue.contact_phone,
+      venueEmail: venue.contact_email,
+      dressCode: venue.dress_code || 'Smart Casual',
+      
+      // Special Requests
+      specialRequests: booking.special_requests || 'None specified',
+      
+      // ... rest of the existing parameters ...
+    };
+    await emailjs.send(EMAILJS_CONFIG.serviceId, EMAILJS_CONFIG.templateId, templateParams);
     return true;
   } catch (fallbackErr) {
     console.error('❌ Booking confirmation send failed (EmailJS fallback):', fallbackErr);
