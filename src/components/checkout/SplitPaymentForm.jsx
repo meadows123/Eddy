@@ -22,6 +22,68 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
+// First, add Stripe imports at the top
+import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { loadStripe } from '@stripe/stripe-js';
+
+// Initialize Stripe
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+
+// Add PaymentForm component
+const PaymentForm = ({ amount, onSuccess }) => {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setProcessing(true);
+
+    try {
+      const { error: stripeError, paymentMethod } = await stripe.createPaymentMethod({
+        type: 'card',
+        card: elements.getElement(CardElement),
+      });
+
+      if (stripeError) throw stripeError;
+      await onSuccess(paymentMethod.id);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="p-4 border rounded-lg">
+        <CardElement 
+          options={{
+            style: {
+              base: {
+                fontSize: '16px',
+                color: '#800020',
+                '::placeholder': {
+                  color: '#800020',
+                },
+              },
+            },
+          }}
+        />
+      </div>
+      <Button 
+        type="submit" 
+        disabled={processing}
+        className="w-full bg-brand-burgundy text-white"
+      >
+        {processing ? 'Processing...' : `Pay ₦${amount.toLocaleString()}`}
+      </Button>
+      {error && <div className="text-red-500">{error}</div>}
+    </form>
+  );
+};
+
 const SplitPaymentForm = ({ 
   totalAmount, 
   onSplitCreated, 
@@ -379,6 +441,7 @@ const SplitPaymentForm = ({
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
+              {/* Payment Summary */}
               <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-green-200">
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
@@ -393,38 +456,55 @@ const SplitPaymentForm = ({
                 </div>
                 <div className="text-right">
                   <div className="text-2xl font-bold text-green-800">₦{myAmount.toLocaleString()}</div>
-                  <div className="text-sm text-green-600">You pay this now</div>
+                  <div className="text-sm text-green-600">Pay now</div>
                 </div>
-          </div>
-              
-              <div className="bg-white p-3 rounded-lg border border-green-200">
-                <div className="text-sm text-green-700 mb-2">
-                  <strong>Payment Summary:</strong>
-                </div>
-                <div className="space-y-1 text-sm">
-                  <div className="flex justify-between">
-                    <span>Total Amount:</span>
-                    <span>₦{totalAmount.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Others will pay:</span>
-                    <span>₦{splitAmounts.reduce((sum, amount) => sum + amount, 0).toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between border-t pt-1 font-medium text-green-800">
-                    <span>Your portion:</span>
-                    <span>₦{myAmount.toLocaleString()}</span>
-                  </div>
-                </div>
-            </div>
-
-              <Button 
-                className="w-full bg-green-600 hover:bg-green-700 text-white"
-                onClick={handlePayment}
-                disabled={isCreating}
-              >
-                {isCreating ? 'Processing...' : `Pay Your Portion (₦${myAmount.toLocaleString()})`}
-              </Button>
               </div>
+
+              {/* Payment Form */}
+              <Elements stripe={stripePromise}>
+                <PaymentForm 
+                  amount={myAmount} 
+                  onSuccess={async (paymentMethodId) => {
+                    try {
+                      // First create the split payment requests
+                      await createSplitPaymentRequests();
+
+                      // Then process the initiator's payment
+                      const response = await fetch('/api/create-split-payment-intent', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          amount: myAmount,
+                          paymentMethodId,
+                          bookingId,
+                          splitRequests: createdSplitRequests
+                        })
+                      });
+
+                      const { clientSecret } = await response.json();
+                      const { error: confirmError } = await stripe.confirmCardPayment(clientSecret);
+                      
+                      if (confirmError) throw confirmError;
+
+                      // Navigate to success page
+                      navigate('/split-payment-success', {
+                        state: {
+                          amount: myAmount,
+                          splitRequests: createdSplitRequests
+                        }
+                      });
+                    } catch (error) {
+                      console.error('Payment failed:', error);
+                      toast({
+                        title: "Payment Failed",
+                        description: error.message || "Failed to process payment. Please try again.",
+                        variant: "destructive"
+                      });
+                    }
+                  }}
+                />
+              </Elements>
+            </div>
           </CardContent>
         </Card>
       )}
