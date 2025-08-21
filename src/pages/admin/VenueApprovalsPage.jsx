@@ -83,26 +83,15 @@ const VenueApprovalsPage = () => {
     try {
       console.log('🔄 Starting approval process for:', req.email);
       
-      // First check for existing venues with the same name
-      const { data: existingVenues, error: venueCheckError } = await supabase
-        .from('venues')
-        .select('*')
-        .eq('name', req.venue_name);
-
-      console.log('🔍 Checking existing venues:', { existingVenues, venueCheckError });
-
-      // Delete any existing venues with the same name
-      if (existingVenues?.length > 0) {
-        console.log('⚠️ Found existing venues, cleaning up...');
-        const { error: cleanupError } = await supabase
-          .from('venues')
+      // First delete any existing venue owner records for this email
+      const { error: deleteError } = await supabase
+        .from('venue_owners')
           .delete()
-          .eq('name', req.venue_name);
+        .eq('owner_email', req.email);
 
-        if (cleanupError) {
-          console.error('❌ Failed to cleanup duplicate venues:', cleanupError);
-          throw new Error('Failed to cleanup existing venues');
-        }
+      if (deleteError) {
+        console.error('❌ Failed to cleanup existing venue owner records:', deleteError);
+        throw new Error('Failed to cleanup existing records');
       }
 
       // Create or update the venue
@@ -129,20 +118,6 @@ const VenueApprovalsPage = () => {
         throw new Error(`Failed to create venue: ${venueError.message}`);
       }
 
-      console.log('✅ Venue created successfully:', newVenue);
-
-      // Now handle venue owner record
-      // First delete any existing venue owner records
-      const { error: ownerCleanupError } = await supabase
-        .from('venue_owners')
-        .delete()
-        .eq('owner_email', req.email);
-
-      if (ownerCleanupError) {
-        console.error('❌ Failed to cleanup venue owner records:', ownerCleanupError);
-        throw new Error('Failed to cleanup existing venue owner records');
-      }
-
       // Create new venue owner record
       const { data: venueOwner, error: venueOwnerError } = await supabase
         .from('venue_owners')
@@ -154,7 +129,14 @@ const VenueApprovalsPage = () => {
           phone: req.contact_phone,
           user_id: req.user_id,
           venue_name: req.venue_name,
-          venue_type: req.venue_type || 'restaurant'
+          venue_type: req.venue_type || 'restaurant',
+          venue_description: req.additional_info,
+          venue_address: req.venue_address,
+          venue_city: req.venue_city,
+          venue_country: req.venue_country,
+          venue_phone: req.contact_phone,
+          owner_phone: req.contact_phone,
+          price_range: req.price_range || '$$'
         }])
         .select()
         .single();
