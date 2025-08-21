@@ -95,7 +95,7 @@ const VenueApprovalsPage = () => {
       // Use the actual venue type from the request, with a reasonable fallback
       const venueType = req.venue_type || 'restaurant';
       
-      // First create the venue record
+      // Create the venue record
       console.log('🏗️ Creating venue record...');
       const { data: newVenue, error: venueError } = await supabase
         .from('venues')
@@ -126,7 +126,7 @@ const VenueApprovalsPage = () => {
         owner_email: req.email,
         owner_name: req.contact_name,
         venue_id: newVenue.id,
-        status: 'active',
+        status: 'active',  // Set to active since they already have an account
         phone: req.contact_phone
       };
 
