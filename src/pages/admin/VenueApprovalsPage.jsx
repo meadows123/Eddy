@@ -92,14 +92,14 @@ const VenueApprovalsPage = () => {
       console.log('🔍 Checking existing venue owners:', { existingVenueOwners, checkError });
 
       // Check for existing venues
-      const existingVenues = await supabase
+      const { data: existingVenues, error: venueCheckError } = await supabase
         .from('venues')
         .select('*')
         .eq('name', req.venue_name);
 
-      let venueId = null;
+      let venueId;
 
-      if (existingVenues.data?.length > 0) {
+      if (existingVenues?.length > 0) {
         console.log('⚠️ Found existing venue with same name, will update instead of create');
         // Update existing venue
         const { data: updatedVenue, error: updateError } = await supabase
@@ -140,8 +140,7 @@ const VenueApprovalsPage = () => {
             city: req.venue_city,
             state: req.venue_city,
             country: req.venue_country,
-            status: 'active',
-            prevent_auto_venue: true  // Add this flag to prevent automatic venue creation
+            status: 'active'
           })
           .select()
           .single();
