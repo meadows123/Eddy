@@ -40,15 +40,30 @@ const PaymentForm = ({ amount, onSuccess }) => {
     e.preventDefault();
     setProcessing(true);
 
+    if (!stripe || !elements) {
+      setError('Stripe is not loaded');
+      setProcessing(false);
+      return;
+    }
+
     try {
+      // Create payment method
       const { error: stripeError, paymentMethod } = await stripe.createPaymentMethod({
         type: 'card',
         card: elements.getElement(CardElement),
+        billing_details: {
+          // Add any billing details if needed
+        }
       });
 
-      if (stripeError) throw stripeError;
+      if (stripeError) {
+        throw stripeError;
+      }
+
+      // Call the success handler with the payment method ID
       await onSuccess(paymentMethod.id);
     } catch (err) {
+      console.error('Payment error:', err);
       setError(err.message);
     } finally {
       setProcessing(false);
@@ -57,7 +72,7 @@ const PaymentForm = ({ amount, onSuccess }) => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="p-4 border rounded-lg">
+      <div className="p-4 border rounded-lg bg-white">
         <CardElement 
           options={{
             style: {
@@ -69,17 +84,22 @@ const PaymentForm = ({ amount, onSuccess }) => {
                 },
               },
             },
+            hidePostalCode: true
           }}
         />
       </div>
       <Button 
         type="submit" 
-        disabled={processing}
+        disabled={!stripe || processing}
         className="w-full bg-brand-burgundy text-white"
       >
         {processing ? 'Processing...' : `Pay ₦${amount.toLocaleString()}`}
       </Button>
-      {error && <div className="text-red-500">{error}</div>}
+      {error && (
+        <div className="text-red-500 text-sm bg-red-50 p-3 rounded-lg">
+          {error}
+        </div>
+      )}
     </form>
   );
 };
@@ -469,7 +489,7 @@ const SplitPaymentForm = ({
                       // First create the split payment requests
                       await createSplitPaymentRequests();
 
-                      // Then process the initiator's payment
+                      // Then process the payment
                       const response = await fetch('/api/create-split-payment-intent', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
