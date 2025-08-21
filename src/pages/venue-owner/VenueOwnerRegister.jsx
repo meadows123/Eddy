@@ -402,7 +402,7 @@ const VenueOwnerRegister = () => {
 
       console.log('✅ User account created successfully:', signUpData.user.id);
 
-      // Create venue owner record directly (foreign key constraints should work with new users)
+      // Create venue owner record directly
       const { data: venueOwnerData, error: venueOwnerError } = await supabase
         .from('venue_owners')
         .insert([{
@@ -420,7 +420,8 @@ const VenueOwnerRegister = () => {
           opening_hours: formData.opening_hours || '',
           capacity: formData.capacity || '',
           price_range: formData.price_range || '$$',
-          status: 'pending_approval'
+          status: 'pending_approval',
+          prevent_default_venue: true  // Add this flag to prevent automatic venue creation
         }])
         .select()
         .single();
