@@ -86,25 +86,31 @@ const VenueApprovalsPage = () => {
       // First check if there's already a venue owner record
       const { data: existingVenueOwners, error: checkError } = await supabase
         .from('venue_owners')
-        .select('*, venues(*)')
+        .select('*')
         .eq('owner_email', req.email);
 
       console.log('🔍 Checking existing venue owners:', { existingVenueOwners, checkError });
 
-      // Check for existing venues
-      const { data: existingVenues, error: venueCheckError } = await supabase
-        .from('venues')
-        .select('*')
-        .eq('name', req.venue_name);
+      // If multiple records exist, deactivate all but the most recent one
+      if (existingVenueOwners?.length > 1) {
+        console.log('⚠️ Multiple venue owner records found, cleaning up...');
+        const mostRecent = existingVenueOwners[0];
+        const { error: cleanupError } = await supabase
+          .from('venue_owners')
+          .delete()
+          .eq('owner_email', req.email)
+          .neq('id', mostRecent.id);
 
-      let venueId;
+        if (cleanupError) {
+          console.error('❌ Failed to cleanup duplicate records:', cleanupError);
+        }
+      }
 
-      if (existingVenues?.length > 0) {
-        console.log('⚠️ Found existing venue with same name, will update instead of create');
-        // Update existing venue
-        const { data: updatedVenue, error: updateError } = await supabase
+      // Create or update the venue
+      console.log('🏗️ Creating/updating venue record...');
+      const { data: newVenue, error: venueError } = await supabase
           .from('venues')
-          .update({
+        .upsert({
             name: req.venue_name,
             description: req.additional_info,
             type: req.venue_type || 'restaurant',
@@ -113,72 +119,41 @@ const VenueApprovalsPage = () => {
             city: req.venue_city,
             state: req.venue_city,
             country: req.venue_country,
-            status: 'active'
+          status: 'active',
+          owner_id: req.user_id  // Link to the auth user directly
           })
           .eq('name', req.venue_name)
           .select()
           .single();
 
-        if (updateError) {
-          console.error('❌ Failed to update venue:', updateError);
-          throw new Error(`Failed to update venue: ${updateError.message}`);
-        }
-
-        console.log('✅ Venue updated successfully:', updatedVenue);
-        venueId = updatedVenue.id;
-      } else {
-        // Create new venue
-        console.log('🏗️ Creating new venue record...');
-        const { data: newVenue, error: venueError } = await supabase
-          .from('venues')
-          .insert({
-            name: req.venue_name,
-            description: req.additional_info,
-            type: req.venue_type || 'restaurant',
-            price_range: req.price_range || '$$',
-            address: req.venue_address,
-            city: req.venue_city,
-            state: req.venue_city,
-            country: req.venue_country,
-            status: 'active'
-          })
-          .select()
-          .single();
-
         if (venueError) {
-          console.error('❌ Failed to create venue:', venueError);
-          throw new Error(`Failed to create venue: ${venueError.message}`);
+        console.error('❌ Failed to create/update venue:', venueError);
+        throw new Error(`Failed to create/update venue: ${venueError.message}`);
         }
 
-        console.log('✅ Venue created successfully:', newVenue);
-        venueId = newVenue.id;
-      }
+      console.log('✅ Venue created/updated successfully:', newVenue);
 
-      // Create or update the venue owner record
-      console.log('🔄 Creating/updating venue owner record...');
+      // Update the venue owner record
+      console.log('🔄 Updating venue owner record...');
       const venueOwnerData = {
         owner_email: req.email,
         owner_name: req.contact_name,
-        venue_id: venueId,
+        venue_id: newVenue.id,
         status: 'active',
-        phone: req.contact_phone
+        phone: req.contact_phone,
+        user_id: req.user_id  // Use the user_id from the request
       };
-
-      // If there's an existing record, use its user_id
-      if (existingVenueOwners?.length > 0) {
-        const mostRecentOwner = existingVenueOwners[0];
-        venueOwnerData.user_id = mostRecentOwner.user_id;
-      }
 
       const { data: venueOwner, error: venueOwnerError } = await supabase
         .from('venue_owners')
         .upsert(venueOwnerData)
+        .eq('owner_email', req.email)
         .select()
         .single();
 
       if (venueOwnerError) {
-        console.error('❌ Failed to create/update venue owner:', venueOwnerError);
-        throw new Error(`Failed to create/update venue owner: ${venueOwnerError.message}`);
+        console.error('❌ Failed to update venue owner:', venueOwnerError);
+        throw new Error(`Failed to update venue owner: ${venueOwnerError.message}`);
       }
 
       console.log('✅ Venue owner record created/updated successfully:', venueOwner);
