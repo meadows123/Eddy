@@ -970,98 +970,142 @@ const UserProfilePage = () => {
             <Card className="bg-white border-brand-burgundy/10">
               <div className="p-2 sm:p-4 md:p-6">
                 <h2 className="text-xl font-semibold mb-4">Split Payments</h2>
-                {splitPaymentNotification && (
-                  <div className="mb-4 p-3 rounded bg-brand-gold/20 text-brand-burgundy flex items-center gap-2">
-                    <Send className="h-4 w-4" />
-                    {splitPaymentNotification}
-                  </div>
-                )}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div>
-                    <h3 className="font-semibold mb-2">Requests You've Sent</h3>
-                    {splitPaymentsLoading ? <p>Loading...</p> : splitPaymentsSent.length === 0 ? <p>No sent requests.</p> : (
-                      <div className="space-y-3">
-                        {splitPaymentsSent.map(req => (
-                          <Card key={req.id} className="p-3 flex flex-col gap-2 border border-brand-burgundy/10">
-                            <div className="flex justify-between items-center">
-                              <div>
-                                <div className="font-medium">To: {req.recipient_phone || req.recipient_id}</div>
-                                <div className="text-sm text-brand-burgundy/70">Amount: ₦{req.amount?.toLocaleString()}</div>
-                                <div className="text-xs text-brand-burgundy/50">Status: {req.status}</div>
-                              </div>
-                              <div className="flex gap-2">
-                                <Button size="icon" variant="outline" onClick={() => navigator.clipboard.writeText(req.payment_link)} title="Copy Payment Link"><Clipboard className="h-4 w-4" /></Button>
-                                {req.status === 'pending' && (
-                                  <Button size="icon" variant="outline" onClick={async () => {
-                                    // Cancel request
-                                    await supabase.from('split_payment_requests').update({ status: 'cancelled' }).eq('id', req.id);
-                                    setSplitPaymentsSent(prev => prev.map(r => r.id === req.id ? { ...r, status: 'cancelled' } : r));
-                                  }} title="Cancel"><XCircle className="h-4 w-4 text-red-500" /></Button>
-                                )}
+                
+                {/* Received Requests Section */}
+                <div className="mb-8">
+                  <h3 className="text-lg font-semibold text-brand-burgundy mb-4">Received Payment Requests</h3>
+                  {splitPaymentsLoading ? (
+                    <div className="text-center py-4">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-burgundy mx-auto"></div>
+                      <p className="mt-2 text-brand-burgundy/70">Loading requests...</p>
+                    </div>
+                  ) : splitPaymentsReceived.length === 0 ? (
+                    <div className="text-center py-6 bg-brand-cream/30 rounded-lg">
+                      <p className="text-brand-burgundy/70">No payment requests received</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {splitPaymentsReceived.map(request => (
+                        <Card key={request.id} className="p-4 hover:shadow-md transition-shadow">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="font-medium text-brand-burgundy">₦{request.amount?.toLocaleString()}</div>
+                              <div className="text-sm text-brand-burgundy/70">From: {request.requester_name || 'A friend'}</div>
+                              <div className="text-xs text-brand-burgundy/50">
+                                {new Date(request.created_at).toLocaleDateString()}
                               </div>
                             </div>
-                          </Card>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="font-semibold mb-2">Requests You've Received</h3>
-                    {splitPaymentsLoading ? <p>Loading...</p> : splitPaymentsReceived.length === 0 ? <p>No received requests.</p> : (
-                      <div className="space-y-3">
-                        {splitPaymentsReceived.map(req => (
-                          <Card key={req.id} className="p-3 flex flex-col gap-2 border border-brand-burgundy/10">
-                            <div className="flex justify-between items-center">
-                              <div>
-                                <div className="font-medium">From: {req.requester_id}</div>
-                                <div className="text-sm text-brand-burgundy/70">Amount: ₦{req.amount?.toLocaleString()}</div>
-                                <div className="text-xs text-brand-burgundy/50">Status: {req.status}</div>
-                              </div>
-                              <div className="flex gap-2">
-                                <Button size="icon" variant="outline" onClick={() => navigator.clipboard.writeText(req.payment_link)} title="Copy Payment Link"><LinkIcon className="h-4 w-4" /></Button>
-                                {req.status === 'pending' && (
-                                  <Button size="icon" variant="outline" onClick={() => setPayingRequest(req)} title="Pay"><Send className="h-4 w-4 text-brand-gold" /></Button>
-                                )}
-                                {req.status === 'paid' && bookingRef && (
-                                  <Button size="sm" variant="outline" onClick={() => {/* View booking logic */}} title="View Booking">View Booking</Button>
-                                )}
-                              </div>
+                            <div>
+                              {request.status === 'pending' && (
+                                <Button
+                                  onClick={() => navigate(`/split-payment/${request.booking_id}/${request.id}`)}
+                                  className="bg-brand-burgundy text-white hover:bg-brand-burgundy/90"
+                                >
+                                  Pay Now
+                                </Button>
+                              )}
+                              {request.status === 'paid' && (
+                                <Badge className="bg-green-100 text-green-800">Paid</Badge>
+                              )}
+                              {request.status === 'expired' && (
+                                <Badge className="bg-gray-100 text-gray-800">Expired</Badge>
+                              )}
                             </div>
-                          </Card>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                {splitPaymentsError && <div className="text-red-500 mt-4">{splitPaymentsError}</div>}
-                {/* Stripe Payment Modal */}
-                {payingRequest && (
-                  <Elements stripe={stripePromise}>
-                    <SplitPaymentStripeModal
-                      request={payingRequest}
-                      onClose={() => setPayingRequest(null)}
-                      onSuccess={async (paymentIntent) => {
-                        setStripeSuccess('Payment successful!');
-                        setPayingRequest(null);
-                        // Update split_payment_requests row
-                        await supabase.from('split_payment_requests').update({ status: 'paid', stripe_payment_id: paymentIntent.id }).eq('id', payingRequest.id);
-                        setSplitPaymentsReceived(prev => prev.map(r => r.id === payingRequest.id ? { ...r, status: 'paid' } : r));
-                        // Check if all requests for this booking are paid
-                        const { data: allRequests } = await supabase.from('split_payment_requests').select('*').eq('booking_id', payingRequest.booking_id);
-                        if (allRequests && allRequests.every(r => r.status === 'paid')) {
-                          // Update booking status
-                          await supabase.from('bookings').update({ status: 'confirmed' }).eq('id', payingRequest.booking_id);
-                          // Optionally fetch booking ref
-                          const { data: booking } = await supabase.from('bookings').select('id, booking_reference').eq('id', payingRequest.booking_id).single();
-                          setBookingRef(booking?.booking_reference || booking?.id);
-                        }
-                      }}
-                    />
-                  </Elements>
-                )}
-                {stripeSuccess && (
-                  <div className="mt-4 p-3 rounded bg-green-100 text-green-800">{stripeSuccess} {bookingRef && (<span>Booking Ref: <span className="font-bold">{bookingRef}</span></span>)}</div>
-                )}
+
+                {/* Sent Requests Section */}
+                <div>
+                  <h3 className="text-lg font-semibold text-brand-burgundy mb-4">Sent Payment Requests</h3>
+                  {splitPaymentsLoading ? (
+                    <div className="text-center py-4">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-burgundy mx-auto"></div>
+                      <p className="mt-2 text-brand-burgundy/70">Loading requests...</p>
+                    </div>
+                  ) : splitPaymentsSent.length === 0 ? (
+                    <div className="text-center py-6 bg-brand-cream/30 rounded-lg">
+                      <p className="text-brand-burgundy/70">No payment requests sent</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {splitPaymentsSent.map(request => (
+                        <Card key={request.id} className="p-4 hover:shadow-md transition-shadow">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="font-medium text-brand-burgundy">₦{request.amount?.toLocaleString()}</div>
+                              <div className="text-sm text-brand-burgundy/70">To: {request.recipient_name || request.recipient_phone}</div>
+                              <div className="text-xs text-brand-burgundy/50">
+                                {new Date(request.created_at).toLocaleDateString()}
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-brand-burgundy border-brand-burgundy hover:bg-brand-burgundy/10"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(`${window.location.origin}/split-payment/${request.booking_id}/${request.id}`);
+                                  toast({
+                                    title: "Success",
+                                    description: "Payment link copied to clipboard"
+                                  });
+                                }}
+                              >
+                                <Copy className="h-4 w-4 mr-2" />
+                                Copy Link
+                              </Button>
+                              {request.status === 'pending' && (
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={async () => {
+                                    try {
+                                      await supabase
+                                        .from('split_payment_requests')
+                                        .update({ status: 'cancelled' })
+                                        .eq('id', request.id);
+                                      
+                                      setSplitPaymentsSent(prev => 
+                                        prev.map(r => r.id === request.id ? { ...r, status: 'cancelled' } : r)
+                                      );
+                                      
+                                      toast({
+                                        title: "Success",
+                                        description: "Payment request cancelled"
+                                      });
+                                    } catch (error) {
+                                      console.error('Error cancelling request:', error);
+                                      toast({
+                                        title: "Error",
+                                        description: "Failed to cancel the request",
+                                        variant: "destructive"
+                                      });
+                                    }
+                                  }}
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                          <div className="mt-2">
+                            <Badge variant="outline" className={
+                              request.status === 'pending' ? 'bg-yellow-50 text-yellow-800 border-yellow-300' :
+                              request.status === 'paid' ? 'bg-green-50 text-green-800 border-green-300' :
+                              'bg-red-50 text-red-800 border-red-300'
+                            }>
+                              {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                            </Badge>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </Card>
           </TabsContent>
