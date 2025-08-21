@@ -25,9 +25,7 @@ import { useNavigate } from 'react-router-dom';
 // First, add Stripe imports at the top
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
-
-// Initialize Stripe
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_TEST_PUBLISHABLE_KEY);
+import { stripePromise } from '@/lib/stripe';
 
 // Add PaymentForm component
 const PaymentForm = ({ amount, onSuccess }) => {
