@@ -420,8 +420,7 @@ const VenueOwnerRegister = () => {
           opening_hours: formData.opening_hours || '',
           capacity: formData.capacity || '',
           price_range: formData.price_range || '$$',
-          status: 'pending_approval',
-          prevent_default_venue: true  // Add this flag to prevent automatic venue creation
+          status: 'pending_approval'
         }])
         .select()
         .single();
@@ -432,7 +431,38 @@ const VenueOwnerRegister = () => {
         return;
       }
 
-      console.log('✅ Venue owner record created successfully');
+      // Create the venue record immediately
+      console.log('🏗️ Creating venue record...');
+      const { data: venueData, error: venueError } = await supabase
+        .from('venues')
+        .insert([{
+          name: formData.venue_name,
+          description: formData.venue_description,
+          type: formData.venue_type,
+          price_range: formData.price_range || '$$',
+          address: formData.venue_address,
+          city: formData.venue_city,
+          state: formData.venue_city,
+          country: formData.venue_country,
+          status: 'pending_approval'
+        }])
+        .select()
+        .single();
+
+      if (venueError) {
+        console.error('❌ Venue creation failed:', venueError);
+        // Don't fail the whole process if venue creation fails
+      } else if (venueData?.id) {
+        // Update the venue owner with the venue ID if venue was created
+        const { error: updateError } = await supabase
+          .from('venue_owners')
+          .update({ venue_id: venueData.id })
+          .eq('id', venueOwnerData.id);
+
+        if (updateError) {
+          console.error('❌ Failed to link venue to owner:', updateError);
+        }
+      }
 
       // Also create the pending request for admin tracking
       const requestData = {
