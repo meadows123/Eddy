@@ -431,8 +431,45 @@ const VenueOwnerRegister = () => {
         return;
       }
 
-      // Create the venue record immediately
-      console.log('🏗️ Creating venue record...');
+      // First check (around line 115) - rename to ownerCheck
+      const { data: existingOwnerRecords, error: ownerCheckError } = await supabase
+        .from('venue_owners')
+        .select('*')
+        .eq('owner_email', formData.email);
+
+      if (existingOwnerRecords?.length > 0) {
+        // Delete any existing records for this email
+        const { error: deleteError } = await supabase
+          .from('venue_owners')
+          .delete()
+          .eq('owner_email', formData.email);
+
+        if (deleteError) {
+          console.error('❌ Failed to cleanup existing records:', deleteError);
+          throw new Error('Failed to cleanup existing records');
+        }
+      }
+
+      // Second check (around line 435) - rename to venueCheck
+      const { data: existingVenueRecords, error: venueRecordError } = await supabase
+        .from('venues')
+        .select('*')
+        .eq('name', formData.venue_name);
+
+      if (existingVenueRecords?.length > 0) {
+        // Delete existing venues with the same name
+        const { error: deleteVenueError } = await supabase
+          .from('venues')
+          .delete()
+          .eq('name', formData.venue_name);
+
+        if (deleteVenueError) {
+          console.error('❌ Failed to cleanup existing venues:', deleteVenueError);
+          throw new Error('Failed to cleanup existing venues');
+        }
+      }
+
+      // Create the venue record
       const { data: venueData, error: venueError } = await supabase
         .from('venues')
         .insert([{
@@ -444,7 +481,8 @@ const VenueOwnerRegister = () => {
           city: formData.venue_city,
           state: formData.venue_city,
           country: formData.venue_country,
-          status: 'pending_approval'
+          status: 'pending_approval',
+          owner_id: signUpData.user.id  // Link the owner immediately
         }])
         .select()
         .single();

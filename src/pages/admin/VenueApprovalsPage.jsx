@@ -83,71 +83,79 @@ const VenueApprovalsPage = () => {
     try {
       console.log('🔄 Starting approval process for:', req.email);
       
-      // First check if there's already a venue owner record
-      const { data: existingVenueOwners, error: checkError } = await supabase
-        .from('venue_owners')
+      // First check for existing venues with the same name
+      const { data: existingVenues, error: venueCheckError } = await supabase
+        .from('venues')
         .select('*')
-        .eq('owner_email', req.email);
+        .eq('name', req.venue_name);
 
-      console.log('🔍 Checking existing venue owners:', { existingVenueOwners, checkError });
+      console.log('🔍 Checking existing venues:', { existingVenues, venueCheckError });
 
-      // If multiple records exist, deactivate all but the most recent one
-      if (existingVenueOwners?.length > 1) {
-        console.log('⚠️ Multiple venue owner records found, cleaning up...');
-        const mostRecent = existingVenueOwners[0];
+      // Delete any existing venues with the same name
+      if (existingVenues?.length > 0) {
+        console.log('⚠️ Found existing venues, cleaning up...');
         const { error: cleanupError } = await supabase
-          .from('venue_owners')
+          .from('venues')
           .delete()
-          .eq('owner_email', req.email)
-          .neq('id', mostRecent.id);
+          .eq('name', req.venue_name);
 
         if (cleanupError) {
-          console.error('❌ Failed to cleanup duplicate records:', cleanupError);
+          console.error('❌ Failed to cleanup duplicate venues:', cleanupError);
+          throw new Error('Failed to cleanup existing venues');
         }
       }
 
       // Create or update the venue
-      console.log('🏗️ Creating/updating venue record...');
+      console.log('🏗️ Creating venue record...');
       const { data: newVenue, error: venueError } = await supabase
-          .from('venues')
-        .upsert({
-            name: req.venue_name,
-            description: req.additional_info,
-            type: req.venue_type || 'restaurant',
-            price_range: req.price_range || '$$',
-            address: req.venue_address,
-            city: req.venue_city,
-            state: req.venue_city,
-            country: req.venue_country,
+        .from('venues')
+        .insert([{
+          name: req.venue_name,
+          description: req.additional_info,
+          type: req.venue_type || 'restaurant',
+          price_range: req.price_range || '$$',
+          address: req.venue_address,
+          city: req.venue_city,
+          state: req.venue_city,
+          country: req.venue_country,
           status: 'active',
-          owner_id: req.user_id  // Link to the auth user directly
-          })
-          .eq('name', req.venue_name)
-          .select()
-          .single();
+          owner_id: req.user_id
+        }])
+        .select()
+        .single();
 
-        if (venueError) {
-        console.error('❌ Failed to create/update venue:', venueError);
-        throw new Error(`Failed to create/update venue: ${venueError.message}`);
-        }
+      if (venueError) {
+        console.error('❌ Failed to create venue:', venueError);
+        throw new Error(`Failed to create venue: ${venueError.message}`);
+      }
 
-      console.log('✅ Venue created/updated successfully:', newVenue);
+      console.log('✅ Venue created successfully:', newVenue);
 
-      // Update the venue owner record
-      console.log('🔄 Updating venue owner record...');
-      const venueOwnerData = {
-        owner_email: req.email,
-        owner_name: req.contact_name,
-        venue_id: newVenue.id,
-        status: 'active',
-        phone: req.contact_phone,
-        user_id: req.user_id  // Use the user_id from the request
-      };
+      // Now handle venue owner record
+      // First delete any existing venue owner records
+      const { error: ownerCleanupError } = await supabase
+        .from('venue_owners')
+        .delete()
+        .eq('owner_email', req.email);
 
+      if (ownerCleanupError) {
+        console.error('❌ Failed to cleanup venue owner records:', ownerCleanupError);
+        throw new Error('Failed to cleanup existing venue owner records');
+      }
+
+      // Create new venue owner record
       const { data: venueOwner, error: venueOwnerError } = await supabase
         .from('venue_owners')
-        .upsert(venueOwnerData)
-        .eq('owner_email', req.email)
+        .insert([{
+          owner_email: req.email,
+          owner_name: req.contact_name,
+          venue_id: newVenue.id,
+          status: 'active',
+          phone: req.contact_phone,
+          user_id: req.user_id,
+          venue_name: req.venue_name,
+          venue_type: req.venue_type || 'restaurant'
+        }])
         .select()
         .single();
 
