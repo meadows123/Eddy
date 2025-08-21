@@ -191,14 +191,13 @@ const VenuesPage = () => {
     const fetchVenues = async () => {
       try {
         // Fetch venues
-        const { data: venuesData, error: venuesError } = await supabase
+        const { data: venues, error } = await supabase
           .from('venues')
           .select('*')
-          .eq('status', 'approved')
-          .eq('is_active', true)
-          .order('created_at', { ascending: false });
+          .eq('status', 'active')  // Make sure we're only getting active venues
+          .eq('is_active', true);  // And they're marked as active
 
-        if (venuesError) throw venuesError;
+        if (error) throw error;
 
         // Fetch images for all venues
         const { data: imagesData, error: imagesError } = await supabase
@@ -211,7 +210,7 @@ const VenuesPage = () => {
         }
 
         // Combine venues with their images
-        const venuesWithImages = venuesData.map(venue => {
+        const venuesWithImages = venues.map(venue => {
           const venueImages = imagesData 
             ? imagesData
                 .filter(img => img.venue_id === venue.id)

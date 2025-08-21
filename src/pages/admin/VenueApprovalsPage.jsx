@@ -108,6 +108,7 @@ const VenueApprovalsPage = () => {
           state: req.venue_city,
           country: req.venue_country,
           status: 'active',
+          is_active: true,  // Add this line since both fields are used
           owner_id: req.user_id
         }])
         .select()
