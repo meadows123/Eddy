@@ -27,7 +27,7 @@ import { Elements, CardElement, useStripe, useElements } from '@stripe/react-str
 import { loadStripe } from '@stripe/stripe-js';
 
 // Initialize Stripe
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_TEST_PUBLISHABLE_KEY);
 
 // Add PaymentForm component
 const PaymentForm = ({ amount, onSuccess }) => {
@@ -47,7 +47,9 @@ const PaymentForm = ({ amount, onSuccess }) => {
     }
 
     try {
-      // Create payment method
+      // Log the Stripe mode for debugging
+      console.log('Stripe mode:', stripe._config.betas?.includes('stripe_test_mode') ? 'test' : 'live');
+
       const { error: stripeError, paymentMethod } = await stripe.createPaymentMethod({
         type: 'card',
         card: elements.getElement(CardElement),
@@ -57,10 +59,12 @@ const PaymentForm = ({ amount, onSuccess }) => {
       });
 
       if (stripeError) {
+        if (stripeError.code === 'card_declined' && stripeError.decline_code === 'live_mode_test_card') {
+          throw new Error('Test card cannot be used in live mode. Please use a real card or switch to test mode.');
+        }
         throw stripeError;
       }
 
-      // Call the success handler with the payment method ID
       await onSuccess(paymentMethod.id);
     } catch (err) {
       console.error('Payment error:', err);
