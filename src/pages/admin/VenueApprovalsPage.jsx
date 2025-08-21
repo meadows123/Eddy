@@ -84,13 +84,26 @@ const VenueApprovalsPage = () => {
       console.log('🔄 Starting approval process for:', req.email);
       
       // First check if there's already a venue owner record
-      const { data: existingVenueOwner, error: checkError } = await supabase
+      const { data: existingVenueOwners, error: checkError } = await supabase
         .from('venue_owners')
         .select('*')
-        .eq('owner_email', req.email)
-        .single();
+        .eq('owner_email', req.email);
 
-      console.log('🔍 Checking existing venue owner:', { existingVenueOwner, checkError });
+      console.log('🔍 Checking existing venue owners:', { existingVenueOwners, checkError });
+
+      // If there are existing records, update them all to inactive except the one we'll update
+      if (existingVenueOwners?.length > 0) {
+        console.log('⚠️ Found existing venue owner records, updating statuses...');
+        const { error: updateError } = await supabase
+          .from('venue_owners')
+          .update({ status: 'inactive' })
+          .eq('owner_email', req.email);
+
+        if (updateError) {
+          console.error('❌ Failed to update existing records:', updateError);
+          // Continue anyway as this is not critical
+        }
+      }
 
       // Use the actual venue type from the request, with a reasonable fallback
       const venueType = req.venue_type || 'restaurant';
@@ -126,13 +139,14 @@ const VenueApprovalsPage = () => {
         owner_email: req.email,
         owner_name: req.contact_name,
         venue_id: newVenue.id,
-        status: 'active',  // Set to active since they already have an account
+        status: 'active',
         phone: req.contact_phone
       };
 
-      // If there's an existing record, preserve the user_id
-      if (existingVenueOwner?.user_id) {
-        venueOwnerData.user_id = existingVenueOwner.user_id;
+      // If there's an existing record, use its user_id
+      if (existingVenueOwners?.length > 0) {
+        const mostRecentOwner = existingVenueOwners[0];
+        venueOwnerData.user_id = mostRecentOwner.user_id;
       }
 
       const { data: venueOwner, error: venueOwnerError } = await supabase

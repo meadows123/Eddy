@@ -30,13 +30,6 @@ const VenueOwnerLogin = () => {
     try {
       console.log('🔐 Starting login process for:', formData.email);
       
-      // Log the form data (without password)
-      console.log('📝 Login attempt:', {
-        email: formData.email,
-        passwordLength: formData.password.length,
-        hasPassword: !!formData.password
-      });
-
       const { data, error } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
@@ -55,49 +48,37 @@ const VenueOwnerLogin = () => {
       }
 
       console.log('✅ Authentication successful for user:', data.user.id);
-      console.log('👤 User details:', {
-        id: data.user.id,
-        email: data.user.email,
-        emailConfirmed: !!data.user.email_confirmed_at,
-        lastSignIn: data.user.last_sign_in_at
-      });
 
-      // Check if user is a venue owner
+      // Check if user is a venue owner - modified to handle multiple records
       console.log('🔍 Checking venue owner status...');
-      const { data: venueOwner, error: venueOwnerError } = await supabase
+      const { data: venueOwners, error: venueOwnerError } = await supabase
         .from('venue_owners')
         .select('*')
         .eq('user_id', data.user.id)
-        .single();
+        .eq('status', 'active'); // Only get active records
 
-      console.log('🏢 Venue owner check result:', { venueOwner, venueOwnerError });
+      console.log('🏢 Venue owner check result:', { venueOwners, venueOwnerError });
 
       if (venueOwnerError) {
         console.error('❌ Venue owner lookup failed:', venueOwnerError);
-        throw new Error('Venue owner profile not found');
+        throw new Error('Failed to verify venue owner status');
       }
 
-      if (!venueOwner) {
-        console.error('❌ No venue owner record found');
-        throw new Error('No venue owner profile found for this user');
+      if (!venueOwners || venueOwners.length === 0) {
+        console.error('❌ No active venue owner record found');
+        throw new Error('No active venue owner profile found for this user');
       }
 
-      console.log('✅ Venue owner found:', {
+      // Use the first active venue owner record
+      const venueOwner = venueOwners[0];
+      console.log('✅ Active venue owner found:', {
         id: venueOwner.id,
         email: venueOwner.owner_email,
         status: venueOwner.status,
         name: venueOwner.owner_name
       });
 
-      // Check if venue owner is active
-      if (venueOwner.status !== 'active') {
-        console.error('❌ Venue owner not active:', venueOwner.status);
-        throw new Error(`Venue owner account is ${venueOwner.status}. Please contact support.`);
-      }
-
       console.log('🎉 Login successful! Redirecting to dashboard...');
-      
-      // Navigate to dashboard
       navigate('/venue-owner/dashboard');
       
     } catch (error) {
