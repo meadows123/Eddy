@@ -124,6 +124,7 @@ const PaymentForm = ({ paymentRequest, onSuccess }) => {
 // Main component
 const SplitPaymentPage = () => {
   const { bookingId, requestId } = useParams();
+  console.log('🔍 Split Payment Params:', { bookingId, requestId });
   const navigate = useNavigate();
   const { toast } = useToast();
   
@@ -141,7 +142,12 @@ const SplitPaymentPage = () => {
     try {
       setLoading(true);
 
-      // Fetch the payment request
+      // Validate params
+      if (!bookingId || !requestId) {
+        throw new Error('Missing required parameters');
+      }
+
+      // Fetch the payment request with correct relationships
       const { data: requestData, error: requestError } = await supabase
         .from('split_payment_requests')
         .select(`
@@ -153,7 +159,7 @@ const SplitPaymentPage = () => {
               address,
               city
             ),
-            user:user_id (
+            profiles (
               first_name,
               last_name
             )
@@ -163,7 +169,16 @@ const SplitPaymentPage = () => {
         .eq('booking_id', bookingId)
         .single();
 
-      if (requestError) throw requestError;
+      console.log('🔍 Payment request data:', requestData);
+
+      if (requestError) {
+        console.error('❌ Error fetching payment request:', requestError);
+        throw requestError;
+      }
+
+      if (!requestData) {
+        throw new Error('Payment request not found');
+      }
 
       if (requestData.status === 'paid') {
         toast({
@@ -187,13 +202,13 @@ const SplitPaymentPage = () => {
 
       setPaymentRequest(requestData);
       setBooking(requestData.bookings);
-      setVenue(requestData.bookings.venues);
+      setVenue(requestData.bookings?.venues);
 
     } catch (error) {
       console.error('Error fetching payment request:', error);
       toast({
         title: "Error",
-        description: "Failed to load payment request. Please check the link.",
+        description: error.message || "Failed to load payment request. Please check the link.",
         variant: "destructive"
       });
       navigate('/');
@@ -288,7 +303,7 @@ const SplitPaymentPage = () => {
                   <div>
                     <Label className="text-muted-foreground">Requested by</Label>
                     <p className="font-medium">
-                      {booking?.user?.first_name} {booking?.user?.last_name}
+                      {booking?.profiles?.first_name} {booking?.profiles?.last_name}
                     </p>
                   </div>
                   <div>
