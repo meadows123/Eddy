@@ -135,6 +135,17 @@ const SplitPaymentPage = () => {
   const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
+    // If no parameters are provided, redirect to profile page
+    if (!bookingId || !requestId) {
+      console.log('❌ Missing required parameters, redirecting to profile');
+      toast({
+        title: "Invalid Access",
+        description: "Split payments can only be accessed via a payment request link.",
+        variant: "destructive"
+      });
+      navigate('/profile');
+      return;
+    }
     fetchPaymentRequest();
   }, [bookingId, requestId]);
 
