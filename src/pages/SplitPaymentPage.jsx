@@ -7,7 +7,117 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabase';
+import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { loadStripe } from '@stripe/stripe-js';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 
+// Initialize Stripe
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+
+// Payment form component
+const PaymentForm = ({ paymentRequest, onSuccess }) => {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [processing, setProcessing] = useState(false);
+  const [error, setError] = useState(null);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setProcessing(true);
+    setError(null);
+
+    try {
+      // Create payment intent
+      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-split-payment-intent`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({
+          amount: paymentRequest.amount,
+          requestId: paymentRequest.id,
+          email: paymentRequest.recipient_email || ''
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create payment intent');
+      }
+
+      const { clientSecret } = await response.json();
+
+      // Confirm card payment
+      const result = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: {
+          card: elements.getElement(CardElement),
+        }
+      });
+
+      if (result.error) {
+        throw result.error;
+      }
+
+      // Payment successful
+      onSuccess(result.paymentIntent);
+
+    } catch (error) {
+      console.error('Payment error:', error);
+      setError(error.message);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="space-y-2">
+        <Label>Card Details</Label>
+        <div className="border rounded-md p-3">
+          <CardElement options={{
+            style: {
+              base: {
+                fontSize: '16px',
+                color: '#424770',
+                '::placeholder': {
+                  color: '#aab7c4',
+                },
+              },
+              invalid: {
+                color: '#9e2146',
+              },
+            },
+          }} />
+        </div>
+      </div>
+
+      {error && (
+        <div className="text-red-500 text-sm">{error}</div>
+      )}
+
+      <Button
+        type="submit"
+        className="w-full bg-brand-burgundy text-brand-cream hover:bg-brand-burgundy/90"
+        disabled={!stripe || processing}
+      >
+        {processing ? (
+          <div className="flex items-center justify-center">
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            Processing...
+          </div>
+        ) : (
+          <>
+            <CreditCard className="h-4 w-4 mr-2" />
+            Pay ₦{paymentRequest.amount.toLocaleString()}
+          </>
+        )}
+      </Button>
+    </form>
+  );
+};
+
+// Main component
 const SplitPaymentPage = () => {
   const { bookingId, requestId } = useParams();
   const navigate = useNavigate();
@@ -88,53 +198,29 @@ const SplitPaymentPage = () => {
     }
   };
 
-  const handleStripePayment = async () => {
-    setProcessing(true);
+  const handlePaymentSuccess = async (paymentIntent) => {
     try {
-      // Create Stripe Payment Intent
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-split-payment-intent`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({
-          amount: paymentRequest.amount,
-          requestId: paymentRequest.id,
-          email: paymentRequest.recipient_email || ''
+      // Update split payment request status
+      const { error: updateError } = await supabase
+        .from('split_payment_requests')
+        .update({ 
+          status: 'paid',
+          stripe_payment_id: paymentIntent.id,
+          paid_at: new Date().toISOString()
         })
-      });
+        .eq('id', paymentRequest.id);
 
-      if (!response.ok) {
-        throw new Error('Failed to create payment intent');
-      }
+      if (updateError) throw updateError;
 
-      const { clientSecret, paymentIntentId } = await response.json();
-
-      // Redirect to Stripe Checkout
-      const stripe = await import('@stripe/stripe-js').then(({ loadStripe }) => 
-        loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY)
-      );
-
-      const { error } = await stripe.redirectToCheckout({
-        mode: 'payment',
-        clientSecret: clientSecret,
-        successUrl: `${window.location.origin}/split-payment-success?payment_intent=${paymentIntentId}&request_id=${paymentRequest.id}`,
-        cancelUrl: `${window.location.origin}/split-payment/${bookingId}/${requestId}`,
-      });
-
-      if (error) {
-        throw error;
-      }
-
+      // Navigate to success page
+      navigate(`/split-payment-success?payment_intent=${paymentIntent.id}&request_id=${paymentRequest.id}`);
     } catch (error) {
-      console.error('Error initiating Stripe payment:', error);
+      console.error('Error updating payment status:', error);
       toast({
-        title: "Payment Error",
-        description: "Failed to initiate payment. Please try again.",
+        title: "Error",
+        description: "Payment successful but failed to update status. Please contact support.",
         variant: "destructive"
       });
-      setProcessing(false);
     }
   };
 
@@ -225,74 +311,12 @@ const SplitPaymentPage = () => {
             <CardTitle>Payment Details</CardTitle>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handlePayment} className="space-y-4">
-              <div>
-                <Label htmlFor="cardholderName">Cardholder Name</Label>
-                <Input
-                  id="cardholderName"
-                  name="cardholderName"
-                  value={paymentData.cardholderName}
-                  onChange={handleInputChange}
-                  placeholder="John Doe"
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="cardNumber">Card Number</Label>
-                <Input
-                  id="cardNumber"
-                  name="cardNumber"
-                  value={paymentData.cardNumber}
-                  onChange={handleInputChange}
-                  placeholder="1234 5678 9012 3456"
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="expiryDate">Expiry Date</Label>
-                  <Input
-                    id="expiryDate"
-                    name="expiryDate"
-                    value={paymentData.expiryDate}
-                    onChange={handleInputChange}
-                    placeholder="MM/YY"
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="cvv">CVV</Label>
-                  <Input
-                    id="cvv"
-                    name="cvv"
-                    value={paymentData.cvv}
-                    onChange={handleInputChange}
-                    placeholder="123"
-                    required
-                  />
-                </div>
-              </div>
-
-              <Button
-                type="submit"
-                className="w-full bg-brand-burgundy text-brand-cream hover:bg-brand-burgundy/90"
-                disabled={processing}
-              >
-                {processing ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-brand-cream mr-2"></div>
-                    Processing Payment...
-                  </div>
-                ) : (
-                  <>
-                    <CreditCard className="h-4 w-4 mr-2" />
-                    Pay ₦{paymentRequest.amount.toLocaleString()}
-                  </>
-                )}
-              </Button>
-            </form>
+            <Elements stripe={stripePromise}>
+              <PaymentForm 
+                paymentRequest={paymentRequest}
+                onSuccess={handlePaymentSuccess}
+              />
+            </Elements>
           </CardContent>
         </Card>
       </motion.div>
