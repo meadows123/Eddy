@@ -402,107 +402,7 @@ const VenueOwnerRegister = () => {
 
       console.log('✅ User account created successfully:', signUpData.user.id);
 
-      // Create venue owner record directly
-      const { data: venueOwnerData, error: venueOwnerError } = await supabase
-        .from('venue_owners')
-        .insert([{
-          user_id: signUpData.user.id,
-          venue_name: formData.venue_name,
-          venue_description: formData.venue_description,
-          venue_address: formData.venue_address,
-          venue_city: formData.venue_city,
-          venue_country: formData.venue_country,
-          venue_phone: formData.phone,
-          owner_name: formData.full_name,
-          owner_email: formData.email,
-          owner_phone: formData.phone,
-          venue_type: formData.venue_type,
-          opening_hours: formData.opening_hours || '',
-          capacity: formData.capacity || '',
-          price_range: formData.price_range || '$$',
-          status: 'pending_approval'
-        }])
-        .select()
-        .single();
-
-      if (venueOwnerError) {
-        console.error('❌ Venue owner creation failed:', venueOwnerError);
-        setError(`Failed to create venue owner record: ${venueOwnerError.message}`);
-        return;
-      }
-
-      // First check (around line 115) - rename to ownerCheck
-      const { data: existingOwnerRecords, error: ownerCheckError } = await supabase
-        .from('venue_owners')
-        .select('*')
-        .eq('owner_email', formData.email);
-
-      if (existingOwnerRecords?.length > 0) {
-        // Delete any existing records for this email
-        const { error: deleteError } = await supabase
-          .from('venue_owners')
-          .delete()
-          .eq('owner_email', formData.email);
-
-        if (deleteError) {
-          console.error('❌ Failed to cleanup existing records:', deleteError);
-          throw new Error('Failed to cleanup existing records');
-        }
-      }
-
-      // Second check (around line 435) - rename to venueCheck
-      const { data: existingVenueRecords, error: venueRecordError } = await supabase
-        .from('venues')
-        .select('*')
-        .eq('name', formData.venue_name);
-
-      if (existingVenueRecords?.length > 0) {
-        // Delete existing venues with the same name
-        const { error: deleteVenueError } = await supabase
-          .from('venues')
-          .delete()
-          .eq('name', formData.venue_name);
-
-        if (deleteVenueError) {
-          console.error('❌ Failed to cleanup existing venues:', deleteVenueError);
-          throw new Error('Failed to cleanup existing venues');
-        }
-      }
-
-      // Create the venue record
-      const { data: venueData, error: venueError } = await supabase
-        .from('venues')
-        .insert([{
-          name: formData.venue_name,
-          description: formData.venue_description,
-          type: formData.venue_type,
-          price_range: formData.price_range || '$$',
-          address: formData.venue_address,
-          city: formData.venue_city,
-          state: formData.venue_city,
-          country: formData.venue_country,
-          status: 'pending_approval',
-          owner_id: signUpData.user.id  // Link the owner immediately
-        }])
-        .select()
-        .single();
-
-      if (venueError) {
-        console.error('❌ Venue creation failed:', venueError);
-        // Don't fail the whole process if venue creation fails
-      } else if (venueData?.id) {
-        // Update the venue owner with the venue ID if venue was created
-        const { error: updateError } = await supabase
-          .from('venue_owners')
-          .update({ venue_id: venueData.id })
-          .eq('id', venueOwnerData.id);
-
-        if (updateError) {
-          console.error('❌ Failed to link venue to owner:', updateError);
-        }
-      }
-
-      // Also create the pending request for admin tracking
+      // Only create the pending request for admin tracking
       const requestData = {
         user_id: signUpData.user.id,
         email: formData.email,
@@ -525,9 +425,12 @@ const VenueOwnerRegister = () => {
         .insert([requestData]);
 
       if (error) {
-        console.warn('⚠️ Failed to create pending request record:', error);
-        // Don't fail the whole process for this
+        console.error('❌ Failed to create pending request:', error);
+        throw new Error(`Failed to create pending request: ${error.message}`);
       }
+
+      // Remove the venue owner and venue creation code from here
+      // The admin approval process will handle creating those records
 
       // Send admin notification email
       try {
