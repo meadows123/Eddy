@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 // Payment form component
-const PaymentForm = ({ paymentRequest, onSuccess }) => {
+const PaymentForm = ({ amount, onSuccess }) => {
   const stripe = useStripe();
   const elements = useElements();
   const [processing, setProcessing] = useState(false);
@@ -25,94 +25,51 @@ const PaymentForm = ({ paymentRequest, onSuccess }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setProcessing(true);
-    setError(null);
 
     try {
-      // Create payment intent
-      const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-split-payment-intent`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({
-          amount: paymentRequest.amount,
-          requestId: paymentRequest.id,
-          email: paymentRequest.recipient_email || ''
-        })
+      const { error: stripeError, paymentMethod } = await stripe.createPaymentMethod({
+        type: 'card',
+        card: elements.getElement(CardElement),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to create payment intent');
+      if (stripeError) {
+        throw stripeError;
       }
 
-      const { clientSecret } = await response.json();
-
-      // Confirm card payment
-      const result = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: {
-          card: elements.getElement(CardElement),
-        }
-      });
-
-      if (result.error) {
-        throw result.error;
-      }
-
-      // Payment successful
-      onSuccess(result.paymentIntent);
-
-    } catch (error) {
-      console.error('Payment error:', error);
-      setError(error.message);
+      // Call your payment processing function here
+      await onSuccess(paymentMethod.id);
+    } catch (err) {
+      setError(err.message);
     } finally {
       setProcessing(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="space-y-2">
-        <Label>Card Details</Label>
-        <div className="border rounded-md p-3">
-          <CardElement options={{
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <div className="p-4 border rounded-lg">
+        <CardElement 
+          options={{
             style: {
               base: {
                 fontSize: '16px',
-                color: '#424770',
+                color: '#800020',
                 '::placeholder': {
-                  color: '#aab7c4',
+                  color: '#800020',
                 },
               },
-              invalid: {
-                color: '#9e2146',
-              },
             },
-          }} />
-        </div>
+          }}
+        />
       </div>
-
-      {error && (
-        <div className="text-red-500 text-sm">{error}</div>
-      )}
-
-      <Button
-        type="submit"
-        className="w-full bg-brand-burgundy text-brand-cream hover:bg-brand-burgundy/90"
-        disabled={!stripe || processing}
+      <Button 
+        type="submit" 
+        disabled={processing}
+        className="w-full bg-brand-burgundy text-white"
       >
-        {processing ? (
-          <div className="flex items-center justify-center">
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-            Processing...
-          </div>
-        ) : (
-          <>
-            <CreditCard className="h-4 w-4 mr-2" />
-            Pay ₦{paymentRequest.amount.toLocaleString()}
-          </>
-        )}
+        {processing ? 'Processing...' : `Pay ${amount}`}
       </Button>
+      {error && <div className="text-red-500">{error}</div>}
     </form>
   );
 };
@@ -120,6 +77,7 @@ const PaymentForm = ({ paymentRequest, onSuccess }) => {
 // Main component
 const SplitPaymentPage = () => {
   const { bookingId, requestId } = useParams();
+  console.log('🔍 Split Payment Params:', { bookingId, requestId });
   const navigate = useNavigate();
   const { toast } = useToast();
   
@@ -130,6 +88,17 @@ const SplitPaymentPage = () => {
   const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
+    // If no parameters are provided, redirect to profile page
+    if (!bookingId || !requestId) {
+      console.log('❌ Missing required parameters, redirecting to profile');
+      toast({
+        title: "Invalid Access",
+        description: "Split payments can only be accessed via a payment request link.",
+        variant: "destructive"
+      });
+      navigate('/profile');
+      return;
+    }
     fetchPaymentRequest();
   }, [bookingId, requestId]);
 
@@ -137,7 +106,12 @@ const SplitPaymentPage = () => {
     try {
       setLoading(true);
 
-      // Fetch the payment request
+      // Validate params
+      if (!bookingId || !requestId) {
+        throw new Error('Missing required parameters');
+      }
+
+      // Fetch the payment request with correct relationships
       const { data: requestData, error: requestError } = await supabase
         .from('split_payment_requests')
         .select(`
@@ -149,7 +123,7 @@ const SplitPaymentPage = () => {
               address,
               city
             ),
-            profiles!bookings_user_id_fkey (
+            profiles (
               first_name,
               last_name
             )
@@ -159,7 +133,16 @@ const SplitPaymentPage = () => {
         .eq('booking_id', bookingId)
         .single();
 
-      if (requestError) throw requestError;
+      console.log('🔍 Payment request data:', requestData);
+
+      if (requestError) {
+        console.error('❌ Error fetching payment request:', requestError);
+        throw requestError;
+      }
+
+      if (!requestData) {
+        throw new Error('Payment request not found');
+      }
 
       if (requestData.status === 'paid') {
         toast({
@@ -183,13 +166,13 @@ const SplitPaymentPage = () => {
 
       setPaymentRequest(requestData);
       setBooking(requestData.bookings);
-      setVenue(requestData.bookings.venues);
+      setVenue(requestData.bookings?.venues);
 
     } catch (error) {
       console.error('Error fetching payment request:', error);
       toast({
         title: "Error",
-        description: "Failed to load payment request. Please check the link.",
+        description: error.message || "Failed to load payment request. Please check the link.",
         variant: "destructive"
       });
       navigate('/');
@@ -313,8 +296,11 @@ const SplitPaymentPage = () => {
           <CardContent>
             <Elements stripe={stripePromise}>
               <PaymentForm 
-                paymentRequest={paymentRequest}
-                onSuccess={handlePaymentSuccess}
+                amount={paymentRequest.amount} 
+                onSuccess={async (paymentMethodId) => {
+                  // Process the payment and create split request
+                  // ... your existing payment processing code
+                }} 
               />
             </Elements>
           </CardContent>

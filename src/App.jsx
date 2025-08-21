@@ -122,6 +122,7 @@ const App = () => {
             <Route path="/checkout" element={<CheckoutPage />} />
             <Route path="/checkout/:id" element={<CheckoutPage />} />
             <Route path="/checkout/deposit" element={<CheckoutPage />} />
+            <Route path="/split-payment" element={<Navigate to="/profile" replace />} />
             <Route path="/split-payment/:bookingId/:requestId" element={<SplitPaymentPage />} />
             <Route path="/split-payment-success" element={<SplitPaymentSuccessPage />} />
             <Route path="/explore" element={<ExplorePage />} />
