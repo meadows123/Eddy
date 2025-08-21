@@ -11,11 +11,12 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Input } from "../components/ui/input";
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Badge } from '../components/ui/badge';
-import { toast } from 'sonner';
+import { useToast } from "@/components/ui/use-toast";
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 const UserProfilePage = () => {
+  const { toast } = useToast();
   console.log('🔍 UserProfilePage component is rendering');
   const { user, signIn, signUp, signOut } = useAuth();
   console.log('👤 Current user:', user);
@@ -1436,7 +1437,10 @@ function SimpleReferralSection({ user }) {
             onClick={() => {
               const code = user?.id ? `EDDY${user.id.slice(0, 8).toUpperCase()}` : '';
               navigator.clipboard.writeText(code);
-              setSuccess('Referral code copied to clipboard!');
+              toast({
+                title: "Success",
+                description: "Referral code copied to clipboard"
+              });
             }}
             className="bg-brand-burgundy text-white px-3 py-2 rounded hover:bg-brand-burgundy/90"
           >
