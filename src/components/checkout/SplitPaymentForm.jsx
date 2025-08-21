@@ -45,8 +45,8 @@ const PaymentForm = ({ amount, onSuccess }) => {
     }
 
     try {
-      // Log the Stripe mode for debugging
-      console.log('Stripe mode:', stripe._config.betas?.includes('stripe_test_mode') ? 'test' : 'live');
+      // Remove the problematic debug line that was causing the error
+      // console.log('Stripe mode:', stripe._config.betas?.includes('stripe_test_mode') ? 'test' : 'live');
 
       const { error: stripeError, paymentMethod } = await stripe.createPaymentMethod({
         type: 'card',
