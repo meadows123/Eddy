@@ -83,6 +83,26 @@ const VenueApprovalsPage = () => {
     try {
       console.log('🔄 Starting approval process for:', req.email);
       
+      // First, check if there's an auth user for this email
+      const { data: { users }, error: authError } = await supabase.auth.admin.listUsers({
+        filter: {
+          email: req.email
+        }
+      });
+
+      if (authError) {
+        console.error('❌ Error checking auth user:', authError);
+        throw new Error('Failed to verify user account. Please ensure the venue owner has completed registration.');
+      }
+
+      const authUser = users?.[0];
+      if (!authUser) {
+        console.error('❌ No auth user found for email:', req.email);
+        throw new Error('No user account found. Please ensure the venue owner has completed registration.');
+      }
+
+      console.log('✅ Found auth user:', authUser.id);
+
       // Use the actual venue type from the request, with a reasonable fallback
       const venueType = req.venue_type || 'restaurant';
       
@@ -99,7 +119,8 @@ const VenueApprovalsPage = () => {
           city: req.venue_city,
           state: req.venue_city,
           country: req.venue_country,
-          status: 'active'
+          status: 'active',
+          owner_id: authUser.id  // Link the venue to the auth user
         })
         .select()
         .single();
@@ -120,7 +141,8 @@ const VenueApprovalsPage = () => {
           owner_name: req.contact_name,
           venue_id: newVenue.id,
           status: 'active',
-          phone: req.contact_phone
+          phone: req.contact_phone,
+          user_id: authUser.id  // Link to the auth user
         })
         .select()
         .single();
