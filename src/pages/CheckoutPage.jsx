@@ -35,15 +35,13 @@ const depositAmount = location.state?.depositAmount;
 const [selection, setSelection] = useState(null);
 const [loading, setLoading] = useState(true);
 const [formData, setFormData] = useState({
-fullName: '',
-email: '',
-phone: '',
-password: '',
-cardNumber: '',
-expiryDate: '',
-cvv: '',
-agreeToTerms: false,
-referralCode: ''
+  fullName: '',
+  email: '',
+  phone: '',
+  password: '',
+  agreeToTerms: false,
+  referralCode: ''
+  // Remove cardNumber, expiryDate, and cvv since we're using Stripe Elements
 });
 const [userProfile, setUserProfile] = useState(null);
 const [errors, setErrors] = useState({});

@@ -491,37 +491,19 @@ const SplitPaymentForm = ({
                       // First create the split payment requests
                       await createSplitPaymentRequests();
 
-                      // Then process the payment
-                      const response = await fetch('/api/create-split-payment-intent', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          amount: myAmount,
-                          paymentMethodId,
-                          bookingId,
-                          splitRequests: createdSplitRequests
-                        })
+                      // Create payment intent directly with Stripe
+                      const { error: stripeError, paymentIntent } = await stripe.createPaymentIntent({
+                        amount: myAmount * 100, // convert to cents/kobo
+                        currency: 'ngn',
+                        payment_method: paymentMethodId,
+                        confirm: true, // Confirm the payment immediately
+                        metadata: {
+                          bookingId: bookingId,
+                          splitPayment: 'true'
+                        }
                       });
 
-                      // Check if response is ok before parsing JSON
-                      if (!response.ok) {
-                        const errorText = await response.text();
-                        console.error('API Error Response:', errorText);
-                        throw new Error(`API request failed: ${response.status} ${response.statusText}`);
-                      }
-
-                      // Check if response is JSON
-                      const contentType = response.headers.get('content-type');
-                      if (!contentType || !contentType.includes('application/json')) {
-                        const errorText = await response.text();
-                        console.error('Non-JSON Response:', errorText);
-                        throw new Error('Server returned non-JSON response');
-                      }
-
-                      const { clientSecret } = await response.json();
-                      const { error: confirmError } = await stripe.confirmCardPayment(clientSecret);
-                      
-                      if (confirmError) throw confirmError;
+                      if (stripeError) throw stripeError;
 
                       // Navigate to success page
                       navigate('/split-payment-success', {
