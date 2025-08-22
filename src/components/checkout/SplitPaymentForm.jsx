@@ -122,6 +122,8 @@ const SplitPaymentForm = ({
   // Add this state for tracking split payment creation
   const [splitRequestsCreated, setSplitRequestsCreated] = useState(false);
   const [createdSplitRequests, setCreatedSplitRequests] = useState([]);
+  // Add state for realBookingId
+  const [realBookingId, setRealBookingId] = useState(null);
 
   // Initialize split amounts when count changes
   useEffect(() => {
@@ -223,20 +225,23 @@ const SplitPaymentForm = ({
   const createSplitPaymentRequests = async () => {
     setIsCreating(true);
     try {
-      let realBookingId = bookingId;
-      if (!realBookingId && typeof createBookingIfNeeded === 'function') {
-        realBookingId = await createBookingIfNeeded();
+      let newBookingId = bookingId;
+      if (!newBookingId && typeof createBookingIfNeeded === 'function') {
+        newBookingId = await createBookingIfNeeded();
       }
-      if (!realBookingId) throw new Error('Booking could not be created.');
+      if (!newBookingId) throw new Error('Booking could not be created.');
+
+      // Store the bookingId
+      setRealBookingId(newBookingId);
 
       const userProfileId = user.id;
              const splitRequests = splitRecipients.map((recipient, index) => ({
-         booking_id: realBookingId,
+         booking_id: newBookingId,
          requester_id: userProfileId,
          recipient_id: recipient.id,
          recipient_phone: recipient.phone || null,
          amount: splitAmounts[index],
-         payment_link: `${window.location.origin}/split-payment/${realBookingId}/${index}`,
+         payment_link: `${window.location.origin}/split-payment/${newBookingId}/${index}`,
          status: 'pending'
        }));
 
@@ -486,15 +491,7 @@ const SplitPaymentForm = ({
                       // First create the split payment requests
                       await createSplitPaymentRequests();
 
-                      // Then process the payment
-                      console.log('Sending payment data:', {
-                        amount: myAmount,
-                        paymentMethodId,
-                        bookingId,
-                        splitRequests: createdSplitRequests,
-                        email: user?.email
-                      });
-
+                      // Use realBookingId instead of bookingId
                       const response = await fetch(
                         'https://agydpkzfucicraedllgl.supabase.co/functions/v1/create-split-payment-intent',
                         {
@@ -507,7 +504,7 @@ const SplitPaymentForm = ({
                           body: JSON.stringify({
                             amount: myAmount,
                             paymentMethodId,
-                            bookingId,
+                            bookingId: realBookingId, // Use realBookingId here
                             splitRequests: createdSplitRequests,
                             email: user?.email // Add email for receipt
                           })
