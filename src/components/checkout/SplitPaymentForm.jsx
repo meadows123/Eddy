@@ -125,14 +125,35 @@ const SplitPaymentForm = ({
   // Add state for realBookingId
   const [realBookingId, setRealBookingId] = useState(null);
 
+  // Add this logging right after the component definition
+  console.log('SplitPaymentForm received props:', {
+    totalAmount,
+    bookingId,
+    user: user?.id
+  });
+
   // Initialize split amounts when count changes
   useEffect(() => {
+    console.log('SplitPaymentForm useEffect triggered:', {
+      totalAmount,
+      splitCount,
+      'totalAmount type': typeof totalAmount
+    });
+    
     const amountPerPerson = Math.ceil(totalAmount / splitCount);
     const amounts = Array(splitCount - 1).fill(amountPerPerson); // Exclude current user
     
     // Adjust the last amount to account for rounding
     const totalSplit = amounts.reduce((sum, amount) => sum + amount, 0);
     const remainingAmount = totalAmount - totalSplit;
+    
+    console.log('Split amounts calculation:', {
+      amountPerPerson,
+      amounts,
+      totalSplit,
+      remainingAmount,
+      myAmount: remainingAmount
+    });
     
     setSplitAmounts(amounts);
     setSplitRecipients(Array(splitCount - 1).fill(null));
