@@ -276,7 +276,16 @@ const SplitPaymentForm = ({
     }
   };
 
+  // Make sure totalAmount is the full table price
   const myAmount = totalAmount - splitAmounts.reduce((sum, amount) => sum + amount, 0);
+
+  // Add logging to debug the amounts
+  console.log('Amount breakdown:', {
+    totalAmount,
+    splitAmounts,
+    myAmount,
+    fullTablePrice: totalAmount
+  });
 
   const handlePayment = async () => {
     try {
@@ -485,9 +494,9 @@ const SplitPaymentForm = ({
                             'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
                           },
                           body: JSON.stringify({
-                            amount: myAmount,
+                            amount: myAmount, // This should be the user's portion of ₦5000
                             paymentMethodId,
-                            bookingId: confirmedBookingId, // Use the confirmed booking ID
+                            bookingId: realBookingId,
                             splitRequests: createdSplitRequests,
                             email: user?.email
                           })
