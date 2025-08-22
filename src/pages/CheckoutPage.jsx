@@ -767,32 +767,51 @@ variant: "destructive",
 };
 
 const calculateTotal = () => {
-if (isDepositFlow && depositAmount) {
-return depositAmount.toFixed(2);
-}
-if (selection?.isCreditPurchase) {
-return selection.purchaseAmount.toFixed(2);
-}
-if (!selection && !bookingData) return 0;
+  console.log('🔍 calculateTotal debugging:', {
+    isDepositFlow,
+    depositAmount,
+    selection,
+    bookingData,
+    'selection?.selectedTable': selection?.selectedTable,
+    'selection?.selectedTable?.price': selection?.selectedTable?.price,
+    'bookingData?.selectedTable': bookingData?.selectedTable,
+    'bookingData?.selectedTable?.price': bookingData?.selectedTable?.price
+  });
 
-// Handle new booking modal format vs old format
-let basePrice = 0;
-if (selection?.isFromModal) {
-// New format from booking modal
-basePrice = selection.selectedTable?.price || 50;
-} else if (bookingData?.isFromModal) {
-// New format from booking modal (when bookingData is available)
-basePrice = bookingData.selectedTable?.price || 50;
-} else {
-// Old format
-basePrice = (selection?.ticket?.price || 0) + (selection?.table?.price || 0);
-}
+  if (isDepositFlow && depositAmount) {
+    return depositAmount.toFixed(2);
+  }
+  if (selection?.isCreditPurchase) {
+    return selection.purchaseAmount.toFixed(2);
+  }
+  if (!selection && !bookingData) return 0;
 
-let total = basePrice + 25; // 25 is service fee
-if (vipPerks.includes("10% Discount Applied")) {
-total *= 0.9; // Apply 10% discount
-}
-return total.toFixed(2);
+  // Handle new booking modal format vs old format
+  let basePrice = 0;
+  if (selection?.isFromModal) {
+    // New format from booking modal
+    basePrice = selection.selectedTable?.price || 50;
+  } else if (bookingData?.isFromModal) {
+    // New format from booking modal (when bookingData is available)
+    basePrice = bookingData.selectedTable?.price || 50;
+  } else {
+    // Old format
+    basePrice = (selection?.ticket?.price || 0) + (selection?.table?.price || 0);
+  }
+
+  let total = basePrice + 25; // 25 is service fee
+  if (vipPerks.includes("10% Discount Applied")) {
+    total *= 0.9; // Apply 10% discount
+  }
+
+  console.log('💰 Total calculation:', {
+    basePrice,
+    serviceFee: 25,
+    total,
+    vipPerksApplied: vipPerks.includes("10% Discount Applied")
+  });
+
+  return total.toFixed(2);
 };
 
 const handleSplitCountChange = (newCount) => {
