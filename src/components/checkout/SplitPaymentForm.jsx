@@ -140,19 +140,30 @@ const SplitPaymentForm = ({
       'totalAmount type': typeof totalAmount
     });
     
-    const amountPerPerson = Math.ceil(totalAmount / splitCount);
+    // Separate table price and service charge
+    const serviceCharge = 25; // Service charge is ₦25
+    const tablePrice = totalAmount - serviceCharge; // Get the base table price
+    
+    // Calculate split for table price
+    const tablePricePerPerson = Math.ceil(tablePrice / splitCount);
+    
+    // Each person pays their share of table price + service charge
+    const amountPerPerson = tablePricePerPerson + serviceCharge;
     const amounts = Array(splitCount - 1).fill(amountPerPerson); // Exclude current user
     
-    // Adjust the last amount to account for rounding
-    const totalSplit = amounts.reduce((sum, amount) => sum + amount, 0);
-    const remainingAmount = totalAmount - totalSplit;
+    // Your amount is your share of table + service charge
+    const myTableShare = tablePricePerPerson;
+    const myAmount = myTableShare + serviceCharge;
     
     console.log('Split amounts calculation:', {
+      totalAmount,
+      tablePrice,
+      serviceCharge,
+      tablePricePerPerson,
       amountPerPerson,
       amounts,
-      totalSplit,
-      remainingAmount,
-      myAmount: remainingAmount
+      myAmount,
+      'Total to collect': amounts.reduce((sum, amount) => sum + amount, 0)
     });
     
     setSplitAmounts(amounts);
