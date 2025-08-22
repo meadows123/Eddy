@@ -124,6 +124,8 @@ const SplitPaymentForm = ({
   const [createdSplitRequests, setCreatedSplitRequests] = useState([]);
   // Add state for realBookingId
   const [realBookingId, setRealBookingId] = useState(null);
+  // Add myAmount to the state variables
+  const [myAmount, setMyAmount] = useState(0);
 
   // Add this logging right after the component definition
   console.log('SplitPaymentForm received props:', {
@@ -132,7 +134,7 @@ const SplitPaymentForm = ({
     user: user?.id
   });
 
-  // Initialize split amounts when count changes
+  // Update the useEffect to set myAmount in state
   useEffect(() => {
     console.log('SplitPaymentForm useEffect triggered:', {
       totalAmount,
@@ -153,7 +155,7 @@ const SplitPaymentForm = ({
     
     // Your amount is your share of table + service charge
     const myTableShare = tablePricePerPerson;
-    const myAmount = myTableShare + serviceCharge;
+    const calculatedMyAmount = myTableShare + serviceCharge;
     
     console.log('Split amounts calculation:', {
       totalAmount,
@@ -162,12 +164,13 @@ const SplitPaymentForm = ({
       tablePricePerPerson,
       amountPerPerson,
       amounts,
-      myAmount,
+      myAmount: calculatedMyAmount,
       'Total to collect': amounts.reduce((sum, amount) => sum + amount, 0)
     });
     
     setSplitAmounts(amounts);
     setSplitRecipients(Array(splitCount - 1).fill(null));
+    setMyAmount(calculatedMyAmount); // Set myAmount in state
   }, [splitCount, totalAmount]);
 
   const handleSplitCountChange = (newCount) => {
@@ -307,9 +310,6 @@ const SplitPaymentForm = ({
       throw error;
     }
   };
-
-  // Make sure totalAmount is the full table price
-  const myAmount = totalAmount - splitAmounts.reduce((sum, amount) => sum + amount, 0);
 
   // Add comprehensive logging to debug the amounts
   console.log('🔍 Amount Debugging:', {
