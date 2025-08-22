@@ -2,10 +2,43 @@ import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { User, CreditCard, Gift } from 'lucide-react';
+import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 
 const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSubmitting, totalAmount, isAuthenticated = false }) => {
+  const stripe = useStripe();
+  const elements = useElements();
+
+  const handlePaymentSubmit = async (e) => {
+    e.preventDefault();
+    if (!stripe || !elements) {
+      return;
+    }
+
+    try {
+      const { error: stripeError, paymentMethod } = await stripe.createPaymentMethod({
+        type: 'card',
+        card: elements.getElement(CardElement),
+        billing_details: {
+          name: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+        }
+      });
+
+      if (stripeError) {
+        throw stripeError;
+      }
+
+      // Call the parent handleSubmit with the payment method
+      await handleSubmit(e, paymentMethod.id);
+    } catch (err) {
+      console.error('Payment error:', err);
+      // Handle error display
+    }
+  };
+
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handlePaymentSubmit}>
       <div className="space-y-6">
         {/* Personal Information section remains the same */}
         <div className="bg-secondary/20 border border-border/50 rounded-lg p-6">
@@ -96,44 +129,25 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
             Payment Information
           </h2>
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="cardNumber">Card Number</Label>
-              <Input 
-                id="cardNumber" 
-                name="cardNumber" 
-                placeholder="1234 5678 9012 3456" 
-                value={formData.cardNumber} 
-                onChange={handleInputChange} 
-                className={errors.cardNumber ? 'border-destructive' : ''} 
+            <div className="p-4 border rounded-lg bg-white">
+              <CardElement 
+                options={{
+                  style: {
+                    base: {
+                      fontSize: '16px',
+                      color: '#800020',
+                      '::placeholder': {
+                        color: '#800020',
+                      },
+                    },
+                  },
+                  hidePostalCode: true
+                }}
               />
-              {errors.cardNumber && <p className="text-destructive text-sm mt-1">{errors.cardNumber}</p>}
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="expiryDate">Expiry Date</Label>
-                <Input 
-                  id="expiryDate" 
-                  name="expiryDate" 
-                  placeholder="MM/YY" 
-                  value={formData.expiryDate} 
-                  onChange={handleInputChange} 
-                  className={errors.expiryDate ? 'border-destructive' : ''} 
-                />
-                {errors.expiryDate && <p className="text-destructive text-sm mt-1">{errors.expiryDate}</p>}
-              </div>
-              <div>
-                <Label htmlFor="cvv">CVV</Label>
-                <Input 
-                  id="cvv" 
-                  name="cvv" 
-                  placeholder="123" 
-                  value={formData.cvv} 
-                  onChange={handleInputChange} 
-                  className={errors.cvv ? 'border-destructive' : ''} 
-                />
-                {errors.cvv && <p className="text-destructive text-sm mt-1">{errors.cvv}</p>}
-              </div>
-            </div>
+            {errors.stripe && (
+              <p className="text-destructive text-sm mt-1">{errors.stripe}</p>
+            )}
           </div>
         </div>
         

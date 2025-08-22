@@ -503,6 +503,21 @@ const SplitPaymentForm = ({
                         })
                       });
 
+                      // Check if response is ok before parsing JSON
+                      if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error('API Error Response:', errorText);
+                        throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+                      }
+
+                      // Check if response is JSON
+                      const contentType = response.headers.get('content-type');
+                      if (!contentType || !contentType.includes('application/json')) {
+                        const errorText = await response.text();
+                        console.error('Non-JSON Response:', errorText);
+                        throw new Error('Server returned non-JSON response');
+                      }
+
                       const { clientSecret } = await response.json();
                       const { error: confirmError } = await stripe.confirmCardPayment(clientSecret);
                       
