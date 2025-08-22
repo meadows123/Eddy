@@ -494,9 +494,9 @@ const SplitPaymentForm = ({
                             'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
                           },
                           body: JSON.stringify({
-                            amount: myAmount, // This should be the user's portion of ₦5000
+                            amount: myAmount,
                             paymentMethodId,
-                            bookingId: realBookingId,
+                            bookingId: confirmedBookingId, // Use the returned booking ID
                             splitRequests: createdSplitRequests,
                             email: user?.email
                           })
