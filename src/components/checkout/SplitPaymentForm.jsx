@@ -487,6 +487,14 @@ const SplitPaymentForm = ({
                       await createSplitPaymentRequests();
 
                       // Then process the payment
+                      console.log('Sending payment data:', {
+                        amount: myAmount,
+                        paymentMethodId,
+                        bookingId,
+                        splitRequests: createdSplitRequests,
+                        email: user?.email
+                      });
+
                       const response = await fetch(
                         'https://agydpkzfucicraedllgl.supabase.co/functions/v1/create-split-payment-intent',
                         {
