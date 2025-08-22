@@ -1,8 +1,10 @@
 import { loadStripe } from '@stripe/stripe-js';
 
-// Use test key by default in development
-const stripeKey = import.meta.env.MODE === 'development' 
-  ? import.meta.env.VITE_STRIPE_TEST_PUBLISHABLE_KEY 
-  : import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY;
+// Always use test key for now to avoid live mode issues
+const stripeKey = import.meta.env.VITE_STRIPE_TEST_PUBLISHABLE_KEY;
+
+if (!stripeKey) {
+  console.warn('⚠️ VITE_STRIPE_TEST_PUBLISHABLE_KEY is not set. Please add it to your .env file.');
+}
 
 export const stripePromise = loadStripe(stripeKey); 

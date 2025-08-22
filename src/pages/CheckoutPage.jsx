@@ -18,6 +18,8 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { sendBookingConfirmation, sendVenueOwnerNotification, debugBookingEmail } from '../lib/emailService.js';
+import { Elements } from '@stripe/react-stripe-js';
+import { stripePromise } from '@/lib/stripe';
 
 const CheckoutPage = () => {
 const { id } = useParams();
@@ -881,298 +883,288 @@ setShowShareDialog(true);
     formData
   });
 
-  // Add error boundary for the main render
-  try {
-    return (
-      <div className="container py-10">
-        <Link to={
-          isDepositFlow ? "/profile" : 
-          location.state?.creditPurchase ? "/venue-credit-purchase" :
-          `/venues/${id}`
-        } className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-6">
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          {isDepositFlow ? "Back to Profile" : 
-           location.state?.creditPurchase ? "Back to Credit Purchase" :
-           "Back to Venue"}
-        </Link>
+  return (
+    <Elements stripe={stripePromise}>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+        <div className="container py-10">
+          <Link to={
+            isDepositFlow ? "/profile" : 
+            location.state?.creditPurchase ? "/venue-credit-purchase" :
+            `/venues/${id}`
+          } className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-6">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            {isDepositFlow ? "Back to Profile" : 
+             location.state?.creditPurchase ? "Back to Credit Purchase" :
+             "Back to Venue"}
+          </Link>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <h1 className="text-3xl font-bold mb-6 flex items-center">
-                <CreditCard className="h-8 w-8 mr-2" />
-                Checkout
-              </h1>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+              >
+                <h1 className="text-3xl font-bold mb-6 flex items-center">
+                  <CreditCard className="h-8 w-8 mr-2" />
+                  Checkout
+                </h1>
 
-              {/* Show the selected booking details */}
-              {(selection || bookingData) && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                  <h3 className="font-semibold text-blue-800 mb-2">Booking Summary</h3>
-                  <div className="text-sm text-blue-700">
-                    <p><strong>Venue:</strong> {(selection || bookingData).venue.name}</p>
-                    <p><strong>Table:</strong> {(selection || bookingData).table.table_number} (Capacity: {(selection || bookingData).table.capacity})</p>
-                    <p><strong>Date:</strong> {(selection || bookingData).date}</p>
-                    <p><strong>Time:</strong> {(selection || bookingData).time} - {(selection || bookingData).endTime}</p>
-                    <p><strong>Guests:</strong> {(selection || bookingData).guestCount}</p>
-                  </div>
-                </div>
-              )}
-
-              <Tabs defaultValue="single" className="w-full mb-6">
-                <TabsList className="grid w-full grid-cols-2 mb-6">
-                  <TabsTrigger value="single">Single Payment</TabsTrigger>
-                  <TabsTrigger value="split">Split Payment</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="single">
-                  <CheckoutForm 
-                    formData={formData}
-                    errors={errors}
-                    handleInputChange={handleInputChange}
-                    handleSubmit={handleSubmit}
-                    isSubmitting={isSubmitting}
-                    totalAmount={calculateTotal()}
-                    isAuthenticated={!!user}
-                    icons={{
-                      user: <User className="h-5 w-5 mr-2" />
-                    }}
-                  />
-                  <Button 
-                    type="submit" 
-                    disabled={isSubmitting} 
-                    className="w-full bg-brand-burgundy text-brand-cream hover:bg-brand-burgundy/90 py-3.5 text-lg rounded-md"
-                    onClick={handleSubmit}
-                  >
-                    {isSubmitting ? (
-                      <div className="flex items-center justify-center">
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-brand-cream mr-2"></div>
-                        Processing...
-                      </div>
-                    ) : `Pay ₦${calculateTotal().toLocaleString()}`}
-                  </Button>
-                </TabsContent>
-
-                <TabsContent value="split">
-                  <SplitPaymentForm
-                    totalAmount={parseFloat(calculateTotal())}
-                    onSplitCreated={handleSplitPaymentCreated}
-                    user={user}
-                    bookingId={selection?.id || bookingData?.id}
-                    createBookingIfNeeded={async () => {
-                      const u = await ensureSession();
-                      // If booking already exists, return its ID
-                      if (selection?.id) return selection.id;
-                      
-                      // Create new booking
-                      const bookingId = await createBooking();
-                      return bookingId;
-                    }}
-                  />
-                </TabsContent>
-              </Tabs>
-            </motion.div>
-          </div>
-          
-          <div className="lg:col-span-1">
-            <OrderSummary 
-              selection={selection || bookingData}
-              totalAmount={calculateTotal()}
-              vipPerks={vipPerks}
-            />
-          </div>
-        </div>
-
-        <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
-          <DialogContent className="sm:max-w-md" aria-describedby="checkout-dialog-desc">
-            <div id="checkout-dialog-desc" className="sr-only">Enter your payment details to complete your booking.</div>
-            <DialogHeader>
-              <DialogTitle className="text-center text-2xl">Booking Confirmed!</DialogTitle>
-              <DialogDescription className="text-center">
-                <div className="flex justify-center my-6">
-                  <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center">
-                    <Check className="h-8 w-8 text-primary" />
-                  </div>
-                </div>
-                <p className="mb-2">
-                  Your booking at <span className="font-bold">{(selection || bookingData)?.venue?.name}</span> has been confirmed.
-                </p>
-                {vipPerks.length > 0 && (
-                  <div className="my-2 text-sm text-green-400">
-                    <p className="font-semibold">VIP Perks Applied:</p>
-                    <ul className="list-disc list-inside">
-                      {vipPerks.map(perk => <li key={perk}>{perk}</li>)}
-                    </ul>
+                {/* Show the selected booking details */}
+                {(selection || bookingData) && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                    <h3 className="font-semibold text-blue-800 mb-2">Booking Summary</h3>
+                    <div className="text-sm text-blue-700">
+                      <p><strong>Venue:</strong> {(selection || bookingData).venue.name}</p>
+                      <p><strong>Table:</strong> {(selection || bookingData).table.table_number} (Capacity: {(selection || bookingData).table.capacity})</p>
+                      <p><strong>Date:</strong> {(selection || bookingData).date}</p>
+                      <p><strong>Time:</strong> {(selection || bookingData).time} - {(selection || bookingData).endTime}</p>
+                      <p><strong>Guests:</strong> {(selection || bookingData).guestCount}</p>
+                    </div>
                   </div>
                 )}
-                <p className="text-sm">
-                  A confirmation email has been sent to {formData.email}. You can show this email or your ID at the entrance.
-                </p>
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex justify-center mt-4">
-              <Link to="/">
-                <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity text-accent-foreground">
-                  Back to Home
-                </Button>
-              </Link>
-            </div>
-          </DialogContent>
-        </Dialog>
 
-        {/* Split Payment Requests Dialog */}
-        <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
-          <DialogContent aria-describedby="checkout-dialog-desc-2">
-            <div id="checkout-dialog-desc-2" className="sr-only">View and manage your split payment requests.</div>
-            <DialogHeader>
-              <DialogTitle>Split Payment Requests Sent</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              {splitPaymentRequests.length > 0 ? (
-                splitPaymentRequests.map((request, index) => (
-                  <div key={request.id} className="border rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-brand-burgundy/10 rounded-full flex items-center justify-center">
-                          <User className="h-4 w-4 text-brand-burgundy" />
+                <Tabs defaultValue="single" className="w-full mb-6">
+                  <TabsList className="grid w-full grid-cols-2 mb-6">
+                    <TabsTrigger value="single">Single Payment</TabsTrigger>
+                    <TabsTrigger value="split">Split Payment</TabsTrigger>
+                  </TabsList>
+
+                  <TabsContent value="single">
+                    <CheckoutForm 
+                      formData={formData}
+                      errors={errors}
+                      handleInputChange={handleInputChange}
+                      handleSubmit={handleSubmit}
+                      isSubmitting={isSubmitting}
+                      totalAmount={calculateTotal()}
+                      isAuthenticated={!!user}
+                      icons={{
+                        user: <User className="h-5 w-5 mr-2" />
+                      }}
+                    />
+                    <Button 
+                      type="submit" 
+                      disabled={isSubmitting} 
+                      className="w-full bg-brand-burgundy text-brand-cream hover:bg-brand-burgundy/90 py-3.5 text-lg rounded-md"
+                      onClick={handleSubmit}
+                    >
+                      {isSubmitting ? (
+                        <div className="flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-brand-cream mr-2"></div>
+                          Processing...
                         </div>
-                        <div>
-                          <div className="font-medium">Recipient {index + 1}</div>
-                          <div className="text-sm text-muted-foreground">
-                            {request.recipient_phone}
+                      ) : `Pay ₦${calculateTotal().toLocaleString()}`}
+                    </Button>
+                  </TabsContent>
+
+                  <TabsContent value="split">
+                    <SplitPaymentForm
+                      totalAmount={parseFloat(calculateTotal())}
+                      onSplitCreated={handleSplitPaymentCreated}
+                      user={user}
+                      bookingId={selection?.id || bookingData?.id}
+                      createBookingIfNeeded={async () => {
+                        const u = await ensureSession();
+                        // If booking already exists, return its ID
+                        if (selection?.id) return selection.id;
+                        
+                        // Create new booking
+                        const bookingId = await createBooking();
+                        return bookingId;
+                      }}
+                    />
+                  </TabsContent>
+                </Tabs>
+              </motion.div>
+            </div>
+            
+            <div className="lg:col-span-1">
+              <OrderSummary 
+                selection={selection || bookingData}
+                totalAmount={calculateTotal()}
+                vipPerks={vipPerks}
+              />
+            </div>
+          </div>
+
+          <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
+            <DialogContent className="sm:max-w-md" aria-describedby="checkout-dialog-desc">
+              <div id="checkout-dialog-desc" className="sr-only">Enter your payment details to complete your booking.</div>
+              <DialogHeader>
+                <DialogTitle className="text-center text-2xl">Booking Confirmed!</DialogTitle>
+                <DialogDescription className="text-center">
+                  <div className="flex justify-center my-6">
+                    <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center">
+                      <Check className="h-8 w-8 text-primary" />
+                    </div>
+                  </div>
+                  <p className="mb-2">
+                    Your booking at <span className="font-bold">{(selection || bookingData)?.venue?.name}</span> has been confirmed.
+                  </p>
+                  {vipPerks.length > 0 && (
+                    <div className="my-2 text-sm text-green-400">
+                      <p className="font-semibold">VIP Perks Applied:</p>
+                      <ul className="list-disc list-inside">
+                        {vipPerks.map(perk => <li key={perk}>{perk}</li>)}
+                      </ul>
+                    </div>
+                  )}
+                  <p className="text-sm">
+                    A confirmation email has been sent to {formData.email}. You can show this email or your ID at the entrance.
+                  </p>
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex justify-center mt-4">
+                <Link to="/">
+                  <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity text-accent-foreground">
+                    Back to Home
+                  </Button>
+                </Link>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Split Payment Requests Dialog */}
+          <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+            <DialogContent aria-describedby="checkout-dialog-desc-2">
+              <div id="checkout-dialog-desc-2" className="sr-only">View and manage your split payment requests.</div>
+              <DialogHeader>
+                <DialogTitle>Split Payment Requests Sent</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                {splitPaymentRequests.length > 0 ? (
+                  splitPaymentRequests.map((request, index) => (
+                    <div key={request.id} className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 bg-brand-burgundy/10 rounded-full flex items-center justify-center">
+                            <User className="h-4 w-4 text-brand-burgundy" />
+                          </div>
+                          <div>
+                            <div className="font-medium">Recipient {index + 1}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {request.recipient_phone}
+                            </div>
                           </div>
                         </div>
+                        <div className="text-right">
+                          <div className="font-bold">₦{request.amount.toLocaleString()}</div>
+                          <Badge variant="outline" className="text-xs">
+                            {request.status}
+                          </Badge>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <div className="font-bold">₦{request.amount.toLocaleString()}</div>
-                        <Badge variant="outline" className="text-xs">
-                          {request.status}
-                        </Badge>
+                      
+                      <div className="flex items-center gap-2 mt-3">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => copyToClipboard(request.payment_link)}
+                          className="flex-1"
+                        >
+                          <Copy className="h-4 w-4 mr-2" />
+                          Copy Payment Link
+                        </Button>
                       </div>
                     </div>
-                    
-                    <div className="flex items-center gap-2 mt-3">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => copyToClipboard(request.payment_link)}
-                        className="flex-1"
-                      >
-                        <Copy className="h-4 w-4 mr-2" />
-                        Copy Payment Link
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <p>No split payment requests created yet.</p>
+                  </div>
+                )}
+                
+                <div className="flex justify-end gap-4 mt-6">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowShareDialog(false)}
+                  >
+                    Close
+                  </Button>
+                  <Button
+                    className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90"
+                    onClick={() => {
+                      setShowShareDialog(false);
+                      navigate('/bookings');
+                    }}
+                  >
+                    View All Bookings
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="text-brand-burgundy">
+                  {awaitingConfirm ? 'Confirm your email' : (authMode === 'login' ? 'Log in to continue' : 'Create an account')}
+                </DialogTitle>
+              </DialogHeader>
+
+              {!awaitingConfirm ? (
+                <form onSubmit={handleAuthSubmit} className="space-y-4">
+                  <div>
+                    <Label htmlFor="auth-email" className="text-brand-burgundy">Email</Label>
+                    <Input id="auth-email" type="email" value={authForm.email} onChange={(e) => setAuthForm(f => ({ ...f, email: e.target.value }))} required />
+                  </div>
+                  {authMode === 'signup' && (
+                    <>
+                      <div>
+                        <Label htmlFor="auth-name" className="text-brand-burgundy">Full Name</Label>
+                        <Input id="auth-name" type="text" value={authForm.fullName} onChange={(e) => setAuthForm(f => ({ ...f, fullName: e.target.value }))} placeholder="e.g. John Smith" required />
+                      </div>
+                      <div>
+                        <Label htmlFor="auth-phone" className="text-brand-burgundy">Phone (optional)</Label>
+                        <Input id="auth-phone" type="tel" value={authForm.phone} onChange={(e) => setAuthForm(f => ({ ...f, phone: e.target.value }))} placeholder="+234 ..." />
+                      </div>
+                    </>
+                  )}
+                  <div>
+                    <Label htmlFor="auth-pass" className="text-brand-burgundy">Password</Label>
+                    <Input id="auth-pass" type="password" value={authForm.password} onChange={(e) => setAuthForm(f => ({ ...f, password: e.target.value }))} required />
+                  </div>
+                  {authError && <div className="text-red-600 text-sm">{authError}</div>}
+                  <Button type="submit" disabled={authLoading} className="w-full bg-brand-burgundy text-brand-cream hover:bg-brand-burgundy/90">
+                    {authLoading ? 'Please wait...' : (authMode === 'login' ? 'Login' : 'Sign Up')}
+                  </Button>
+                  <div className="text-center text-sm">
+                    {authMode === 'login' ? (
+                      <button type="button" className="text-brand-gold" onClick={() => setAuthMode('signup')}>New here? Create an account</button>
+                    ) : (
+                      <button type="button" className="text-brand-gold" onClick={() => setAuthMode('login')}>Already have an account? Login</button>
+                    )}
+                  </div>
+                </form>
+              ) : (
+                <div className="space-y-4">
+                  <p className="text-sm text-brand-burgundy/80">
+                    We sent a confirmation email to <span className="font-medium text-brand-burgundy">{authForm.email}</span>. Please click the link in that email to verify your account. Once confirmed, return to the app.
+                  </p>
+                  {EMAIL_REDIRECT && (
+                    <p className="text-xs text-brand-burgundy/60">
+                      Tip: The link opens the app via <span className="font-mono">{EMAIL_REDIRECT}</span>.
+                    </p>
+                  )}
+                  {authError && <div className="text-red-600 text-sm">{authError}</div>}
+                  <div className="flex gap-2">
+                    <Button onClick={checkEmailConfirmed} disabled={authLoading} className="flex-1 bg-brand-burgundy text-brand-cream hover:bg-brand-burgundy/90">
+                      I've confirmed
+                    </Button>
+                    <Button onClick={resendConfirmation} variant="outline" disabled={authLoading} className="flex-1 border-brand-burgundy text-brand-burgundy">
+                        Resend email
                       </Button>
                     </div>
                   </div>
-                ))
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No split payment requests created yet.</p>
-                </div>
-              )}
-              
-              <div className="flex justify-end gap-4 mt-6">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowShareDialog(false)}
-                >
-                  Close
-                </Button>
-                <Button
-                  className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90"
-                  onClick={() => {
-                    setShowShareDialog(false);
-                    navigate('/bookings');
-                  }}
-                >
-                  View All Bookings
-                </Button>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle className="text-brand-burgundy">
-                {awaitingConfirm ? 'Confirm your email' : (authMode === 'login' ? 'Log in to continue' : 'Create an account')}
-              </DialogTitle>
-            </DialogHeader>
-
-            {!awaitingConfirm ? (
-              <form onSubmit={handleAuthSubmit} className="space-y-4">
-                <div>
-                  <Label htmlFor="auth-email" className="text-brand-burgundy">Email</Label>
-                  <Input id="auth-email" type="email" value={authForm.email} onChange={(e) => setAuthForm(f => ({ ...f, email: e.target.value }))} required />
-                </div>
-                {authMode === 'signup' && (
-                  <>
-                    <div>
-                      <Label htmlFor="auth-name" className="text-brand-burgundy">Full Name</Label>
-                      <Input id="auth-name" type="text" value={authForm.fullName} onChange={(e) => setAuthForm(f => ({ ...f, fullName: e.target.value }))} placeholder="e.g. John Smith" required />
-                    </div>
-                    <div>
-                      <Label htmlFor="auth-phone" className="text-brand-burgundy">Phone (optional)</Label>
-                      <Input id="auth-phone" type="tel" value={authForm.phone} onChange={(e) => setAuthForm(f => ({ ...f, phone: e.target.value }))} placeholder="+234 ..." />
-                    </div>
-                  </>
                 )}
-                <div>
-                  <Label htmlFor="auth-pass" className="text-brand-burgundy">Password</Label>
-                  <Input id="auth-pass" type="password" value={authForm.password} onChange={(e) => setAuthForm(f => ({ ...f, password: e.target.value }))} required />
-                </div>
-                {authError && <div className="text-red-600 text-sm">{authError}</div>}
-                <Button type="submit" disabled={authLoading} className="w-full bg-brand-burgundy text-brand-cream hover:bg-brand-burgundy/90">
-                  {authLoading ? 'Please wait...' : (authMode === 'login' ? 'Login' : 'Sign Up')}
-                </Button>
-                <div className="text-center text-sm">
-                  {authMode === 'login' ? (
-                    <button type="button" className="text-brand-gold" onClick={() => setAuthMode('signup')}>New here? Create an account</button>
-                  ) : (
-                    <button type="button" className="text-brand-gold" onClick={() => setAuthMode('login')}>Already have an account? Login</button>
-                  )}
-                </div>
-              </form>
-            ) : (
-              <div className="space-y-4">
-                <p className="text-sm text-brand-burgundy/80">
-                  We sent a confirmation email to <span className="font-medium text-brand-burgundy">{authForm.email}</span>. Please click the link in that email to verify your account. Once confirmed, return to the app.
-                </p>
-                {EMAIL_REDIRECT && (
-                  <p className="text-xs text-brand-burgundy/60">
-                    Tip: The link opens the app via <span className="font-mono">{EMAIL_REDIRECT}</span>.
-                  </p>
-                )}
-                {authError && <div className="text-red-600 text-sm">{authError}</div>}
-                <div className="flex gap-2">
-                  <Button onClick={checkEmailConfirmed} disabled={authLoading} className="flex-1 bg-brand-burgundy text-brand-cream hover:bg-brand-burgundy/90">
-                    I've confirmed
-                  </Button>
-                  <Button onClick={resendConfirmation} variant="outline" disabled={authLoading} className="flex-1 border-brand-burgundy text-brand-burgundy">
-                    Resend email
-                  </Button>
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
-      </div>
-    );
-  } catch (error) {
-    console.error('❌ Error rendering checkout content:', error);
-    return (
-      <div className="container py-20 text-center">
-        <h2 className="text-2xl font-bold mb-4 text-red-600">Error Loading Checkout</h2>
-        <p className="text-muted-foreground mb-6">There was an error loading the checkout page.</p>
-        <Button onClick={() => window.location.reload()}>
-          Reload Page
-        </Button>
-      </div>
-    );
-  }
+              </DialogContent>
+            </Dialog>
+          </div>
+        </div>
+    </Elements>
+  );
 };
 
 export default CheckoutPage;

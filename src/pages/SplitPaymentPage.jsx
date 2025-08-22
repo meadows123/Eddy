@@ -11,9 +11,7 @@ import { Elements, CardElement, useStripe, useElements } from '@stripe/react-str
 import { loadStripe } from '@stripe/stripe-js';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
-
-// Initialize Stripe
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+import { stripePromise } from '@/lib/stripe';
 
 // Payment form component
 const PaymentForm = ({ amount, onSuccess }) => {
