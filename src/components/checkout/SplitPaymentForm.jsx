@@ -308,7 +308,8 @@ const SplitPaymentForm = ({
     'splitAmounts.reduce': splitAmounts.reduce((sum, amount) => sum + amount, 0),
     myAmount,
     'myAmount in kobo': myAmount * 100,
-    'myAmount >= 50': myAmount >= 50
+    'myAmount >= 50': myAmount >= 50,
+    'splitRecipients count': splitRecipients.filter(r => r).length
   });
 
   // Add logging to debug the amounts
