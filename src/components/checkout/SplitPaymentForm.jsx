@@ -45,9 +45,6 @@ const PaymentForm = ({ amount, onSuccess }) => {
     }
 
     try {
-      // Remove the problematic debug line that was causing the error
-      // console.log('Stripe mode:', stripe._config.betas?.includes('stripe_test_mode') ? 'test' : 'live');
-
       const { error: stripeError, paymentMethod } = await stripe.createPaymentMethod({
         type: 'card',
         card: elements.getElement(CardElement),
@@ -57,13 +54,11 @@ const PaymentForm = ({ amount, onSuccess }) => {
       });
 
       if (stripeError) {
-        if (stripeError.code === 'card_declined' && stripeError.decline_code === 'live_mode_test_card') {
-          throw new Error('Test card cannot be used in live mode. Please use a real card or switch to test mode.');
-        }
         throw stripeError;
       }
 
-      await onSuccess(paymentMethod.id);
+      // Pass both paymentMethod and stripe instance to onSuccess
+      await onSuccess(paymentMethod.id, stripe);
     } catch (err) {
       console.error('Payment error:', err);
       setError(err.message);
@@ -486,24 +481,42 @@ const SplitPaymentForm = ({
               <Elements stripe={stripePromise}>
                 <PaymentForm 
                   amount={myAmount} 
-                  onSuccess={async (paymentMethodId) => {
+                  onSuccess={async (paymentMethodId, stripe) => {  // Add stripe parameter here
                     try {
                       // First create the split payment requests
                       await createSplitPaymentRequests();
 
-                      // Create payment intent directly with Stripe
-                      const { error: stripeError, paymentIntent } = await stripe.createPaymentIntent({
-                        amount: myAmount * 100, // convert to cents/kobo
-                        currency: 'ngn',
-                        payment_method: paymentMethodId,
-                        confirm: true, // Confirm the payment immediately
-                        metadata: {
-                          bookingId: bookingId,
-                          splitPayment: 'true'
-                        }
+                      // Then process the payment
+                      const response = await fetch('/api/create-split-payment-intent', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          amount: myAmount,
+                          paymentMethodId,
+                          bookingId,
+                          splitRequests: createdSplitRequests
+                        })
                       });
 
-                      if (stripeError) throw stripeError;
+                      // Check if response is ok before parsing JSON
+                      if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error('API Error Response:', errorText);
+                        throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+                      }
+
+                      // Check if response is JSON
+                      const contentType = response.headers.get('content-type');
+                      if (!contentType || !contentType.includes('application/json')) {
+                        const errorText = await response.text();
+                        console.error('Non-JSON Response:', errorText);
+                        throw new Error('Server returned non-JSON response');
+                      }
+
+                      const { clientSecret } = await response.json();
+                      const { error: confirmError } = await stripe.confirmCardPayment(clientSecret);
+                      
+                      if (confirmError) throw confirmError;
 
                       // Navigate to success page
                       navigate('/split-payment-success', {
