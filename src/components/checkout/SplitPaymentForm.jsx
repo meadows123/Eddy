@@ -487,16 +487,22 @@ const SplitPaymentForm = ({
                       await createSplitPaymentRequests();
 
                       // Then process the payment
-                      const response = await fetch('/api/create-split-payment-intent', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          amount: myAmount,
-                          paymentMethodId,
-                          bookingId,
-                          splitRequests: createdSplitRequests
-                        })
-                      });
+                      const response = await fetch(
+                        'https://https://agydpkzfucicraedllgl.supabase.co/functions/v1/create-split-payment-intent',
+                        {
+                          method: 'POST',
+                          headers: { 
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${process.env.VITE_SUPABASE_ANON_KEY}` // Add if needed
+                          },
+                          body: JSON.stringify({
+                            amount: myAmount,
+                            paymentMethodId,
+                            bookingId,
+                            splitRequests: createdSplitRequests
+                          })
+                        }
+                      );
 
                       // Check if response is ok before parsing JSON
                       if (!response.ok) {
