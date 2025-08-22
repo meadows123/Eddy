@@ -226,24 +226,35 @@ const SplitPaymentForm = ({
     setIsCreating(true);
     try {
       let newBookingId = bookingId;
+      console.log('Initial bookingId:', bookingId);
+
       if (!newBookingId && typeof createBookingIfNeeded === 'function') {
+        console.log('Creating new booking...');
         newBookingId = await createBookingIfNeeded();
+        console.log('Created new bookingId:', newBookingId);
       }
-      if (!newBookingId) throw new Error('Booking could not be created.');
+
+      if (!newBookingId) {
+        console.error('No booking ID available');
+        throw new Error('Booking could not be created.');
+      }
 
       // Store the bookingId
       setRealBookingId(newBookingId);
+      console.log('Set realBookingId to:', newBookingId);
 
       const userProfileId = user.id;
-             const splitRequests = splitRecipients.map((recipient, index) => ({
-         booking_id: newBookingId,
-         requester_id: userProfileId,
-         recipient_id: recipient.id,
-         recipient_phone: recipient.phone || null,
-         amount: splitAmounts[index],
-         payment_link: `${window.location.origin}/split-payment/${newBookingId}/${index}`,
-         status: 'pending'
-       }));
+      const splitRequests = splitRecipients.map((recipient, index) => ({
+        booking_id: newBookingId, // Use newBookingId here
+        requester_id: userProfileId,
+        recipient_id: recipient.id,
+        recipient_phone: recipient.phone || null,
+        amount: splitAmounts[index],
+        payment_link: `${window.location.origin}/split-payment/${newBookingId}/${index}`,
+        status: 'pending'
+      }));
+
+      console.log('Split requests to create:', splitRequests);
 
       const { data, error } = await supabase
         .from('split_payment_requests')
@@ -252,44 +263,16 @@ const SplitPaymentForm = ({
 
       if (error) throw error;
 
-             // Create notifications for recipients
-       const notifications = data.map(request => ({
-         user_id: request.recipient_id,
-         split_payment_id: request.id,
-         type: 'payment_request',
-         title: 'Payment Request Received',
-         message: `${user.user_metadata?.first_name || user.user_metadata?.full_name?.split(' ')[0] || 'Someone'} has requested ₦${request.amount.toLocaleString()} for a shared booking.`
-       }));
-
-      const { error: notifError } = await supabase
-        .from('payment_notifications')
-        .insert(notifications);
-
-      if (notifError) {
-        console.error('Error creating notifications:', notifError);
-      }
-
       // Store the created requests and mark as created
       setCreatedSplitRequests(data);
       setSplitRequestsCreated(true);
 
-      toast({
-        title: "Split Payment Requests Created!",
-        description: `Successfully sent ${data.length} payment requests. Now complete your payment.`,
-        className: "bg-green-500 text-white",
-      });
-
-      onSplitCreated(data);
+      // Return the newBookingId so we can use it immediately
+      return newBookingId;
 
     } catch (error) {
-      console.error('Error creating split payment requests:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create split payment requests. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsCreating(false);
+      console.error('Error in createSplitPaymentRequests:', error);
+      throw error;
     }
   };
 
@@ -486,27 +469,27 @@ const SplitPaymentForm = ({
               <Elements stripe={stripePromise}>
                 <PaymentForm 
                   amount={myAmount} 
-                  onSuccess={async (paymentMethodId, stripe) => {  // Add stripe parameter here
+                  onSuccess={async (paymentMethodId, stripe) => {
                     try {
-                      // First create the split payment requests
-                      await createSplitPaymentRequests();
+                      // First create the split payment requests and get the booking ID
+                      const confirmedBookingId = await createSplitPaymentRequests();
+                      console.log('Confirmed bookingId for payment:', confirmedBookingId);
 
-                      // Use realBookingId instead of bookingId
+                      // Then process the payment
                       const response = await fetch(
                         'https://agydpkzfucicraedllgl.supabase.co/functions/v1/create-split-payment-intent',
                         {
                           method: 'POST',
                           headers: { 
                             'Content-Type': 'application/json',
-                            // Add the anon key for authentication
                             'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
                           },
                           body: JSON.stringify({
                             amount: myAmount,
                             paymentMethodId,
-                            bookingId: realBookingId, // Use realBookingId here
+                            bookingId: confirmedBookingId, // Use the confirmed booking ID
                             splitRequests: createdSplitRequests,
-                            email: user?.email // Add email for receipt
+                            email: user?.email
                           })
                         }
                       );
