@@ -2,7 +2,6 @@ import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { User, CreditCard, Gift } from 'lucide-react';
-import StripeCardInput from './StripeCardInput';
 
 const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSubmitting, totalAmount, isAuthenticated = false }) => {
   return (
@@ -97,7 +96,44 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
             Payment Information
           </h2>
           <div className="space-y-4">
-            <StripeCardInput error={errors.stripe} />
+            <div>
+              <Label htmlFor="cardNumber">Card Number</Label>
+              <Input 
+                id="cardNumber" 
+                name="cardNumber" 
+                placeholder="1234 5678 9012 3456" 
+                value={formData.cardNumber} 
+                onChange={handleInputChange} 
+                className={errors.cardNumber ? 'border-destructive' : ''} 
+              />
+              {errors.cardNumber && <p className="text-destructive text-sm mt-1">{errors.cardNumber}</p>}
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="expiryDate">Expiry Date</Label>
+                <Input 
+                  id="expiryDate" 
+                  name="expiryDate" 
+                  placeholder="MM/YY" 
+                  value={formData.expiryDate} 
+                  onChange={handleInputChange} 
+                  className={errors.expiryDate ? 'border-destructive' : ''} 
+                />
+                {errors.expiryDate && <p className="text-destructive text-sm mt-1">{errors.expiryDate}</p>}
+              </div>
+              <div>
+                <Label htmlFor="cvv">CVV</Label>
+                <Input 
+                  id="cvv" 
+                  name="cvv" 
+                  placeholder="123" 
+                  value={formData.cvv} 
+                  onChange={handleInputChange} 
+                  className={errors.cvv ? 'border-destructive' : ''} 
+                />
+                {errors.cvv && <p className="text-destructive text-sm mt-1">{errors.cvv}</p>}
+              </div>
+            </div>
           </div>
         </div>
         
