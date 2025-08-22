@@ -300,6 +300,17 @@ const SplitPaymentForm = ({
   // Make sure totalAmount is the full table price
   const myAmount = totalAmount - splitAmounts.reduce((sum, amount) => sum + amount, 0);
 
+  // Add comprehensive logging to debug the amounts
+  console.log('🔍 Amount Debugging:', {
+    totalAmount,
+    splitCount,
+    splitAmounts,
+    'splitAmounts.reduce': splitAmounts.reduce((sum, amount) => sum + amount, 0),
+    myAmount,
+    'myAmount in kobo': myAmount * 100,
+    'myAmount >= 50': myAmount >= 50
+  });
+
   // Add logging to debug the amounts
   console.log('Amount breakdown:', {
     totalAmount,
@@ -532,6 +543,15 @@ const SplitPaymentForm = ({
                           })
                         }
                       );
+
+                      // Add logging before the fetch
+                      console.log('💰 Payment request data:', {
+                        amount: myAmount,
+                        paymentMethodId,
+                        confirmedBookingId,
+                        splitRequests: createdSplitRequests,
+                        email: user?.email
+                      });
 
                       // Check if response is ok before parsing JSON
                       if (!response.ok) {
