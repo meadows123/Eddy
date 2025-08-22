@@ -485,6 +485,15 @@ const SplitPaymentForm = ({
                       console.log('Confirmed bookingId for payment:', confirmedBookingId);
 
                       // Then process the payment
+                      console.log('Payment request data:', {
+                        amount: myAmount,
+                        paymentMethodId,
+                        confirmedBookingId,
+                        realBookingId,
+                        splitRequests: createdSplitRequests,
+                        email: user?.email
+                      });
+
                       const response = await fetch(
                         'https://agydpkzfucicraedllgl.supabase.co/functions/v1/create-split-payment-intent',
                         {
