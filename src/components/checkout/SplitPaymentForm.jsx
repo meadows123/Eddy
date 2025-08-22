@@ -488,18 +488,20 @@ const SplitPaymentForm = ({
 
                       // Then process the payment
                       const response = await fetch(
-                        'https://https://agydpkzfucicraedllgl.supabase.co/functions/v1/create-split-payment-intent',
+                        'https://agydpkzfucicraedllgl.supabase.co/functions/v1/create-split-payment-intent',
                         {
                           method: 'POST',
                           headers: { 
                             'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${process.env.VITE_SUPABASE_ANON_KEY}` // Add if needed
+                            // Add the anon key for authentication
+                            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
                           },
                           body: JSON.stringify({
                             amount: myAmount,
                             paymentMethodId,
                             bookingId,
-                            splitRequests: createdSplitRequests
+                            splitRequests: createdSplitRequests,
+                            email: user?.email // Add email for receipt
                           })
                         }
                       );
