@@ -642,6 +642,9 @@ const handleSubmit = async (paymentMethodId) => {
 
     const { clientSecret } = await response.json();
 
+    // Get Stripe instance from the Elements context
+    const stripe = await import('@stripe/stripe-js').then(m => m.loadStripe(import.meta.env.VITE_STRIPE_TEST_PUBLISHABLE_KEY));
+
     // Confirm the payment with Stripe
     const { error: confirmError } = await stripe.confirmCardPayment(clientSecret);
     
