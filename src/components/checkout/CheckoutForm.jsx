@@ -10,13 +10,14 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
 
   const handlePaymentSubmit = async (e) => {
     e.preventDefault();
+    e.stopPropagation();
+
     if (!stripe || !elements) {
-      console.log('Stripe not initialized');
+      console.error('Stripe not initialized');
       return;
     }
 
     try {
-      console.log('Creating payment method...');
       const { error: stripeError, paymentMethod } = await stripe.createPaymentMethod({
         type: 'card',
         card: elements.getElement(CardElement),
@@ -32,12 +33,10 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
         throw stripeError;
       }
 
-      console.log('Payment method created:', paymentMethod.id);
-      // Call parent's handleSubmit with just the ID
+      // Only pass the payment method ID
       await handleSubmit(paymentMethod.id);
     } catch (err) {
       console.error('Payment error:', err);
-      // Handle error display
     }
   };
 
