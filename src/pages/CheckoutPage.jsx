@@ -249,7 +249,13 @@ useEffect(() => {
     
     // Check if we have the minimum required data for a booking
     if (incomingData.venue && incomingData.date && incomingData.time) {
-      console.log('✅ Valid booking data found, setting form data');
+      console.log('✅ Valid booking data found:', {
+        incomingData,
+        'incomingData.table': incomingData.table,
+        'incomingData.table?.price': incomingData.table?.price,
+        'incomingData.selectedTable': incomingData.selectedTable,
+        'incomingData.selectedTable?.price': incomingData.selectedTable?.price
+      });
       
       // Set the booking data for display
       setBookingData(incomingData);
@@ -258,7 +264,7 @@ useEffect(() => {
       setFormData(prev => ({
         ...prev,
         venueId: incomingData.venue.id,
-        tableId: incomingData.table.id,
+        tableId: incomingData.table?.id || incomingData.selectedTable?.id,
         date: incomingData.date,
         startTime: incomingData.time,
         endTime: incomingData.endTime,
@@ -773,9 +779,8 @@ const calculateTotal = () => {
     selection,
     bookingData,
     'selection?.selectedTable': selection?.selectedTable,
-    'selection?.selectedTable?.price': selection?.selectedTable?.price,
-    'bookingData?.selectedTable': bookingData?.selectedTable,
-    'bookingData?.selectedTable?.price': bookingData?.selectedTable?.price
+    'bookingData?.table': bookingData?.table,
+    'bookingData?.table?.price': bookingData?.table?.price
   });
 
   if (isDepositFlow && depositAmount) {
@@ -793,11 +798,21 @@ const calculateTotal = () => {
     basePrice = selection.selectedTable?.price || 50;
   } else if (bookingData?.isFromModal) {
     // New format from booking modal (when bookingData is available)
-    basePrice = bookingData.selectedTable?.price || 50;
+    basePrice = bookingData.table?.price || bookingData.selectedTable?.price || 50;
   } else {
-    // Old format
-    basePrice = (selection?.ticket?.price || 0) + (selection?.table?.price || 0);
+    // Old format - check both selection and bookingData
+    basePrice = (selection?.ticket?.price || 0) + 
+                (selection?.table?.price || 0) + 
+                (bookingData?.table?.price || 0);
   }
+
+  // Add logging to see what price is being used
+  console.log('💰 Price calculation:', {
+    'selection?.selectedTable?.price': selection?.selectedTable?.price,
+    'bookingData?.table?.price': bookingData?.table?.price,
+    'bookingData?.selectedTable?.price': bookingData?.selectedTable?.price,
+    basePrice
+  });
 
   let total = basePrice + 25; // 25 is service fee
   if (vipPerks.includes("10% Discount Applied")) {
