@@ -559,42 +559,36 @@ const handleSubmit = async (paymentMethodId) => {
       throw new Error('Failed to create or authenticate user account');
     }
 
-    // Prepare the booking data
-    const bookingDetails = {
-      user_id: currentUser.id,
-      venue_id: bookingData?.venue?.id || selection?.venue?.id,
-      table_id: bookingData?.table?.id || selection?.table?.id,
-      booking_date: bookingData?.date || selection?.date || new Date().toISOString().split('T')[0],
-      start_time: bookingData?.time || selection?.time || '19:00:00',
-      end_time: bookingData?.endTime || selection?.endTime || '23:00:00',
-      number_of_guests: parseInt(bookingData?.guestCount || selection?.guests) || 2,
-      status: 'pending',
-      total_amount: parseFloat(calculateTotal())
-    };
+    // Get venue and table IDs
+    const venueId = bookingData?.venue?.id || selection?.venue?.id;
+    const tableId = bookingData?.table?.id || selection?.table?.id;
 
-    // Validate venue ID
-    if (!bookingDetails.venue_id) {
+    if (!venueId) {
       throw new Error('Venue ID is required');
     }
 
-    // Create payment intent
-    const paymentData = {
-      amount: Math.round(parseFloat(calculateTotal()) * 100),
-      paymentMethodId,
-      email: formData.email,
-      metadata: {
-        userId: currentUser.id,
-        venueId: bookingDetails.venue_id,
-        tableId: bookingDetails.table_id,
-        bookingType: 'single'
+    // Create payment intent using Supabase Edge Function
+    const response = await fetch(
+      'https://agydpkzfucicraedllgl.supabase.co/functions/v1/create-split-payment-intent',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({
+          amount: Math.round(parseFloat(calculateTotal()) * 100),
+          paymentMethodId,
+          email: formData.email,
+          metadata: {
+            userId: currentUser.id,
+            venueId,
+            tableId,
+            bookingType: 'single'
+          }
+        })
       }
-    };
-
-    const response = await fetch('/api/create-payment-intent', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(paymentData)
-    });
+    );
 
     if (!response.ok) {
       const errorData = await response.json();
@@ -603,19 +597,35 @@ const handleSubmit = async (paymentMethodId) => {
 
     const { clientSecret } = await response.json();
 
+    // Get Stripe instance
+    const stripe = await stripePromise;
+    if (!stripe) {
+      throw new Error('Failed to load Stripe');
+    }
+
     // Confirm payment
     const { error: confirmError } = await stripe.confirmCardPayment(clientSecret);
     if (confirmError) {
       throw new Error(`Payment failed: ${confirmError.message}`);
     }
 
-    // Update booking status to confirmed
-    bookingDetails.status = 'confirmed';
+    // Create booking record
+    const bookingData = {
+      user_id: currentUser.id,
+      venue_id: venueId,
+      table_id: tableId,
+      booking_date: selection?.date || bookingData?.date || new Date().toISOString().split('T')[0],
+      start_time: selection?.time || bookingData?.time || '19:00:00',
+      end_time: selection?.endTime || bookingData?.endTime || '23:00:00',
+      number_of_guests: parseInt(selection?.guests) || parseInt(bookingData?.guestCount) || 2,
+      status: 'confirmed',
+      total_amount: parseFloat(calculateTotal())
+    };
 
-    // Save booking to database
+    // Save to database
     const { data: bookingRecord, error: bookingError } = await supabase
       .from('bookings')
-      .insert([bookingDetails])
+      .insert([bookingData])
       .select()
       .single();
 
@@ -623,19 +633,19 @@ const handleSubmit = async (paymentMethodId) => {
       throw new Error(`Failed to create booking: ${bookingError.message}`);
     }
 
+    // Show success message
+    toast({
+      title: "Booking Confirmed!",
+      description: "Your booking has been confirmed. Check your email for details.",
+      className: "bg-green-500 text-white"
+    });
+
     // Send confirmation email
     await sendBookingConfirmationEmail({
       ...bookingRecord,
       customerName: formData.fullName,
       customerEmail: formData.email,
       customerPhone: formData.phone
-    });
-
-    // Show success message
-    toast({
-      title: "Booking Confirmed!",
-      description: "Your booking has been confirmed. Check your email for details.",
-      className: "bg-green-500 text-white"
     });
 
     setShowConfirmation(true);
