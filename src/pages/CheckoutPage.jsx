@@ -855,19 +855,6 @@ setShowShareDialog(true);
                         user: <User className="h-5 w-5 mr-2" />
                       }}
                     />
-                    {/* Move the submit button here, outside of CheckoutForm */}
-                    <Button 
-                      onClick={() => document.querySelector('form').dispatchEvent(new Event('submit'))}
-                      disabled={isSubmitting} 
-                      className="w-full bg-brand-burgundy text-brand-cream hover:bg-brand-burgundy/90 py-3.5 text-lg rounded-md mt-6"
-                    >
-                      {isSubmitting ? (
-                        <div className="flex items-center justify-center">
-                          <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-brand-cream mr-2"></div>
-                          Processing...
-                        </div>
-                      ) : `Pay ₦${calculateTotal().toLocaleString()}`}
-                    </Button>
                   </TabsContent>
 
                   <TabsContent value="split">

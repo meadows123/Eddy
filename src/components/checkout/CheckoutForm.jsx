@@ -3,6 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { User, CreditCard, Gift } from 'lucide-react';
 import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { Button } from '@/components/ui/button'; // Add this import
 
 const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSubmitting, totalAmount, isAuthenticated = false }) => {
   const stripe = useStripe();
@@ -173,6 +174,20 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
             )}
           </div>
         </div>
+
+        {/* Add the submit button back */}
+        <Button 
+          type="submit" 
+          disabled={isSubmitting || !stripe} 
+          className="w-full bg-brand-burgundy text-brand-cream hover:bg-brand-burgundy/90 py-3.5 text-lg rounded-md mt-6"
+        >
+          {isSubmitting ? (
+            <div className="flex items-center justify-center">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-brand-cream mr-2"></div>
+              Processing...
+            </div>
+          ) : `Pay ₦${totalAmount.toLocaleString()}`}
+        </Button>
       </div>
     </form>
   );
