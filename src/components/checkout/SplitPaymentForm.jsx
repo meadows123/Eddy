@@ -528,16 +528,28 @@ const SplitPaymentForm = ({
                       const confirmedBookingId = await createSplitPaymentRequests();
                       console.log('Confirmed bookingId for payment:', confirmedBookingId);
 
-                      // Then process the payment
-                      console.log('Payment request data:', {
-                        amount: myAmount,
-                        paymentMethodId,
+                      // Check if we have split requests BEFORE making payment
+                      if (!createdSplitRequests || createdSplitRequests.length === 0) {
+                        throw new Error('No split payment requests were created. Please try again.');
+                      }
+
+                      // Get the split request ID
+                      const splitRequestId = createdSplitRequests[0]?.id;
+
+                      if (!splitRequestId) {
+                        throw new Error('Split request ID is missing. Please try again.');
+                      }
+
+                      // Log the split request details before proceeding
+                      console.log('🔍 Split request details before payment:', {
+                        createdSplitRequests,
+                        splitRequestId,
                         confirmedBookingId,
-                        realBookingId,
-                        splitRequests: createdSplitRequests,
-                        email: user?.email
+                        myAmount,
+                        recipientCount: splitRecipients.length
                       });
 
+                      // Then process the payment
                       const response = await fetch(
                         'https://agydpkzfucicraedllgl.supabase.co/functions/v1/create-split-payment-intent',
                         {
@@ -549,7 +561,7 @@ const SplitPaymentForm = ({
                           body: JSON.stringify({
                             amount: myAmount,
                             paymentMethodId,
-                            bookingId: confirmedBookingId, // Use the returned booking ID
+                            bookingId: confirmedBookingId,
                             splitRequests: createdSplitRequests,
                             email: user?.email
                           })
@@ -565,49 +577,49 @@ const SplitPaymentForm = ({
                         email: user?.email
                       });
 
-                      // Check if response is ok before parsing JSON
                       if (!response.ok) {
                         const errorText = await response.text();
                         console.error('API Error Response:', errorText);
                         throw new Error(`API request failed: ${response.status} ${response.statusText}`);
                       }
 
-                      // Check if response is JSON
-                      const contentType = response.headers.get('content-type');
-                      if (!contentType || !contentType.includes('application/json')) {
-                        const errorText = await response.text();
-                        console.error('Non-JSON Response:', errorText);
-                        throw new Error('Server returned non-JSON response');
-                      }
-
-                      const { clientSecret, paymentIntentId } = await response.json();
-
-                      // Check if we have split requests
-                      if (!createdSplitRequests || createdSplitRequests.length === 0) {
-                        throw new Error('No split payment requests were created. Please try again.');
-                      }
-
-                      // Get the split request ID
-                      const splitRequestId = createdSplitRequests[0]?.id;
-
-                      if (!splitRequestId) {
-                        throw new Error('Split request ID is missing. Please try again.');
-                      }
-
-                      console.log('🔍 Split request details:', {
-                        createdSplitRequests,
-                        splitRequestId,
-                        paymentIntentId,
-                        confirmedBookingId
-                      });
-
-                      // Confirm the payment
+                      const { clientSecret } = await response.json();
                       const { error: confirmError } = await stripe.confirmCardPayment(clientSecret);
                       
                       if (confirmError) throw confirmError;
 
-                      // Navigate to success page with query parameters
+                      // After successful payment, send notifications to recipients
+                      try {
+                        // Create notifications for each recipient
+                        const notifications = createdSplitRequests.map(request => ({
+                          user_id: request.recipient_id,
+                          type: 'split_payment_request',
+                          title: 'Split Payment Request',
+                          message: `You have a split payment request for ₦${request.amount.toLocaleString()}`,
+                          split_payment_id: request.id,
+                          booking_id: confirmedBookingId,
+                          status: 'pending'
+                        }));
+
+                        // Insert notifications
+                        const { error: notifError } = await supabase
+                          .from('payment_notifications')
+                          .insert(notifications);
+
+                        if (notifError) {
+                          console.error('Error creating notifications:', notifError);
+                          // Don't throw error, just log it
+                        } else {
+                          console.log('✅ Split payment notifications sent to recipients');
+                        }
+                      } catch (notifError) {
+                        console.error('Error sending notifications:', notifError);
+                        // Don't throw error, just log it
+                      }
+
+                      // Navigate to success page
                       navigate(`/split-payment-success?payment_intent=${paymentIntentId}&request_id=${splitRequestId}`);
+
                     } catch (error) {
                       console.error('Payment failed:', error);
                       toast({
