@@ -32,28 +32,47 @@ const SplitPaymentSuccessPage = () => {
         throw new Error('Missing payment information');
       }
 
-      // Fetch the payment request details
+      // Simplify the query to avoid relationship issues
       const { data: requestData, error: requestError } = await supabase
         .from('split_payment_requests')
         .select(`
           *,
           bookings (
-            *,
-            venues (
-              name,
-              address,
-              city
-            ),
-            profiles!bookings_user_id_fkey (
-              first_name,
-              last_name
-            )
+            id,
+            booking_date,
+            start_time,
+            end_time,
+            number_of_guests,
+            total_amount
           )
         `)
         .eq('id', requestId)
         .single();
 
       if (requestError) throw requestError;
+
+      // Get venue info separately
+      const { data: venueData } = await supabase
+        .from('venues')
+        .select('name, address, city')
+        .eq('id', requestData.bookings?.venue_id)
+        .single();
+
+      // Get user profile separately
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('first_name, last_name')
+        .eq('id', requestData.requester_id)
+        .single();
+
+      // Combine the data
+      const combinedData = {
+        ...requestData,
+        venue: venueData,
+        profile: profileData
+      };
+
+      setPaymentDetails(combinedData);
 
       // Update the payment request status
       const { error: updateError } = await supabase
@@ -85,7 +104,6 @@ const SplitPaymentSuccessPage = () => {
       // Check if all payments for this booking are complete
       await checkAllPaymentsComplete(requestData.booking_id);
 
-      setPaymentDetails(requestData);
       setSuccess(true);
 
       toast({

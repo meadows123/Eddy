@@ -585,8 +585,14 @@ const SplitPaymentForm = ({
                       
                       if (confirmError) throw confirmError;
 
-                      // Get the split request ID (assuming it's the first one since we're the initiator)
+                      // Get the split request ID from the created requests
                       const splitRequestId = createdSplitRequests[0]?.id;
+
+                      console.log('🔍 Split request ID for navigation:', {
+                        createdSplitRequests,
+                        splitRequestId,
+                        paymentIntentId
+                      });
 
                       // Navigate to success page with query parameters
                       navigate(`/split-payment-success?payment_intent=${paymentIntentId}&request_id=${splitRequestId}`);
