@@ -580,18 +580,16 @@ const SplitPaymentForm = ({
                         throw new Error('Server returned non-JSON response');
                       }
 
-                      const { clientSecret } = await response.json();
+                      const { clientSecret, paymentIntentId } = await response.json();
                       const { error: confirmError } = await stripe.confirmCardPayment(clientSecret);
                       
                       if (confirmError) throw confirmError;
 
-                      // Navigate to success page
-                      navigate('/split-payment-success', {
-                        state: {
-                          amount: myAmount,
-                          splitRequests: createdSplitRequests
-                        }
-                      });
+                      // Get the split request ID (assuming it's the first one since we're the initiator)
+                      const splitRequestId = createdSplitRequests[0]?.id;
+
+                      // Navigate to success page with query parameters
+                      navigate(`/split-payment-success?payment_intent=${paymentIntentId}&request_id=${splitRequestId}`);
                     } catch (error) {
                       console.error('Payment failed:', error);
                       toast({
