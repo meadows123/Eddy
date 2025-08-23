@@ -29,8 +29,8 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
         throw stripeError;
       }
 
-      // Call the parent handleSubmit with the payment method
-      await handleSubmit(e, paymentMethod.id);
+      // Call the parent handleSubmit with ONLY the payment method ID
+      await handleSubmit(paymentMethod.id);
     } catch (err) {
       console.error('Payment error:', err);
       // Handle error display
