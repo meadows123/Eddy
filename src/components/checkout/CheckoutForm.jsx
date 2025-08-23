@@ -11,10 +11,12 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
   const handlePaymentSubmit = async (e) => {
     e.preventDefault();
     if (!stripe || !elements) {
+      console.log('Stripe not initialized');
       return;
     }
 
     try {
+      console.log('Creating payment method...');
       const { error: stripeError, paymentMethod } = await stripe.createPaymentMethod({
         type: 'card',
         card: elements.getElement(CardElement),
@@ -26,10 +28,12 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
       });
 
       if (stripeError) {
+        console.error('Stripe error:', stripeError);
         throw stripeError;
       }
 
-      // Call the parent handleSubmit with ONLY the payment method ID
+      console.log('Payment method created:', paymentMethod.id);
+      // Call parent's handleSubmit with just the ID
       await handleSubmit(paymentMethod.id);
     } catch (err) {
       console.error('Payment error:', err);
@@ -38,9 +42,9 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
   };
 
   return (
-    <form onSubmit={handlePaymentSubmit}>
+    <form onSubmit={handlePaymentSubmit} id="payment-form">
       <div className="space-y-6">
-        {/* Personal Information section remains the same */}
+        {/* Personal Information section */}
         <div className="bg-secondary/20 border border-border/50 rounded-lg p-6">
           <h2 className="text-xl font-bold mb-4 flex items-center">
             <User className="mr-2 h-5 w-5" />
@@ -104,7 +108,7 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
           </div>
         </div>
 
-        {/* Referral Code section remains the same */}
+        {/* Referral Code section */}
         <div className="bg-secondary/20 border border-border/50 rounded-lg p-6">
           <h2 className="text-xl font-bold mb-4 flex items-center">
             <Gift className="mr-2 h-5 w-5" />
@@ -122,7 +126,7 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
           </div>
         </div>
         
-        {/* Replace the old payment section with Stripe Elements */}
+        {/* Payment Information section */}
         <div className="bg-secondary/20 border border-border/50 rounded-lg p-6">
           <h2 className="text-xl font-bold mb-4 flex items-center">
             <CreditCard className="mr-2 h-5 w-5" />
@@ -151,7 +155,7 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
           </div>
         </div>
         
-        {/* Terms and conditions remain the same */}
+        {/* Terms and conditions */}
         <div className="flex items-start gap-2">
           <input 
             type="checkbox" 
