@@ -258,7 +258,6 @@ const SplitPaymentForm = ({
   };
 
   const createSplitPaymentRequests = async () => {
-    setIsCreating(true);
     try {
       let newBookingId = bookingId;
       console.log('Initial bookingId:', bookingId);
@@ -278,9 +277,14 @@ const SplitPaymentForm = ({
       setRealBookingId(newBookingId);
       console.log('Set realBookingId to:', newBookingId);
 
+      // Ensure we have recipients before creating requests
+      if (!splitRecipients || splitRecipients.length === 0) {
+        throw new Error('Please select recipients for split payment.');
+      }
+
       const userProfileId = user.id;
       const splitRequests = splitRecipients.map((recipient, index) => ({
-        booking_id: newBookingId, // Use newBookingId here
+        booking_id: newBookingId,
         requester_id: userProfileId,
         recipient_id: recipient.id,
         recipient_phone: recipient.phone || null,
@@ -545,8 +549,7 @@ const SplitPaymentForm = ({
                         createdSplitRequests,
                         splitRequestId,
                         confirmedBookingId,
-                        myAmount,
-                        recipientCount: splitRecipients.length
+                        myAmount
                       });
 
                       // Then process the payment
@@ -583,39 +586,10 @@ const SplitPaymentForm = ({
                         throw new Error(`API request failed: ${response.status} ${response.statusText}`);
                       }
 
-                      const { clientSecret } = await response.json();
+                      const { clientSecret, paymentIntentId } = await response.json();
                       const { error: confirmError } = await stripe.confirmCardPayment(clientSecret);
                       
                       if (confirmError) throw confirmError;
-
-                      // After successful payment, send notifications to recipients
-                      try {
-                        // Create notifications for each recipient
-                        const notifications = createdSplitRequests.map(request => ({
-                          user_id: request.recipient_id,
-                          type: 'split_payment_request',
-                          title: 'Split Payment Request',
-                          message: `You have a split payment request for ₦${request.amount.toLocaleString()}`,
-                          split_payment_id: request.id,
-                          booking_id: confirmedBookingId,
-                          status: 'pending'
-                        }));
-
-                        // Insert notifications
-                        const { error: notifError } = await supabase
-                          .from('payment_notifications')
-                          .insert(notifications);
-
-                        if (notifError) {
-                          console.error('Error creating notifications:', notifError);
-                          // Don't throw error, just log it
-                        } else {
-                          console.log('✅ Split payment notifications sent to recipients');
-                        }
-                      } catch (notifError) {
-                        console.error('Error sending notifications:', notifError);
-                        // Don't throw error, just log it
-                      }
 
                       // Navigate to success page
                       navigate(`/split-payment-success?payment_intent=${paymentIntentId}&request_id=${splitRequestId}`);
