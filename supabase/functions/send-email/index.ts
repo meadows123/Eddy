@@ -431,14 +431,9 @@ serve(async (req) => {
       </div>
 
       <div class="cta">
-        <!-- Primary button - try to open mobile app first -->
-        <a class="btn btn-primary" href="oneeddy://admin/venue-approvals?token=${data.adminToken || ''}">
-           Open in Mobile App
-        </a>
-        
-        <!-- Secondary button - web fallback for desktop/laptop -->
-        <a class="btn btn-secondary" href="${data.adminUrl || (Deno.env.get('APP_URL') || 'https://oneeddy.com') + '/admin/venue-approvals'}">
-          💻 Open in Web Browser
+        <!-- Single working button for web access -->
+        <a class="btn btn-primary" href="${data.adminUrl || (Deno.env.get('APP_URL') || 'https://oneeddy.com') + '/admin/venue-approvals'}">
+           Review Venue Owner
         </a>
       </div>
       
