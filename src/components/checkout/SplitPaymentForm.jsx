@@ -581,18 +581,30 @@ const SplitPaymentForm = ({
                       }
 
                       const { clientSecret, paymentIntentId } = await response.json();
+
+                      // Check if we have split requests
+                      if (!createdSplitRequests || createdSplitRequests.length === 0) {
+                        throw new Error('No split payment requests were created. Please try again.');
+                      }
+
+                      // Get the split request ID
+                      const splitRequestId = createdSplitRequests[0]?.id;
+
+                      if (!splitRequestId) {
+                        throw new Error('Split request ID is missing. Please try again.');
+                      }
+
+                      console.log('🔍 Split request details:', {
+                        createdSplitRequests,
+                        splitRequestId,
+                        paymentIntentId,
+                        confirmedBookingId
+                      });
+
+                      // Confirm the payment
                       const { error: confirmError } = await stripe.confirmCardPayment(clientSecret);
                       
                       if (confirmError) throw confirmError;
-
-                      // Get the split request ID from the created requests
-                      const splitRequestId = createdSplitRequests[0]?.id;
-
-                      console.log('🔍 Split request ID for navigation:', {
-                        createdSplitRequests,
-                        splitRequestId,
-                        paymentIntentId
-                      });
 
                       // Navigate to success page with query parameters
                       navigate(`/split-payment-success?payment_intent=${paymentIntentId}&request_id=${splitRequestId}`);
