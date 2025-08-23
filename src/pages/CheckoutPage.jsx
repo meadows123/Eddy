@@ -538,238 +538,259 @@ throw error;
 }
 };
 
-const handleSubmit = async (e) => {
-e.preventDefault();
-const formErrors = validateCheckoutForm(formData, !!user);
-setErrors(formErrors);
+const handleSubmit = async (paymentMethodId) => {
+  // Remove the form validation since it's handled in CheckoutForm
+  setIsSubmitting(true);
 
-if (Object.keys(formErrors).length === 0) {
-setIsSubmitting(true);
+  try {
+    // Apply referral code if provided
+    if (formData.referralCode) {
+      applyReferralCode(formData.referralCode);
+    }
 
-try {
-// Apply referral code if provided
-if (formData.referralCode) {
-  applyReferralCode(formData.referralCode);
-}
+    // Create or update user account
+    const currentUser = await createOrUpdateUserAccount({
+      fullName: formData.fullName,
+      email: formData.email,
+      phone: formData.phone,
+      password: formData.password
+    });
 
-        // Create or update user account
-        const currentUser = await createOrUpdateUserAccount({
-          fullName: formData.fullName,
-          email: formData.email,
-          phone: formData.phone,
-          password: formData.password
+    // Validate that we have a valid user
+    if (!currentUser || !currentUser.id) {
+      throw new Error('Failed to create or authenticate user account. Please try again.');
+    }
+
+    // Set current user for split payments (important for new users)
+    setCurrentUserForSplit(currentUser);
+
+    console.log('Current user for booking:', { id: currentUser.id, email: currentUser.email });
+
+    // Only verify session for existing users, not newly created ones
+    if (user) { // If user was already authenticated (existing user)
+      try {
+        const { data: finalCheck, error: finalError } = await supabase.auth.getUser();
+        if (finalError || !finalCheck.user || finalCheck.user.id !== currentUser.id) {
+          throw new Error(`User verification failed before booking: ${finalError?.message || 'User not found'}`);
+        }
+        console.log('Final user verification passed');
+      } catch (authError) {
+        console.error('Authentication check failed:', authError);
+        throw new Error('Authentication failed - please try logging in again');
+      }
+    } else {
+      console.log('New user created, skipping session verification');
+    }
+
+    // Handle credit purchase flow
+    if (selection?.isCreditPurchase) {
+      // Create venue credit record
+      const { data: creditData, error: creditError } = await supabase
+        .from('venue_credits')
+        .insert([{
+          user_id: currentUser?.id,
+          venue_id: selection.venueId,
+          amount: selection.creditAmount * 100, // Convert to kobo/cents
+          notes: `Credit purchase for ${selection.venueName}`,
+          status: 'active'
+        }])
+        .select()
+        .single();
+
+      if (creditError) {
+        throw new Error(`Failed to create venue credits: ${creditError.message}`);
+      }
+
+      // Show success message
+      toast({
+        title: "Credits Purchased Successfully! 🎉",
+        description: `₦${selection.creditAmount.toLocaleString()} credits added to your ${selection.venueName} account`,
+        className: "bg-green-500 text-white",
+      });
+
+      // Navigate back to profile/wallet
+      setTimeout(() => {
+        navigate('/profile', { state: { activeTab: 'wallet' } });
+      }, 2000);
+
+      return; // Exit early for credit purchase flow
+    }
+
+    // Single payment flow - create Stripe PaymentIntent
+    const response = await fetch('/api/create-payment-intent', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        amount: Math.round(parseFloat(calculateTotal()) * 100), // Convert to cents
+        paymentMethodId,
+        email: formData.email,
+        metadata: {
+          userId: currentUser.id,
+          venueId: selection?.venue?.id || bookingData?.venue?.id || selection?.venueId || selection?.id,
+          tableId: selection?.table?.id || bookingData?.table?.id || selection?.selectedTable?.id || selection?.tableId,
+          bookingType: 'single'
+        }
+      })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to create payment intent');
+    }
+
+    const { clientSecret } = await response.json();
+
+    // Confirm the payment with Stripe
+    const { error: confirmError } = await stripe.confirmCardPayment(clientSecret);
+    
+    if (confirmError) {
+      throw new Error(`Payment failed: ${confirmError.message}`);
+    }
+
+    // Payment successful - create booking
+    const venueId = selection?.venue?.id || bookingData?.venue?.id || selection?.venueId || selection?.id;
+    const tableId = selection?.table?.id || bookingData?.table?.id || selection?.selectedTable?.id || selection?.tableId || null;
+
+    console.log('🔍 Debug venue ID lookup in handleSubmit:', {
+      'selection?.venue?.id': selection?.venue?.id,
+      'bookingData?.venue?.id': bookingData?.venue?.id,
+      'selection?.venueId': selection?.venueId,
+      'selection?.id': selection?.id,
+      'final venueId': venueId
+    });
+
+    // Validate required fields
+    if (!venueId) {
+      throw new Error('Venue ID is required for booking');
+    }
+
+    const sessionCheckUser = await ensureSession();
+    const bookingDataToInsert = {
+      user_id: sessionCheckUser.id,
+      venue_id: venueId,
+      table_id: tableId,
+      booking_date: selection?.date || bookingData?.date || new Date().toISOString().split('T')[0],
+      start_time: selection?.time || bookingData?.time || '19:00:00',
+      end_time: selection?.endTime || bookingData?.endTime || '23:00:00',
+      number_of_guests: parseInt(selection?.guests) || parseInt(bookingData?.guestCount) || 2,
+      status: 'confirmed',
+      total_amount: parseFloat(calculateTotal())
+    };
+
+    console.log('Booking data to insert:', bookingDataToInsert);
+
+    // Validate table_id exists if provided
+    if (tableId) {
+      const { data: tableExists, error: tableError } = await supabase
+        .from('venue_tables')
+        .select('id')
+        .eq('id', tableId)
+        .single();
+      
+      if (tableError || !tableExists) {
+        console.warn('Table ID not found, proceeding without table assignment');
+        bookingDataToInsert.table_id = null;
+      }
+    }
+
+    // Save booking to database (DB enforces one booking per table per day for confirmed)
+    const { data: bookingRecord, error: bookingError } = await supabase
+      .from('bookings')
+      .insert([{
+        ...bookingDataToInsert,
+        // Ensure these keys match the unique index (table_id, booking_date, status)
+        status: 'confirmed',
+        booking_date: bookingDataToInsert.booking_date || (selection?.date || bookingData?.date || new Date().toISOString().split('T')[0]),
+        table_id: bookingDataToInsert.table_id || tableId || null,
+      }])
+      .select()
+      .single();
+
+    if (bookingError) {
+      const msg = bookingError.message || '';
+      const isUnique = bookingError.code === '23505' || /duplicate key value|bookings_one_per_day/i.test(msg);
+      if (isUnique) {
+        toast({
+          title: 'Table already booked for this date',
+          description: 'Please choose another table or another date.',
+          variant: 'destructive',
+          className: 'bg-red-500 text-white',
         });
+        setIsSubmitting(false);
+        return;
+      }
+      throw new Error(`Failed to create booking: ${bookingError.message}`);
+    }
 
-        // Validate that we have a valid user
-        if (!currentUser || !currentUser.id) {
-          throw new Error('Failed to create or authenticate user account. Please try again.');
-        }
+    // Create booking record for localStorage (for backward compatibility)
+    const newBooking = {
+      id: bookingRecord.id,
+      ...selection,
+      ...bookingData, // Include bookingData for backward compatibility
+      customerName: formData.fullName,
+      customerEmail: formData.email,
+      customerPhone: formData.phone,
+      userId: currentUser?.id,
+      bookingDate: new Date().toISOString(),
+      status: 'confirmed',
+      referralCode: formData.referralCode,
+      vipPerksApplied: vipPerks,
+      totalAmount: calculateTotal(),
+      dbRecord: bookingRecord // Reference to database record
+    };
 
-        // Set current user for split payments (important for new users)
-        setCurrentUserForSplit(currentUser);
+    // Save booking to localStorage (for backward compatibility with existing components)
+    const bookings = JSON.parse(localStorage.getItem('lagosvibe_bookings') || '[]');
+    bookings.push(newBooking);
+    localStorage.setItem('lagosvibe_bookings', JSON.stringify(bookings));
+    localStorage.removeItem('lagosvibe_booking_selection');
 
-        console.log('Current user for booking:', { id: currentUser.id, email: currentUser.email });
-
-        // Only verify session for existing users, not newly created ones
-        if (user) { // If user was already authenticated (existing user)
-          try {
-            const { data: finalCheck, error: finalError } = await supabase.auth.getUser();
-            if (finalError || !finalCheck.user || finalCheck.user.id !== currentUser.id) {
-              throw new Error(`User verification failed before booking: ${finalError?.message || 'User not found'}`);
-            }
-            console.log('Final user verification passed');
-          } catch (authError) {
-            console.error('Authentication check failed:', authError);
-            throw new Error('Authentication failed - please try logging in again');
-          }
-        } else {
-          console.log('New user created, skipping session verification');
-        }
-
-// Handle credit purchase flow
-if (selection?.isCreditPurchase) {
-  // Create venue credit record
-  const { data: creditData, error: creditError } = await supabase
-    .from('venue_credits')
-    .insert([{
-      user_id: currentUser?.id,
-      venue_id: selection.venueId,
-      amount: selection.creditAmount * 100, // Convert to kobo/cents
-      notes: `Credit purchase for ${selection.venueName}`,
-      status: 'active'
-    }])
-    .select()
-    .single();
-
-  if (creditError) {
-    throw new Error(`Failed to create venue credits: ${creditError.message}`);
-  }
-
-  // Show success message
-  toast({
-    title: "Credits Purchased Successfully! 🎉",
-    description: `₦${selection.creditAmount.toLocaleString()} credits added to your ${selection.venueName} account`,
-    className: "bg-green-500 text-white",
-  });
-
-  // Navigate back to profile/wallet
-  setTimeout(() => {
-    navigate('/profile', { state: { activeTab: 'wallet' } });
-  }, 2000);
-
-  return; // Exit early for credit purchase flow
-}
-
-// Original booking flow continues here...
-// Prepare booking data for database - use the correct data structure
-const venueId = selection?.venue?.id || bookingData?.venue?.id || selection?.venueId || selection?.id;
-const tableId = selection?.table?.id || bookingData?.table?.id || selection?.selectedTable?.id || selection?.tableId || null;
-
-console.log('🔍 Debug venue ID lookup in handleSubmit:', {
-  'selection?.venue?.id': selection?.venue?.id,
-  'bookingData?.venue?.id': bookingData?.venue?.id,
-  'selection?.venueId': selection?.venueId,
-  'selection?.id': selection?.id,
-  'final venueId': venueId
-});
-
-// Validate required fields
-if (!venueId) {
-  throw new Error('Venue ID is required for booking');
-}
-
-const sessionCheckUser = await ensureSession();
-const bookingDataToInsert = {
-  user_id: sessionCheckUser.id, // We've already validated this exists
-  venue_id: venueId,
-  table_id: tableId,
-  booking_date: selection?.date || bookingData?.date || new Date().toISOString().split('T')[0],
-  start_time: selection?.time || bookingData?.time || '19:00:00',
-  end_time: selection?.endTime || bookingData?.endTime || '23:00:00',
-  number_of_guests: parseInt(selection?.guests) || parseInt(bookingData?.guestCount) || 2,
-  status: 'confirmed',
-  total_amount: parseFloat(calculateTotal())
-};
-
-console.log('Booking data to insert:', bookingDataToInsert);
-
-// Validate table_id exists if provided
-if (tableId) {
-  const { data: tableExists, error: tableError } = await supabase
-    .from('venue_tables')
-    .select('id')
-    .eq('id', tableId)
-    .single();
-  
-  if (tableError || !tableExists) {
-    console.warn('Table ID not found, proceeding without table assignment');
-    bookingDataToInsert.table_id = null;
-  }
-}
-
-// Save booking to database (DB enforces one booking per table per day for confirmed)
-const { data: bookingRecord, error: bookingError } = await supabase
-  .from('bookings')
-  .insert([{
-    ...bookingDataToInsert,
-    // Ensure these keys match the unique index (table_id, booking_date, status)
-    status: 'confirmed',
-    booking_date: bookingDataToInsert.booking_date || (selection?.date || bookingData?.date || new Date().toISOString().split('T')[0]),
-    table_id: bookingDataToInsert.table_id || tableId || null,
-  }])
-  .select()
-  .single();
-
-if (bookingError) {
-  const msg = bookingError.message || '';
-  const isUnique = bookingError.code === '23505' || /duplicate key value|bookings_one_per_day/i.test(msg);
-  if (isUnique) {
-    toast({
-      title: 'Table already booked for this date',
-      description: 'Please choose another table or another date.',
-      variant: 'destructive',
-      className: 'bg-red-500 text-white',
+    // Send confirmation email (non-blocking)
+    const emailSent = await sendBookingConfirmationEmail({
+      ...newBooking,
+      bookingId: bookingRecord.id,
+      venueName: selection?.venueName || bookingData?.venueName || selection?.name
     });
+
+    // Unlock VIP perks
+    const unlockedPerks = ["Free Welcome Drink", "Priority Queue"];
+    localStorage.setItem('lagosvibe_vip_perks', JSON.stringify(unlockedPerks));
+
+    // Show success message regardless of email status
+    const isNewUser = !user;
+    toast({ 
+      title: isNewUser ? "Account Created & Booking Confirmed!" : "Booking Confirmed!", 
+      description: emailSent 
+        ? (isNewUser ? "Welcome to VIPClub! Check your email for confirmation." : "Your booking is confirmed! Check your email for confirmation.")
+        : (isNewUser ? "Welcome to VIPClub! Your booking is confirmed. You can view details in your profile." : "Your booking is confirmed. You can view details in your profile."),
+      className: "bg-green-500 text-white"
+    });
+
+    // If email failed, show a separate notification
+    if (!emailSent) {
+      setTimeout(() => {
+        toast({
+          title: "Email Notification",
+          description: "Confirmation email could not be sent, but your booking is saved. You can view it in your profile.",
+          variant: "default"
+        });
+      }, 3000);
+    }
+
+    setShowConfirmation(true);
+
+  } catch (error) {
+    console.error('Error processing booking:', error);
+    toast({
+      title: "Booking Error",
+      description: error.message || "There was an error processing your booking. Please try again.",
+      variant: "destructive",
+    });
+  } finally {
     setIsSubmitting(false);
-    return;
   }
-  throw new Error(`Failed to create booking: ${bookingError.message}`);
-}
-
-// Create booking record for localStorage (for backward compatibility)
-const newBooking = {
-  id: bookingRecord.id,
-  ...selection,
-  ...bookingData, // Include bookingData for backward compatibility
-  customerName: formData.fullName,
-  customerEmail: formData.email,
-  customerPhone: formData.phone,
-  userId: currentUser?.id,
-  bookingDate: new Date().toISOString(),
-  status: 'confirmed',
-  referralCode: formData.referralCode,
-  vipPerksApplied: vipPerks,
-  totalAmount: calculateTotal(),
-  dbRecord: bookingRecord // Reference to database record
-};
-
-// Save booking to localStorage (for backward compatibility with existing components)
-const bookings = JSON.parse(localStorage.getItem('lagosvibe_bookings') || '[]');
-bookings.push(newBooking);
-localStorage.setItem('lagosvibe_bookings', JSON.stringify(bookings));
-localStorage.removeItem('lagosvibe_booking_selection');
-
-// Send confirmation email (non-blocking)
-const emailSent = await sendBookingConfirmationEmail({
-  ...newBooking,
-  bookingId: bookingRecord.id,
-  venueName: selection?.venueName || bookingData?.venueName || selection?.name
-});
-
-// Unlock VIP perks
-const unlockedPerks = ["Free Welcome Drink", "Priority Queue"];
-localStorage.setItem('lagosvibe_vip_perks', JSON.stringify(unlockedPerks));
-
-// Show success message regardless of email status
-const isNewUser = !user;
-toast({ 
-  title: isNewUser ? "Account Created & Booking Confirmed!" : "Booking Confirmed!", 
-  description: emailSent 
-    ? (isNewUser ? "Welcome to VIPClub! Check your email for confirmation." : "Your booking is confirmed! Check your email for confirmation.")
-    : (isNewUser ? "Welcome to VIPClub! Your booking is confirmed. You can view details in your profile." : "Your booking is confirmed. You can view details in your profile."),
-  className: "bg-green-500 text-white"
-});
-
-// If email failed, show a separate notification
-if (!emailSent) {
-  setTimeout(() => {
-    toast({
-      title: "Email Notification",
-      description: "Confirmation email could not be sent, but your booking is saved. You can view it in your profile.",
-      variant: "default"
-    });
-  }, 3000);
-}
-
-setShowConfirmation(true);
-
-} catch (error) {
-console.error('Error processing booking:', error);
-toast({
-  title: "Booking Error",
-  description: error.message || "There was an error processing your booking. Please try again.",
-  variant: "destructive",
-});
-} finally {
-setIsSubmitting(false);
-}
-} else {
-toast({
-title: "Form validation failed",
-description: "Please check the form and fix the errors.",
-variant: "destructive",
-});
-}
 };
 
 const calculateTotal = () => {
