@@ -528,31 +528,61 @@ const SplitPaymentForm = ({
                   amount={myAmount} 
                   onSuccess={async (paymentMethodId, stripe) => {
                     try {
-                      // First create the split payment requests and get the booking ID
-                      const confirmedBookingId = await createSplitPaymentRequests();
-                      console.log('Confirmed bookingId for payment:', confirmedBookingId);
-
-                      // Check if we have split requests BEFORE making payment
-                      if (!createdSplitRequests || createdSplitRequests.length === 0) {
-                        throw new Error('No split payment requests were created. Please try again.');
+                      // Add loading state to prevent double clicks
+                      if (isCreating) {
+                        console.log('Payment already in progress...');
+                        return;
                       }
 
-                      // Get the split request ID
-                      const splitRequestId = createdSplitRequests[0]?.id;
+                      setIsCreating(true);
 
-                      if (!splitRequestId) {
-                        throw new Error('Split request ID is missing. Please try again.');
-                      }
-
-                      // Log the split request details before proceeding
-                      console.log('🔍 Split request details before payment:', {
-                        createdSplitRequests,
-                        splitRequestId,
-                        confirmedBookingId,
-                        myAmount
+                      // Log initial state
+                      console.log('Starting payment flow:', {
+                        splitRecipients,
+                        splitAmounts,
+                        myAmount,
+                        bookingId
                       });
 
-                      // Then process the payment
+                      // Create booking and split requests in one step
+                      const { confirmedBookingId, splitRequests } = await (async () => {
+                        // Get or create booking ID
+                        let newBookingId = bookingId;
+                        if (!newBookingId && typeof createBookingIfNeeded === 'function') {
+                          newBookingId = await createBookingIfNeeded();
+                        }
+
+                        if (!newBookingId) {
+                          throw new Error('Could not create booking.');
+                        }
+
+                        // Create split requests
+                        const userProfileId = user.id;
+                        const requests = splitRecipients.map((recipient, index) => ({
+                          booking_id: newBookingId,
+                          requester_id: userProfileId,
+                          recipient_id: recipient.id,
+                          recipient_phone: recipient.phone || null,
+                          amount: splitAmounts[index],
+                          payment_link: `${window.location.origin}/split-payment/${newBookingId}/${index}`,
+                          status: 'pending'
+                        }));
+
+                        const { data, error } = await supabase
+                          .from('split_payment_requests')
+                          .insert(requests)
+                          .select();
+
+                        if (error) throw error;
+
+                        return { confirmedBookingId: newBookingId, splitRequests: data };
+                      })();
+
+                      // Store the created requests
+                      setCreatedSplitRequests(splitRequests);
+                      setSplitRequestsCreated(true);
+
+                      // Process payment immediately after creating requests
                       const response = await fetch(
                         'https://agydpkzfucicraedllgl.supabase.co/functions/v1/create-split-payment-intent',
                         {
@@ -565,31 +595,30 @@ const SplitPaymentForm = ({
                             amount: myAmount,
                             paymentMethodId,
                             bookingId: confirmedBookingId,
-                            splitRequests: createdSplitRequests,
+                            splitRequests,
                             email: user?.email
                           })
                         }
                       );
 
-                      // Add logging before the fetch
-                      console.log('💰 Payment request data:', {
-                        amount: myAmount,
-                        paymentMethodId,
-                        confirmedBookingId,
-                        splitRequests: createdSplitRequests,
-                        email: user?.email
-                      });
-
                       if (!response.ok) {
                         const errorText = await response.text();
                         console.error('API Error Response:', errorText);
-                        throw new Error(`API request failed: ${response.status} ${response.statusText}`);
+                        throw new Error(`Payment failed. Please try again.`);
                       }
 
                       const { clientSecret, paymentIntentId } = await response.json();
                       const { error: confirmError } = await stripe.confirmCardPayment(clientSecret);
                       
-                      if (confirmError) throw confirmError;
+                      if (confirmError) {
+                        throw new Error('Payment could not be confirmed. Please try again.');
+                      }
+
+                      // Get the first split request ID for success page
+                      const splitRequestId = splitRequests[0]?.id;
+                      if (!splitRequestId) {
+                        throw new Error('Split request ID is missing.');
+                      }
 
                       // Navigate to success page
                       navigate(`/split-payment-success?payment_intent=${paymentIntentId}&request_id=${splitRequestId}`);
@@ -601,6 +630,8 @@ const SplitPaymentForm = ({
                         description: error.message || "Failed to process payment. Please try again.",
                         variant: "destructive"
                       });
+                    } finally {
+                      setIsCreating(false);
                     }
                   }}
                 />
