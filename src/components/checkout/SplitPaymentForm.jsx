@@ -563,8 +563,11 @@ const SplitPaymentForm = ({
                           recipient_id: recipient.id,
                           recipient_phone: recipient.phone || null,
                           amount: splitAmounts[index],
-                          payment_link: `${window.location.origin}/split-payment/${newBookingId}/${index}`,
-                          status: 'pending'
+                          payment_link: `${window.location.origin}/split-payment/${newBookingId}/${recipient.id}`,
+                          status: 'pending',
+                          requester_name: user?.first_name && user?.last_name 
+                            ? `${user.first_name} ${user.last_name}` 
+                            : user?.email || 'Unknown User'
                         }));
 
                         const { data, error } = await supabase
@@ -574,7 +577,21 @@ const SplitPaymentForm = ({
 
                         if (error) throw error;
 
-                        return { confirmedBookingId: newBookingId, splitRequests: data };
+                        // Update payment links with actual request IDs
+                        const updatedRequests = data.map((request, index) => ({
+                          ...request,
+                          payment_link: `${window.location.origin}/split-payment/${newBookingId}/${request.id}`
+                        }));
+
+                        // Update the payment links in the database
+                        for (const request of updatedRequests) {
+                          await supabase
+                            .from('split_payment_requests')
+                            .update({ payment_link: request.payment_link })
+                            .eq('id', request.id);
+                        }
+
+                        return { confirmedBookingId: newBookingId, splitRequests: updatedRequests };
                       })();
 
                       // Store the created requests
@@ -595,7 +612,9 @@ const SplitPaymentForm = ({
                             paymentMethodId,
                             bookingId: confirmedBookingId,
                             splitRequests,
-                            email: user?.email
+                            email: user?.email,
+                            bookingType: 'split',
+                            isInitiatorPayment: true
                           })
                         }
                       );
@@ -617,6 +636,33 @@ const SplitPaymentForm = ({
                       const splitRequestId = splitRequests[0]?.id;
                       if (!splitRequestId) {
                         throw new Error('Split request ID is missing.');
+                      }
+
+                      // Update the initiator's payment status in the booking
+                      // This doesn't affect the split payment requests - they remain pending
+                      const { error: bookingUpdateError } = await supabase
+                        .from('bookings')
+                        .update({ 
+                          initiator_paid: true,
+                          initiator_payment_amount: myAmount,
+                          initiator_payment_date: new Date().toISOString()
+                        })
+                        .eq('id', confirmedBookingId);
+
+                      if (bookingUpdateError) {
+                        console.error('Error updating booking with initiator payment:', bookingUpdateError);
+                      }
+
+                      // Show success message
+                      toast({
+                        title: "Payment Successful!",
+                        description: `Your portion (₦${myAmount.toLocaleString()}) has been paid. Split payment requests have been sent to your friends.`,
+                        className: "bg-green-500 text-white"
+                      });
+
+                      // Call the callback to show the split requests dialog
+                      if (onSplitCreated) {
+                        onSplitCreated(splitRequests);
                       }
 
                       // Navigate to success page

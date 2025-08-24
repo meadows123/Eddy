@@ -340,10 +340,14 @@ const SplitPaymentPage = () => {
                 <div className="text-3xl font-bold text-brand-burgundy mb-2">
                   ₦{(paymentRequest.amount || 0).toLocaleString()}
                 </div>
-                <p className="text-muted-foreground">Your portion of the booking</p>
+                <p className="text-muted-foreground">Your portion of the split payment</p>
                 {!paymentRequest.amount && (
                   <p className="text-sm text-red-500 mt-2">Warning: Invalid payment amount</p>
                 )}
+                <div className="mt-4 text-sm text-muted-foreground">
+                  <p>Requested by: {paymentRequest.requester_name || 'Unknown User'}</p>
+                  <p>Booking ID: {paymentRequest.booking_id}</p>
+                </div>
               </div>
             </div>
           </CardContent>
@@ -375,8 +379,9 @@ const SplitPaymentPage = () => {
                           paymentMethodId,
                           bookingId: paymentRequest.booking_id,
                           splitRequests: [paymentRequest],
-                          email: paymentRequest.recipient_email || '',
-                          bookingType: 'split'
+                          email: paymentRequest.recipient_email || user?.email || '',
+                          bookingType: 'split',
+                          isInitiatorPayment: false
                         })
                       }
                     );
@@ -386,7 +391,7 @@ const SplitPaymentPage = () => {
                       throw new Error(errorData.error || 'Failed to create payment intent');
                     }
 
-                    const { clientSecret } = await response.json();
+                    const { clientSecret, paymentIntentId } = await response.json();
 
                     // Load Stripe and confirm payment
                     const stripe = await loadStripe(import.meta.env.VITE_STRIPE_TEST_PUBLISHABLE_KEY);
@@ -404,7 +409,8 @@ const SplitPaymentPage = () => {
                       .from('split_payment_requests')
                       .update({ 
                         status: 'paid',
-                        paid_at: new Date().toISOString()
+                        paid_at: new Date().toISOString(),
+                        stripe_payment_id: paymentIntentId || 'manual_payment'
                       })
                       .eq('id', paymentRequest.id);
 
@@ -412,10 +418,27 @@ const SplitPaymentPage = () => {
                       console.error('Error updating payment status:', updateError);
                     }
 
+                    // Check if all split payments for this booking are now paid
+                    const { data: allRequests, error: checkError } = await supabase
+                      .from('split_payment_requests')
+                      .select('status')
+                      .eq('booking_id', paymentRequest.booking_id);
+
+                    if (!checkError && allRequests) {
+                      const allPaid = allRequests.every(req => req.status === 'paid');
+                      if (allPaid) {
+                        // Update booking status to confirmed when all split payments are complete
+                        await supabase
+                          .from('bookings')
+                          .update({ status: 'confirmed' })
+                          .eq('id', paymentRequest.booking_id);
+                      }
+                    }
+
                     // Show success message and redirect
                     toast({
                       title: "Payment Successful!",
-                      description: "Your split payment has been processed successfully.",
+                      description: `Your portion (₦${paymentRequest.amount.toLocaleString()}) has been paid successfully.`,
                       className: "bg-green-500 text-white"
                     });
 
