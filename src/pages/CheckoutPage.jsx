@@ -612,29 +612,46 @@ const handleSubmit = async (paymentMethodId) => {
       throw new Error('Failed to create booking record');
     }
 
-    // Create payment intent directly with Stripe (no Edge Function needed)
-    const { error: paymentIntentError, paymentIntent } = await stripe.createPaymentMethod({
-      type: 'card',
-      card: elements.getElement(CardElement),
-      billing_details: {
-        name: formData.fullName,
-        email: formData.email,
-        phone: formData.phone,
+    // Since we already have the paymentMethodId from the form, we can proceed directly
+    // The payment method was already created in CheckoutForm, so we just need to confirm it
+    
+    // For single payments, we'll use a different approach - create a PaymentIntent directly
+    // We need to use the Edge Function after all, but with the correct parameters
+    
+    const response = await fetch(
+      'https://agydpkzfucicraedllgl.supabase.co/functions/v1/create-split-payment-intent',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({
+          amount: Math.round(parseFloat(calculateTotal()) * 100),
+          paymentMethodId,
+          email: formData.email,
+          bookingId: pendingBooking.id, // Now we have the booking ID
+          bookingType: 'single', // Specify this is a single payment
+          splitRequests: [] // Empty array for single payments
+        })
       }
-    });
+    );
 
-    if (paymentIntentError) {
+    if (!response.ok) {
       // If payment fails, delete the pending booking
       await supabase
         .from('bookings')
         .delete()
         .eq('id', pendingBooking.id);
 
-      throw new Error(`Payment failed: ${paymentIntentError.message}`);
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to create payment intent');
     }
 
+    const { clientSecret } = await response.json();
+
     // Confirm the payment
-    const { error: confirmError } = await stripe.confirmCardPayment(paymentIntent.client_secret);
+    const { error: confirmError } = await stripe.confirmCardPayment(clientSecret);
     if (confirmError) {
       // If payment fails, delete the pending booking
       await supabase
