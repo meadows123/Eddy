@@ -18,7 +18,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { sendBookingConfirmation, sendVenueOwnerNotification, debugBookingEmail } from '../lib/emailService.js';
-import { Elements } from '@stripe/react-stripe-js';
+import { Elements, CardElement } from '@stripe/react-stripe-js';
 import { stripePromise } from '@/lib/stripe';
 
 const CheckoutPage = () => {
@@ -584,43 +584,7 @@ const handleSubmit = async (paymentMethodId) => {
       throw new Error('Venue ID is required');
     }
 
-    // Create payment intent using Supabase Edge Function
-    const response = await fetch(
-      'https://agydpkzfucicraedllgl.supabase.co/functions/v1/create-split-payment-intent',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-        },
-        body: JSON.stringify({
-          amount: Math.round(parseFloat(calculateTotal()) * 100),
-          paymentMethodId,
-          email: formData.email,
-          metadata: {
-            userId: currentUser.id,
-            venueId,
-            tableId,
-            bookingType: 'single'
-          }
-        })
-      }
-    );
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error || 'Failed to create payment intent');
-    }
-
-    const { clientSecret } = await response.json();
-
-    // Confirm payment using initialized Stripe instance
-    const { error: confirmError } = await stripe.confirmCardPayment(clientSecret);
-    if (confirmError) {
-      throw new Error(`Payment failed: ${confirmError.message}`);
-    }
-
-    // Create booking record
+    // Create pending booking first
     const bookingDetails = {
       user_id: currentUser.id,
       venue_id: venueId,
@@ -629,12 +593,12 @@ const handleSubmit = async (paymentMethodId) => {
       start_time: selection?.time || bookingData?.time || '19:00:00',
       end_time: selection?.endTime || bookingData?.endTime || '23:00:00',
       number_of_guests: parseInt(selection?.guests) || parseInt(bookingData?.guestCount) || 2,
-      status: 'confirmed',
+      status: 'pending',
       total_amount: parseFloat(calculateTotal())
     };
 
-    // Save to database
-    const { data: bookingRecord, error: bookingError } = await supabase
+    // Create pending booking
+    const { data: pendingBooking, error: bookingError } = await supabase
       .from('bookings')
       .insert([bookingDetails])
       .select()
@@ -642,6 +606,53 @@ const handleSubmit = async (paymentMethodId) => {
 
     if (bookingError) {
       throw new Error(`Failed to create booking: ${bookingError.message}`);
+    }
+
+    if (!pendingBooking?.id) {
+      throw new Error('Failed to create booking record');
+    }
+
+    // Create payment intent directly with Stripe (no Edge Function needed)
+    const { error: paymentIntentError, paymentIntent } = await stripe.createPaymentMethod({
+      type: 'card',
+      card: elements.getElement(CardElement),
+      billing_details: {
+        name: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+      }
+    });
+
+    if (paymentIntentError) {
+      // If payment fails, delete the pending booking
+      await supabase
+        .from('bookings')
+        .delete()
+        .eq('id', pendingBooking.id);
+
+      throw new Error(`Payment failed: ${paymentIntentError.message}`);
+    }
+
+    // Confirm the payment
+    const { error: confirmError } = await stripe.confirmCardPayment(paymentIntent.client_secret);
+    if (confirmError) {
+      // If payment fails, delete the pending booking
+      await supabase
+        .from('bookings')
+        .delete()
+        .eq('id', pendingBooking.id);
+
+      throw new Error(`Payment failed: ${confirmError.message}`);
+    }
+
+    // Update booking status to confirmed
+    const { error: updateError } = await supabase
+      .from('bookings')
+      .update({ status: 'confirmed' })
+      .eq('id', pendingBooking.id);
+
+    if (updateError) {
+      throw new Error(`Failed to update booking status: ${updateError.message}`);
     }
 
     // Show success message
@@ -653,7 +664,7 @@ const handleSubmit = async (paymentMethodId) => {
 
     // Send confirmation email
     await sendBookingConfirmationEmail({
-      ...bookingRecord,
+      ...pendingBooking,
       customerName: formData.fullName,
       customerEmail: formData.email,
       customerPhone: formData.phone
