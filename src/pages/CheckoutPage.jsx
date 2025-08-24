@@ -60,6 +60,18 @@ const [currentUserForSplit, setCurrentUserForSplit] = useState(null);
 // Add this state to store the booking data from location.state
 const [bookingData, setBookingData] = useState(null);
 
+// Add Stripe instance state
+const [stripe, setStripe] = useState(null);
+
+// Initialize Stripe
+useEffect(() => {
+  const initStripe = async () => {
+    const stripeInstance = await stripePromise;
+    setStripe(stripeInstance);
+  };
+  initStripe();
+}, []);
+
 // Add these missing auth functions here
 const handleAuthSubmit = async (e) => {
   e.preventDefault();
@@ -544,6 +556,11 @@ const handleSubmit = async (paymentMethodId) => {
     return;
   }
 
+  if (!stripe) {
+    console.error('Stripe not initialized');
+    return;
+  }
+
   setIsSubmitting(true);
 
   try {
@@ -597,20 +614,14 @@ const handleSubmit = async (paymentMethodId) => {
 
     const { clientSecret } = await response.json();
 
-    // Get Stripe instance
-    const stripe = await stripePromise;
-    if (!stripe) {
-      throw new Error('Failed to load Stripe');
-    }
-
-    // Confirm payment
+    // Confirm payment using initialized Stripe instance
     const { error: confirmError } = await stripe.confirmCardPayment(clientSecret);
     if (confirmError) {
       throw new Error(`Payment failed: ${confirmError.message}`);
     }
 
     // Create booking record
-    const bookingData = {
+    const bookingDetails = {
       user_id: currentUser.id,
       venue_id: venueId,
       table_id: tableId,
@@ -625,7 +636,7 @@ const handleSubmit = async (paymentMethodId) => {
     // Save to database
     const { data: bookingRecord, error: bookingError } = await supabase
       .from('bookings')
-      .insert([bookingData])
+      .insert([bookingDetails])
       .select()
       .single();
 
