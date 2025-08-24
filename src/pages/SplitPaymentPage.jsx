@@ -12,6 +12,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { stripePromise } from '@/lib/stripe';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Payment form component
 const PaymentForm = ({ amount, onSuccess }) => {
@@ -62,10 +63,17 @@ const PaymentForm = ({ amount, onSuccess }) => {
       </div>
       <Button 
         type="submit" 
-        disabled={processing}
+        disabled={processing || !stripe}
         className="w-full bg-brand-burgundy text-white"
       >
-        {processing ? 'Processing...' : `Pay ${amount}`}
+        {processing ? (
+          <>
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            Processing...
+          </>
+        ) : (
+          `Pay ₦${amount.toLocaleString()}`
+        )}
       </Button>
       {error && <div className="text-red-500">{error}</div>}
     </form>
@@ -78,6 +86,7 @@ const SplitPaymentPage = () => {
   console.log('🔍 Split Payment Params:', { bookingId, requestId });
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user } = useAuth();
   
   const [paymentRequest, setPaymentRequest] = useState(null);
   const [booking, setBooking] = useState(null);
@@ -86,6 +95,18 @@ const SplitPaymentPage = () => {
   const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
+    // Check if user is authenticated
+    if (!user) {
+      console.log('❌ User not authenticated, redirecting to profile');
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to complete this payment.",
+        variant: "destructive"
+      });
+      navigate('/profile');
+      return;
+    }
+
     // If no parameters are provided, redirect to profile page
     if (!bookingId || !requestId) {
       console.log('❌ Missing required parameters, redirecting to profile');
@@ -98,7 +119,7 @@ const SplitPaymentPage = () => {
       return;
     }
     fetchPaymentRequest();
-  }, [bookingId, requestId]);
+  }, [bookingId, requestId, user]);
 
   const fetchPaymentRequest = async () => {
     try {
@@ -109,29 +130,15 @@ const SplitPaymentPage = () => {
         throw new Error('Missing required parameters');
       }
 
-      // Fetch the payment request with correct relationships
+      console.log('🔍 Fetching payment request:', { requestId, bookingId });
+
+      // First, fetch the payment request
       const { data: requestData, error: requestError } = await supabase
         .from('split_payment_requests')
-        .select(`
-          *,
-          bookings (
-            *,
-            venues (
-              name,
-              address,
-              city
-            ),
-            profiles (
-              first_name,
-              last_name
-            )
-          )
-        `)
+        .select('*')
         .eq('id', requestId)
         .eq('booking_id', bookingId)
         .single();
-
-      console.log('🔍 Payment request data:', requestData);
 
       if (requestError) {
         console.error('❌ Error fetching payment request:', requestError);
@@ -142,13 +149,28 @@ const SplitPaymentPage = () => {
         throw new Error('Payment request not found');
       }
 
+      console.log('✅ Payment request found:', requestData);
+
+      // Check if the current user is the intended recipient
+      if (requestData.recipient_id && requestData.recipient_id !== user.id) {
+        console.log('❌ User not authorized for this payment request');
+        toast({
+          title: "Access Denied",
+          description: "This payment request is not intended for you.",
+          variant: "destructive"
+        });
+        navigate('/profile');
+        return;
+      }
+
+      // Check if payment request is already paid or expired
       if (requestData.status === 'paid') {
         toast({
           title: "Already Paid",
           description: "This payment request has already been completed.",
           variant: "destructive"
         });
-        navigate('/');
+        navigate('/profile');
         return;
       }
 
@@ -158,22 +180,55 @@ const SplitPaymentPage = () => {
           description: "This payment request has expired.",
           variant: "destructive"
         });
-        navigate('/');
+        navigate('/profile');
         return;
       }
 
+      // Now fetch the booking data separately
+      const { data: bookingData, error: bookingError } = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('id', requestData.booking_id)
+        .single();
+
+      if (bookingError) {
+        console.error('❌ Error fetching booking:', bookingError);
+        // Don't throw here, just log the error
+      }
+
+      // Fetch venue data separately
+      let venueData = null;
+      if (bookingData?.venue_id) {
+        const { data: venue, error: venueError } = await supabase
+          .from('venues')
+          .select('name, address, city, type')
+          .eq('id', bookingData.venue_id)
+          .single();
+
+        if (!venueError && venue) {
+          venueData = venue;
+        }
+      }
+
+      // Set the state
       setPaymentRequest(requestData);
-      setBooking(requestData.bookings);
-      setVenue(requestData.bookings?.venues);
+      setBooking(bookingData || {});
+      setVenue(venueData || {});
+
+      console.log('✅ All data loaded successfully:', {
+        paymentRequest: requestData,
+        booking: bookingData,
+        venue: venueData
+      });
 
     } catch (error) {
-      console.error('Error fetching payment request:', error);
+      console.error('❌ Error fetching payment request:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to load payment request. Please check the link.",
+        description: "Failed to load payment request. Please check the link.",
         variant: "destructive"
       });
-      navigate('/');
+      navigate('/profile');
     } finally {
       setLoading(false);
     }
@@ -255,8 +310,12 @@ const SplitPaymentPage = () => {
               <div className="bg-brand-cream/30 border border-brand-gold/20 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <h3 className="font-semibold text-lg">{venue?.name}</h3>
-                    <p className="text-sm text-muted-foreground">{venue?.address}, {venue?.city}</p>
+                    <h3 className="font-semibold text-lg">
+                      {venue?.name || 'Venue Information Unavailable'}
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      {venue?.address && venue?.city ? `${venue.address}, ${venue.city}` : 'Location details not available'}
+                    </p>
                   </div>
                   <Badge variant="outline">Split Payment</Badge>
                 </div>
@@ -265,13 +324,13 @@ const SplitPaymentPage = () => {
                   <div>
                     <Label className="text-muted-foreground">Requested by</Label>
                     <p className="font-medium">
-                      {booking?.profiles?.first_name} {booking?.profiles?.last_name}
+                      {paymentRequest.requester_name || 'Unknown User'}
                     </p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Booking Date</Label>
                     <p className="font-medium">
-                      {new Date(booking?.booking_date).toLocaleDateString()}
+                      {booking?.booking_date ? new Date(booking.booking_date).toLocaleDateString() : 'Not specified'}
                     </p>
                   </div>
                 </div>
@@ -279,9 +338,12 @@ const SplitPaymentPage = () => {
 
               <div className="text-center py-6">
                 <div className="text-3xl font-bold text-brand-burgundy mb-2">
-                  ₦{paymentRequest.amount.toLocaleString()}
+                  ₦{(paymentRequest.amount || 0).toLocaleString()}
                 </div>
                 <p className="text-muted-foreground">Your portion of the booking</p>
+                {!paymentRequest.amount && (
+                  <p className="text-sm text-red-500 mt-2">Warning: Invalid payment amount</p>
+                )}
               </div>
             </div>
           </CardContent>
@@ -296,8 +358,80 @@ const SplitPaymentPage = () => {
               <PaymentForm 
                 amount={paymentRequest.amount} 
                 onSuccess={async (paymentMethodId) => {
-                  // Process the payment and create split request
-                  // ... your existing payment processing code
+                  try {
+                    setProcessing(true);
+                    
+                    // Create payment intent using the Edge Function
+                    const response = await fetch(
+                      'https://agydpkzfucicraedllgl.supabase.co/functions/v1/create-split-payment-intent',
+                      {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+                        },
+                        body: JSON.stringify({
+                          amount: paymentRequest.amount,
+                          paymentMethodId,
+                          bookingId: paymentRequest.booking_id,
+                          splitRequests: [paymentRequest],
+                          email: paymentRequest.recipient_email || '',
+                          bookingType: 'split'
+                        })
+                      }
+                    );
+
+                    if (!response.ok) {
+                      const errorData = await response.json();
+                      throw new Error(errorData.error || 'Failed to create payment intent');
+                    }
+
+                    const { clientSecret } = await response.json();
+
+                    // Load Stripe and confirm payment
+                    const stripe = await loadStripe(import.meta.env.VITE_STRIPE_TEST_PUBLISHABLE_KEY);
+                    if (!stripe) {
+                      throw new Error('Failed to load Stripe');
+                    }
+
+                    const { error: confirmError } = await stripe.confirmCardPayment(clientSecret);
+                    if (confirmError) {
+                      throw new Error(`Payment failed: ${confirmError.message}`);
+                    }
+
+                    // Payment successful - update the payment request status
+                    const { error: updateError } = await supabase
+                      .from('split_payment_requests')
+                      .update({ 
+                        status: 'paid',
+                        paid_at: new Date().toISOString()
+                      })
+                      .eq('id', paymentRequest.id);
+
+                    if (updateError) {
+                      console.error('Error updating payment status:', updateError);
+                    }
+
+                    // Show success message and redirect
+                    toast({
+                      title: "Payment Successful!",
+                      description: "Your split payment has been processed successfully.",
+                      className: "bg-green-500 text-white"
+                    });
+
+                    // Navigate to success page
+                    navigate(`/split-payment-success?payment_intent=success&request_id=${paymentRequest.id}`);
+
+                  } catch (error) {
+                    console.error('Payment error:', error);
+                    toast({
+                      title: "Payment Failed",
+                      description: error.message || "Failed to process payment. Please try again.",
+                      variant: "destructive"
+                    });
+                  } finally {
+                    setProcessing(false);
+                  }
                 }} 
               />
             </Elements>

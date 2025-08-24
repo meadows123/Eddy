@@ -75,20 +75,58 @@ const VenueCreditPurchase = () => {
 
   const fetchVenues = async () => {
     try {
+      console.log('🔍 Fetching venues for credit purchase...');
+      
+      // First, let's see what venues exist without filters
+      const { data: allVenues, error: allVenuesError } = await supabase
+        .from('venues')
+        .select('*')
+        .order('name');
+
+      if (allVenuesError) {
+        console.error('Error fetching all venues:', allVenuesError);
+        throw allVenuesError;
+      }
+
+      console.log('📊 All venues found:', allVenues?.length || 0);
+      console.log('📋 Venue statuses:', allVenues?.map(v => ({ id: v.id, name: v.name, status: v.status, is_active: v.is_active })));
+
+      // Now apply filters to get venues suitable for credit purchase
       const { data: venuesData, error } = await supabase
         .from('venues')
         .select('*')
-        .eq('status', 'approved')
+        .or(`status.eq.approved,status.eq.active`)
         .eq('is_active', true)
         .order('name');
 
-      if (error) throw error;
-      setVenues(venuesData || []);
+      if (error) {
+        console.error('Error fetching filtered venues:', error);
+        throw error;
+      }
+
+      console.log('✅ Filtered venues found:', venuesData?.length || 0);
+      console.log('🎯 Venues for credit purchase:', venuesData?.map(v => ({ id: v.id, name: v.name, status: v.status, is_active: v.is_active })));
+
+      // If no venues found, show a helpful message
+      if (!venuesData || venuesData.length === 0) {
+        console.log('⚠️ No filtered venues found, falling back to all venues');
+        
+        // Fallback: show all venues with a note about status
+        setVenues(allVenues || []);
+        
+        toast({
+          title: 'Limited Venues Available',
+          description: 'Some venues may not be fully approved yet. Please contact venue owners for more information.',
+          variant: 'default',
+        });
+      } else {
+        setVenues(venuesData);
+      }
     } catch (error) {
       console.error('Error fetching venues:', error);
       toast({
         title: 'Error',
-        description: 'Failed to load venues',
+        description: 'Failed to load venues. Please try again.',
         variant: 'destructive',
       });
     }
@@ -232,11 +270,35 @@ const VenueCreditPurchase = () => {
                           <span className="font-medium">{venue.name}</span>
                           <span className="text-sm text-gray-500">• {venue.type}</span>
                           <span className="text-sm text-gray-500">• {venue.city}</span>
+                          {venue.status !== 'approved' && (
+                            <Badge variant="outline" className="text-xs text-orange-600 border-orange-300">
+                              {venue.status}
+                            </Badge>
+                          )}
                         </div>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                
+                {venues.length === 0 && (
+                  <div className="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                    <p className="text-orange-800 text-sm">
+                      No venues are currently available for credit purchase. This could be because:
+                    </p>
+                    <ul className="text-orange-700 text-sm mt-2 list-disc list-inside">
+                      <li>No venues have been created yet</li>
+                      <li>All venues are pending approval</li>
+                      <li>Venues are not active</li>
+                    </ul>
+                  </div>
+                )}
+                
+                {venues.length > 0 && (
+                  <div className="mt-2 text-xs text-brand-burgundy/60">
+                    💡 Venues marked with status badges may not be fully approved yet. Contact venue owners for more information.
+                  </div>
+                )}
                 
                 {selectedVenue && (
                   <motion.div
@@ -244,9 +306,21 @@ const VenueCreditPurchase = () => {
                     animate={{ opacity: 1, y: 0 }}
                     className="mt-4 p-4 bg-brand-cream/30 rounded-lg"
                   >
-                    <h4 className="font-semibold text-brand-burgundy">{selectedVenue.name}</h4>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-semibold text-brand-burgundy">{selectedVenue.name}</h4>
+                      {selectedVenue.status !== 'approved' && (
+                        <Badge variant="outline" className="text-xs text-orange-600 border-orange-300">
+                          Status: {selectedVenue.status}
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-sm text-brand-burgundy/70">{selectedVenue.address}</p>
                     <p className="text-sm text-brand-burgundy/70">{selectedVenue.type} • {selectedVenue.city}</p>
+                    {selectedVenue.status !== 'approved' && (
+                      <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded text-xs text-orange-700">
+                        ⚠️ This venue is not fully approved yet. Credit purchases may be subject to approval.
+                      </div>
+                    )}
                   </motion.div>
                 )}
               </CardContent>
