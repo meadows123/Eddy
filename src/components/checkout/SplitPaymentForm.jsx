@@ -289,7 +289,6 @@ const SplitPaymentForm = ({
         recipient_id: recipient.id,
         recipient_phone: recipient.phone || null,
         amount: splitAmounts[index],
-        payment_link: `${window.location.origin}/split-payment/${newBookingId}/${index}`,
         status: 'pending'
       }));
 

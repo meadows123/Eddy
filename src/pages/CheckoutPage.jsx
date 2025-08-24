@@ -845,7 +845,6 @@ setShowShareDialog(true);
   });
 
   return (
-    <Elements stripe={stripePromise}>
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
         <div className="container py-10">
           <Link to={
@@ -891,7 +890,8 @@ setShowShareDialog(true);
                     <TabsTrigger value="split">Split Payment</TabsTrigger>
                   </TabsList>
 
-                  <TabsContent value="single">
+                                  <TabsContent value="single">
+                  <Elements stripe={stripePromise}>
                     <CheckoutForm 
                       formData={formData}
                       errors={errors}
@@ -904,9 +904,11 @@ setShowShareDialog(true);
                         user: <User className="h-5 w-5 mr-2" />
                       }}
                     />
-                  </TabsContent>
+                  </Elements>
+                </TabsContent>
 
-                  <TabsContent value="split">
+                <TabsContent value="split">
+                  <Elements stripe={stripePromise}>
                     <SplitPaymentForm
                       totalAmount={parseFloat(calculateTotal())}
                       onSplitCreated={handleSplitPaymentCreated}
@@ -922,7 +924,8 @@ setShowShareDialog(true);
                         return bookingId;
                       }}
                     />
-                  </TabsContent>
+                  </Elements>
+                </TabsContent>
                 </Tabs>
               </motion.div>
             </div>
@@ -1111,7 +1114,6 @@ setShowShareDialog(true);
             </Dialog>
           </div>
         </div>
-    </Elements>
   );
 };
 
