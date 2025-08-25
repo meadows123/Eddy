@@ -282,27 +282,46 @@ const SplitPaymentForm = ({
         throw new Error('Please select recipients for split payment.');
       }
 
+      // Create split requests
       const userProfileId = user.id;
-      const splitRequests = splitRecipients.map((recipient, index) => ({
+      
+      // Create initiator payment record (status: 'paid' for initiator)
+      const initiatorRequest = {
+        booking_id: newBookingId,
+        requester_id: userProfileId,
+        recipient_id: userProfileId, // Initiator is also a recipient
+        recipient_phone: user?.phone || null,
+        amount: myAmount,
+        payment_link: `${window.location.origin}/split-payment/${newBookingId}/initiator`,
+        status: 'paid',
+        paid_at: new Date().toISOString()
+      };
+      
+      // Create recipient payment requests (status: 'pending')
+      const recipientRequests = splitRecipients.map((recipient, index) => ({
         booking_id: newBookingId,
         requester_id: userProfileId,
         recipient_id: recipient.id,
         recipient_phone: recipient.phone || null,
         amount: splitAmounts[index],
+        payment_link: `${window.location.origin}/split-payment/${newBookingId}/${recipient.id}`,
         status: 'pending'
       }));
+      
+      // Combine all requests
+      const allRequests = [initiatorRequest, ...recipientRequests];
 
-      console.log('Split requests to create:', splitRequests);
+      console.log('Split requests to create:', allRequests);
 
       const { data, error } = await supabase
         .from('split_payment_requests')
-        .insert(splitRequests)
+        .insert(allRequests)
         .select();
 
       if (error) throw error;
 
       // Store the created requests and mark as created
-      setCreatedSplitRequests(data);
+      setCreatedSplitRequests(data.filter(req => req.recipient_id !== userProfileId)); // Exclude initiator request
       setSplitRequestsCreated(true);
 
       // Return the newBookingId so we can use it immediately
@@ -557,7 +576,21 @@ const SplitPaymentForm = ({
 
                         // Create split requests
                         const userProfileId = user.id;
-                        const requests = splitRecipients.map((recipient, index) => ({
+                        
+                        // Create initiator payment record (status: 'paid' for initiator)
+                        const initiatorRequest = {
+                          booking_id: newBookingId,
+                          requester_id: userProfileId,
+                          recipient_id: userProfileId, // Initiator is also a recipient
+                          recipient_phone: user?.phone || null,
+                          amount: myAmount,
+                          payment_link: `${window.location.origin}/split-payment/${newBookingId}/initiator`,
+                          status: 'paid',
+                          paid_at: new Date().toISOString()
+                        };
+                        
+                        // Create recipient payment requests (status: 'pending')
+                        const recipientRequests = splitRecipients.map((recipient, index) => ({
                           booking_id: newBookingId,
                           requester_id: userProfileId,
                           recipient_id: recipient.id,
@@ -566,10 +599,13 @@ const SplitPaymentForm = ({
                           payment_link: `${window.location.origin}/split-payment/${newBookingId}/${recipient.id}`,
                           status: 'pending'
                         }));
+                        
+                        // Combine all requests
+                        const allRequests = [initiatorRequest, ...recipientRequests];
 
                         const { data, error } = await supabase
                           .from('split_payment_requests')
-                          .insert(requests)
+                          .insert(allRequests)
                           .select();
 
                         if (error) throw error;

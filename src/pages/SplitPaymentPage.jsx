@@ -344,6 +344,7 @@ const SplitPaymentPage = () => {
                 {!paymentRequest.amount && (
                   <p className="text-sm text-red-500 mt-2">Warning: Invalid payment amount</p>
                 )}
+                
                 <div className="mt-4 text-sm text-muted-foreground">
                   <p>Requested by: {paymentRequest.requester_id ? `User ${paymentRequest.requester_id.slice(0, 8)}...` : 'Unknown User'}</p>
                   <p>Booking ID: {paymentRequest.booking_id}</p>
@@ -425,8 +426,10 @@ const SplitPaymentPage = () => {
                       .eq('booking_id', paymentRequest.booking_id);
 
                     if (!checkError && allRequests) {
-                      const allPaid = allRequests.every(req => req.status === 'paid');
-                      if (allPaid) {
+                      // Check if all requests are paid
+                      const allRequestsPaid = allRequests.every(req => req.status === 'paid');
+                      
+                      if (allRequestsPaid) {
                         // Update booking status to confirmed when all split payments are complete
                         await supabase
                           .from('bookings')
@@ -438,7 +441,7 @@ const SplitPaymentPage = () => {
                     // Show success message and redirect
                     toast({
                       title: "Payment Successful!",
-                      description: `Your portion (₦${paymentRequest.amount.toLocaleString()}) has been paid successfully.`,
+                      description: `Your portion (₦${paymentRequest.amount.toLocaleString()}) has been paid successfully. The booking will be confirmed once all split payments are complete.`,
                       className: "bg-green-500 text-white"
                     });
 

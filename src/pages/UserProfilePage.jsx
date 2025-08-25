@@ -1003,12 +1003,17 @@ const UserProfilePage = () => {
                             </div>
                             <div>
                               {request.status === 'pending' && (
-                                <Button
-                                  onClick={() => navigate(`/split-payment/${request.booking_id}/${request.id}`)}
-                                  className="bg-brand-burgundy text-white hover:bg-brand-burgundy/90"
-                                >
-                                  Pay Now
-                                </Button>
+                                <div className="space-y-2">
+                                  <Button
+                                    onClick={() => navigate(`/split-payment/${request.booking_id}/${request.id}`)}
+                                    className="bg-brand-burgundy text-white hover:bg-brand-burgundy/90"
+                                  >
+                                    Pay Your Portion (₦{request.amount?.toLocaleString()})
+                                  </Button>
+                                  <div className="text-xs text-muted-foreground">
+                                    Split payment request from {request.requester_id ? `User ${request.requester_id.slice(0, 8)}...` : 'Unknown User'}
+                                  </div>
+                                </div>
                               )}
                               {request.status === 'paid' && (
                                 <Badge className="bg-green-100 text-green-800">Paid</Badge>
