@@ -181,7 +181,6 @@ const UserProfilePage = () => {
         .eq('user_id', user.id)
         .eq('status', 'active')
         .gt('remaining_balance', 0)
-        .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false });
 
       console.log('📊 Credits query result:', { data: creditsData, error });
