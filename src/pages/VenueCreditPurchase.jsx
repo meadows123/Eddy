@@ -177,11 +177,16 @@ const VenueCreditPurchase = () => {
     const baseAmount = creditAmount || parseFloat(customAmount) || 0;
     const selectedOption = creditOptions.find(opt => opt.amount === creditAmount);
     const bonus = selectedOption ? selectedOption.bonus : 0;
-    return baseAmount + bonus;
+    // Convert to actual naira amount (multiply by 1000 since amounts represent thousands)
+    const baseAmountNaira = baseAmount * 1000;
+    const bonusNaira = bonus * 1000;
+    return baseAmountNaira + bonusNaira;
   };
 
   const getPurchaseAmount = () => {
-    return creditAmount || parseFloat(customAmount) || 0;
+    const baseAmount = creditAmount || parseFloat(customAmount) || 0;
+    // Convert to actual naira amount (multiply by 1000 since amounts represent thousands)
+    return baseAmount * 1000;
   };
 
   const handlePurchase = async () => {
@@ -465,7 +470,7 @@ const VenueCreditPurchase = () => {
                         <div className="flex justify-between items-center mt-2">
                           <span className="text-sm text-brand-burgundy/70">Available:</span>
                           <span className="font-bold text-brand-burgundy">
-                            ₦{(credit.remaining_balance / 100).toLocaleString()}
+                            ₦{(credit.remaining_balance / 1000).toLocaleString()}
                           </span>
                         </div>
                         <div className="text-xs text-brand-burgundy/50 mt-1">

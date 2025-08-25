@@ -259,8 +259,31 @@ useEffect(() => {
     
     console.log('📋 Booking data received:', incomingData);
     
-    // Check if we have the minimum required data for a booking
-    if (incomingData.venue && incomingData.date && incomingData.time) {
+    // Check if this is a credit purchase flow
+    if (incomingData.creditPurchase) {
+      console.log('✅ Credit purchase flow detected:', incomingData);
+      
+      // Set the booking data for credit purchase
+      setBookingData({
+        venue: incomingData.venue,
+        creditPurchase: true,
+        amount: incomingData.amount,
+        purchaseAmount: incomingData.purchaseAmount,
+        venueName: incomingData.venueName
+      });
+      
+      // Set form data for credit purchase
+      setFormData(prev => ({
+        ...prev,
+        venueId: incomingData.venueId
+      }));
+      
+      console.log('📝 Credit purchase data set successfully');
+      setLoading(false);
+      console.log('✅ Loading set to false for credit purchase');
+      
+    } else if (incomingData.venue && incomingData.date && incomingData.time) {
+      // Regular booking flow
       console.log('✅ Valid booking data found:', {
         incomingData,
         'incomingData.table': incomingData.table,
@@ -295,7 +318,8 @@ useEffect(() => {
       console.log('Missing:', {
         venue: !incomingData.venue,
         date: !incomingData.date,
-        time: !incomingData.time
+        time: !incomingData.time,
+        creditPurchase: !incomingData.creditPurchase
       });
       navigate('/venues');
     }
@@ -709,12 +733,26 @@ const calculateTotal = () => {
     bookingData,
     'selection?.selectedTable': selection?.selectedTable,
     'bookingData?.table': bookingData?.table,
-    'bookingData?.table?.price': bookingData?.table?.price
+    'bookingData?.table?.price': bookingData?.table?.price,
+    'bookingData?.creditPurchase': bookingData?.creditPurchase,
+    'bookingData?.amount': bookingData?.amount,
+    'bookingData?.purchaseAmount': bookingData?.purchaseAmount
   });
 
   if (isDepositFlow && depositAmount) {
     return depositAmount.toFixed(2);
   }
+  
+  // Handle credit purchase flow
+  if (bookingData?.creditPurchase) {
+    console.log('💰 Credit purchase amount calculation:', {
+      amount: bookingData.amount,
+      purchaseAmount: bookingData.purchaseAmount
+    });
+    // Return the total amount (including bonus credits) for display
+    return bookingData.amount.toFixed(2);
+  }
+  
   if (selection?.isCreditPurchase) {
     return selection.purchaseAmount.toFixed(2);
   }
@@ -873,13 +911,27 @@ setShowShareDialog(true);
                 {/* Show the selected booking details */}
                 {(selection || bookingData) && (
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                    <h3 className="font-semibold text-blue-800 mb-2">Booking Summary</h3>
+                    <h3 className="font-semibold text-blue-800 mb-2">
+                      {bookingData?.creditPurchase ? 'Credit Purchase Summary' : 'Booking Summary'}
+                    </h3>
                     <div className="text-sm text-blue-700">
-                      <p><strong>Venue:</strong> {(selection || bookingData).venue.name}</p>
-                      <p><strong>Table:</strong> {(selection || bookingData).table.table_number} (Capacity: {(selection || bookingData).table.capacity})</p>
-                      <p><strong>Date:</strong> {(selection || bookingData).date}</p>
-                      <p><strong>Time:</strong> {(selection || bookingData).time} - {(selection || bookingData).endTime}</p>
-                      <p><strong>Guests:</strong> {(selection || bookingData).guestCount}</p>
+                      {bookingData?.creditPurchase ? (
+                        <>
+                          <p><strong>Venue:</strong> {bookingData.venueName}</p>
+                          <p><strong>Credit Amount:</strong> ₦{bookingData.purchaseAmount?.toLocaleString()}</p>
+                          <p><strong>Bonus Credits:</strong> +{bookingData.amount - bookingData.purchaseAmount} credits</p>
+                          <p><strong>Total Credits:</strong> {bookingData.amount} credits</p>
+                          <p><strong>Total Amount:</strong> ₦{bookingData.purchaseAmount?.toLocaleString()}</p>
+                        </>
+                      ) : (
+                        <>
+                          <p><strong>Venue:</strong> {(selection || bookingData).venue.name}</p>
+                          <p><strong>Table:</strong> {(selection || bookingData).table.table_number} (Capacity: {(selection || bookingData).table.capacity})</p>
+                          <p><strong>Date:</strong> {(selection || bookingData).date}</p>
+                          <p><strong>Time:</strong> {(selection || bookingData).time} - {(selection || bookingData).endTime}</p>
+                          <p><strong>Guests:</strong> {(selection || bookingData).guestCount}</p>
+                        </>
+                      )}
                     </div>
                   </div>
                 )}
@@ -932,7 +984,12 @@ setShowShareDialog(true);
             
             <div className="lg:col-span-1">
               <OrderSummary 
-                selection={selection || bookingData}
+                selection={bookingData?.creditPurchase ? {
+                  creditPurchase: true,
+                  venue: bookingData.venue,
+                  amount: bookingData.purchaseAmount,
+                  totalCredits: bookingData.amount
+                } : (selection || bookingData)}
                 totalAmount={calculateTotal()}
                 vipPerks={vipPerks}
               />
@@ -951,7 +1008,15 @@ setShowShareDialog(true);
                     </div>
                   </div>
                   <p className="mb-2">
-                    Your booking at <span className="font-bold">{(selection || bookingData)?.venue?.name}</span> has been confirmed.
+                    {bookingData?.creditPurchase ? (
+                      <>
+                        Your credit purchase of <span className="font-bold">{bookingData.totalCredits} credits</span> for <span className="font-bold">{bookingData.venueName}</span> has been confirmed.
+                      </>
+                    ) : (
+                      <>
+                        Your booking at <span className="font-bold">{(selection || bookingData)?.venue?.name}</span> has been confirmed.
+                      </>
+                    )}
                   </p>
                   {vipPerks.length > 0 && (
                     <div className="my-2 text-sm text-green-400">
