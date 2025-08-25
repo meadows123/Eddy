@@ -199,15 +199,44 @@ const SplitPaymentPage = () => {
       // Fetch venue data separately
       let venueData = null;
       if (bookingData?.venue_id) {
+        console.log('🔍 Fetching venue data for venue_id:', bookingData.venue_id);
+        
         const { data: venue, error: venueError } = await supabase
           .from('venues')
-          .select('name, address, city, type')
+          .select('id, name, address, city, type, description, price_range, contact_phone, contact_email')
           .eq('id', bookingData.venue_id)
           .single();
 
         if (!venueError && venue) {
           venueData = venue;
+          console.log('✅ Venue data fetched successfully:', venue);
+        } else {
+          console.error('❌ Error fetching venue data:', venueError);
+          // Set a fallback venue object with basic info
+          venueData = {
+            name: 'Venue Information Unavailable',
+            address: 'Location details not available',
+            city: 'Unknown',
+            type: 'Unknown',
+            description: 'Venue details could not be loaded. Please contact the person who sent you this payment request for more information.',
+            price_range: 'Unknown',
+            contact_phone: 'N/A',
+            contact_email: 'N/A'
+          };
         }
+      } else {
+        console.log('⚠️ No venue_id found in booking data:', bookingData);
+        // No venue_id in booking, create fallback
+        venueData = {
+          name: 'Venue Information Unavailable',
+          address: 'Location details not available',
+          city: 'Unknown',
+          type: 'Unknown',
+          description: 'Venue details could not be loaded. Please contact the person who sent you this payment request for more information.',
+          price_range: 'Unknown',
+          contact_phone: 'N/A',
+          contact_email: 'N/A'
+        };
       }
 
       // Set the state
@@ -218,7 +247,9 @@ const SplitPaymentPage = () => {
       console.log('✅ All data loaded successfully:', {
         paymentRequest: requestData,
         booking: bookingData,
-        venue: venueData
+        venue: venueData,
+        'booking.venue_id': bookingData?.venue_id,
+        'venue.id': venueData?.id
       });
 
     } catch (error) {
@@ -309,18 +340,67 @@ const SplitPaymentPage = () => {
             <div className="space-y-4">
               <div className="bg-brand-cream/30 border border-brand-gold/20 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <h3 className="font-semibold text-lg">
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-lg text-brand-burgundy">
                       {venue?.name || 'Venue Information Unavailable'}
                     </h3>
                     <p className="text-sm text-muted-foreground">
                       {venue?.address && venue?.city ? `${venue.address}, ${venue.city}` : 'Location details not available'}
                     </p>
+                    {venue?.type && venue.type !== 'Unknown' && (
+                      <Badge variant="secondary" className="mt-1 text-xs">
+                        {venue.type.charAt(0).toUpperCase() + venue.type.slice(1)}
+                      </Badge>
+                    )}
                   </div>
-                  <Badge variant="outline">Split Payment</Badge>
+                  <Badge variant="outline" className="ml-2">Split Payment</Badge>
                 </div>
                 
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                {/* Additional venue details */}
+                {venue && venue.name !== 'Venue Information Unavailable' && (
+                  <div className="mt-3 pt-3 border-t border-brand-gold/20">
+                    {venue.description && venue.description !== 'Venue details could not be loaded. Please contact the person who sent you this payment request for more information.' && (
+                      <p className="text-sm text-muted-foreground mb-2">
+                        {venue.description}
+                      </p>
+                    )}
+                    <div className="grid grid-cols-2 gap-3 text-xs">
+                      {venue.price_range && venue.price_range !== 'Unknown' && (
+                        <div>
+                          <span className="font-medium text-brand-burgundy">Price Range:</span>
+                          <span className="ml-1">{venue.price_range}</span>
+                        </div>
+                      )}
+                      {venue.contact_phone && venue.contact_phone !== 'N/A' && (
+                        <div>
+                          <span className="font-medium text-brand-burgundy">Contact:</span>
+                          <span className="ml-1">{venue.contact_phone}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                
+                {/* Show helpful message when venue info is unavailable */}
+                {venue && venue.name === 'Venue Information Unavailable' && (
+                  <div className="mt-3 pt-3 border-t border-brand-gold/20">
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                      <p className="text-sm text-yellow-800">
+                        <strong>Note:</strong> Venue details could not be loaded. This might be because:
+                      </p>
+                      <ul className="text-xs text-yellow-700 mt-2 list-disc list-inside space-y-1">
+                        <li>The venue has been removed or updated</li>
+                        <li>There was an issue loading the venue information</li>
+                        <li>The booking was created with incomplete venue data</li>
+                      </ul>
+                      <p className="text-xs text-yellow-700 mt-2">
+                        Please contact the person who sent you this payment request for venue details.
+                      </p>
+                    </div>
+                  </div>
+                )}
+                
+                <div className="grid grid-cols-2 gap-4 text-sm mt-3">
                   <div>
                     <Label className="text-muted-foreground">Requested by</Label>
                     <p className="font-medium">
