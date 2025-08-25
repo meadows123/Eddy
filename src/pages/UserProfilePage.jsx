@@ -1273,7 +1273,7 @@ const UserProfilePage = () => {
                                 </div>
                               )}
                               <div className="text-xs text-brand-burgundy/50 mt-1">
-                                Expires: {new Date(credit.expires_at).toLocaleDateString()}
+                                Purchased: {new Date(credit.created_at).toLocaleDateString()}
                               </div>
                             </div>
                           </div>

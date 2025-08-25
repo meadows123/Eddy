@@ -343,15 +343,11 @@ const CreditPurchaseCheckout = () => {
       // Payment successful! Now create the credit transaction
       console.log('💾 Creating credit transaction in database...');
       
+      // Try with minimal columns first - only the essential ones
       const creditDataToInsert = {
         user_id: currentUser.id,
         venue_id: creditData.venue.id,
-        amount: creditData.amount * 1000, // Convert thousands to naira for storage
-        remaining_balance: creditData.amount * 1000, // Convert thousands to naira for storage
-        used_amount: 0, // No credits used yet
-        status: 'active',
-        notes: `Credit purchase for ${creditData.venueName} - Base: ₦${(creditData.purchaseAmount * 1000).toLocaleString()}, Bonus: ₦${((creditData.amount - creditData.purchaseAmount) * 1000).toLocaleString()}`,
-        created_at: new Date().toISOString()
+        amount: creditData.amount * 1000 // Convert thousands to naira for storage
       };
 
       console.log('📝 Credit data to insert:', creditDataToInsert);
