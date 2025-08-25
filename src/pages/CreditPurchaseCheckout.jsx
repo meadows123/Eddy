@@ -343,43 +343,44 @@ const CreditPurchaseCheckout = () => {
       // Payment successful! Now create the credit transaction
       console.log('💾 Creating credit transaction in database...');
       
-      // The table exists and has the amount column, but RLS is blocking the insert
-      // We need to either disable RLS or create proper policies
-      console.log('🔒 RLS Policy Issue: User cannot insert into venue_credit_transactions');
+      // Use the venue_credits table which has the proper structure
+      console.log('💾 Storing credits in venue_credits table...');
       
-      // Let's try with the essential columns that should exist
-      // If these fail, we'll need to fix the RLS policies
       const creditDataToInsert = {
         user_id: currentUser.id,
         venue_id: creditData.venue.id,
-        amount: creditData.amount * 1000 // Convert thousands to naira for storage
+        amount: creditData.amount * 1000, // Convert thousands to naira for storage
+        remaining_balance: creditData.amount * 1000, // Convert thousands to naira for storage
+        used_amount: 0, // No credits used yet
+        status: 'active',
+        created_at: new Date().toISOString()
       };
 
       console.log('📝 Credit data to insert:', creditDataToInsert);
 
       const { data: creditRecord, error: creditError } = await supabase
-        .from('venue_credit_transactions')
+        .from('venue_credits')
         .insert([creditDataToInsert])
         .select()
         .single();
 
       if (creditError) {
-        console.error('❌ Error creating venue credit transaction:', creditError);
+        console.error('❌ Error creating venue credit:', creditError);
         console.error('❌ Error details:', {
           code: creditError.code,
           message: creditError.message,
           details: creditError.details,
           hint: creditError.hint
         });
-        throw new Error(`Failed to create venue credit transaction: ${creditError.message}`);
+        throw new Error(`Failed to create venue credit: ${creditError.message}`);
       }
 
-      console.log('✅ Venue credit transaction created successfully:', creditRecord);
+      console.log('✅ Venue credit created successfully:', creditRecord);
 
       // Show success message
       toast({
         title: "Credits Purchased Successfully! 🎉",
-        description: `₦${(creditData.purchaseAmount * 1000).toLocaleString()} credits added to your ${creditData.venueName} account`,
+        description: `₦${(creditData.amount * 1000).toLocaleString()} credits added to your account balance`,
         className: "bg-green-500 text-white",
       });
 

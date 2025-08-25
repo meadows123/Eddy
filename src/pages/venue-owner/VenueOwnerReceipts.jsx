@@ -162,23 +162,22 @@ const VenueOwnerReceipts = () => {
 
     try {
       // Search for members who have credits at this venue
-      const { data: membersData, error } = await supabase
-        .from('venue_credit_transactions')
+            const { data: membersData, error } = await supabase
+        .from('venue_credits')
         .select(`
           user_id,
           remaining_balance,
           profiles:user_id (
             id,
-            full_name,
-            email,
-            first_name,
-            last_name
-          )
-        `)
+              full_name,
+              email,
+              first_name,
+              last_name
+            )
+          `)
         .eq('venue_id', venue.id)
         .eq('status', 'active')
-        .gt('remaining_balance', 0)
-        .gt('expires_at', new Date().toISOString());
+        .gt('remaining_balance', 0);
 
       if (error) {
         console.error('Error searching members:', error);

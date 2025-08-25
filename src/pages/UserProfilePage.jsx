@@ -74,12 +74,12 @@ const UserProfilePage = () => {
   const debugTableStructure = async () => {
     if (!user) return;
     
-    console.log('🔍 Debugging venue_credit_transactions table structure...');
+    console.log('🔍 Debugging venue_credits table structure...');
     
     try {
       // First, let's try a simple select to see if the table exists
       const { data: simpleData, error: simpleError } = await supabase
-        .from('venue_credit_transactions')
+        .from('venue_credits')
         .select('*')
         .limit(1);
       
@@ -90,7 +90,7 @@ const UserProfilePage = () => {
         
         // Try to get table info
         const { data: tableInfo, error: tableError } = await supabase
-          .rpc('get_table_info', { table_name: 'venue_credit_transactions' });
+          .rpc('get_table_info', { table_name: 'venue_credits' });
         
         console.log('📋 Table info:', { data: tableInfo, error: tableError });
         
@@ -174,9 +174,9 @@ const UserProfilePage = () => {
     setCreditsLoading(true);
     
     try {
-      console.log('📡 Querying venue_credit_transactions table...');
+      console.log('📡 Querying venue_credits table...');
       const { data: creditsData, error } = await supabase
-        .from('venue_credit_transactions')
+        .from('venue_credits')
         .select('*')
         .eq('user_id', user.id)
         .eq('status', 'active')

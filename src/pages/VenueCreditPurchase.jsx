@@ -135,7 +135,7 @@ const VenueCreditPurchase = () => {
   const fetchUserCredits = async (userId) => {
     try {
       const { data: creditsData, error } = await supabase
-        .from('venue_credit_transactions')
+        .from('venue_credits')
         .select(`
           *,
           venues (
@@ -148,7 +148,6 @@ const VenueCreditPurchase = () => {
         .eq('user_id', userId)
         .eq('status', 'active')
         .gt('remaining_balance', 0)
-        .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false });
 
       if (error) throw error;
