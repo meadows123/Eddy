@@ -189,7 +189,7 @@ const VenueCreditPurchase = () => {
     return baseAmount * 1000;
   };
 
-  const handlePurchase = async () => {
+  const handlePurchase = () => {
     if (!selectedVenue) {
       toast({
         title: 'Venue Required',
@@ -199,25 +199,27 @@ const VenueCreditPurchase = () => {
       return;
     }
 
-    const purchaseAmount = getPurchaseAmount();
-    if (purchaseAmount < 10) {
+    if (!creditAmount && !customAmount) {
       toast({
-        title: 'Minimum Amount',
-        description: 'Minimum credit purchase is ₦10,000',
+        title: 'Amount Required',
+        description: 'Please select a credit amount to purchase.',
         variant: 'destructive',
       });
       return;
     }
 
-    // Redirect to checkout page for payment
-    navigate('/checkout', {
+    // Navigate to credit purchase checkout with the selected data
+    navigate('/credit-purchase-checkout', {
       state: {
         creditPurchase: true,
+        venue: selectedVenue,
         venueId: selectedVenue.id,
         venueName: selectedVenue.name,
-        amount: getTotalAmount(),
-        purchaseAmount: purchaseAmount,
-        venue: selectedVenue
+        amount: getTotalAmount(), // Convert to naira (e.g., 100 -> 100000)
+        purchaseAmount: getPurchaseAmount(), // Convert to naira
+        fullName: currentUser?.user_metadata?.full_name || '',
+        email: currentUser?.email || '',
+        phone: currentUser?.user_metadata?.phone || ''
       }
     });
   };

@@ -259,30 +259,7 @@ useEffect(() => {
     
     console.log('📋 Booking data received:', incomingData);
     
-    // Check if this is a credit purchase flow
-    if (incomingData.creditPurchase) {
-      console.log('✅ Credit purchase flow detected:', incomingData);
-      
-      // Set the booking data for credit purchase
-      setBookingData({
-        venue: incomingData.venue,
-        creditPurchase: true,
-        amount: incomingData.amount,
-        purchaseAmount: incomingData.purchaseAmount,
-        venueName: incomingData.venueName
-      });
-      
-      // Set form data for credit purchase
-      setFormData(prev => ({
-        ...prev,
-        venueId: incomingData.venueId
-      }));
-      
-      console.log('📝 Credit purchase data set successfully');
-      setLoading(false);
-      console.log('✅ Loading set to false for credit purchase');
-      
-    } else if (incomingData.venue && incomingData.date && incomingData.time) {
+    if (incomingData.venue && incomingData.date && incomingData.time) {
       // Regular booking flow
       console.log('✅ Valid booking data found:', {
         incomingData,
@@ -318,8 +295,7 @@ useEffect(() => {
       console.log('Missing:', {
         venue: !incomingData.venue,
         date: !incomingData.date,
-        time: !incomingData.time,
-        creditPurchase: !incomingData.creditPurchase
+        time: !incomingData.time
       });
       navigate('/venues');
     }
@@ -600,109 +576,7 @@ const handleSubmit = async (paymentMethodId) => {
       throw new Error('Failed to create or authenticate user account');
     }
 
-    // Handle credit purchase flow
-    if (bookingData?.creditPurchase) {
-      console.log('💰 Processing credit purchase for:', bookingData);
-      console.log('🔍 Current user:', currentUser);
-      console.log('🔍 Venue data:', bookingData.venue);
-      
-      // For credit purchases, we need to process payment first
-      // Create a PaymentIntent for the credit purchase
-      console.log('💳 Creating payment intent for amount:', bookingData.purchaseAmount);
-      
-      const response = await fetch(
-        'https://agydpkzfucicraedllgl.supabase.co/functions/v1/create-split-payment-intent',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-          },
-          body: JSON.stringify({
-            amount: Math.round(parseFloat(bookingData.purchaseAmount) * 100), // Convert to cents
-            paymentMethodId,
-            email: formData.email,
-            bookingId: null, // No booking for credit purchase
-            bookingType: 'credit_purchase', // Specify this is a credit purchase
-            splitRequests: [] // Empty array for credit purchases
-          })
-        }
-      );
-
-      console.log('💳 Payment intent response status:', response.status);
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error('❌ Payment intent creation failed:', errorData);
-        throw new Error(errorData.error || 'Failed to create payment intent for credit purchase');
-      }
-
-      const { clientSecret } = await response.json();
-      console.log('✅ Payment intent created, client secret received');
-
-      // Confirm the payment
-      console.log('💳 Confirming payment with Stripe...');
-      const { error: confirmError } = await stripe.confirmCardPayment(clientSecret);
-      if (confirmError) {
-        console.error('❌ Payment confirmation failed:', confirmError);
-        throw new Error(`Payment failed: ${confirmError.message}`);
-      }
-
-      console.log('✅ Payment confirmed successfully!');
-
-      // Payment successful! Now create the credit transaction
-      console.log('💾 Creating credit transaction in database...');
-      
-      const creditDataToInsert = {
-        user_id: currentUser.id,
-        venue_id: bookingData.venue.id,
-        amount: bookingData.amount, // Total credits including bonus
-        remaining_balance: bookingData.amount, // Start with full balance
-        used_amount: 0, // No credits used yet
-        bonus_credits: bookingData.amount - bookingData.purchaseAmount, // Bonus credits
-        status: 'active',
-        expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // Expires in 1 year
-        notes: `Credit purchase for ${bookingData.venueName}`,
-        created_at: new Date().toISOString()
-      };
-
-      console.log('📝 Credit data to insert:', creditDataToInsert);
-
-      const { data: creditData, error: creditError } = await supabase
-        .from('venue_credit_transactions')
-        .insert([creditDataToInsert])
-        .select()
-        .single();
-
-      if (creditError) {
-        console.error('❌ Error creating venue credit transaction:', creditError);
-        console.error('❌ Error details:', {
-          code: creditError.code,
-          message: creditError.message,
-          details: creditError.details,
-          hint: creditError.hint
-        });
-        throw new Error(`Failed to create venue credit transaction: ${creditError.message}`);
-      }
-
-      console.log('✅ Venue credit transaction created successfully:', creditData);
-
-      // Show success message
-      toast({
-        title: "Credits Purchased Successfully! 🎉",
-        description: `₦${(bookingData.purchaseAmount / 1000).toLocaleString()} credits added to your ${bookingData.venueName} account`,
-        className: "bg-green-500 text-white",
-      });
-
-      // Navigate back to profile/wallet
-      setTimeout(() => {
-        navigate('/profile', { state: { activeTab: 'wallet' } });
-      }, 2000);
-
-      return; // Exit early for credit purchase flow
-    }
-
-    // Get venue and table IDs
+    // Get venue and table IDs for regular booking flow
     const venueId = bookingData?.venue?.id || selection?.venue?.id;
     const tableId = bookingData?.table?.id || selection?.table?.id;
 
@@ -723,7 +597,9 @@ const handleSubmit = async (paymentMethodId) => {
       total_amount: parseFloat(calculateTotal())
     };
 
-    // Create pending booking
+    console.log('Creating booking for split payment:', bookingDetails);
+
+    // Save booking to database
     const { data: pendingBooking, error: bookingError } = await supabase
       .from('bookings')
       .insert([bookingDetails])
@@ -799,7 +675,7 @@ const handleSubmit = async (paymentMethodId) => {
     }
 
     // Show success message
-    toast({
+    toast({ 
       title: "Booking Confirmed!",
       description: "Your booking has been confirmed. Check your email for details.",
       className: "bg-green-500 text-white"
@@ -835,29 +711,13 @@ const calculateTotal = () => {
     bookingData,
     'selection?.selectedTable': selection?.selectedTable,
     'bookingData?.table': bookingData?.table,
-    'bookingData?.table?.price': bookingData?.table?.price,
-    'bookingData?.creditPurchase': bookingData?.creditPurchase,
-    'bookingData?.amount': bookingData?.amount,
-    'bookingData?.purchaseAmount': bookingData?.purchaseAmount
+    'bookingData?.table?.price': bookingData?.table?.price
   });
 
   if (isDepositFlow && depositAmount) {
     return depositAmount.toFixed(2);
   }
   
-  // Handle credit purchase flow
-  if (bookingData?.creditPurchase) {
-    console.log('💰 Credit purchase amount calculation:', {
-      amount: bookingData.amount,
-      purchaseAmount: bookingData.purchaseAmount
-    });
-    // Return the total amount (including bonus credits) for display
-    return bookingData.amount.toFixed(2);
-  }
-  
-  if (selection?.isCreditPurchase) {
-    return selection.purchaseAmount.toFixed(2);
-  }
   if (!selection && !bookingData) return 0;
 
   // Handle new booking modal format vs old format
@@ -964,12 +824,10 @@ setShowShareDialog(true);
         <p className="text-muted-foreground mb-6">Please go back and select a ticket or table first.</p>
         <Link to={
           isDepositFlow ? "/profile" : 
-          location.state?.creditPurchase ? "/venue-credit-purchase" :
           `/venues/${id}`
         }>
           <Button>
             {isDepositFlow ? "Back to Profile" : 
-             location.state?.creditPurchase ? "Back to Credit Purchase" :
              "Back to Venue"}
           </Button>
         </Link>
@@ -989,12 +847,10 @@ setShowShareDialog(true);
         <div className="container py-10">
           <Link to={
             isDepositFlow ? "/profile" : 
-            location.state?.creditPurchase ? "/venue-credit-purchase" :
             `/venues/${id}`
           } className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-6">
             <ArrowLeft className="mr-2 h-4 w-4" />
             {isDepositFlow ? "Back to Profile" : 
-             location.state?.creditPurchase ? "Back to Credit Purchase" :
              "Back to Venue"}
           </Link>
 
@@ -1013,27 +869,13 @@ setShowShareDialog(true);
                 {/* Show the selected booking details */}
                 {(selection || bookingData) && (
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                    <h3 className="font-semibold text-blue-800 mb-2">
-                      {bookingData?.creditPurchase ? 'Credit Purchase Summary' : 'Booking Summary'}
-                    </h3>
+                    <h3 className="font-semibold text-blue-800 mb-2">Booking Summary</h3>
                     <div className="text-sm text-blue-700">
-                      {bookingData?.creditPurchase ? (
-                        <>
-                          <p><strong>Venue:</strong> {bookingData.venueName}</p>
-                          <p><strong>Credit Amount:</strong> ₦{bookingData.purchaseAmount?.toLocaleString()}</p>
-                          <p><strong>Bonus Credits:</strong> +{bookingData.amount - bookingData.purchaseAmount} credits</p>
-                          <p><strong>Total Credits:</strong> {bookingData.amount} credits</p>
-                          <p><strong>Total Amount:</strong> ₦{bookingData.purchaseAmount?.toLocaleString()}</p>
-                        </>
-                      ) : (
-                        <>
-                          <p><strong>Venue:</strong> {(selection || bookingData).venue.name}</p>
-                          <p><strong>Table:</strong> {(selection || bookingData).table.table_number} (Capacity: {(selection || bookingData).table.capacity})</p>
-                          <p><strong>Date:</strong> {(selection || bookingData).date}</p>
-                          <p><strong>Time:</strong> {(selection || bookingData).time} - {(selection || bookingData).endTime}</p>
-                          <p><strong>Guests:</strong> {(selection || bookingData).guestCount}</p>
-                        </>
-                      )}
+                      <p><strong>Venue:</strong> {(selection || bookingData).venue.name}</p>
+                      <p><strong>Table:</strong> {(selection || bookingData).table.table_number} (Capacity: {(selection || bookingData).table.capacity})</p>
+                      <p><strong>Date:</strong> {(selection || bookingData).date}</p>
+                      <p><strong>Time:</strong> {(selection || bookingData).time} - {(selection || bookingData).endTime}</p>
+                      <p><strong>Guests:</strong> {(selection || bookingData).guestCount}</p>
                     </div>
                   </div>
                 )}
@@ -1086,12 +928,7 @@ setShowShareDialog(true);
             
             <div className="lg:col-span-1">
               <OrderSummary 
-                selection={bookingData?.creditPurchase ? {
-                  creditPurchase: true,
-                  venue: bookingData.venue,
-                  amount: bookingData.purchaseAmount,
-                  totalCredits: bookingData.amount
-                } : (selection || bookingData)}
+                selection={selection || bookingData}
                 totalAmount={calculateTotal()}
                 vipPerks={vipPerks}
               />
@@ -1110,15 +947,7 @@ setShowShareDialog(true);
                     </div>
                   </div>
                   <p className="mb-2">
-                    {bookingData?.creditPurchase ? (
-                      <>
-                        Your credit purchase of <span className="font-bold">{bookingData.totalCredits} credits</span> for <span className="font-bold">{bookingData.venueName}</span> has been confirmed.
-                      </>
-                    ) : (
-                      <>
-                        Your booking at <span className="font-bold">{(selection || bookingData)?.venue?.name}</span> has been confirmed.
-                      </>
-                    )}
+                    Your booking at <span className="font-bold">{(selection || bookingData)?.venue?.name}</span> has been confirmed.
                   </p>
                   {vipPerks.length > 0 && (
                     <div className="my-2 text-sm text-green-400">
