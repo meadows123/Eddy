@@ -343,33 +343,15 @@ const CreditPurchaseCheckout = () => {
       // Payment successful! Now create the credit transaction
       console.log('💾 Creating credit transaction in database...');
       
-      // First, let's debug what columns actually exist in this table
-      console.log('🔍 Debugging table structure...');
-      try {
-        const { data: tableInfo, error: tableError } = await supabase
-          .from('venue_credit_transactions')
-          .select('*')
-          .limit(1);
-        
-        console.log('📊 Table structure debug:', { data: tableInfo, error: tableError });
-        
-        if (tableError) {
-          console.error('❌ Table access error:', tableError);
-          throw new Error(`Cannot access venue_credit_transactions table: ${tableError.message}`);
-        }
-        
-        if (tableInfo && tableInfo.length > 0) {
-          console.log('✅ Table accessible, sample row:', tableInfo[0]);
-          console.log('🔍 Available columns:', Object.keys(tableInfo[0]));
-        } else {
-          console.log('ℹ️ Table is empty, but accessible');
-        }
-      } catch (debugError) {
-        console.error('❌ Debug error:', debugError);
-      }
+      // The table exists and has the amount column, but RLS is blocking the insert
+      // We need to either disable RLS or create proper policies
+      console.log('🔒 RLS Policy Issue: User cannot insert into venue_credit_transactions');
       
-      // Try with just the amount column to see what the table actually supports
+      // Let's try with the essential columns that should exist
+      // If these fail, we'll need to fix the RLS policies
       const creditDataToInsert = {
+        user_id: currentUser.id,
+        venue_id: creditData.venue.id,
         amount: creditData.amount * 1000 // Convert thousands to naira for storage
       };
 
