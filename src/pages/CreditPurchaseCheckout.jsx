@@ -25,6 +25,33 @@ const CreditPurchaseCheckout = () => {
   const [stripe, setStripe] = useState(null);
   const [creditData, setCreditData] = useState(null);
 
+  const [formData, setFormData] = useState({
+    fullName: '',
+    email: '',
+    phone: '',
+    password: '',
+    agreeToTerms: false,
+    referralCode: ''
+  });
+
+  const [errors, setErrors] = useState({});
+
+  // Handle form input changes
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+    
+    // Clear error for this field
+    if (errors[field]) {
+      setErrors(prev => ({
+        ...prev,
+        [field]: ''
+      }));
+    }
+  };
+
   // Initialize Stripe
   useEffect(() => {
     const initStripe = async () => {
@@ -39,12 +66,23 @@ const CreditPurchaseCheckout = () => {
     if (location.state?.creditPurchase) {
       console.log('💰 Credit purchase flow detected:', location.state);
       setCreditData(location.state);
+      
+      // Pre-fill form data with user info
+      setFormData({
+        fullName: location.state.fullName || user?.user_metadata?.full_name || '',
+        email: location.state.email || user?.email || '',
+        phone: location.state.phone || user?.user_metadata?.phone || '',
+        password: '',
+        agreeToTerms: false,
+        referralCode: ''
+      });
+      
       setLoading(false);
     } else {
       console.log('❌ No credit purchase data, redirecting to credit purchase page');
       navigate('/venue-credit-purchase');
     }
-  }, [location.state, navigate]);
+  }, [location.state, navigate, user]);
 
   const createOrUpdateUserAccount = async (userData) => {
     try {
@@ -124,15 +162,40 @@ const CreditPurchaseCheckout = () => {
       return;
     }
 
+    // Validate form data
+    const newErrors = {};
+    if (!formData.fullName.trim()) {
+      newErrors.fullName = 'Full name is required';
+    }
+    if (!formData.email.trim()) {
+      newErrors.email = 'Email is required';
+    }
+    if (!formData.phone.trim()) {
+      newErrors.phone = 'Phone number is required';
+    }
+    if (!formData.agreeToTerms) {
+      newErrors.agreeToTerms = 'You must agree to the terms of service';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      toast({
+        title: "Form Validation Error",
+        description: "Please fill in all required fields and agree to the terms",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
       // Create or update user account first
       const currentUser = await createOrUpdateUserAccount({
-        fullName: creditData.fullName || user?.user_metadata?.full_name || '',
-        email: creditData.email || user?.email || '',
-        phone: creditData.phone || user?.user_metadata?.phone || '',
-        password: creditData.password || 'temp-password'
+        fullName: formData.fullName,
+        email: formData.email,
+        phone: formData.phone,
+        password: formData.password || 'temp-password'
       });
 
       if (!currentUser?.id) {
@@ -166,10 +229,9 @@ const CreditPurchaseCheckout = () => {
         amount: creditData.amount * 1000, // Convert thousands to naira for storage
         remaining_balance: creditData.amount * 1000, // Convert thousands to naira for storage
         used_amount: 0, // No credits used yet
-        bonus_credits: (creditData.amount - creditData.purchaseAmount) * 1000, // Convert thousands to naira for storage
         status: 'active',
         expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // Expires in 1 year
-        notes: `Credit purchase for ${creditData.venueName}`,
+        notes: `Credit purchase for ${creditData.venueName} - Base: ₦${(creditData.purchaseAmount * 1000).toLocaleString()}, Bonus: ₦${((creditData.amount - creditData.purchaseAmount) * 1000).toLocaleString()}`,
         created_at: new Date().toISOString()
       };
 
@@ -273,16 +335,9 @@ const CreditPurchaseCheckout = () => {
               {/* Payment Form */}
               <Elements stripe={stripePromise}>
                 <CheckoutForm 
-                  formData={{
-                    fullName: creditData.fullName || user?.user_metadata?.full_name || '',
-                    email: creditData.email || user?.email || '',
-                    phone: creditData.phone || user?.user_metadata?.phone || '',
-                    password: '',
-                    agreeToTerms: false,
-                    referralCode: ''
-                  }}
-                  errors={{}}
-                  handleInputChange={() => {}} // No need for input changes in credit purchase
+                  formData={formData}
+                  errors={errors}
+                  handleInputChange={handleInputChange}
                   handleSubmit={handleSubmit}
                   isSubmitting={isSubmitting}
                   totalAmount={(creditData.purchaseAmount * 1000).toFixed(2)}
