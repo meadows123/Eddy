@@ -345,12 +345,12 @@ const CreditPurchaseCheckout = () => {
       
       // Use the venue_credits table which has the proper structure
       console.log('💾 Storing credits in venue_credits table...');
+      console.log('🔍 Note: remaining_balance is a generated column, will be calculated automatically');
       
       const creditDataToInsert = {
         user_id: currentUser.id,
         venue_id: creditData.venue.id,
         amount: creditData.amount, // Amount is already in full naira
-        remaining_balance: creditData.amount, // Amount is already in full naira
         used_amount: 0, // No credits used yet
         status: 'active',
         created_at: new Date().toISOString()
