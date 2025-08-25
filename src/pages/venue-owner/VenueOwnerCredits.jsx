@@ -188,7 +188,7 @@ const VenueOwnerCredits = () => {
         
         toast({
           title: "New Member Credit! 🎉",
-          description: `${latestCredit.display_data.name} purchased ₦${(latestCredit.amount / 100).toLocaleString()} credits${newCreditsCount > 1 ? ` (+${newCreditsCount - 1} more)` : ''}`,
+          description: `${latestCredit.display_data.name} purchased ₦${latestCredit.amount.toLocaleString()} credits${newCreditsCount > 1 ? ` (+${newCreditsCount - 1} more)` : ''}`,
           className: "bg-green-500 text-white",
         });
       }
@@ -234,10 +234,10 @@ const VenueOwnerCredits = () => {
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
     
-    const totalCredits = credits.reduce((sum, credit) => sum + (credit.amount / 100), 0);
-    const usedCredits = credits.reduce((sum, credit) => sum + (credit.used_amount / 100), 0);
+    const totalCredits = credits.reduce((sum, credit) => sum + credit.amount, 0);
+    const usedCredits = credits.reduce((sum, credit) => sum + credit.used_amount, 0);
     const activeMembers = new Set(credits.filter(c => c.status === 'active' && c.remaining_balance > 0).map(c => c.user_id)).size;
-    const recentCredits = credits.filter(c => new Date(c.created_at) >= thirtyDaysAgo).reduce((sum, credit) => sum + (credit.amount / 100), 0);
+    const recentCredits = credits.filter(c => new Date(c.created_at) >= thirtyDaysAgo).reduce((sum, credit) => sum + credit.amount, 0);
 
     setStatsData({
       totalCredits,
@@ -510,14 +510,14 @@ const VenueOwnerCredits = () => {
                         <div className="flex items-center space-x-4">
                           <div className="text-right">
                             <div className="font-bold text-brand-burgundy">
-                              ₦{(credit.remaining_balance / 100).toLocaleString()} remaining
+                              ₦{credit.remaining_balance.toLocaleString()} remaining
                             </div>
                             <div className="text-sm text-brand-burgundy/70">
-                              of ₦{(credit.amount / 100).toLocaleString()} total
+                              of ₦{credit.amount.toLocaleString()} total
                             </div>
                             {credit.used_amount > 0 && (
                               <div className="text-xs text-brand-burgundy/60">
-                                Used: ₦{(credit.used_amount / 100).toLocaleString()}
+                                Used: ₦{credit.used_amount.toLocaleString()}
                               </div>
                             )}
                           </div>
