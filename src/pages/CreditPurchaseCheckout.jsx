@@ -421,6 +421,51 @@ const CreditPurchaseCheckout = () => {
                     <p className="text-red-500 text-sm mt-1">{errors.agreeToTerms}</p>
                   )}
 
+                  {/* Card Details Section */}
+                  <div className="border-t pt-4">
+                    <h4 className="text-md font-medium text-gray-700 mb-3">Card Details</h4>
+                    <div className="space-y-3">
+                      {/* Card Number */}
+                      <div>
+                        <label htmlFor="cardNumber" className="block text-sm font-medium text-gray-700 mb-1">
+                          Card Number *
+                        </label>
+                        <input
+                          type="text"
+                          id="cardNumber"
+                          placeholder="1234 5678 9012 3456"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+
+                      {/* Expiry and CVC */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label htmlFor="expiry" className="block text-sm font-medium text-gray-700 mb-1">
+                            Expiry Date *
+                          </label>
+                          <input
+                            type="text"
+                            id="expiry"
+                            placeholder="MM/YY"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                        <div>
+                          <label htmlFor="cvc" className="block text-sm font-medium text-gray-700 mb-1">
+                            CVC *
+                          </label>
+                          <input
+                            type="text"
+                            id="cvc"
+                            placeholder="123"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
                   {/* Submit Button */}
                   <button
                     onClick={() => handleSubmit('simulated-payment-method')}
@@ -428,7 +473,7 @@ const CreditPurchaseCheckout = () => {
                     className={`w-full py-3 px-4 rounded-md font-medium text-white ${
                       isSubmitting 
                         ? 'bg-gray-400 cursor-not-allowed' 
-                        : 'bg-blue-600 hover:bg-blue-700 focus:ring-2 focus:ring-blue-500'
+                        : 'bg-brand-burgundy hover:bg-brand-burgundy/90 focus:ring-2 focus:ring-brand-burgundy/50'
                     }`}
                   >
                     {isSubmitting ? 'Processing...' : `Purchase Credits - ₦${(creditData.purchaseAmount * 1000).toLocaleString()}`}
