@@ -564,10 +564,7 @@ const SplitPaymentForm = ({
                           recipient_phone: recipient.phone || null,
                           amount: splitAmounts[index],
                           payment_link: `${window.location.origin}/split-payment/${newBookingId}/${recipient.id}`,
-                          status: 'pending',
-                          requester_name: user?.first_name && user?.last_name 
-                            ? `${user.first_name} ${user.last_name}` 
-                            : user?.email || 'Unknown User'
+                          status: 'pending'
                         }));
 
                         const { data, error } = await supabase
@@ -640,17 +637,16 @@ const SplitPaymentForm = ({
 
                       // Update the initiator's payment status in the booking
                       // This doesn't affect the split payment requests - they remain pending
+                      // Note: Only update columns that exist in the database schema
                       const { error: bookingUpdateError } = await supabase
                         .from('bookings')
                         .update({ 
-                          initiator_paid: true,
-                          initiator_payment_amount: myAmount,
-                          initiator_payment_date: new Date().toISOString()
+                          status: 'pending'
                         })
                         .eq('id', confirmedBookingId);
 
                       if (bookingUpdateError) {
-                        console.error('Error updating booking with initiator payment:', bookingUpdateError);
+                        console.error('Error updating booking status:', bookingUpdateError);
                       }
 
                       // Show success message

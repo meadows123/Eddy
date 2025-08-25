@@ -409,6 +409,8 @@ const UserProfilePage = () => {
     }
   };
 
+  const [activeTab, setActiveTab] = useState(location.state?.activeTab || "profile");
+
   if (!user) {
     return (
       <div className="min-h-screen bg-brand-cream/50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -654,7 +656,11 @@ const UserProfilePage = () => {
           </Button>
         </div>
 
-        <Tabs defaultValue={location.state?.activeTab || "profile"} className="space-y-4 sm:space-y-6">
+        <Tabs 
+          value={activeTab} 
+          onValueChange={setActiveTab} 
+          className="space-y-4 sm:space-y-6"
+        >
           <TabsList className="bg-white p-1 rounded-lg border border-brand-burgundy/10 grid grid-cols-2 md:grid-cols-7 h-auto">
             <TabsTrigger value="profile" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 p-2 md:p-3 text-xs md:text-sm">
               <User className="h-3 w-3 md:h-4 md:w-4" />
@@ -990,7 +996,7 @@ const UserProfilePage = () => {
                           <div className="flex items-center justify-between">
                             <div>
                               <div className="font-medium text-brand-burgundy">₦{request.amount?.toLocaleString()}</div>
-                              <div className="text-sm text-brand-burgundy/70">From: {request.requester_name || 'A friend'}</div>
+                              <div className="text-sm text-brand-burgundy/70">From: {request.requester_id ? `User ${request.requester_id.slice(0, 8)}...` : 'A friend'}</div>
                               <div className="text-xs text-brand-burgundy/50">
                                 {new Date(request.created_at).toLocaleDateString()}
                               </div>

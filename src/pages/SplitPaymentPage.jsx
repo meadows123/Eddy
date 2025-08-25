@@ -324,7 +324,7 @@ const SplitPaymentPage = () => {
                   <div>
                     <Label className="text-muted-foreground">Requested by</Label>
                     <p className="font-medium">
-                      {paymentRequest.requester_name || 'Unknown User'}
+                      {paymentRequest.requester_id ? `User ${paymentRequest.requester_id.slice(0, 8)}...` : 'Unknown User'}
                     </p>
                   </div>
                   <div>
@@ -345,7 +345,7 @@ const SplitPaymentPage = () => {
                   <p className="text-sm text-red-500 mt-2">Warning: Invalid payment amount</p>
                 )}
                 <div className="mt-4 text-sm text-muted-foreground">
-                  <p>Requested by: {paymentRequest.requester_name || 'Unknown User'}</p>
+                  <p>Requested by: {paymentRequest.requester_id ? `User ${paymentRequest.requester_id.slice(0, 8)}...` : 'Unknown User'}</p>
                   <p>Booking ID: {paymentRequest.booking_id}</p>
                 </div>
               </div>
