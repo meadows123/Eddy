@@ -349,8 +349,8 @@ const CreditPurchaseCheckout = () => {
       const creditDataToInsert = {
         user_id: currentUser.id,
         venue_id: creditData.venue.id,
-        amount: creditData.amount * 1000, // Convert thousands to naira for storage
-        remaining_balance: creditData.amount * 1000, // Convert thousands to naira for storage
+        amount: creditData.amount, // Amount is already in full naira
+        remaining_balance: creditData.amount, // Amount is already in full naira
         used_amount: 0, // No credits used yet
         status: 'active',
         created_at: new Date().toISOString()
@@ -380,7 +380,7 @@ const CreditPurchaseCheckout = () => {
       // Show success message
       toast({
         title: "Credits Purchased Successfully! 🎉",
-        description: `₦${(creditData.amount * 1000).toLocaleString()} credits added to your account balance`,
+        description: `₦${creditData.amount.toLocaleString()} credits added to your account balance`,
         className: "bg-green-500 text-white",
       });
 
@@ -446,10 +446,10 @@ const CreditPurchaseCheckout = () => {
                 <h3 className="font-semibold text-blue-800 mb-2">Credit Purchase Summary</h3>
                 <div className="text-sm text-blue-700">
                   <p><strong>Venue:</strong> {creditData.venueName}</p>
-                  <p><strong>Credit Amount:</strong> ₦{(creditData.purchaseAmount * 1000).toLocaleString()}</p>
-                  <p><strong>Bonus Credits:</strong> +{(creditData.amount - creditData.purchaseAmount) * 1000} credits</p>
-                  <p><strong>Total Credits:</strong> {(creditData.amount * 1000).toLocaleString()} credits</p>
-                  <p><strong>Total Amount:</strong> ₦{(creditData.purchaseAmount * 1000).toLocaleString()}</p>
+                  <p><strong>Credit Amount:</strong> ₦{creditData.purchaseAmount.toLocaleString()}</p>
+                  <p><strong>Bonus Credits:</strong> +{(creditData.amount - creditData.purchaseAmount)} credits</p>
+                  <p><strong>Total Credits:</strong> {creditData.amount.toLocaleString()} credits</p>
+                  <p><strong>Total Amount:</strong> ₦{creditData.purchaseAmount.toLocaleString()}</p>
                 </div>
               </div>
 
@@ -614,7 +614,7 @@ const CreditPurchaseCheckout = () => {
                           : 'bg-brand-burgundy hover:bg-brand-burgundy/90 focus:ring-2 focus:ring-brand-burgundy/50'
                       }`}
                     >
-                      {isSubmitting ? 'Processing...' : `Purchase Credits - ₦${(creditData.purchaseAmount * 1000).toLocaleString()}`}
+                      {isSubmitting ? 'Processing...' : `Purchase Credits - ₦${creditData.purchaseAmount.toLocaleString()}`}
                     </button>
                   </div>
                 )}
@@ -628,22 +628,22 @@ const CreditPurchaseCheckout = () => {
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <span>Credit Amount:</span>
-                  <span>₦{(creditData.purchaseAmount * 1000).toLocaleString()}</span>
+                  <span>₦{creditData.purchaseAmount.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-green-600">
                   <span>Bonus Credits:</span>
-                  <span>+{(creditData.amount - creditData.purchaseAmount) * 1000}</span>
+                  <span>+{(creditData.amount - creditData.purchaseAmount)}</span>
                 </div>
                 <div className="border-t pt-3">
                   <div className="flex justify-between font-semibold">
                     <span>Total Credits:</span>
-                    <span>{(creditData.amount * 1000).toLocaleString()}</span>
+                    <span>{creditData.amount.toLocaleString()}</span>
                   </div>
                 </div>
                 <div className="border-t pt-3">
                   <div className="flex justify-between font-bold text-lg">
                     <span>Total Amount:</span>
-                    <span>₦{(creditData.purchaseAmount * 1000).toLocaleString()}</span>
+                    <span>₦{creditData.purchaseAmount.toLocaleString()}</span>
                   </div>
                 </div>
               </div>
@@ -663,7 +663,7 @@ const CreditPurchaseCheckout = () => {
                   </div>
                 </div>
                 <p className="mb-4">
-                  Your credit purchase of <span className="font-bold">{(creditData.amount * 1000).toLocaleString()} credits</span> for <span className="font-bold">{creditData.venueName}</span> has been confirmed.
+                  Your credit purchase of <span className="font-bold">{creditData.amount.toLocaleString()} credits</span> for <span className="font-bold">{creditData.venueName}</span> has been confirmed.
                 </p>
                 <p className="text-sm text-muted-foreground">
                   Credits have been added to your account and are ready to use.

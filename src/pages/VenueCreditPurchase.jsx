@@ -176,14 +176,22 @@ const VenueCreditPurchase = () => {
     const baseAmount = creditAmount || parseFloat(customAmount) || 0;
     const selectedOption = creditOptions.find(opt => opt.amount === creditAmount);
     const bonus = selectedOption ? selectedOption.bonus : 0;
-    // The amounts already represent thousands of naira, so no need to multiply
-    return baseAmount + bonus;
+    // For predefined amounts, convert thousands to naira; for custom amounts, use as-is
+    if (creditAmount) {
+      return (baseAmount + bonus) * 1000;
+    } else {
+      return baseAmount; // Custom amount is already in naira
+    }
   };
 
   const getPurchaseAmount = () => {
     const baseAmount = creditAmount || parseFloat(customAmount) || 0;
-    // The amounts already represent thousands of naira, so no need to multiply
-    return baseAmount;
+    // For predefined amounts, convert thousands to naira; for custom amounts, use as-is
+    if (creditAmount) {
+      return baseAmount * 1000;
+    } else {
+      return baseAmount; // Custom amount is already in naira
+    }
   };
 
   const handlePurchase = () => {
@@ -405,15 +413,15 @@ const VenueCreditPurchase = () => {
                   <Input
                     id="customAmount"
                     type="number"
-                    min="10"
-                    step="1"
+                    min="10000"
+                    step="1000"
                     value={customAmount}
                     onChange={(e) => handleCustomAmountChange(e.target.value)}
                     className="border-brand-burgundy/20 focus:border-brand-burgundy"
-                    placeholder="Enter amount in thousands (min: 10)"
+                    placeholder="Enter amount in naira (min: ₦10,000)"
                   />
                   <p className="text-xs text-brand-burgundy/60 mt-1">
-                    Custom amounts do not include bonus credits
+                    Custom amounts do not include bonus credits. Minimum: ₦10,000
                   </p>
                 </div>
 
@@ -489,12 +497,12 @@ const VenueCreditPurchase = () => {
                         <div className="flex justify-between items-center mt-2">
                           <span className="text-sm text-brand-burgundy/70">Available:</span>
                           <span className="font-bold text-brand-burgundy">
-                            ₦{(credit.remaining_balance / 1000).toLocaleString()}
+                            ₦{credit.remaining_balance.toLocaleString()}
                           </span>
                         </div>
-                        <div className="text-xs text-brand-burgundy/50 mt-1">
-                          Expires: {new Date(credit.expires_at).toLocaleDateString()}
-                        </div>
+                                                 <div className="text-xs text-brand-burgundy/50 mt-1">
+                           Purchased: {new Date(credit.created_at).toLocaleDateString()}
+                         </div>
                       </div>
                     ))}
                   </div>
