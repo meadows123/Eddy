@@ -190,6 +190,11 @@ const VenueCreditPurchase = () => {
   };
 
   const handlePurchase = () => {
+    console.log('🔍 handlePurchase function called!');
+    console.log('🔍 selectedVenue:', selectedVenue);
+    console.log('🔍 creditAmount:', creditAmount);
+    console.log('🔍 customAmount:', customAmount);
+    
     if (!selectedVenue) {
       toast({
         title: 'Venue Required',
@@ -207,6 +212,21 @@ const VenueCreditPurchase = () => {
       });
       return;
     }
+
+    console.log('✅ Validation passed, navigating to credit purchase checkout...');
+    console.log('🔍 Navigation data:', {
+      creditPurchase: true,
+      venue: selectedVenue,
+      venueId: selectedVenue.id,
+      venueName: selectedVenue.name,
+      amount: getTotalAmount(),
+      purchaseAmount: getPurchaseAmount(),
+      fullName: currentUser?.user_metadata?.full_name || '',
+      email: currentUser?.email || '',
+      phone: currentUser?.user_metadata?.phone || ''
+    });
+
+    console.log('🚀 About to navigate to: /credit-purchase-checkout');
 
     // Navigate to credit purchase checkout with the selected data
     navigate('/credit-purchase-checkout', {
