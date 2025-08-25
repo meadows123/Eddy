@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { CreditCard, User, Check, AlertCircle, ArrowLeft, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -94,8 +94,8 @@ const SplitPaymentPage = () => {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
 
+  // Check if user is authenticated
   useEffect(() => {
-    // Check if user is authenticated
     if (!user) {
       console.log('❌ User not authenticated, redirecting to profile');
       toast({
@@ -106,33 +106,67 @@ const SplitPaymentPage = () => {
       navigate('/profile');
       return;
     }
+  }, [user, navigate, toast]);
 
-    // If no parameters are provided, redirect to profile page
-    if (!bookingId || !requestId) {
-      console.log('❌ Missing required parameters, redirecting to profile');
+  useEffect(() => {
+    console.log('🔍 SplitPaymentPage useEffect triggered with:', { bookingId, requestId, user });
+    if (bookingId && requestId && user) {
+      fetchPaymentRequest();
+    } else if (bookingId && requestId) {
+      console.error('❌ Missing required parameters:', { bookingId, requestId });
       toast({
-        title: "Invalid Access",
-        description: "Split payments can only be accessed via a payment request link.",
+        title: "Invalid Link",
+        description: "This payment link is invalid or incomplete.",
         variant: "destructive"
       });
       navigate('/profile');
-      return;
     }
-    fetchPaymentRequest();
   }, [bookingId, requestId, user]);
 
   const fetchPaymentRequest = async () => {
     try {
       setLoading(true);
 
-      // Validate params
-      if (!bookingId || !requestId) {
-        throw new Error('Missing required parameters');
+      // Handle special case for initiator
+      if (requestId === 'initiator') {
+        console.log('🔍 Handling initiator request for booking:', bookingId);
+        
+        // For initiator, we need to fetch the booking directly and create a mock payment request
+        const { data: bookingData, error: bookingError } = await supabase
+          .from('bookings')
+          .select('*')
+          .eq('id', bookingId)
+          .single();
+
+        if (bookingError) {
+          console.error('❌ Error fetching booking for initiator:', bookingError);
+          throw new Error('Booking not found');
+        }
+
+        // Create a mock payment request for the initiator
+        const mockRequest = {
+          id: 'initiator',
+          booking_id: bookingId,
+          requester_id: bookingData.user_id,
+          recipient_id: bookingData.user_id,
+          amount: 0, // Initiator doesn't need to pay
+          status: 'paid',
+          created_at: new Date().toISOString()
+        };
+
+        setPaymentRequest(mockRequest);
+        setBooking(bookingData);
+        
+        // Fetch venue data
+        if (bookingData.venue_id) {
+          await fetchVenueData(bookingData.venue_id);
+        }
+        
+        setLoading(false);
+        return;
       }
 
-      console.log('🔍 Fetching payment request:', { requestId, bookingId });
-
-      // First, fetch the payment request
+      // Fetch the payment request for regular recipients
       const { data: requestData, error: requestError } = await supabase
         .from('split_payment_requests')
         .select('*')
@@ -145,14 +179,10 @@ const SplitPaymentPage = () => {
         throw requestError;
       }
 
-      if (!requestData) {
-        throw new Error('Payment request not found');
-      }
-
       console.log('✅ Payment request found:', requestData);
 
       // Check if the current user is the intended recipient
-      if (requestData.recipient_id && requestData.recipient_id !== user.id) {
+      if (requestData.recipient_id && requestData.recipient_id !== user?.id) {
         console.log('❌ User not authorized for this payment request');
         toast({
           title: "Access Denied",
@@ -196,64 +226,25 @@ const SplitPaymentPage = () => {
         // Don't throw here, just log the error
       }
 
-      // Fetch venue data separately
-      let venueData = null;
+      // Fetch venue data
       if (bookingData?.venue_id) {
-        console.log('🔍 Fetching venue data for venue_id:', bookingData.venue_id);
-        
-        const { data: venue, error: venueError } = await supabase
-          .from('venues')
-          .select('id, name, address, city, type, description, price_range, contact_phone, contact_email')
-          .eq('id', bookingData.venue_id)
-          .single();
-
-        if (!venueError && venue) {
-          venueData = venue;
-          console.log('✅ Venue data fetched successfully:', venue);
-        } else {
-          console.error('❌ Error fetching venue data:', venueError);
-          // Set a fallback venue object with basic info
-          venueData = {
-            name: 'Venue Information Unavailable',
-            address: 'Location details not available',
-            city: 'Unknown',
-            type: 'Unknown',
-            description: 'Venue details could not be loaded. Please contact the person who sent you this payment request for more information.',
-            price_range: 'Unknown',
-            contact_phone: 'N/A',
-            contact_email: 'N/A'
-          };
-        }
-      } else {
-        console.log('⚠️ No venue_id found in booking data:', bookingData);
-        // No venue_id in booking, create fallback
-        venueData = {
-          name: 'Venue Information Unavailable',
-          address: 'Location details not available',
-          city: 'Unknown',
-          type: 'Unknown',
-          description: 'Venue details could not be loaded. Please contact the person who sent you this payment request for more information.',
-          price_range: 'Unknown',
-          contact_phone: 'N/A',
-          contact_email: 'N/A'
-        };
+        await fetchVenueData(bookingData.venue_id);
       }
 
       // Set the state
       setPaymentRequest(requestData);
       setBooking(bookingData || {});
-      setVenue(venueData || {});
 
       console.log('✅ All data loaded successfully:', {
         paymentRequest: requestData,
         booking: bookingData,
-        venue: venueData,
+        venue: venue,
         'booking.venue_id': bookingData?.venue_id,
-        'venue.id': venueData?.id
+        'venue.id': venue?.id
       });
 
     } catch (error) {
-      console.error('❌ Error fetching payment request:', error);
+      console.error('❌ Error in fetchPaymentRequest:', error);
       toast({
         title: "Error",
         description: "Failed to load payment request. Please check the link.",
@@ -262,6 +253,49 @@ const SplitPaymentPage = () => {
       navigate('/profile');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Separate function to fetch venue data
+  const fetchVenueData = async (venueId) => {
+    try {
+      console.log('🔍 Fetching venue data for venue_id:', venueId);
+      
+      const { data: venue, error: venueError } = await supabase
+        .from('venues')
+        .select('id, name, address, city, type, description, price_range, contact_phone, contact_email')
+        .eq('id', venueId)
+        .single();
+
+      if (!venueError && venue) {
+        setVenue(venue);
+        console.log('✅ Venue data fetched successfully:', venue);
+      } else {
+        console.error('❌ Error fetching venue data:', venueError);
+        // Set a fallback venue object with basic info
+        setVenue({
+          name: 'Venue Information Unavailable',
+          address: 'Location details not available',
+          city: 'Unknown',
+          type: 'Unknown',
+          description: 'Venue details could not be loaded. Please contact the person who sent you this payment request for more information.',
+          price_range: 'Unknown',
+          contact_phone: 'N/A',
+          contact_email: 'N/A'
+        });
+      }
+    } catch (error) {
+      console.error('❌ Error in fetchVenueData:', error);
+      setVenue({
+        name: 'Venue Information Unavailable',
+        address: 'Location details not available',
+        city: 'Unknown',
+        type: 'Unknown',
+        description: 'Venue details could not be loaded. Please contact the person who sent you this payment request for more information.',
+        price_range: 'Unknown',
+        contact_phone: 'N/A',
+        contact_email: 'N/A'
+      });
     }
   };
 
@@ -309,6 +343,130 @@ const SplitPaymentPage = () => {
         <h2 className="text-2xl font-bold mb-4">Payment Request Not Found</h2>
         <p className="text-muted-foreground mb-6">The payment link may be invalid or expired.</p>
         <Button onClick={() => navigate('/')}>Go Home</Button>
+      </div>
+    );
+  }
+
+  // Don't show payment form for initiator
+  if (paymentRequest?.id === 'initiator') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+        <div className="container py-10">
+          <Link to="/profile" className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-6">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Profile
+          </Link>
+
+          <div className="max-w-2xl mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <div className="text-center mb-8">
+                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Check className="h-8 w-8 text-green-600" />
+                </div>
+                <h1 className="text-3xl font-bold text-gray-900 mb-2">Payment Complete</h1>
+                <p className="text-gray-600">You've already paid your portion of this booking.</p>
+              </div>
+
+              {/* Venue Information */}
+              {venue && (
+                <Card className="mb-6">
+                  <CardHeader>
+                    <CardTitle className="flex items-center">
+                      <CreditCard className="h-5 w-5 mr-2" />
+                      Venue Information
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="bg-brand-cream/30 border border-brand-gold/20 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-lg text-brand-burgundy">
+                            {venue.name}
+                          </h3>
+                          <p className="text-sm text-muted-foreground">
+                            {venue.address && venue.city ? `${venue.address}, ${venue.city}` : 'Location details not available'}
+                          </p>
+                          {venue.type && venue.type !== 'Unknown' && (
+                            <Badge variant="secondary" className="mt-1 text-xs">
+                              {venue.type.charAt(0).toUpperCase() + venue.type.slice(1)}
+                            </Badge>
+                          )}
+                        </div>
+                        <Badge variant="outline" className="ml-2">Initiator</Badge>
+                      </div>
+                      
+                      {/* Additional venue details */}
+                      {venue.name !== 'Venue Information Unavailable' && (
+                        <div className="mt-3 pt-3 border-t border-brand-gold/20">
+                          {venue.description && venue.description !== 'Venue details could not be loaded. Please contact the person who sent you this payment request for more information.' && (
+                            <p className="text-sm text-muted-foreground mb-2">
+                              {venue.description}
+                            </p>
+                          )}
+                          <div className="grid grid-cols-2 gap-3 text-xs">
+                            {venue.price_range && venue.price_range !== 'Unknown' && (
+                              <div>
+                                <span className="font-medium text-brand-burgundy">Price Range:</span>
+                                <span className="ml-1">{venue.price_range}</span>
+                              </div>
+                            )}
+                            {venue.contact_phone && venue.contact_phone !== 'N/A' && (
+                              <div>
+                                <span className="font-medium text-brand-burgundy">Contact:</span>
+                                <span className="ml-1">{venue.contact_phone}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Show helpful message when venue info is unavailable */}
+                      {venue.name === 'Venue Information Unavailable' && (
+                        <div className="mt-3 pt-3 border-t border-brand-gold/20">
+                          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                            <p className="text-sm text-yellow-800">
+                              <strong>Note:</strong> Venue details could not be loaded. This might be because:
+                            </p>
+                            <ul className="text-xs text-yellow-700 mt-2 list-disc list-inside space-y-1">
+                              <li>The venue has been removed or updated</li>
+                              <li>There was an issue loading the venue information</li>
+                              <li>The booking was created with incomplete venue data</li>
+                            </ul>
+                          </div>
+                        </div>
+                      )}
+                      
+                      <div className="grid grid-cols-2 gap-4 text-sm mt-3">
+                        <div>
+                          <Label className="text-muted-foreground">Booking Date</Label>
+                          <p className="font-medium">
+                            {booking?.booking_date ? new Date(booking.booking_date).toLocaleDateString() : 'Not specified'}
+                          </p>
+                        </div>
+                        <div>
+                          <Label className="text-muted-foreground">Your Amount</Label>
+                          <p className="font-medium text-green-600">₦0.00 (Paid)</p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              <div className="text-center">
+                <Link to="/profile">
+                  <Button className="bg-brand-burgundy text-white hover:bg-brand-burgundy/90">
+                    Back to Profile
+                  </Button>
+                </Link>
+              </div>
+            </motion.div>
+          </div>
+        </div>
       </div>
     );
   }
