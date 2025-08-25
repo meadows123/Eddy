@@ -177,16 +177,14 @@ const VenueCreditPurchase = () => {
     const baseAmount = creditAmount || parseFloat(customAmount) || 0;
     const selectedOption = creditOptions.find(opt => opt.amount === creditAmount);
     const bonus = selectedOption ? selectedOption.bonus : 0;
-    // Convert to actual naira amount (multiply by 1000 since amounts represent thousands)
-    const baseAmountNaira = baseAmount * 1000;
-    const bonusNaira = bonus * 1000;
-    return baseAmountNaira + bonusNaira;
+    // The amounts already represent thousands of naira, so no need to multiply
+    return baseAmount + bonus;
   };
 
   const getPurchaseAmount = () => {
     const baseAmount = creditAmount || parseFloat(customAmount) || 0;
-    // Convert to actual naira amount (multiply by 1000 since amounts represent thousands)
-    return baseAmount * 1000;
+    // The amounts already represent thousands of naira, so no need to multiply
+    return baseAmount;
   };
 
   const handlePurchase = () => {

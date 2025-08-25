@@ -156,7 +156,7 @@ const CreditPurchaseCheckout = () => {
             'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
           },
           body: JSON.stringify({
-            amount: Math.round(parseFloat(creditData.purchaseAmount) * 100), // Convert to cents
+            amount: Math.round(parseFloat(creditData.purchaseAmount * 1000) * 100), // Convert thousands to naira, then to cents
             paymentMethodId,
             email: creditData.email || user?.email,
             bookingId: null, // No booking for credit purchase
@@ -193,10 +193,10 @@ const CreditPurchaseCheckout = () => {
       const creditDataToInsert = {
         user_id: currentUser.id,
         venue_id: creditData.venue.id,
-        amount: creditData.amount, // Total credits including bonus
-        remaining_balance: creditData.amount, // Start with full balance
+        amount: creditData.amount * 1000, // Convert thousands to naira for storage
+        remaining_balance: creditData.amount * 1000, // Convert thousands to naira for storage
         used_amount: 0, // No credits used yet
-        bonus_credits: creditData.amount - creditData.purchaseAmount, // Bonus credits
+        bonus_credits: (creditData.amount - creditData.purchaseAmount) * 1000, // Convert thousands to naira for storage
         status: 'active',
         expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // Expires in 1 year
         notes: `Credit purchase for ${creditData.venueName}`,
@@ -227,7 +227,7 @@ const CreditPurchaseCheckout = () => {
       // Show success message
       toast({
         title: "Credits Purchased Successfully! 🎉",
-        description: `₦${(creditData.purchaseAmount / 1000).toLocaleString()} credits added to your ${creditData.venueName} account`,
+        description: `₦${(creditData.purchaseAmount * 1000).toLocaleString()} credits added to your ${creditData.venueName} account`,
         className: "bg-green-500 text-white",
       });
 
@@ -293,10 +293,10 @@ const CreditPurchaseCheckout = () => {
                 <h3 className="font-semibold text-blue-800 mb-2">Credit Purchase Summary</h3>
                 <div className="text-sm text-blue-700">
                   <p><strong>Venue:</strong> {creditData.venueName}</p>
-                  <p><strong>Credit Amount:</strong> ₦{(creditData.purchaseAmount / 1000).toLocaleString()}</p>
-                  <p><strong>Bonus Credits:</strong> +{(creditData.amount - creditData.purchaseAmount) / 1000} credits</p>
-                  <p><strong>Total Credits:</strong> {(creditData.amount / 1000).toLocaleString()} credits</p>
-                  <p><strong>Total Amount:</strong> ₦{(creditData.purchaseAmount / 1000).toLocaleString()}</p>
+                  <p><strong>Credit Amount:</strong> ₦{(creditData.purchaseAmount * 1000).toLocaleString()}</p>
+                  <p><strong>Bonus Credits:</strong> +{(creditData.amount - creditData.purchaseAmount) * 1000} credits</p>
+                  <p><strong>Total Credits:</strong> {(creditData.amount * 1000).toLocaleString()} credits</p>
+                  <p><strong>Total Amount:</strong> ₦{(creditData.purchaseAmount * 1000).toLocaleString()}</p>
                 </div>
               </div>
 
@@ -315,7 +315,7 @@ const CreditPurchaseCheckout = () => {
                   handleInputChange={() => {}} // No need for input changes in credit purchase
                   handleSubmit={handleSubmit}
                   isSubmitting={isSubmitting}
-                  totalAmount={(creditData.purchaseAmount / 1000).toFixed(2)}
+                  totalAmount={(creditData.purchaseAmount * 1000).toFixed(2)}
                   isAuthenticated={!!user}
                   icons={{
                     user: <User className="h-5 w-5 mr-2" />
@@ -331,22 +331,22 @@ const CreditPurchaseCheckout = () => {
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <span>Credit Amount:</span>
-                  <span>₦{(creditData.purchaseAmount / 1000).toLocaleString()}</span>
+                  <span>₦{(creditData.purchaseAmount * 1000).toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between text-green-600">
                   <span>Bonus Credits:</span>
-                  <span>+{(creditData.amount - creditData.purchaseAmount) / 1000}</span>
+                  <span>+{(creditData.amount - creditData.purchaseAmount) * 1000}</span>
                 </div>
                 <div className="border-t pt-3">
                   <div className="flex justify-between font-semibold">
                     <span>Total Credits:</span>
-                    <span>{(creditData.amount / 1000).toLocaleString()}</span>
+                    <span>{(creditData.amount * 1000).toLocaleString()}</span>
                   </div>
                 </div>
                 <div className="border-t pt-3">
                   <div className="flex justify-between font-bold text-lg">
                     <span>Total Amount:</span>
-                    <span>₦{(creditData.purchaseAmount / 1000).toLocaleString()}</span>
+                    <span>₦{(creditData.purchaseAmount * 1000).toLocaleString()}</span>
                   </div>
                 </div>
               </div>
@@ -366,7 +366,7 @@ const CreditPurchaseCheckout = () => {
                   </div>
                 </div>
                 <p className="mb-4">
-                  Your credit purchase of <span className="font-bold">{(creditData.amount / 1000).toLocaleString()} credits</span> for <span className="font-bold">{creditData.venueName}</span> has been confirmed.
+                  Your credit purchase of <span className="font-bold">{(creditData.amount * 1000).toLocaleString()} credits</span> for <span className="font-bold">{creditData.venueName}</span> has been confirmed.
                 </p>
                 <p className="text-sm text-muted-foreground">
                   Credits have been added to your account and are ready to use.
