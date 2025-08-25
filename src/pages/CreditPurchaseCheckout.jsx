@@ -1,17 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, CreditCard, Wallet, Gift, Check, User } from 'lucide-react';
+import { ArrowLeft, Wallet, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import CheckoutForm from '@/components/checkout/CheckoutForm';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { Elements, CardElement } from '@stripe/react-stripe-js';
-import { stripePromise } from '@/lib/stripe';
 
 const CreditPurchaseCheckout = () => {
   const navigate = useNavigate();
@@ -22,7 +18,6 @@ const CreditPurchaseCheckout = () => {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
-  const [stripe, setStripe] = useState(null);
   const [creditData, setCreditData] = useState(null);
 
   const [formData, setFormData] = useState({
@@ -38,6 +33,7 @@ const CreditPurchaseCheckout = () => {
 
   // Handle form input changes
   const handleInputChange = (field, value) => {
+    console.log('🔍 Form input change:', field, value);
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -52,14 +48,22 @@ const CreditPurchaseCheckout = () => {
     }
   };
 
-  // Initialize Stripe
-  useEffect(() => {
-    const initStripe = async () => {
-      const stripeInstance = await stripePromise;
-      setStripe(stripeInstance);
-    };
-    initStripe();
-  }, []);
+  // Handle checkbox changes specifically
+  const handleCheckboxChange = (field, checked) => {
+    console.log('🔍 Checkbox change:', field, checked);
+    setFormData(prev => ({
+      ...prev,
+      [field]: checked
+    }));
+    
+    // Clear error for this field
+    if (errors[field]) {
+      setErrors(prev => ({
+        ...prev,
+        [field]: ''
+      }));
+    }
+  };
 
   // Check for credit purchase data
   useEffect(() => {
@@ -154,11 +158,6 @@ const CreditPurchaseCheckout = () => {
   const handleSubmit = async (paymentMethodId) => {
     if (!paymentMethodId) {
       console.error('No payment method ID provided');
-      return;
-    }
-
-    if (!stripe) {
-      console.error('Stripe not initialized');
       return;
     }
 
@@ -333,20 +332,109 @@ const CreditPurchaseCheckout = () => {
               </div>
 
               {/* Payment Form */}
-              <Elements stripe={stripePromise}>
-                <CheckoutForm 
-                  formData={formData}
-                  errors={errors}
-                  handleInputChange={handleInputChange}
-                  handleSubmit={handleSubmit}
-                  isSubmitting={isSubmitting}
-                  totalAmount={(creditData.purchaseAmount * 1000).toFixed(2)}
-                  isAuthenticated={!!user}
-                  icons={{
-                    user: <User className="h-5 w-5 mr-2" />
-                  }}
-                />
-              </Elements>
+              <div className="bg-white border border-gray-200 rounded-lg p-6">
+                <h3 className="text-lg font-semibold mb-4">Payment Information</h3>
+                
+                <div className="space-y-4">
+                  {/* Full Name */}
+                  <div>
+                    <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-1">
+                      Full Name *
+                    </label>
+                    <input
+                      type="text"
+                      id="fullName"
+                      value={formData.fullName}
+                      onChange={(e) => handleInputChange('fullName', e.target.value)}
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        errors.fullName ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="Enter your full name"
+                    />
+                    {errors.fullName && (
+                      <p className="text-red-500 text-sm mt-1">{errors.fullName}</p>
+                    )}
+                  </div>
+
+                  {/* Email */}
+                  <div>
+                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                      Email Address *
+                    </label>
+                    <input
+                      type="email"
+                      id="email"
+                      value={formData.email}
+                      onChange={(e) => handleInputChange('email', e.target.value)}
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        errors.email ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="Enter your email address"
+                    />
+                    {errors.email && (
+                      <p className="text-red-500 text-sm mt-1">{errors.email}</p>
+                    )}
+                  </div>
+
+                  {/* Phone */}
+                  <div>
+                    <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+                      Phone Number *
+                    </label>
+                    <input
+                      type="tel"
+                      id="phone"
+                      value={formData.phone}
+                      onChange={(e) => handleInputChange('phone', e.target.value)}
+                      className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        errors.phone ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="Enter your phone number"
+                    />
+                    {errors.phone && (
+                      <p className="text-red-500 text-sm mt-1">{errors.phone}</p>
+                    )}
+                  </div>
+
+                  {/* Terms Agreement */}
+                  <div className="flex items-start space-x-2">
+                    <input
+                      type="checkbox"
+                      id="agreeToTerms"
+                      checked={formData.agreeToTerms}
+                      onChange={(e) => handleCheckboxChange('agreeToTerms', e.target.checked)}
+                      className="mt-1 h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <label htmlFor="agreeToTerms" className="text-sm text-gray-700">
+                      I agree to the{' '}
+                      <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        Terms of Service
+                      </a>{' '}
+                      and{' '}
+                      <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                        Privacy Policy
+                      </a>{' '}
+                      *
+                    </label>
+                  </div>
+                  {errors.agreeToTerms && (
+                    <p className="text-red-500 text-sm mt-1">{errors.agreeToTerms}</p>
+                  )}
+
+                  {/* Submit Button */}
+                  <button
+                    onClick={() => handleSubmit('simulated-payment-method')}
+                    disabled={isSubmitting}
+                    className={`w-full py-3 px-4 rounded-md font-medium text-white ${
+                      isSubmitting 
+                        ? 'bg-gray-400 cursor-not-allowed' 
+                        : 'bg-blue-600 hover:bg-blue-700 focus:ring-2 focus:ring-blue-500'
+                    }`}
+                  >
+                    {isSubmitting ? 'Processing...' : `Purchase Credits - ₦${(creditData.purchaseAmount * 1000).toLocaleString()}`}
+                  </button>
+                </div>
+              </div>
             </motion.div>
           </div>
           
