@@ -600,6 +600,108 @@ const handleSubmit = async (paymentMethodId) => {
       throw new Error('Failed to create or authenticate user account');
     }
 
+    // Handle credit purchase flow
+    if (bookingData?.creditPurchase) {
+      console.log('💰 Processing credit purchase for:', bookingData);
+      console.log('🔍 Current user:', currentUser);
+      console.log('🔍 Venue data:', bookingData.venue);
+      
+      // For credit purchases, we need to process payment first
+      // Create a PaymentIntent for the credit purchase
+      console.log('💳 Creating payment intent for amount:', bookingData.purchaseAmount);
+      
+      const response = await fetch(
+        'https://agydpkzfucicraedllgl.supabase.co/functions/v1/create-split-payment-intent',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+          },
+          body: JSON.stringify({
+            amount: Math.round(parseFloat(bookingData.purchaseAmount) * 100), // Convert to cents
+            paymentMethodId,
+            email: formData.email,
+            bookingId: null, // No booking for credit purchase
+            bookingType: 'credit_purchase', // Specify this is a credit purchase
+            splitRequests: [] // Empty array for credit purchases
+          })
+        }
+      );
+
+      console.log('💳 Payment intent response status:', response.status);
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('❌ Payment intent creation failed:', errorData);
+        throw new Error(errorData.error || 'Failed to create payment intent for credit purchase');
+      }
+
+      const { clientSecret } = await response.json();
+      console.log('✅ Payment intent created, client secret received');
+
+      // Confirm the payment
+      console.log('💳 Confirming payment with Stripe...');
+      const { error: confirmError } = await stripe.confirmCardPayment(clientSecret);
+      if (confirmError) {
+        console.error('❌ Payment confirmation failed:', confirmError);
+        throw new Error(`Payment failed: ${confirmError.message}`);
+      }
+
+      console.log('✅ Payment confirmed successfully!');
+
+      // Payment successful! Now create the credit transaction
+      console.log('💾 Creating credit transaction in database...');
+      
+      const creditDataToInsert = {
+        user_id: currentUser.id,
+        venue_id: bookingData.venue.id,
+        amount: bookingData.amount, // Total credits including bonus
+        remaining_balance: bookingData.amount, // Start with full balance
+        used_amount: 0, // No credits used yet
+        bonus_credits: bookingData.amount - bookingData.purchaseAmount, // Bonus credits
+        status: 'active',
+        expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // Expires in 1 year
+        notes: `Credit purchase for ${bookingData.venueName}`,
+        created_at: new Date().toISOString()
+      };
+
+      console.log('📝 Credit data to insert:', creditDataToInsert);
+
+      const { data: creditData, error: creditError } = await supabase
+        .from('venue_credit_transactions')
+        .insert([creditDataToInsert])
+        .select()
+        .single();
+
+      if (creditError) {
+        console.error('❌ Error creating venue credit transaction:', creditError);
+        console.error('❌ Error details:', {
+          code: creditError.code,
+          message: creditError.message,
+          details: creditError.details,
+          hint: creditError.hint
+        });
+        throw new Error(`Failed to create venue credit transaction: ${creditError.message}`);
+      }
+
+      console.log('✅ Venue credit transaction created successfully:', creditData);
+
+      // Show success message
+      toast({
+        title: "Credits Purchased Successfully! 🎉",
+        description: `₦${(bookingData.purchaseAmount / 1000).toLocaleString()} credits added to your ${bookingData.venueName} account`,
+        className: "bg-green-500 text-white",
+      });
+
+      // Navigate back to profile/wallet
+      setTimeout(() => {
+        navigate('/profile', { state: { activeTab: 'wallet' } });
+      }, 2000);
+
+      return; // Exit early for credit purchase flow
+    }
+
     // Get venue and table IDs
     const venueId = bookingData?.venue?.id || selection?.venue?.id;
     const tableId = bookingData?.table?.id || selection?.table?.id;

@@ -70,11 +70,63 @@ const UserProfilePage = () => {
   const [showSignupPassword, setShowSignupPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  // Add this function to debug table structure
+  const debugTableStructure = async () => {
+    if (!user) return;
+    
+    console.log('🔍 Debugging venue_credit_transactions table structure...');
+    
+    try {
+      // First, let's try a simple select to see if the table exists
+      const { data: simpleData, error: simpleError } = await supabase
+        .from('venue_credit_transactions')
+        .select('*')
+        .limit(1);
+      
+      console.log('📊 Simple table query result:', { data: simpleData, error: simpleError });
+      
+      if (simpleError) {
+        console.error('❌ Table query failed:', simpleError);
+        
+        // Try to get table info
+        const { data: tableInfo, error: tableError } = await supabase
+          .rpc('get_table_info', { table_name: 'venue_credit_transactions' });
+        
+        console.log('📋 Table info:', { data: tableInfo, error: tableError });
+        
+        // Try alternative table names
+        const alternativeTables = ['venue_credits', 'credits', 'user_credits', 'venue_credit'];
+        
+        for (const tableName of alternativeTables) {
+          console.log(`🔍 Trying alternative table: ${tableName}`);
+          const { data: altData, error: altError } = await supabase
+            .from(tableName)
+            .select('*')
+            .limit(1);
+          
+          if (!altError) {
+            console.log(`✅ Found working table: ${tableName}`, altData);
+            break;
+          } else {
+            console.log(`❌ Table ${tableName} not accessible:`, altError);
+          }
+        }
+      } else {
+        console.log('✅ Table exists and is accessible');
+        console.log('📊 Sample data:', simpleData);
+      }
+      
+    } catch (error) {
+      console.error('❌ Debug function error:', error);
+    }
+  };
+
   // Load user data when logged in
   useEffect(() => {
     if (user) {
       loadUserData();
       loadVenueCredits();
+      debugTableStructure(); // Add this debug call
     }
   }, [user]);
 
@@ -113,10 +165,16 @@ const UserProfilePage = () => {
   }, [user]);
 
   const loadVenueCredits = async () => {
-    if (!user) return;
+    if (!user) {
+      console.log('❌ No user found, skipping credit load');
+      return;
+    }
     
+    console.log('🔍 Loading venue credits for user:', user.id);
     setCreditsLoading(true);
+    
     try {
+      console.log('📡 Querying venue_credit_transactions table...');
       const { data: creditsData, error } = await supabase
         .from('venue_credit_transactions')
         .select('*')
@@ -126,11 +184,26 @@ const UserProfilePage = () => {
         .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      console.log('📊 Credits query result:', { data: creditsData, error });
+
+      if (error) {
+        console.error('❌ Error fetching credits:', error);
+        console.error('❌ Error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
+        throw error;
+      }
+
+      console.log('✅ Credits fetched successfully, count:', creditsData?.length || 0);
 
       // Get venue data for each credit separately
       const creditsWithVenueData = await Promise.all(
-        (creditsData || []).map(async (credit) => {
+        (creditsData || []).map(async (credit, index) => {
+          console.log(`🏢 Fetching venue data for credit ${index + 1}:`, credit.venue_id);
+          
           try {
             const { data: venueData, error: venueError } = await supabase
               .from('venues')
@@ -139,8 +212,10 @@ const UserProfilePage = () => {
               .single();
 
             if (!venueError && venueData) {
+              console.log(`✅ Venue data fetched for credit ${index + 1}:`, venueData.name);
               credit.venues = venueData;
             } else {
+              console.warn(`⚠️ Could not fetch venue data for credit ${index + 1}:`, venueError);
               // Fallback venue data
               credit.venues = {
                 id: credit.venue_id,
@@ -151,7 +226,7 @@ const UserProfilePage = () => {
               };
             }
           } catch (err) {
-            console.error('Error fetching venue data:', err);
+            console.error(`❌ Error fetching venue data for credit ${index + 1}:`, err);
             credit.venues = {
               id: credit.venue_id,
               name: 'Unknown Venue',
@@ -164,11 +239,14 @@ const UserProfilePage = () => {
         })
       );
 
+      console.log('🎯 Final credits with venue data:', creditsWithVenueData);
       setVenueCredits(creditsWithVenueData);
+      
     } catch (error) {
-      console.error('Error loading venue credits:', error);
+      console.error('❌ Error loading venue credits:', error);
     } finally {
       setCreditsLoading(false);
+      console.log('🏁 Credit loading completed');
     }
   };
 
