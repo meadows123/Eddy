@@ -292,7 +292,6 @@ const SplitPaymentForm = ({
         recipient_id: userProfileId, // Initiator is also a recipient
         recipient_phone: user?.phone || null,
         amount: myAmount,
-        payment_link: `${window.location.origin}/split-payment/${newBookingId}/initiator`,
         status: 'paid',
         paid_at: new Date().toISOString()
       };
@@ -304,7 +303,6 @@ const SplitPaymentForm = ({
         recipient_id: recipient.id,
         recipient_phone: recipient.phone || null,
         amount: splitAmounts[index],
-        payment_link: `${window.location.origin}/split-payment/${newBookingId}/${recipient.id}`,
         status: 'pending'
       }));
       
@@ -319,6 +317,33 @@ const SplitPaymentForm = ({
         .select();
 
       if (error) throw error;
+
+      // Now update the payment links with the actual request IDs
+      const updatedRequests = data.map((request, index) => {
+        if (index === 0) {
+          // Initiator request
+          return {
+            ...request,
+            payment_link: `${window.location.origin}/split-payment/${newBookingId}/initiator`
+          };
+        } else {
+          // Recipient requests - use the actual request ID from the database
+          return {
+            ...request,
+            payment_link: `${window.location.origin}/split-payment/${newBookingId}/${request.id}`
+          };
+        }
+      });
+
+      // Update the payment links in the database
+      for (const request of updatedRequests) {
+        if (request.payment_link) {
+          await supabase
+            .from('split_payment_requests')
+            .update({ payment_link: request.payment_link })
+            .eq('id', request.id);
+        }
+      }
 
       // Store the created requests and mark as created
       setCreatedSplitRequests(data.filter(req => req.recipient_id !== userProfileId)); // Exclude initiator request
@@ -610,18 +635,31 @@ const SplitPaymentForm = ({
 
                         if (error) throw error;
 
-                        // Update payment links with actual request IDs
-                        const updatedRequests = data.map((request, index) => ({
-                          ...request,
-                          payment_link: `${window.location.origin}/split-payment/${newBookingId}/${request.id}`
-                        }));
+                        // Now update the payment links with the actual request IDs
+                        const updatedRequests = data.map((request, index) => {
+                          if (index === 0) {
+                            // Initiator request
+                            return {
+                              ...request,
+                              payment_link: `${window.location.origin}/split-payment/${newBookingId}/initiator`
+                            };
+                          } else {
+                            // Recipient requests - use the actual request ID from the database
+                            return {
+                              ...request,
+                              payment_link: `${window.location.origin}/split-payment/${newBookingId}/${request.id}`
+                            };
+                          }
+                        });
 
                         // Update the payment links in the database
                         for (const request of updatedRequests) {
-                          await supabase
-                            .from('split_payment_requests')
-                            .update({ payment_link: request.payment_link })
-                            .eq('id', request.id);
+                          if (request.payment_link) {
+                            await supabase
+                              .from('split_payment_requests')
+                              .update({ payment_link: request.payment_link })
+                              .eq('id', request.id);
+                          }
                         }
 
                         return { confirmedBookingId: newBookingId, splitRequests: updatedRequests };

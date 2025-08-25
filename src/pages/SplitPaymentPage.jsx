@@ -176,6 +176,27 @@ const SplitPaymentPage = () => {
 
       if (requestError) {
         console.error('❌ Error fetching payment request:', requestError);
+        console.error('🔍 Lookup details:', { requestId, bookingId });
+        
+        // Try to find any split payment request with this ID to debug
+        const { data: debugData, error: debugError } = await supabase
+          .from('split_payment_requests')
+          .select('*')
+          .eq('id', requestId);
+        
+        if (debugError) {
+          console.error('❌ Debug lookup also failed:', debugError);
+        } else if (debugData && debugData.length > 0) {
+          console.log('🔍 Found split payment request but booking_id mismatch:', debugData[0]);
+          console.log('🔍 Expected booking_id:', bookingId);
+          console.log('🔍 Actual booking_id:', debugData[0].booking_id);
+        } else {
+          console.log('🔍 No split payment request found with ID:', requestId);
+        }
+        
+        // Run comprehensive debug
+        await debugDatabaseState();
+        
         throw requestError;
       }
 
@@ -296,6 +317,51 @@ const SplitPaymentPage = () => {
         contact_phone: 'N/A',
         contact_email: 'N/A'
       });
+    }
+  };
+
+  // Debug function to check database state
+  const debugDatabaseState = async () => {
+    console.log('🔍 Debugging database state...');
+    
+    // Check all split payment requests
+    const { data: allRequests, error: allRequestsError } = await supabase
+      .from('split_payment_requests')
+      .select('*')
+      .limit(10);
+    
+    if (allRequestsError) {
+      console.error('❌ Error fetching all requests:', allRequestsError);
+    } else {
+      console.log('🔍 All split payment requests:', allRequests);
+    }
+    
+    // Check specific request ID
+    if (requestId && requestId !== 'initiator') {
+      const { data: specificRequest, error: specificError } = await supabase
+        .from('split_payment_requests')
+        .select('*')
+        .eq('id', requestId);
+      
+      if (specificError) {
+        console.error('❌ Error fetching specific request:', specificError);
+      } else {
+        console.log('🔍 Specific request lookup:', specificRequest);
+      }
+    }
+    
+    // Check bookings
+    if (bookingId) {
+      const { data: booking, error: bookingError } = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('id', bookingId);
+      
+      if (bookingError) {
+        console.error('❌ Error fetching booking:', bookingError);
+      } else {
+        console.log('🔍 Booking lookup:', booking);
+      }
     }
   };
 
