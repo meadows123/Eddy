@@ -125,7 +125,7 @@ const VenueOwnerCredits = () => {
       try {
         // Attempt to fetch with profiles join
         const { data, error } = await supabase
-          .from('venue_credits')
+          .from('venue_credit_transactions')
           .select(`
             *,
             profiles:user_id (
@@ -146,7 +146,7 @@ const VenueOwnerCredits = () => {
           // Profiles table not ready yet, fall back to basic query
           console.log('🔄 Profiles table not ready, using fallback...');
           const fallbackResult = await supabase
-            .from('venue_credits')
+            .from('venue_credit_transactions')
             .select('*')
             .eq('venue_id', venueData.id)
             .order('created_at', { ascending: false });

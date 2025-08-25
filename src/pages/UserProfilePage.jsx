@@ -118,7 +118,7 @@ const UserProfilePage = () => {
     setCreditsLoading(true);
     try {
       const { data: creditsData, error } = await supabase
-        .from('venue_credits')
+        .from('venue_credit_transactions')
         .select('*')
         .eq('user_id', user.id)
         .eq('status', 'active')

@@ -135,7 +135,7 @@ const VenueCreditPurchase = () => {
   const fetchUserCredits = async (userId) => {
     try {
       const { data: creditsData, error } = await supabase
-        .from('venue_credits')
+        .from('venue_credit_transactions')
         .select(`
           *,
           venues (

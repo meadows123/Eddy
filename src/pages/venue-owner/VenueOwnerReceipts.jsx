@@ -163,7 +163,7 @@ const VenueOwnerReceipts = () => {
     try {
       // Search for members who have credits at this venue
       const { data: membersData, error } = await supabase
-        .from('venue_credits')
+        .from('venue_credit_transactions')
         .select(`
           user_id,
           remaining_balance,
