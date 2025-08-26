@@ -161,7 +161,6 @@ const BookingList = ({ currentUser }) => {
           number_of_guests,
           total_amount,
           status,
-          special_requests,
           created_at,
           updated_at,
           venues (
@@ -188,7 +187,6 @@ const BookingList = ({ currentUser }) => {
             number_of_guests,
             total_amount,
             status,
-            special_requests,
             created_at,
             updated_at
           `)
@@ -388,11 +386,7 @@ const BookingList = ({ currentUser }) => {
               </div>
             </div>
             
-            {booking.special_requests && (
-              <div className="mt-3 p-2 bg-brand-cream/30 rounded text-xs sm:text-sm text-brand-burgundy/70">
-                <strong>Special Requests:</strong> {booking.special_requests}
-              </div>
-            )}
+            {/* Special requests removed - column doesn't exist in database */}
           </div>
           
           <div className="flex flex-col sm:flex-row gap-2">
