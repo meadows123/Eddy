@@ -73,6 +73,11 @@ const VenueOwnerDashboard = () => {
     };
   }, []);
 
+  // Debug: Log when currentUser changes
+  useEffect(() => {
+    console.log('🔄 currentUser changed in dashboard:', currentUser);
+  }, [currentUser]);
+
   const checkAuth = async () => {
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -112,6 +117,7 @@ const VenueOwnerDashboard = () => {
       }
 
       // If we get here, user is authenticated and is a venue owner
+      console.log('✅ User authenticated as venue owner:', user);
       fetchVenueData();
     } catch (error) {
       console.error('Auth check error:', error);
@@ -136,6 +142,7 @@ const VenueOwnerDashboard = () => {
         console.error('User fetch error:', userError);
         throw userError;
       }
+      console.log('🔍 Setting currentUser in dashboard:', user);
       setCurrentUser(user);
 
       // Get venue owned by this user

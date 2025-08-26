@@ -22,6 +22,11 @@ const BookingList = ({ currentUser }) => {
   // Ref for cleanup
   const subscriptionRef = useRef(null);
 
+  // Debug logging
+  console.log('🔍 BookingList received currentUser:', currentUser);
+  console.log('🔍 BookingList currentUser type:', typeof currentUser);
+  console.log('🔍 BookingList currentUser id:', currentUser?.id);
+
   useEffect(() => {
     if (currentUser) {
       fetchBookings();
@@ -95,19 +100,35 @@ const BookingList = ({ currentUser }) => {
 
   const fetchBookings = async (silentRefresh = false) => {
     try {
+      console.log('🚀 fetchBookings called with currentUser:', currentUser);
+      
+      if (!currentUser || !currentUser.id) {
+        console.error('❌ No currentUser or currentUser.id found');
+        setBookings([]);
+        setLoading(false);
+        return;
+      }
+      
       if (!silentRefresh) {
         setLoading(true);
       }
       
       // Get venues owned by current user
+      console.log('🔍 Fetching venues for owner_id:', currentUser.id);
       const { data: venues, error: venuesError } = await supabase
         .from('venues')
         .select('id')
         .eq('owner_id', currentUser.id);
 
-      if (venuesError) throw venuesError;
+      if (venuesError) {
+        console.error('❌ Error fetching venues:', venuesError);
+        throw venuesError;
+      }
+
+      console.log('📊 Found venues:', venues);
 
       if (!venues || venues.length === 0) {
+        console.log('⚠️ No venues found for owner_id:', currentUser.id);
         setBookings([]);
         if (!silentRefresh) {
           setLoading(false);
@@ -116,6 +137,7 @@ const BookingList = ({ currentUser }) => {
       }
 
       const venueIds = venues.map(v => v.id);
+      console.log('🔍 Venue IDs to fetch bookings for:', venueIds);
 
       // Set up real-time subscription for these venues (only if not already set up)
       if (!subscriptionRef.current) {
@@ -123,7 +145,10 @@ const BookingList = ({ currentUser }) => {
       }
 
       // Fetch bookings for these venues with related data
-      const { data: bookingsData, error: bookingsError } = await supabase
+      console.log('🔍 Fetching bookings for venue IDs:', venueIds);
+      
+      // First try with full relationships
+      let { data: bookingsData, error: bookingsError } = await supabase
         .from('bookings')
         .select(`
           id,
@@ -142,14 +167,42 @@ const BookingList = ({ currentUser }) => {
           venues (
             id,
             name
-          ),
-          venue_tables!table_id (
-            id,
-            table_number
           )
         `)
         .in('venue_id', venueIds)
         .order('created_at', { ascending: false });
+
+      // If that fails, try without venue_tables relationship
+      if (bookingsError) {
+        console.log('⚠️ Full query failed, trying without venue_tables:', bookingsError);
+        const { data: simpleBookings, error: simpleError } = await supabase
+          .from('bookings')
+          .select(`
+            id,
+            user_id,
+            venue_id,
+            table_id,
+            booking_date,
+            start_time,
+            end_time,
+            number_of_guests,
+            total_amount,
+            status,
+            special_requests,
+            created_at,
+            updated_at
+          `)
+          .in('venue_id', venueIds)
+          .order('created_at', { ascending: false });
+          
+        if (simpleError) {
+          console.error('❌ Simple query also failed:', simpleError);
+          throw simpleError;
+        } else {
+          bookingsData = simpleBookings;
+          bookingsError = null;
+        }
+      }
 
       if (bookingsError) {
         console.error('❌ Error fetching bookings:', bookingsError);
@@ -203,11 +256,18 @@ const BookingList = ({ currentUser }) => {
       if (bookingsWithProfiles.length > 0) {
         console.log('🔍 Sample booking data structure:', bookingsWithProfiles[0]);
         console.log('🔍 Available fields:', Object.keys(bookingsWithProfiles[0]));
+        console.log('🔍 Has venue_tables data:', !!bookingsWithProfiles[0].venue_tables);
       }
 
       setBookings(bookingsWithProfiles);
     } catch (error) {
-      console.error('Error fetching bookings:', error);
+      console.error('❌ Error fetching bookings:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      });
       if (!silentRefresh) {
         toast({
           title: 'Error',
@@ -315,7 +375,7 @@ const BookingList = ({ currentUser }) => {
                   {format(new Date(booking.booking_date), 'PPP')} at {booking.start_time || 'N/A'} - {booking.end_time || 'N/A'}
                 </p>
                 <p className="text-xs sm:text-sm text-brand-burgundy/60">
-                  {booking.number_of_guests || 'N/A'} guest{booking.number_of_guests && booking.number_of_guests !== 1 ? 's' : ''} • {booking.venue_tables?.table_number ? `Table ${booking.venue_tables.table_number}` : 'N/A'}
+                  {booking.number_of_guests || 'N/A'} guest{booking.number_of_guests && booking.number_of_guests !== 1 ? 's' : ''} • {booking.table_id ? `Table ID: ${booking.table_id}` : 'No table assigned'}
                 </p>
               </div>
               <div className="text-left sm:text-right">
@@ -425,7 +485,7 @@ const BookingList = ({ currentUser }) => {
                   </div>
                 </TableCell>
                 <TableCell>
-                  {booking.venue_tables?.table_number ? `Table ${booking.venue_tables.table_number}` : 'N/A'}
+                  {booking.table_id ? `Table ID: ${booking.table_id}` : 'No table assigned'}
                 </TableCell>
                 <TableCell>
                   {booking.number_of_guests || 'N/A'}
