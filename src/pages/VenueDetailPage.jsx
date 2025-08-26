@@ -47,16 +47,36 @@ const VenueDetailPage = () => {
         // Fetch reviews for this venue
         let reviewsData = [];
         try {
-          // Fetch just reviews without profiles join (since relationship doesn't exist)
+          // Try to fetch reviews with profiles join (constraint exists)
           const { data: reviewsResult, error: reviewsError } = await supabase
             .from('venue_reviews')
-            .select('*')
+            .select(`
+              *,
+              profiles (
+                id,
+                first_name,
+                last_name
+              )
+            `)
             .eq('venue_id', id)
             .order('created_at', { ascending: false });
 
           if (reviewsError) {
-            console.error('Error fetching reviews:', reviewsError);
-            reviewsData = [];
+            console.error('Error fetching reviews with profiles:', reviewsError);
+            
+            // Fallback: fetch just reviews without profiles
+            const { data: simpleReviews, error: simpleError } = await supabase
+              .from('venue_reviews')
+              .select('*')
+              .eq('venue_id', id)
+              .order('created_at', { ascending: false });
+              
+            if (simpleError) {
+              console.error('Error fetching simple reviews:', simpleError);
+              reviewsData = [];
+            } else {
+              reviewsData = simpleReviews || [];
+            }
           } else {
             reviewsData = reviewsResult || [];
           }
@@ -405,15 +425,25 @@ const VenueDetailPage = () => {
                       >
                         <div className="flex items-start gap-3 mb-3">
                           <div className="w-12 h-12 bg-brand-burgundy rounded-full flex items-center justify-center flex-shrink-0">
-                            <span className="text-white font-medium text-sm">
-                              {review?.user_id ? review.user_id.substring(0, 2).toUpperCase() : 'U'}
-                            </span>
+                                                    <span className="text-white font-medium text-sm">
+                          {review?.profiles?.first_name && review?.profiles?.last_name 
+                            ? `${review.profiles.first_name.charAt(0)}${review.profiles.last_name.charAt(0)}`
+                            : review?.user_id 
+                              ? review.user_id.substring(0, 2).toUpperCase() 
+                              : 'U'
+                          }
+                        </span>
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
-                              <span className="font-medium text-brand-burgundy truncate">
-                                {review?.user_id ? `User ${review.user_id.substring(0, 8)}...` : 'Anonymous User'}
-                              </span>
+                                                          <span className="font-medium text-brand-burgundy truncate">
+                              {review?.profiles?.first_name && review?.profiles?.last_name 
+                                ? `${review.profiles.first_name} ${review.profiles.last_name}`
+                                : review?.user_id 
+                                  ? `User ${review.user_id.substring(0, 8)}...` 
+                                  : 'Anonymous User'
+                              }
+                            </span>
                             </div>
                             <div className="flex items-center gap-2 mb-2">
                               <div className="flex items-center gap-1">
