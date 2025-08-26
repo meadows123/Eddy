@@ -4,12 +4,25 @@ import { MapPin, Star, Heart } from 'lucide-react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Link } from 'react-router-dom';
-import { getAvailableTimeSlots } from '@/lib/api';
+import { getAvailableTimeSlots, savedVenuesApi } from '@/lib/api';
+import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from '@/components/ui/use-toast';
 
 const VenueCard = ({ venue }) => {
+  const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState('');
   const [availableTimes, setAvailableTimes] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Check if venue is already saved when component mounts
+  useEffect(() => {
+    if (user && venue.id) {
+      checkIfVenueIsSaved();
+    }
+  }, [user, venue.id]);
 
   // Get available times when date changes
   useEffect(() => {
