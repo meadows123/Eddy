@@ -227,8 +227,8 @@ const VenueOwnerAnalytics = () => {
         await setupRealtimeSubscription(venueIds);
       }
 
-      // Fetch bookings for the last 6 months to calculate trends
-      const sixMonthsAgo = subMonths(new Date(), 6);
+      // Fetch bookings for the last 12 months to calculate trends (expanded range)
+      const twelveMonthsAgo = subMonths(new Date(), 12);
       
       const { data: bookingsData, error: bookingsError } = await supabase
         .from('bookings')
@@ -250,7 +250,7 @@ const VenueOwnerAnalytics = () => {
           )
         `)
         .in('venue_id', venueIds)
-        .gte('created_at', sixMonthsAgo.toISOString())
+        .gte('created_at', twelveMonthsAgo.toISOString())
         .order('created_at', { ascending: false });
 
       if (bookingsError) throw bookingsError;
@@ -448,16 +448,20 @@ const VenueOwnerAnalytics = () => {
       ? ((totalBookings - prevBookings) / prevBookings) * 100 
       : totalBookings > 0 ? 100 : 0;
 
-    // Daily revenue for chart (last 30 days) - FIXED LOGIC
-    const last30Days = Array.from({ length: 30 }, (_, i) => {
+    // Daily revenue for chart (last 90 days) - EXPANDED RANGE TO SHOW MORE DATA
+    const last90Days = Array.from({ length: 90 }, (_, i) => {
       const date = new Date();
-      date.setDate(date.getDate() - (29 - i));
+      date.setDate(date.getDate() - (89 - i));
       return date;
     });
 
-    console.log('📅 Last 30 days array:', last30Days.map(d => d.toDateString()));
+    console.log('📅 Last 90 days array:', last90Days.map(d => d.toDateString()));
+    console.log('📅 Date range:', {
+      start: last90Days[0].toDateString(),
+      end: last90Days[89].toDateString()
+    });
 
-    const dailyRevenue = last30Days.map(date => {
+    const dailyRevenue = last90Days.map(date => {
       const dayBookings = bookings.filter(booking => {
         const bookingDate = new Date(booking.booking_date || booking.created_at);
         // Compare dates by date string (ignoring time)
@@ -556,11 +560,31 @@ const VenueOwnerAnalytics = () => {
         date: b.booking_date || b.created_at
       }))
     });
+    
+    // Debug: Check which dates have confirmed bookings
+    const confirmedBookingsByDate = {};
+    allConfirmedBookings.forEach(booking => {
+      const date = new Date(booking.booking_date || booking.created_at);
+      const dateKey = date.toDateString();
+      if (!confirmedBookingsByDate[dateKey]) {
+        confirmedBookingsByDate[dateKey] = [];
+      }
+      confirmedBookingsByDate[dateKey].push(booking);
+    });
+    
+    console.log('📅 Confirmed bookings by date:', {
+      totalDates: Object.keys(confirmedBookingsByDate).length,
+      sampleDates: Object.entries(confirmedBookingsByDate).slice(0, 5).map(([date, bookings]) => ({
+        date,
+        count: bookings.length,
+        totalRevenue: bookings.reduce((sum, b) => sum + (parseFloat(b.total_amount) || 0), 0)
+      }))
+    });
 
     // If no real data, generate sample data for testing
     if (dailyRevenue.every(d => d.revenue === 0 && d.bookings === 0)) {
       console.log('⚠️ No real revenue data, generating sample data for testing');
-      const sampleDailyRevenue = last30Days.map((date, index) => ({
+      const sampleDailyRevenue = last90Days.map((date, index) => ({
         date: format(date, 'MMM dd'),
         revenue: Math.floor(Math.random() * 50000) + 10000, // Random 10k-60k revenue
         bookings: Math.floor(Math.random() * 5) + 1 // Random 1-5 bookings
@@ -771,7 +795,7 @@ const VenueOwnerAnalytics = () => {
             <CardHeader>
               <CardTitle className="flex items-center text-sm sm:text-base">
                 <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                Daily Revenue Trend (Last 30 Days)
+                Daily Revenue Trend (Last 90 Days)
               </CardTitle>
             </CardHeader>
             <CardContent className="p-3 sm:p-6">
@@ -784,7 +808,7 @@ const VenueOwnerAnalytics = () => {
                   Total days with revenue: {analytics.dailyRevenue.filter(d => d.revenue > 0).length}
                 </div>
                 
-                <div className="min-w-[600px] sm:min-w-full h-48 sm:h-64 flex items-end justify-between space-x-1 px-2">
+                <div className="min-w-[900px] sm:min-w-full h-48 sm:h-64 flex items-end justify-between space-x-1 px-2">
                   {analytics.dailyRevenue && analytics.dailyRevenue.length > 0 ? (
                     analytics.dailyRevenue.map((day, index) => {
                       const maxRevenue = Math.max(...analytics.dailyRevenue.map(d => d.revenue));
