@@ -546,32 +546,6 @@ const VenueOwnerAnalytics = () => {
         bookings: dayBookings.length
       };
     });
-    
-    // Debug: Show which dates actually have confirmed bookings
-    console.log('🔍 Checking which dates have confirmed bookings...');
-    const confirmedBookingsDates = allConfirmedBookings.map(booking => {
-      const date = new Date(booking.booking_date || booking.created_at);
-      return {
-        date: date.toDateString(),
-        formattedDate: format(date, 'MMM dd'),
-        revenue: parseFloat(booking.total_amount) || 0,
-        status: booking.status,
-        id: booking.id
-      };
-    });
-    
-    console.log('📅 Confirmed bookings with dates:', confirmedBookingsDates);
-    
-    // Check if any of these dates are in our 90-day range
-    const datesInRange = confirmedBookingsDates.filter(bookingDate => {
-      return last90Days.some(chartDate => chartDate.toDateString() === bookingDate.date);
-    });
-    
-    console.log('📅 Confirmed bookings in 90-day range:', datesInRange);
-    console.log('📅 90-day range start/end:', {
-      start: last90Days[0].toDateString(),
-      end: last90Days[89].toDateString()
-    });
 
     console.log('📊 Daily revenue data:', dailyRevenue);
     
@@ -607,47 +581,16 @@ const VenueOwnerAnalytics = () => {
       }))
     });
 
-    // If no real data in the 90-day range, create a chart with your actual confirmed bookings
+    // If no real data, generate sample data for testing
     if (dailyRevenue.every(d => d.revenue === 0 && d.bookings === 0)) {
-      console.log('⚠️ No revenue data in 90-day range, creating chart with actual confirmed bookings');
-      
-      if (allConfirmedBookings.length > 0) {
-        // Create a chart showing your actual confirmed bookings
-        const actualRevenueData = allConfirmedBookings.map(booking => {
-          const date = new Date(booking.booking_date || booking.created_at);
-          let amount = parseFloat(booking.total_amount) || 0;
-          
-          // Convert kobo to naira if needed
-          if (amount > 0 && amount < 1000) {
-            amount = amount * 100;
-          }
-          
-          return {
-            date: format(date, 'MMM dd'),
-            revenue: amount,
-            bookings: 1,
-            originalDate: date.toDateString()
-          };
-        });
-        
-        // Sort by date
-        actualRevenueData.sort((a, b) => new Date(a.originalDate) - new Date(b.originalDate));
-        
-        console.log('📊 Created chart with actual confirmed bookings:', actualRevenueData);
-        
-        // Replace the daily revenue with actual data
-        dailyRevenue.splice(0, dailyRevenue.length, ...actualRevenueData);
-      } else {
-        // Fallback to sample data if no confirmed bookings
-        console.log('⚠️ No confirmed bookings at all, generating sample data for testing');
-        const sampleDailyRevenue = last90Days.map((date, index) => ({
-          date: format(date, 'MMM dd'),
-          revenue: Math.floor(Math.random() * 50000) + 10000, // Random 10k-60k revenue
-          bookings: Math.floor(Math.random() * 5) + 1 // Random 1-5 bookings
-        }));
-        console.log('📊 Generated sample daily revenue:', sampleDailyRevenue);
-        dailyRevenue.splice(0, dailyRevenue.length, ...sampleDailyRevenue);
-      }
+      console.log('⚠️ No real revenue data, generating sample data for testing');
+      const sampleDailyRevenue = last90Days.map((date, index) => ({
+        date: format(date, 'MMM dd'),
+        revenue: Math.floor(Math.random() * 50000) + 10000, // Random 10k-60k revenue
+        bookings: Math.floor(Math.random() * 5) + 1 // Random 1-5 bookings
+      }));
+      console.log('📊 Generated sample daily revenue:', sampleDailyRevenue);
+      dailyRevenue.splice(0, dailyRevenue.length, ...sampleDailyRevenue);
     }
 
     // Status breakdown
@@ -852,7 +795,7 @@ const VenueOwnerAnalytics = () => {
             <CardHeader>
               <CardTitle className="flex items-center text-sm sm:text-base">
                 <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                Revenue Trend (Confirmed Bookings)
+                Daily Revenue Trend (Last 90 Days)
               </CardTitle>
             </CardHeader>
             <CardContent className="p-3 sm:p-6">
