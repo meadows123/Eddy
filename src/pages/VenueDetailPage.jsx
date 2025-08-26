@@ -45,21 +45,24 @@ const VenueDetailPage = () => {
         }
 
         // Fetch reviews for this venue
-        const { data: reviewsData, error: reviewsError } = await supabase
-          .from('venue_reviews')
-          .select(`
-            *,
-            profiles (
-              id,
-              first_name,
-              last_name
-            )
-          `)
-          .eq('venue_id', id)
-          .order('created_at', { ascending: false });
+        let reviewsData = [];
+        try {
+          // Fetch just reviews without profiles join (since relationship doesn't exist)
+          const { data: reviewsResult, error: reviewsError } = await supabase
+            .from('venue_reviews')
+            .select('*')
+            .eq('venue_id', id)
+            .order('created_at', { ascending: false });
 
-        if (reviewsError) {
-          console.error('Error fetching reviews:', reviewsError);
+          if (reviewsError) {
+            console.error('Error fetching reviews:', reviewsError);
+            reviewsData = [];
+          } else {
+            reviewsData = reviewsResult || [];
+          }
+        } catch (error) {
+          console.error('Exception fetching reviews:', error);
+          reviewsData = [];
         }
 
         setVenue({
@@ -67,7 +70,7 @@ const VenueDetailPage = () => {
           images: imagesData?.map(img => img.image_url) || []
         });
 
-        setReviews(reviewsData || []);
+        setReviews(reviewsData);
 
         // Check if venue is in favorites
         const favorites = JSON.parse(localStorage.getItem('lagosvibe_favorites') || '[]');
@@ -161,13 +164,22 @@ const VenueDetailPage = () => {
   }
 
   // Calculate review statistics from database
-  const reviewCount = reviews.length; // Number of reviews available
-  const totalReviews = reviews.length; // Total number of reviews from database
+  const reviewCount = reviews?.length || 0; // Number of reviews available
+  const totalReviews = reviews?.length || 0; // Total number of reviews from database
   
   // Calculate average rating from actual reviews
-  const averageRating = reviews.length > 0 
-    ? (reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length).toFixed(1)
-    : venue.rating || 4.5;
+  const averageRating = reviews && reviews.length > 0 
+    ? (reviews.reduce((sum, review) => sum + (review.rating || 0), 0) / reviews.length).toFixed(1)
+    : venue?.rating || 4.5;
+    
+  // Debug logging
+  console.log('🔍 VenueDetailPage Debug:', {
+    venue: venue?.id,
+    reviewsCount: reviews?.length || 0,
+    reviews: reviews || [],
+    averageRating,
+    venueRating: venue?.rating
+  });
 
   const images = (venue.images && venue.images.length > 0)
     ? venue.images
@@ -377,84 +389,86 @@ const VenueDetailPage = () => {
             <Star className="h-5 w-5 fill-brand-gold text-brand-gold" />
             <span className="text-xl font-semibold text-brand-burgundy">{averageRating}</span>
             <span className="text-brand-burgundy/60">·</span>
-            <span className="text-brand-burgundy/60">{totalReviews} reviews</span>
+            <span className="text-brand-burgundy/60">{totalReviews} review{totalReviews !== 1 ? 's' : ''}</span>
           </div>
           
-          {/* Swipeable Review Cards */}
-          <div className="relative mb-4">
-            <div className="overflow-x-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-              <div className="flex gap-4 pb-2" style={{ width: 'max-content' }}>
-                {reviews.length > 0 ? reviews.map((review, index) => (
-                  <div 
-                    key={index} 
-                    className="flex-none w-80 bg-white border border-gray-200 rounded-2xl p-4 shadow-sm"
-                  >
-                    <div className="flex items-start gap-3 mb-3">
-                      <div className="w-12 h-12 bg-brand-burgundy rounded-full flex items-center justify-center flex-shrink-0">
-                        <span className="text-white font-medium text-sm">
-                          {review.profiles?.first_name?.charAt(0) || 'U'}
-                          {review.profiles?.last_name?.charAt(0) || 'S'}
-                        </span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-medium text-brand-burgundy truncate">
-                            {review.profiles?.first_name && review.profiles?.last_name 
-                              ? `${review.profiles.first_name} ${review.profiles.last_name}`
-                              : 'Anonymous User'
-                            }
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2 mb-2">
-                          <div className="flex items-center gap-1">
-                            {[...Array(review.rating)].map((_, i) => (
-                              <Star key={i} className="h-3 w-3 fill-brand-gold text-brand-gold" />
-                            ))}
-                            {[...Array(5 - review.rating)].map((_, i) => (
-                              <Star key={i} className="h-3 w-3 text-gray-300" />
-                            ))}
+          {reviews && reviews.length > 0 ? (
+            <>
+              {/* Swipeable Review Cards */}
+              <div className="relative mb-4">
+                <div className="overflow-x-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                  <div className="flex gap-4 pb-2" style={{ width: 'max-content' }}>
+                    {reviews.map((review, index) => (
+                      <div 
+                        key={index} 
+                        className="flex-none w-80 bg-white border border-gray-200 rounded-2xl p-4 shadow-sm"
+                      >
+                        <div className="flex items-start gap-3 mb-3">
+                          <div className="w-12 h-12 bg-brand-burgundy rounded-full flex items-center justify-center flex-shrink-0">
+                            <span className="text-white font-medium text-sm">
+                              {review?.user_id ? review.user_id.substring(0, 2).toUpperCase() : 'U'}
+                            </span>
                           </div>
-                          <span className="text-brand-burgundy/60 text-sm">·</span>
-                          <span className="text-brand-burgundy/60 text-sm">
-                            {new Date(review.created_at).toLocaleDateString('en-US', { 
-                              month: 'short', 
-                              day: 'numeric',
-                              year: 'numeric'
-                            })}
-                          </span>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-medium text-brand-burgundy truncate">
+                                {review?.user_id ? `User ${review.user_id.substring(0, 8)}...` : 'Anonymous User'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 mb-2">
+                              <div className="flex items-center gap-1">
+                                {[...Array(review?.rating || 0)].map((_, i) => (
+                                  <Star key={i} className="h-3 w-3 fill-brand-gold text-brand-gold" />
+                                ))}
+                                {[...Array(5 - (review?.rating || 0))].map((_, i) => (
+                                  <Star key={i} className="h-3 w-3 text-gray-300" />
+                                ))}
+                              </div>
+                              <span className="text-brand-burgundy/60 text-sm">·</span>
+                              <span className="text-brand-burgundy/60 text-sm">
+                                {review?.created_at ? new Date(review.created_at).toLocaleDateString('en-US', { 
+                                  month: 'short', 
+                                  day: 'numeric',
+                                  year: 'numeric'
+                                }) : 'Recently'}
+                              </span>
+                            </div>
+                          </div>
                         </div>
+                        <p className="text-brand-burgundy/80 text-sm leading-relaxed line-clamp-4">
+                          {review?.review_text || 'No review text provided'}
+                        </p>
                       </div>
-                    </div>
-                    <p className="text-brand-burgundy/80 text-sm leading-relaxed line-clamp-4">
-                      {review.review_text || 'No review text provided'}
-                    </p>
+                    ))}
                   </div>
-                )) : (
-                  <div className="text-center py-8 text-brand-burgundy/60">
-                    <p>No reviews yet</p>
-                    <p className="text-sm">Be the first to review this venue!</p>
+                </div>
+                
+                {/* Scroll indicator */}
+                {reviews.length > 1 && (
+                  <div className="flex justify-center mt-4 gap-1">
+                    {reviews.map((_, index) => (
+                      <div 
+                        key={index} 
+                        className={`w-2 h-2 rounded-full ${index === 0 ? 'bg-brand-burgundy' : 'bg-gray-300'}`}
+                      />
+                    ))}
                   </div>
                 )}
               </div>
+              
+              <Button 
+                variant="outline" 
+                className="w-full border-brand-burgundy/20 text-brand-burgundy hover:bg-brand-burgundy/5"
+              >
+                Show all {totalReviews} reviews
+              </Button>
+            </>
+          ) : (
+            <div className="text-center py-8 text-brand-burgundy/60">
+              <p>No reviews yet</p>
+              <p className="text-sm">Be the first to review this venue!</p>
             </div>
-            
-            {/* Scroll indicator */}
-            <div className="flex justify-center mt-4 gap-1">
-              {[0, 1, 2, 3, 4].map((dot, index) => (
-                <div 
-                  key={index} 
-                  className={`w-2 h-2 rounded-full ${index === 0 ? 'bg-brand-burgundy' : 'bg-gray-300'}`}
-                />
-              ))}
-            </div>
-          </div>
-          
-          <Button 
-            variant="outline" 
-            className="w-full border-brand-burgundy/20 text-brand-burgundy hover:bg-brand-burgundy/5"
-          >
-            Show all {reviewCount} reviews
-          </Button>
+          )}
         </div>
 
         {/* Bottom padding for fixed button */}
