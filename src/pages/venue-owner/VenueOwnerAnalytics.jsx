@@ -253,6 +253,15 @@ const VenueOwnerAnalytics = () => {
           statuses: bookingsData.map(b => b.status).slice(0, 5),
           dates: bookingsData.map(b => b.booking_date || b.created_at).slice(0, 5)
         });
+        
+        // Log all bookings with their amounts for debugging
+        console.log('📊 All bookings revenue summary:', bookingsData.map(b => ({
+          id: b.id,
+          total_amount: b.total_amount,
+          status: b.status,
+          date: b.booking_date || b.created_at,
+          venue_id: b.venue_id
+        })));
       }
 
       if (!silentRefresh) {
@@ -308,6 +317,7 @@ const VenueOwnerAnalytics = () => {
     
     // Filter bookings for current period
     const currentPeriodBookings = bookings.filter(booking => {
+      // Use booking_date for revenue calculations, fallback to created_at for display
       const bookingDate = new Date(booking.booking_date || booking.created_at);
       const isInPeriod = bookingDate >= start && bookingDate <= end;
       
@@ -319,7 +329,8 @@ const VenueOwnerAnalytics = () => {
           createdAt: booking.created_at,
           parsedDate: bookingDate,
           isInPeriod,
-          totalAmount: booking.total_amount
+          totalAmount: booking.total_amount,
+          status: booking.status
         });
       }
       
@@ -341,14 +352,56 @@ const VenueOwnerAnalytics = () => {
       return bookingDate >= prevStart && bookingDate <= prevEnd;
     });
 
-    // Calculate metrics
+    // Calculate metrics - only count revenue from confirmed/completed bookings
     const totalRevenue = currentPeriodBookings.reduce((sum, booking) => {
-      const amount = parseFloat(booking.total_amount) || 0;
+      // Only count revenue from confirmed or completed bookings
+      if (booking.status !== 'confirmed' && booking.status !== 'completed') {
+        console.log('🚫 Skipping revenue from non-confirmed booking:', {
+          bookingId: booking.id,
+          status: booking.status,
+          totalAmount: booking.total_amount
+        });
+        return sum;
+      }
+      
+      let amount = parseFloat(booking.total_amount) || 0;
+      
+      // Check if total_amount is stored in kobo (very small values) and convert to naira
+      if (amount > 0 && amount < 1000) {
+        console.log('⚠️ Small amount detected, converting from kobo to naira:', {
+          bookingId: booking.id,
+          originalAmount: amount,
+          convertedAmount: amount * 100
+        });
+        amount = amount * 100; // Convert kobo to naira
+      }
+      
+      // Debug: Log each booking's revenue contribution
+      if (amount > 0) {
+        console.log('💰 Revenue contribution:', {
+          bookingId: booking.id,
+          totalAmount: booking.total_amount,
+          parsedAmount: amount,
+          status: booking.status,
+          date: booking.booking_date || booking.created_at
+        });
+      }
       return sum + amount;
     }, 0);
     
     const prevRevenue = prevPeriodBookings.reduce((sum, booking) => {
-      const amount = parseFloat(booking.total_amount) || 0;
+      // Only count revenue from confirmed or completed bookings
+      if (booking.status !== 'confirmed' && booking.status !== 'completed') {
+        return sum;
+      }
+      
+      let amount = parseFloat(booking.total_amount) || 0;
+      
+      // Check if total_amount is stored in kobo (very small values) and convert to naira
+      if (amount > 0 && amount < 1000) {
+        amount = amount * 100; // Convert kobo to naira
+      }
+      
       return sum + amount;
     }, 0);
 
@@ -392,7 +445,28 @@ const VenueOwnerAnalytics = () => {
       });
       
       const dayRevenue = dayBookings.reduce((sum, booking) => {
-        const amount = parseFloat(booking.total_amount) || 0;
+        // Only count revenue from confirmed or completed bookings
+        if (booking.status !== 'confirmed' && booking.status !== 'completed') {
+          return sum;
+        }
+        
+        let amount = parseFloat(booking.total_amount) || 0;
+        
+        // Check if total_amount is stored in kobo (very small values) and convert to naira
+        if (amount > 0 && amount < 1000) {
+          amount = amount * 100; // Convert kobo to naira
+        }
+        
+        // Debug: Log each booking's daily revenue contribution
+        if (amount > 0) {
+          console.log('📈 Daily revenue contribution:', {
+            date: date.toDateString(),
+            bookingId: booking.id,
+            totalAmount: booking.total_amount,
+            parsedAmount: amount,
+            status: booking.status
+          });
+        }
         return sum + amount;
       }, 0);
       

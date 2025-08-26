@@ -324,8 +324,8 @@ const VenueOwnerReceipts = () => {
       ).map(item => ({
         item_name: item.itemName,
         quantity: parseInt(item.quantity),
-        unit_price: Math.round(parseFloat(item.unitPrice) * 100), // Convert to kobo
-        total_price: Math.round(parseInt(item.quantity) * parseFloat(item.unitPrice) * 100),
+        unit_price: Math.round(parseFloat(item.unitPrice)), // Store in full naira
+        total_price: Math.round(parseInt(item.quantity) * parseFloat(item.unitPrice)),
         category: item.category
       }));
 
@@ -337,9 +337,9 @@ const VenueOwnerReceipts = () => {
           p_processed_by_user_id: currentUser.id,
           p_receipt_number: receiptForm.receiptNumber || `R-${Date.now()}`,
           p_receipt_image_url: receiptImageUrl,
-          p_total_amount: Math.round(parseFloat(receiptForm.totalAmount) * 100),
-          p_credit_amount_used: Math.round(parseFloat(receiptForm.creditAmountUsed) * 100),
-          p_cash_amount_paid: Math.round(parseFloat(receiptForm.cashAmountPaid || 0) * 100),
+                  p_total_amount: Math.round(parseFloat(receiptForm.totalAmount)),
+        p_credit_amount_used: Math.round(parseFloat(receiptForm.creditAmountUsed)),
+        p_cash_amount_paid: Math.round(parseFloat(receiptForm.cashAmountPaid || 0)),
           p_receipt_date: receiptForm.receiptDate,
           p_notes: receiptForm.notes,
           p_receipt_items: validItems // <-- pass as array, not JSON.stringify(validItems)
@@ -366,7 +366,7 @@ const VenueOwnerReceipts = () => {
       // Replace `memberUserId`, `venueId`, and `amount` with the actual values from your receipt form.
       const memberUserId = selectedMember.user_id;
       const venueId = venue.id;
-      const amount = Math.round(parseFloat(receiptForm.creditAmountUsed) * 100);
+      const amount = Math.round(parseFloat(receiptForm.creditAmountUsed));
 
       console.log('Processing receipt for member:', memberUserId, 'venue:', venueId, 'amount:', amount);
 
@@ -504,7 +504,7 @@ const VenueOwnerReceipts = () => {
                             <div className="font-medium text-brand-burgundy text-sm sm:text-base">{member.display_name}</div>
                             <div className="text-xs sm:text-sm text-brand-burgundy/70">{member.display_email}</div>
                             <div className="text-xs sm:text-sm text-brand-gold font-semibold">
-                              Available: ₦{(member.remaining_balance / 100).toLocaleString()}
+                                                             Available: ₦{member.remaining_balance.toLocaleString()}
                             </div>
                           </button>
                         ))}
@@ -521,7 +521,7 @@ const VenueOwnerReceipts = () => {
                         </div>
                         <div className="text-left sm:text-right">
                           <div className="text-lg font-bold text-brand-gold">
-                            ₦{((selectedMember.total_balance || 0) / 100).toLocaleString()}
+                            ₦{(selectedMember.total_balance || 0).toLocaleString()}
                           </div>
                           <div className="text-xs sm:text-sm text-brand-burgundy/70">Available Credits</div>
                         </div>
@@ -786,14 +786,14 @@ const VenueOwnerReceipts = () => {
                         <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
                           <div className="text-left sm:text-right">
                             <div className="font-bold text-brand-burgundy text-sm sm:text-base">
-                              Total: ₦{(receipt.total_amount / 100).toLocaleString()}
+                              Total: ₦{receipt.total_amount.toLocaleString()}
                             </div>
                             <div className="text-xs sm:text-sm text-brand-gold">
-                              Credits: ₦{(receipt.credit_amount_used / 100).toLocaleString()}
+                              Credits: ₦{receipt.credit_amount_used.toLocaleString()}
                             </div>
                             {receipt.cash_amount_paid > 0 && (
                               <div className="text-xs sm:text-sm text-brand-burgundy/70">
-                                Cash: ₦{(receipt.cash_amount_paid / 100).toLocaleString()}
+                                Cash: ₦{receipt.cash_amount_paid.toLocaleString()}
                               </div>
                             )}
                           </div>

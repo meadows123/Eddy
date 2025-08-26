@@ -126,7 +126,19 @@ const BookingList = ({ currentUser }) => {
       const { data: bookingsData, error: bookingsError } = await supabase
         .from('bookings')
         .select(`
-          *,
+          id,
+          user_id,
+          venue_id,
+          table_id,
+          booking_date,
+          start_time,
+          end_time,
+          number_of_guests,
+          total_amount,
+          status,
+          special_requests,
+          created_at,
+          updated_at,
           venues (
             id,
             name
@@ -139,22 +151,45 @@ const BookingList = ({ currentUser }) => {
         .in('venue_id', venueIds)
         .order('created_at', { ascending: false });
 
-      if (bookingsError) throw bookingsError;
+      if (bookingsError) {
+        console.error('❌ Error fetching bookings:', bookingsError);
+        throw bookingsError;
+      }
+
+      console.log('📊 Fetched', bookingsData?.length || 0, 'bookings');
+      if (bookingsData && bookingsData.length > 0) {
+        console.log('🔍 First booking sample:', {
+          id: bookingsData[0].id,
+          user_id: bookingsData[0].user_id,
+          venue_id: bookingsData[0].venue_id,
+          table_id: bookingsData[0].table_id,
+          number_of_guests: bookingsData[0].number_of_guests,
+          total_amount: bookingsData[0].total_amount,
+          venue_tables: bookingsData[0].venue_tables
+        });
+      }
 
       // Fetch user profiles for bookings in batches
       const userIds = [...new Set(bookingsData?.map(b => b.user_id))].filter(Boolean);
       const userProfiles = {};
       
       if (userIds.length > 0) {
-        const { data: profiles, error: profilesError } = await supabase
-          .from('profiles')
-          .select('id, first_name, last_name, email, phone')
-          .in('id', userIds);
-        
-        if (!profilesError && profiles) {
-          profiles.forEach(profile => {
-            userProfiles[profile.id] = profile;
-          });
+        try {
+          const { data: profiles, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, first_name, last_name, email, phone')
+            .in('id', userIds);
+          
+          if (!profilesError && profiles) {
+            profiles.forEach(profile => {
+              userProfiles[profile.id] = profile;
+            });
+            console.log('✅ Successfully fetched profiles for', profiles.length, 'users');
+          } else if (profilesError) {
+            console.warn('⚠️ Could not fetch profiles:', profilesError);
+          }
+        } catch (error) {
+          console.warn('⚠️ Error fetching profiles:', error);
         }
       }
 
@@ -163,6 +198,12 @@ const BookingList = ({ currentUser }) => {
         ...booking,
         profiles: userProfiles[booking.user_id] || null
       })) || [];
+
+      // Debug: Log the first booking to see the data structure
+      if (bookingsWithProfiles.length > 0) {
+        console.log('🔍 Sample booking data structure:', bookingsWithProfiles[0]);
+        console.log('🔍 Available fields:', Object.keys(bookingsWithProfiles[0]));
+      }
 
       setBookings(bookingsWithProfiles);
     } catch (error) {
@@ -234,10 +275,13 @@ const BookingList = ({ currentUser }) => {
 
   const formatCustomerName = (booking) => {
     if (booking.profiles) {
-      return `${booking.profiles.first_name || ''} ${booking.profiles.last_name || ''}`.trim();
+      const firstName = booking.profiles.first_name || '';
+      const lastName = booking.profiles.last_name || '';
+      const fullName = `${firstName} ${lastName}`.trim();
+      return fullName || 'Unknown Customer';
     }
-    // Fallback to localStorage data if available
-    return booking.customerName || 'Unknown Customer';
+    // Fallback to user_id if no profile data
+    return `Customer ${booking.user_id?.substring(0, 8)}...` || 'Unknown Customer';
   };
 
   if (loading) {
@@ -268,15 +312,15 @@ const BookingList = ({ currentUser }) => {
                   {formatCustomerName(booking)}
                 </h4>
                 <p className="text-xs sm:text-sm text-brand-burgundy/60">
-                  {format(new Date(booking.booking_date), 'PPP')} at {booking.booking_time}
+                  {format(new Date(booking.booking_date), 'PPP')} at {booking.start_time || 'N/A'} - {booking.end_time || 'N/A'}
                 </p>
                 <p className="text-xs sm:text-sm text-brand-burgundy/60">
-                  {booking.guest_count || 1} guest{booking.guest_count !== 1 ? 's' : ''} • Table {booking.table_number || 'N/A'}
+                  {booking.number_of_guests || 'N/A'} guest{booking.number_of_guests && booking.number_of_guests !== 1 ? 's' : ''} • {booking.venue_tables?.table_number ? `Table ${booking.venue_tables.table_number}` : 'N/A'}
                 </p>
               </div>
               <div className="text-left sm:text-right">
                 <div className="font-bold text-brand-gold text-sm sm:text-base">
-                  ₦{(booking.total_amount / 100).toLocaleString()}
+                  ₦{(booking.total_amount || 0).toLocaleString()}
                 </div>
                 <Badge className={`mt-1 ${getStatusColor(booking.status)}`}>
                   {booking.status}
@@ -376,15 +420,15 @@ const BookingList = ({ currentUser }) => {
                   <div>
                     <div>{format(new Date(booking.booking_date), 'MMM d, yyyy')}</div>
                     <div className="text-sm text-brand-burgundy/60">
-                      {booking.start_time} - {booking.end_time}
+                      {booking.start_time || 'N/A'} - {booking.end_time || 'N/A'}
                     </div>
                   </div>
                 </TableCell>
                 <TableCell>
-                  {booking.venue_tables?.table_number ? `Table ${booking.venue_tables.table_number}` : 'No table assigned'}
+                  {booking.venue_tables?.table_number ? `Table ${booking.venue_tables.table_number}` : 'N/A'}
                 </TableCell>
                 <TableCell>
-                  {booking.number_of_guests}
+                  {booking.number_of_guests || 'N/A'}
                 </TableCell>
                 <TableCell>
                   ₦{(booking.total_amount || 0).toLocaleString()}

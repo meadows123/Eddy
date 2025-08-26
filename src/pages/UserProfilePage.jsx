@@ -321,6 +321,8 @@ const UserProfilePage = () => {
       }
 
       // Load saved venues (check if table exists first)
+      console.log('🔍 Loading saved venues for user:', user.id);
+      
       const { data: savedVenuesData, error: savedVenuesError } = await supabase
         .from('saved_venues')
         .select(`
@@ -335,11 +337,14 @@ const UserProfilePage = () => {
         `)
         .eq('user_id', user.id);
       
+      console.log('📊 Saved venues query result:', { data: savedVenuesData, error: savedVenuesError });
+      
       if (savedVenuesError) {
-        console.error('Saved venues error:', savedVenuesError);
+        console.error('❌ Saved venues error:', savedVenuesError);
         // If table doesn't exist, set empty array
         setSavedVenues([]);
       } else {
+        console.log('✅ Saved venues loaded successfully:', savedVenuesData?.length || 0);
         setSavedVenues(savedVenuesData || []);
       }
 

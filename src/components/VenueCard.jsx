@@ -9,7 +9,6 @@ import { getAvailableTimeSlots } from '@/lib/api';
 const VenueCard = ({ venue }) => {
   const [selectedDate, setSelectedDate] = useState('');
   const [availableTimes, setAvailableTimes] = useState([]);
-  const [allTimeSlots, setAllTimeSlots] = useState([]);
   const [loading, setLoading] = useState(false);
 
   // Get available times when date changes
@@ -19,21 +18,81 @@ const VenueCard = ({ venue }) => {
     }
   }, [selectedDate, venue.id]);
 
+  const checkIfVenueIsSaved = async () => {
+    if (!user || !venue.id) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('saved_venues')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('venue_id', venue.id)
+        .single();
+      
+      if (!error && data) {
+        setIsSaved(true);
+      } else {
+        setIsSaved(false);
+      }
+    } catch (error) {
+      // If no saved venue found, it's not saved
+      setIsSaved(false);
+    }
+  };
+
+  const handleSaveVenue = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!user) {
+      toast({
+        title: 'Login Required',
+        description: 'Please log in to save venues',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setSaving(true);
+    try {
+      if (isSaved) {
+        // Remove from saved venues
+        await savedVenuesApi.removeSavedVenue(user.id, venue.id);
+        setIsSaved(false);
+        toast({
+          title: 'Venue Removed',
+          description: `${venue.name} removed from saved venues`,
+        });
+      } else {
+        // Add to saved venues
+        await savedVenuesApi.saveVenue(user.id, venue.id);
+        setIsSaved(true);
+        toast({
+          title: 'Venue Saved!',
+          description: `${venue.name} added to saved venues`,
+        });
+      }
+    } catch (error) {
+      console.error('Error saving/unsaving venue:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to save venue. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const fetchAvailableTimes = async () => {
     setLoading(true);
     try {
       const { data, error } = await getAvailableTimeSlots(venue.id, selectedDate);
       if (error) throw error;
-      
       setAvailableTimes(data || []);
-      
-      // Generate all possible time slots for display
-      const allSlots = generateTimeSlots('18:00', '02:00');
-      setAllTimeSlots(allSlots);
     } catch (error) {
       console.error('Error fetching available times:', error);
       setAvailableTimes([]);
-      setAllTimeSlots([]);
     } finally {
       setLoading(false);
     }
@@ -41,33 +100,6 @@ const VenueCard = ({ venue }) => {
 
   const handleDateChange = (date) => {
     setSelectedDate(date);
-  };
-
-  const handleTimeSelect = (time) => {
-    // Only allow selection of available times
-    if (availableTimes.includes(time)) {
-      // Handle time selection logic
-      console.log('Selected time:', time);
-    }
-  };
-
-  // Helper function to generate all time slots (same as in API)
-  const generateTimeSlots = (startTime, endTime) => {
-    const slots = [];
-    const start = new Date(`2000-01-01 ${startTime}`);
-    const end = new Date(`2000-01-01 ${endTime}`);
-    
-    if (end < start) {
-      end.setDate(end.getDate() + 1);
-    }
-    
-    const current = new Date(start);
-    while (current < end) {
-      slots.push(current.toTimeString().slice(0, 5));
-      current.setMinutes(current.getMinutes() + 30);
-    }
-    
-    return slots;
   };
 
   return (
@@ -86,16 +118,24 @@ const VenueCard = ({ venue }) => {
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
           
-          {/* Heart Icon */}
+          {/* Heart Icon - Save Venue */}
           <button 
-            className="absolute top-3 right-3 p-2 rounded-full bg-white/80 hover:bg-white transition-colors"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              // Add to favorites logic here
-            }}
+            className={`absolute top-3 right-3 p-2 rounded-full transition-all duration-200 ${
+              isSaved 
+                ? 'bg-red-500 hover:bg-red-600' 
+                : 'bg-white/80 hover:bg-white'
+            }`}
+            onClick={handleSaveVenue}
+            disabled={saving}
+            title={isSaved ? 'Remove from saved' : 'Save venue'}
           >
-            <Heart className="h-4 w-4 text-brand-burgundy/60 hover:text-red-500 transition-colors" />
+            <Heart 
+              className={`h-4 w-4 transition-colors ${
+                isSaved 
+                  ? 'text-white fill-white' 
+                  : 'text-brand-burgundy/60 hover:text-red-500'
+              }`}
+            />
           </button>
           
           {/* Top Pick Badge */}
