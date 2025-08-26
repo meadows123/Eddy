@@ -13,6 +13,7 @@ const VenueDetailPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [venue, setVenue] = useState(null);
+  const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isFavorite, setIsFavorite] = useState(false);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
@@ -43,10 +44,30 @@ const VenueDetailPage = () => {
           console.error('Error fetching images:', imagesError);
         }
 
+        // Fetch reviews for this venue
+        const { data: reviewsData, error: reviewsError } = await supabase
+          .from('venue_reviews')
+          .select(`
+            *,
+            profiles (
+              id,
+              first_name,
+              last_name
+            )
+          `)
+          .eq('venue_id', id)
+          .order('created_at', { ascending: false });
+
+        if (reviewsError) {
+          console.error('Error fetching reviews:', reviewsError);
+        }
+
         setVenue({
           ...venueData,
           images: imagesData?.map(img => img.image_url) || []
         });
+
+        setReviews(reviewsData || []);
 
         // Check if venue is in favorites
         const favorites = JSON.parse(localStorage.getItem('lagosvibe_favorites') || '[]');
@@ -139,8 +160,14 @@ const VenueDetailPage = () => {
     );
   }
 
-  // Mock data for reviews count
-  const reviewCount = Math.floor(Math.random() * 50) + 10;
+  // Calculate review statistics from database
+  const reviewCount = reviews.length; // Number of reviews available
+  const totalReviews = reviews.length; // Total number of reviews from database
+  
+  // Calculate average rating from actual reviews
+  const averageRating = reviews.length > 0 
+    ? (reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length).toFixed(1)
+    : venue.rating || 4.5;
 
   const images = (venue.images && venue.images.length > 0)
     ? venue.images
@@ -348,73 +375,35 @@ const VenueDetailPage = () => {
         <div>
           <div className="flex items-center gap-2 mb-4">
             <Star className="h-5 w-5 fill-brand-gold text-brand-gold" />
-            <span className="text-xl font-semibold text-brand-burgundy">{venue.rating}</span>
+            <span className="text-xl font-semibold text-brand-burgundy">{averageRating}</span>
             <span className="text-brand-burgundy/60">·</span>
-            <span className="text-brand-burgundy/60">{reviewCount} reviews</span>
+            <span className="text-brand-burgundy/60">{totalReviews} reviews</span>
           </div>
           
           {/* Swipeable Review Cards */}
           <div className="relative mb-4">
             <div className="overflow-x-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
               <div className="flex gap-4 pb-2" style={{ width: 'max-content' }}>
-                {[
-                  { 
-                    name: "Sarah Mitchell", 
-                    rating: 5, 
-                    comment: "Amazing atmosphere and excellent service. The staff was incredibly attentive and the food was absolutely divine. Perfect for special occasions!", 
-                    avatar: "SM",
-                    date: "2 weeks ago",
-                    verified: true
-                  },
-                  { 
-                    name: "Mike Okafor", 
-                    rating: 4, 
-                    comment: "Great venue with fantastic food. The live music was a nice touch and really elevated the dining experience. Will definitely return!", 
-                    avatar: "MO",
-                    date: "3 weeks ago",
-                    verified: true
-                  },
-                  { 
-                    name: "Jennifer Kim", 
-                    rating: 5, 
-                    comment: "Loved everything about this place. The ambiance is perfect for a night out with friends. The cocktails were expertly crafted!", 
-                    avatar: "JK",
-                    date: "1 month ago",
-                    verified: false
-                  },
-                  { 
-                    name: "David Adebayo", 
-                    rating: 4, 
-                    comment: "Solid venue with good vibes. The location is convenient and the service was prompt. Would recommend for business dinners.", 
-                    avatar: "DA",
-                    date: "1 month ago",
-                    verified: true
-                  },
-                  { 
-                    name: "Emma Thompson", 
-                    rating: 5, 
-                    comment: "Outstanding experience from start to finish. The attention to detail and quality of service exceeded expectations.", 
-                    avatar: "ET",
-                    date: "2 months ago",
-                    verified: true
-                  }
-                ].map((review, index) => (
+                {reviews.length > 0 ? reviews.map((review, index) => (
                   <div 
                     key={index} 
                     className="flex-none w-80 bg-white border border-gray-200 rounded-2xl p-4 shadow-sm"
                   >
                     <div className="flex items-start gap-3 mb-3">
                       <div className="w-12 h-12 bg-brand-burgundy rounded-full flex items-center justify-center flex-shrink-0">
-                        <span className="text-white font-medium text-sm">{review.avatar}</span>
+                        <span className="text-white font-medium text-sm">
+                          {review.profiles?.first_name?.charAt(0) || 'U'}
+                          {review.profiles?.last_name?.charAt(0) || 'S'}
+                        </span>
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="font-medium text-brand-burgundy truncate">{review.name}</span>
-                          {review.verified && (
-                            <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
-                              <CheckCircle className="w-3 h-3 text-white" />
-                            </div>
-                          )}
+                          <span className="font-medium text-brand-burgundy truncate">
+                            {review.profiles?.first_name && review.profiles?.last_name 
+                              ? `${review.profiles.first_name} ${review.profiles.last_name}`
+                              : 'Anonymous User'
+                            }
+                          </span>
                         </div>
                         <div className="flex items-center gap-2 mb-2">
                           <div className="flex items-center gap-1">
@@ -426,15 +415,26 @@ const VenueDetailPage = () => {
                             ))}
                           </div>
                           <span className="text-brand-burgundy/60 text-sm">·</span>
-                          <span className="text-brand-burgundy/60 text-sm">{review.date}</span>
+                          <span className="text-brand-burgundy/60 text-sm">
+                            {new Date(review.created_at).toLocaleDateString('en-US', { 
+                              month: 'short', 
+                              day: 'numeric',
+                              year: 'numeric'
+                            })}
+                          </span>
                         </div>
                       </div>
                     </div>
                     <p className="text-brand-burgundy/80 text-sm leading-relaxed line-clamp-4">
-                      {review.comment}
+                      {review.review_text || 'No review text provided'}
                     </p>
                   </div>
-                ))}
+                )) : (
+                  <div className="text-center py-8 text-brand-burgundy/60">
+                    <p>No reviews yet</p>
+                    <p className="text-sm">Be the first to review this venue!</p>
+                  </div>
+                )}
               </div>
             </div>
             
