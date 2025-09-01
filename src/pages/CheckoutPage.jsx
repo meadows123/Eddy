@@ -17,7 +17,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { sendBookingConfirmation, sendVenueOwnerNotification, debugBookingEmail } from '../lib/emailService.js';
+import { sendBookingConfirmation, sendVenueOwnerNotification, debugBookingEmail, sendBookingConfirmationEmail } from '../lib/emailService.js';
 import { Elements, CardElement } from '@stripe/react-stripe-js';
 import { stripePromise } from '@/lib/stripe';
 
@@ -681,13 +681,41 @@ const handleSubmit = async (paymentMethodId) => {
       className: "bg-green-500 text-white"
     });
 
-    // Send confirmation email
-    await sendBookingConfirmationEmail({
-      ...pendingBooking,
-      customerName: formData.fullName,
-      customerEmail: formData.email,
-      customerPhone: formData.phone
-    });
+    // Get venue data for email
+    const { data: venueData, error: venueError } = await supabase
+      .from('venues')
+      .select('*')
+      .eq('id', venueId)
+      .single();
+
+    if (venueError) {
+      console.warn('Could not fetch venue data for email:', venueError);
+    }
+
+    // Send confirmation email with complete data
+    try {
+      const emailResult = await sendBookingConfirmationEmail({
+        ...pendingBooking,
+        customerName: formData.fullName,
+        customerEmail: formData.email,
+        customerPhone: formData.phone,
+        venueName: venueData?.name || selection?.venueName || 'Venue',
+        venueAddress: venueData?.address || selection?.venueAddress || 'Lagos, Nigeria',
+        venuePhone: venueData?.contact_phone || selection?.venuePhone || '+234 XXX XXX XXXX',
+        venueEmail: venueData?.contact_email || selection?.venueEmail || 'info@oneeddy.com',
+        venueDescription: venueData?.description || 'Experience luxury dining and entertainment in Lagos\' most exclusive venue.',
+        venueDressCode: venueData?.dress_code || 'Smart Casual'
+      });
+
+      if (emailResult) {
+        console.log('✅ Booking confirmation emails sent successfully');
+      } else {
+        console.warn('⚠️ Email sending failed, but booking was successful');
+      }
+    } catch (emailError) {
+      console.error('❌ Email sending error:', emailError);
+      // Don't fail the booking if email fails
+    }
 
     setShowConfirmation(true);
 

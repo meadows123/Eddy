@@ -8,6 +8,10 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabase';
 import { 
+  sendSplitPaymentRequestsCreated,
+  sendSplitPaymentInitiatorConfirmation
+} from '@/lib/emailService';
+import { 
   Plus, 
   Minus, 
   Search, 
@@ -665,9 +669,59 @@ const SplitPaymentForm = ({
                         return { confirmedBookingId: newBookingId, splitRequests: updatedRequests };
                       })();
 
-                      // Store the created requests
-                      setCreatedSplitRequests(splitRequests);
-                      setSplitRequestsCreated(true);
+                                              // Store the created requests
+                        setCreatedSplitRequests(splitRequests);
+                        setSplitRequestsCreated(true);
+
+                        // Send email notifications
+                        try {
+                          // Get booking and venue data for emails
+                          const { data: bookingData } = await supabase
+                            .from('bookings')
+                            .select(`
+                              *,
+                              venues (
+                                name,
+                                address,
+                                city,
+                                contact_email,
+                                contact_phone
+                              )
+                            `)
+                            .eq('id', confirmedBookingId)
+                            .single();
+
+                          if (bookingData) {
+                            // Send email to initiator confirming their payment and requests sent
+                            await sendSplitPaymentInitiatorConfirmation(
+                              initiatorRequest,
+                              bookingData,
+                              bookingData.venues,
+                              {
+                                email: user.email,
+                                full_name: `${user.user_metadata?.first_name || ''} ${user.user_metadata?.last_name || ''}`.trim() || user.user_metadata?.full_name || 'Guest',
+                                customerName: `${user.user_metadata?.first_name || ''} ${user.user_metadata?.last_name || ''}`.trim() || user.user_metadata?.full_name || 'Guest'
+                              }
+                            );
+
+                            // Send email to initiator about split payment requests created
+                            await sendSplitPaymentRequestsCreated(
+                              bookingData,
+                              bookingData.venues,
+                              {
+                                email: user.email,
+                                full_name: `${user.user_metadata?.first_name || ''} ${user.user_metadata?.last_name || ''}`.trim() || user.user_metadata?.full_name || 'Guest',
+                                customerName: `${user.user_metadata?.first_name || ''} ${user.user_metadata?.last_name || ''}`.trim() || user.user_metadata?.full_name || 'Guest'
+                              },
+                              splitRequests.filter(req => req.recipient_id !== userProfileId) // Only recipient requests
+                            );
+
+                            console.log('✅ Split payment emails sent successfully');
+                          }
+                        } catch (emailError) {
+                          console.error('❌ Error sending split payment emails:', emailError);
+                          // Don't fail the entire process if emails fail
+                        }
 
                       // Process payment immediately after creating requests
                       const response = await fetch(

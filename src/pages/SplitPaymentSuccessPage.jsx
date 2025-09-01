@@ -6,6 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabase';
+import { 
+  sendSplitPaymentRecipientConfirmation,
+  sendSplitPaymentCompleteNotification,
+  sendSplitPaymentVenueOwnerNotification
+} from '@/lib/emailService';
 
 const SplitPaymentSuccessPage = () => {
   const [searchParams] = useSearchParams();
@@ -32,13 +37,41 @@ const SplitPaymentSuccessPage = () => {
         throw new Error('Missing payment information');
       }
 
-      // Just update the payment status - skip complex queries for now
+      // Fetch the payment request details first
+      const { data: requestData, error: requestError } = await supabase
+        .from('split_payment_requests')
+        .select(`
+          *,
+          bookings (
+            *,
+            venues (
+              name,
+              address,
+              city,
+              contact_email,
+              contact_phone
+            ),
+            profiles!bookings_user_id_fkey (
+              first_name,
+              last_name,
+              email
+            )
+          )
+        `)
+        .eq('id', requestId)
+        .single();
+
+      if (requestError) {
+        console.error('Error fetching request data:', requestError);
+        throw new Error('Failed to fetch payment request details');
+      }
+
+      // Update the payment request status
       const { error: updateError } = await supabase
         .from('split_payment_requests')
         .update({
           status: 'paid',
           paid_at: new Date().toISOString()
-          // Remove stripe_payment_id until column is added
         })
         .eq('id', requestId);
 
@@ -46,6 +79,45 @@ const SplitPaymentSuccessPage = () => {
         console.error('Update error:', updateError);
         // Don't throw error, just log it
       }
+
+      // Send email notifications
+      try {
+        if (requestData && requestData.bookings) {
+          // Get recipient data
+          const { data: recipientData } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', requestData.recipient_id)
+            .single();
+
+          if (recipientData) {
+            // Send email to recipient confirming their payment
+            await sendSplitPaymentRecipientConfirmation(
+              requestData,
+              requestData.bookings,
+              requestData.bookings.venues,
+              {
+                email: recipientData.email || 'recipient@example.com',
+                full_name: `${recipientData.first_name || ''} ${recipientData.last_name || ''}`.trim() || 'Guest',
+                customerName: `${recipientData.first_name || ''} ${recipientData.last_name || ''}`.trim() || 'Guest'
+              },
+              {
+                email: requestData.bookings.profiles?.email || 'requester@example.com',
+                full_name: `${requestData.bookings.profiles?.first_name || ''} ${requestData.bookings.profiles?.last_name || ''}`.trim() || 'Guest',
+                customerName: `${requestData.bookings.profiles?.first_name || ''} ${requestData.bookings.profiles?.last_name || ''}`.trim() || 'Guest'
+              }
+            );
+
+            console.log('✅ Split payment recipient confirmation email sent');
+          }
+        }
+      } catch (emailError) {
+        console.error('❌ Error sending split payment recipient email:', emailError);
+        // Don't fail the process if email fails
+      }
+
+      // Check if all payments are complete and send completion emails
+      await checkAllPaymentsComplete(requestData.booking_id);
 
       // Set basic success data
       setPaymentDetails({
@@ -80,7 +152,7 @@ const SplitPaymentSuccessPage = () => {
     try {
       const { data: requests } = await supabase
         .from('split_payment_requests')
-        .select('status')
+        .select('*')
         .eq('booking_id', bookingId);
         
       const allPaid = requests.every(req => req.status === 'paid');
@@ -91,6 +163,55 @@ const SplitPaymentSuccessPage = () => {
           .from('bookings')
           .update({ status: 'confirmed' })
           .eq('id', bookingId);
+
+        // Get booking and venue data for emails
+        const { data: bookingData } = await supabase
+          .from('bookings')
+          .select(`
+            *,
+            venues (
+              name,
+              address,
+              city,
+              contact_email,
+              contact_phone
+            ),
+            profiles!bookings_user_id_fkey (
+              first_name,
+              last_name,
+              email
+            )
+          `)
+          .eq('id', bookingId)
+          .single();
+
+        if (bookingData) {
+          // Send email to initiator when all payments are completed
+          await sendSplitPaymentCompleteNotification(
+            bookingData,
+            bookingData.venues,
+            {
+              email: bookingData.profiles?.email || 'initiator@example.com',
+              full_name: `${bookingData.profiles?.first_name || ''} ${bookingData.profiles?.last_name || ''}`.trim() || 'Guest',
+              customerName: `${bookingData.profiles?.first_name || ''} ${bookingData.profiles?.last_name || ''}`.trim() || 'Guest'
+            },
+            requests
+          );
+
+          // Send email to venue owner when all payments are completed
+          await sendSplitPaymentVenueOwnerNotification(
+            bookingData,
+            bookingData.venues,
+            {
+              email: bookingData.profiles?.email || 'initiator@example.com',
+              full_name: `${bookingData.profiles?.first_name || ''} ${bookingData.profiles?.last_name || ''}`.trim() || 'Guest',
+              customerName: `${bookingData.profiles?.first_name || ''} ${bookingData.profiles?.last_name || ''}`.trim() || 'Guest'
+            },
+            requests
+          );
+
+          console.log('✅ Split payment completion emails sent successfully');
+        }
           
         // Send confirmation notifications to all parties
         toast({

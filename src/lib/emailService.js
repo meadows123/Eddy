@@ -1,182 +1,447 @@
 // EmailJS integration for Eddys Members
 import emailjs from '@emailjs/browser';
-import { generateEmailData } from './emailTemplates';
+import { 
+  bookingConfirmationTemplate, 
+  venueOwnerNotificationTemplate, 
+  cancellationTemplate,
+  generateEmailData 
+} from './emailTemplates';
 import { supabase } from '@/lib/supabase.js';
 
-// Force Edge Function usage in mobile app to avoid EmailJS origin restrictions
-const USE_EDGE = (import.meta.env.VITE_USE_EDGE_EMAIL ?? 'true').toString().toLowerCase() !== 'false';
-
+// EmailJS configuration from environment variables
 const EMAILJS_CONFIG = {
   serviceId: import.meta.env.VITE_EMAILJS_SERVICE_ID,
   templateId: import.meta.env.VITE_EMAILJS_BOOKING_CONFIRMATION_TEMPLATE,
-  ownerTemplateId: import.meta.env.VITE_EMAILJS_VENUE_OWNER_REQUEST_TEMPLATE,
   publicKey: import.meta.env.VITE_EMAILJS_PUBLIC_KEY,
 };
 
+// Initialize EmailJS
 if (EMAILJS_CONFIG.publicKey) {
   emailjs.init(EMAILJS_CONFIG.publicKey);
+} else {
+  console.warn('⚠️ EmailJS not configured: Missing VITE_EMAILJS_PUBLIC_KEY in environment variables');
 }
 
+// Function to optimize email delivery and reduce spam filtering
+const optimizeEmailDelivery = (params) => {
+  return {
+    ...params,
+    subject: params.subject || 'Eddys Members Booking Confirmation',
+    from_name: 'Eddys Members',
+    reply_to: 'info@oneeddy.com'
+  };
+};
+
 export const sendBookingConfirmation = async (booking, venue, customer) => {
-  // Debug logging for mobile app
-  console.log('🔍 DEBUG - Mobile email service called with:');
-  console.log('   Booking:', booking);
-  console.log('   Venue:', venue);
-  console.log('   Customer:', customer);
-  
-  const customerEmail = customer?.email || booking?.customerEmail;
-  console.log('   Customer Email:', customerEmail);
-  
-  // Check environment variables
-  console.log('🔍 DEBUG - Environment variables:');
-  console.log('   USE_EDGE:', USE_EDGE);
-  console.log('   VITE_USE_EDGE_EMAIL:', import.meta.env.VITE_USE_EDGE_EMAIL);
-  console.log('   EmailJS Service ID:', EMAILJS_CONFIG.serviceId ? 'SET' : 'MISSING');
-  console.log('   EmailJS Template ID:', EMAILJS_CONFIG.templateId ? 'SET' : 'MISSING');
-  console.log('   EmailJS Public Key:', EMAILJS_CONFIG.publicKey ? 'SET' : 'MISSING');
-  
-  if (!customerEmail) {
-    console.error('❌ Missing customer email for booking confirmation');
-    return false;
-  }
-
-  // Try Edge Function first (if enabled)
-  if (USE_EDGE) {
-    try {
-      const payload = {
-        to: customerEmail,
-        subject: 'Your booking is confirmed',
-        template: 'booking-confirmation',
-        data: {
-          customerName: customer?.fullName || booking?.customerName || 'Guest',
-          venueName: venue?.name || booking?.venueName || 'Your Venue',
-          bookingDate: booking?.bookingDate || booking?.booking_date,
-          bookingId: booking?.bookingId || booking?.id,
-          totalAmount: booking?.totalAmount || booking?.total_amount,
-          ticketInfo: booking?.ticketInfo,
-          tableInfo: booking?.tableInfo,
-        }
-      };
-      const { error } = await supabase.functions.invoke('send-email', { body: payload });
-      if (!error) return true;
-      console.warn('Edge Function send-email failed, falling back to EmailJS...', error);
-    } catch (err) {
-      console.warn('Edge Function exception, falling back to EmailJS...', err);
-    }
-  }
-
-  // EmailJS fallback
   try {
+    // Check if EmailJS is configured
     if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.templateId || !EMAILJS_CONFIG.publicKey) {
-      throw new Error('EmailJS not fully configured');
+      console.warn('⚠️ EmailJS not fully configured. Check your .env file for:');
+      console.warn('   - VITE_EMAILJS_SERVICE_ID');
+      console.warn('   - VITE_EMAILJS_TEMPLATE_ID'); 
+      console.warn('   - VITE_EMAILJS_PUBLIC_KEY');
+      throw new Error('EmailJS configuration incomplete');
     }
+
+    // Validate customer email
+    const customerEmail = customer.email || customer.customerEmail || customer.full_name;
+    if (!customerEmail || !customerEmail.includes('@')) {
+      console.error('❌ Invalid or missing customer email:', customerEmail);
+      throw new Error('Invalid customer email address');
+    }
+
+    // Use exact parameter names that match the EmailJS template
     const templateParams = {
-      // Customer Details
-      customerName: customer.full_name,
-      customerEmail: customer.email,
-      customerPhone: customer.phone,
+      // EmailJS required fields - these MUST match your template exactly
+      customerEmail: customerEmail,
+      customerName: customer.full_name || customer.customerName || 'Guest',
+      bookingReference: booking.id || booking.bookingId || 'N/A',
+      venueName: venue.name || venue.venueName || 'Venue',
+      bookingDate: booking.booking_date || booking.bookingDate || new Date().toISOString(),
+      bookingTime: booking.start_time || booking.booking_time || '19:00',
+      guestCount: booking.number_of_guests || booking.guest_count || 2,
+      totalAmount: booking.total_amount || booking.totalAmount || 0,
+      venueDescription: venue.description || venue.about || 'Experience luxury dining and entertainment in Lagos\' most exclusive venue.',
+      venueAddress: venue.address || venue.location || 'Lagos, Nigeria',
+      venuePhone: venue.contact_phone || venue.phone || venue.contact_number || '+234 XXX XXX XXXX',
+      venueDressCode: venue.dress_code || venue.dresscode || 'Smart Casual',
+      venueParking: venue.parking || venue.parking_info || 'Valet parking available',
+      venueCuisine: venue.cuisine || venue.cuisine_type || 'International cuisine',
+      venueHours: venue.hours || venue.opening_hours || venue.business_hours || '6:00 PM - 2:00 AM',
       
-      // Booking Details
-      bookingReference: booking.id,
-      bookingDate: new Date(booking.booking_date).toLocaleDateString(),
-      bookingTime: booking.booking_time,
-      guestCount: booking.guest_count,
-      duration: booking.duration || '2 hours',  // Add default if not specified
+      // Special Information - Use actual booking notes
+      specialRequests: booking.special_requests || booking.notes || booking.additional_notes || 'None specified',
       
-      // Table Details
-      tableNumber: booking.table_number,
-      tableType: booking.table?.type || 'Standard Table',
-      tableLocation: booking.table?.location || 'Main Area',
-      
-      // Venue Details
-      venueName: venue.name,
-      venueDescription: venue.description,
-      venueAddress: venue.address,
-      venueCity: venue.city,
-      venueCountry: venue.country,
-      venuePhone: venue.contact_phone,
-      venueEmail: venue.contact_email,
-      dressCode: venue.dress_code || 'Smart Casual',
-      
-      // Special Requests
-      specialRequests: booking.special_requests || 'None specified',
-      
-      // ... rest of the existing parameters ...
+      // Action URLs (you can update these later)
+      viewBookingUrl: `${window.location.origin}/profile`,
+      modifyBookingUrl: `${window.location.origin}/profile`,
+      cancelBookingUrl: `${window.location.origin}/profile`,
+      websiteUrl: window.location.origin,
+      supportUrl: 'mailto:info@oneeddy.com',
+      unsubscribeUrl: `${window.location.origin}/settings`
     };
-    await emailjs.send(EMAILJS_CONFIG.serviceId, EMAILJS_CONFIG.templateId, templateParams);
+
+    // Optimize email delivery to reduce spam filtering
+    const optimizedParams = optimizeEmailDelivery(templateParams);
+
+    console.log('🔄 Sending booking confirmation with optimized parameters:', {
+      to_email: optimizedParams.customerEmail,
+      customerName: optimizedParams.customerName,
+      bookingReference: optimizedParams.bookingReference,
+      venueName: optimizedParams.venueName,
+      subject: optimizedParams.subject
+    });
+    
+    // Send to customer using optimized template parameters
+    const result = await emailjs.send(
+      EMAILJS_CONFIG.serviceId,
+      EMAILJS_CONFIG.templateId,
+      optimizedParams
+    );
+
+    console.log('✅ Booking confirmation email sent successfully:', result);
+    
+    // Log delivery optimization tips
+    console.log('📧 Email Delivery Tips:');
+    console.log('   - Check spam/junk folder if email not received');
+    console.log('   - Mark as "Not Spam" to improve future delivery');
+    console.log('   - Add support@vipclub.com to contacts');
+    
+    return result;
+  } catch (error) {
+    console.error('❌ Failed to send booking confirmation:', error);
+    console.error('Error details:', {
+      message: error.message,
+      status: error.status,
+      text: error.text
+    });
+    
+    // Provide more specific error messages
+    if (error.text === 'The recipients address is empty') {
+      console.error('❌ EmailJS template issue: The "To" field in your EmailJS template is missing or incorrectly configured.');
+      console.error('   Please ensure your EmailJS template has {{customerEmail}} in the "To" field.');
+    }
+    
+    throw error;
+  }
+};
+
+export const sendVenueOwnerNotification = async (booking, venue, customer) => {
+  try {
+    // Check if EmailJS is configured
+    if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.templateId || !EMAILJS_CONFIG.publicKey) {
+      throw new Error('EmailJS configuration incomplete');
+    }
+
+    const venueOwnerEmail = venue.contact_email || venue.owner_email || 'info@oneeddy.com';
+    
+    const templateParams = {
+      to_email: venueOwnerEmail,
+      to_name: 'Venue Manager',
+      subject: `New Booking - ${venue.name || 'Venue'}`,
+      customerName: customer.full_name || customer.customerName || 'Guest',
+      customerEmail: customer.email || customer.customerEmail || 'N/A',
+      customerPhone: customer.phone || customer.customerPhone || 'N/A',
+      bookingReference: booking.id || booking.bookingId || 'N/A',
+      venueName: venue.name || venue.venueName || 'Venue',
+      bookingDate: booking.booking_date || booking.bookingDate || new Date().toISOString(),
+      bookingTime: booking.start_time || booking.booking_time || '19:00',
+      guestCount: booking.number_of_guests || booking.guest_count || 2,
+      totalAmount: booking.total_amount || booking.totalAmount || 0,
+      specialRequests: booking.special_requests || booking.notes || booking.additional_notes || 'None specified',
+      from_name: 'Eddys Members',
+      reply_to: 'info@oneeddy.com'
+    };
+
+    // Send to venue owner
+    const result = await emailjs.send(
+      EMAILJS_CONFIG.serviceId,
+      EMAILJS_CONFIG.templateId,
+      templateParams
+    );
+
+    console.log('✅ Venue owner notification sent successfully');
+    return result;
+  } catch (error) {
+    console.error('❌ Failed to send venue owner notification:', error);
+    throw error;
+  }
+};
+
+// New function that matches what CheckoutPage is calling
+export const sendBookingConfirmationEmail = async (bookingData) => {
+  try {
+    console.log('🔄 sendBookingConfirmationEmail called with:', bookingData);
+    
+    // Extract data from bookingData
+    const booking = {
+      id: bookingData.id || bookingData.bookingId,
+      booking_date: bookingData.booking_date || bookingData.bookingDate || bookingData.bookingDate,
+      start_time: bookingData.start_time || bookingData.booking_time || '19:00:00',
+      number_of_guests: bookingData.number_of_guests || bookingData.guest_count || 2,
+      total_amount: bookingData.total_amount || bookingData.totalAmount || 0,
+      status: bookingData.status || 'confirmed'
+    };
+
+    const venue = {
+      name: bookingData.venueName || bookingData.venue?.name || 'Venue',
+      address: bookingData.venueAddress || bookingData.venue?.address || 'Lagos, Nigeria',
+      contact_phone: bookingData.venuePhone || bookingData.venue?.contact_phone || '+234 XXX XXX XXXX',
+      contact_email: bookingData.venueEmail || bookingData.venue?.contact_email || 'info@oneeddy.com',
+      description: bookingData.venueDescription || bookingData.venue?.description || 'Experience luxury dining and entertainment in Lagos\' most exclusive venue.',
+      dress_code: bookingData.venueDressCode || bookingData.venue?.dress_code || 'Smart Casual'
+    };
+
+    const customer = {
+      full_name: bookingData.customerName || 'Guest',
+      email: bookingData.customerEmail || 'guest@example.com',
+      phone: bookingData.customerPhone || 'N/A'
+    };
+
+    // Send customer confirmation email
+    const customerResult = await sendBookingConfirmation(booking, venue, customer);
+    
+    // Send venue owner notification
+    const venueOwnerResult = await sendVenueOwnerNotification(booking, venue, customer);
+    
+    console.log('✅ Both customer and venue owner emails sent successfully');
     return true;
-  } catch (fallbackErr) {
-    console.error('❌ Booking confirmation send failed (EmailJS fallback):', fallbackErr);
+    
+  } catch (error) {
+    console.error('❌ Failed to send booking confirmation emails:', error);
     return false;
   }
 };
 
-export const sendVenueOwnerNotification = async (booking, venue, customer, venueOwner) => {
-  const ADMIN_EMAIL = venueOwner?.email;
-  if (!ADMIN_EMAIL || !ADMIN_EMAIL.includes('@')) {
-    console.warn('Skipping venue owner notification: missing/invalid owner email');
-    return false;
-  }
+// Split Payment Email Functions
 
-  // Try Edge Function first (if enabled)
-  if (USE_EDGE) {
-    try {
-      const payload = {
-        to: ADMIN_EMAIL,
-        subject: 'New Booking Received',
-        template: 'venue-owner-notification',
-        data: {
-          ownerName: venueOwner?.name || 'Admin',
-          customerName: customer?.full_name || customer?.fullName || booking?.customerName || 'Guest',
-          customerEmail: customer?.email || booking?.customerEmail,
-          customerPhone: customer?.phone || booking?.customerPhone || 'Not provided',
-          venueName: venue?.name || booking?.venueName,
-          venueType: venue?.type || 'Not specified',
-          venueAddress: venue?.address || '',
-          venueCity: venue?.city || '',
-          bookingId: booking?.bookingId || booking?.id,
-          bookingDate: booking?.bookingDate || booking?.booking_date,
-          bookingTime: booking?.booking_time || booking?.bookingTime,
-          partySize: booking?.guest_count || booking?.guests || booking?.guestCount,
-          tableNumber: booking?.table_number || booking?.tableNumber || booking?.table?.name,
-          totalAmount: booking?.totalAmount || booking?.total_amount,
-          adminUrl: `${window.location.origin}/admin/venue-approvals`
-        }
-      };
-      const { error } = await supabase.functions.invoke('send-email', { body: payload });
-      if (!error) return true;
-      console.warn('Edge Function admin notify failed, falling back to EmailJS...', error);
-    } catch (err) {
-      console.warn('Edge Function exception (admin notify), falling back to EmailJS...', err);
-    }
-  }
-
-  // EmailJS fallback for admin notification
+// 1. Email to initiator when they complete their split payment
+export const sendSplitPaymentInitiatorConfirmation = async (splitRequest, booking, venue, initiator) => {
   try {
-    if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.ownerTemplateId || !EMAILJS_CONFIG.publicKey) {
-      throw new Error('EmailJS admin template not configured');
+    console.log('🔄 Sending split payment initiator confirmation email');
+    
+    if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.templateId || !EMAILJS_CONFIG.publicKey) {
+      throw new Error('EmailJS configuration incomplete');
     }
-    await emailjs.send(EMAILJS_CONFIG.serviceId, EMAILJS_CONFIG.ownerTemplateId, {
-      to_email: ADMIN_EMAIL,
-      email: ADMIN_EMAIL,
-      to: ADMIN_EMAIL,
-      reply_to: 'info@oneeddy.com',
-      to_name: 'Admin',
-      from_name: 'VIPClub System',
-      subject: 'New Booking Received',
-      ownerName: venueOwner?.name || 'Admin',
-      ownerEmail: customer?.email || booking?.customerEmail,
-      ownerPhone: customer?.phone || booking?.customerPhone || 'Not provided',
-      venueName: venue?.name || booking?.venueName,
-      venueType: venue?.type || 'Not specified',
-      venueAddress: venue?.address || '',
-      venueCity: venue?.city || '',
-      applicationDate: new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
-    });
-    return true;
-  } catch (fallbackErr) {
-    console.error('❌ Admin notification send failed (EmailJS fallback):', fallbackErr);
-    return false;
+
+    const initiatorEmail = initiator.email || initiator.customerEmail;
+    if (!initiatorEmail || !initiatorEmail.includes('@')) {
+      throw new Error('Invalid initiator email address');
+    }
+
+    const templateParams = {
+      customerEmail: initiatorEmail,
+      customerName: initiator.full_name || initiator.customerName || 'Guest',
+      bookingReference: booking.id || booking.bookingId || 'N/A',
+      venueName: venue.name || venue.venueName || 'Venue',
+      bookingDate: booking.booking_date || booking.bookingDate || new Date().toISOString(),
+      bookingTime: booking.start_time || booking.booking_time || '19:00',
+      guestCount: booking.number_of_guests || booking.guest_count || 2,
+      totalAmount: booking.total_amount || booking.totalAmount || 0,
+      splitAmount: splitRequest.amount || 0,
+      paymentStatus: 'Your payment completed',
+      message: `Your split payment of ₦${(splitRequest.amount || 0).toLocaleString()} has been processed successfully. You will be notified when all other payments are completed.`,
+      from_name: 'Eddys Members',
+      reply_to: 'info@oneeddy.com'
+    };
+
+    const result = await emailjs.send(
+      EMAILJS_CONFIG.serviceId,
+      EMAILJS_CONFIG.templateId,
+      templateParams
+    );
+
+    console.log('✅ Split payment initiator confirmation email sent successfully');
+    return result;
+  } catch (error) {
+    console.error('❌ Failed to send split payment initiator confirmation:', error);
+    throw error;
+  }
+};
+
+// 2. Email to recipient when they complete their split payment
+export const sendSplitPaymentRecipientConfirmation = async (splitRequest, booking, venue, recipient, initiator) => {
+  try {
+    console.log('🔄 Sending split payment recipient confirmation email');
+    
+    if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.templateId || !EMAILJS_CONFIG.publicKey) {
+      throw new Error('EmailJS configuration incomplete');
+    }
+
+    const recipientEmail = recipient.email || recipient.customerEmail;
+    if (!recipientEmail || !recipientEmail.includes('@')) {
+      throw new Error('Invalid recipient email address');
+    }
+
+    const templateParams = {
+      customerEmail: recipientEmail,
+      customerName: recipient.full_name || recipient.customerName || 'Guest',
+      bookingReference: booking.id || booking.bookingId || 'N/A',
+      venueName: venue.name || venue.venueName || 'Venue',
+      bookingDate: booking.booking_date || booking.bookingDate || new Date().toISOString(),
+      bookingTime: booking.start_time || booking.booking_time || '19:00',
+      guestCount: booking.number_of_guests || booking.guest_count || 2,
+      totalAmount: booking.total_amount || booking.totalAmount || 0,
+      splitAmount: splitRequest.amount || 0,
+      initiatorName: initiator.full_name || initiator.customerName || 'Your friend',
+      paymentStatus: 'Payment completed',
+      message: `Your split payment of ₦${(splitRequest.amount || 0).toLocaleString()} for ${initiator.full_name || initiator.customerName || 'your friend'}'s booking has been processed successfully.`,
+      from_name: 'Eddys Members',
+      reply_to: 'info@oneeddy.com'
+    };
+
+    const result = await emailjs.send(
+      EMAILJS_CONFIG.serviceId,
+      EMAILJS_CONFIG.templateId,
+      templateParams
+    );
+
+    console.log('✅ Split payment recipient confirmation email sent successfully');
+    return result;
+  } catch (error) {
+    console.error('❌ Failed to send split payment recipient confirmation:', error);
+    throw error;
+  }
+};
+
+// 3. Email to initiator when all split payments are completed
+export const sendSplitPaymentCompleteNotification = async (booking, venue, initiator, allPayments) => {
+  try {
+    console.log('🔄 Sending split payment complete notification email');
+    
+    if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.templateId || !EMAILJS_CONFIG.publicKey) {
+      throw new Error('EmailJS configuration incomplete');
+    }
+
+    const initiatorEmail = initiator.email || initiator.customerEmail;
+    if (!initiatorEmail || !initiatorEmail.includes('@')) {
+      throw new Error('Invalid initiator email address');
+    }
+
+    const totalPaid = allPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
+    const participantsCount = allPayments.length;
+
+    const templateParams = {
+      customerEmail: initiatorEmail,
+      customerName: initiator.full_name || initiator.customerName || 'Guest',
+      bookingReference: booking.id || booking.bookingId || 'N/A',
+      venueName: venue.name || venue.venueName || 'Venue',
+      bookingDate: booking.booking_date || booking.bookingDate || new Date().toISOString(),
+      bookingTime: booking.start_time || booking.booking_time || '19:00',
+      guestCount: booking.number_of_guests || booking.guest_count || 2,
+      totalAmount: totalPaid,
+      participantsCount: participantsCount,
+      paymentStatus: 'All payments completed - Booking confirmed!',
+      message: `🎉 All split payments have been completed! Your booking is now confirmed. Total collected: ₦${totalPaid.toLocaleString()} from ${participantsCount} participants.`,
+      from_name: 'Eddys Members',
+      reply_to: 'info@oneeddy.com'
+    };
+
+    const result = await emailjs.send(
+      EMAILJS_CONFIG.serviceId,
+      EMAILJS_CONFIG.templateId,
+      templateParams
+    );
+
+    console.log('✅ Split payment complete notification email sent successfully');
+    return result;
+  } catch (error) {
+    console.error('❌ Failed to send split payment complete notification:', error);
+    throw error;
+  }
+};
+
+// 4. Email to venue owner when all split payments are completed
+export const sendSplitPaymentVenueOwnerNotification = async (booking, venue, initiator, allPayments) => {
+  try {
+    console.log('🔄 Sending split payment venue owner notification email');
+    
+    if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.templateId || !EMAILJS_CONFIG.publicKey) {
+      throw new Error('EmailJS configuration incomplete');
+    }
+
+    const venueOwnerEmail = venue.contact_email || venue.owner_email || 'info@oneeddy.com';
+    const totalPaid = allPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
+    const participantsCount = allPayments.length;
+
+    const templateParams = {
+      to_email: venueOwnerEmail,
+      to_name: 'Venue Manager',
+      subject: `Split Payment Booking Confirmed - ${venue.name || 'Venue'}`,
+      customerName: initiator.full_name || initiator.customerName || 'Guest',
+      customerEmail: initiator.email || initiator.customerEmail || 'N/A',
+      customerPhone: initiator.phone || initiator.customerPhone || 'N/A',
+      bookingReference: booking.id || booking.bookingId || 'N/A',
+      venueName: venue.name || venue.venueName || 'Venue',
+      bookingDate: booking.booking_date || booking.bookingDate || new Date().toISOString(),
+      bookingTime: booking.start_time || booking.booking_time || '19:00',
+      guestCount: booking.number_of_guests || booking.guest_count || 2,
+      totalAmount: totalPaid,
+      participantsCount: participantsCount,
+      paymentType: 'Split Payment',
+      message: `A new split payment booking has been confirmed. Total amount: ₦${totalPaid.toLocaleString()} collected from ${participantsCount} participants.`,
+      from_name: 'Eddys Members',
+      reply_to: 'info@oneeddy.com'
+    };
+
+    const result = await emailjs.send(
+      EMAILJS_CONFIG.serviceId,
+      EMAILJS_CONFIG.templateId,
+      templateParams
+    );
+
+    console.log('✅ Split payment venue owner notification email sent successfully');
+    return result;
+  } catch (error) {
+    console.error('❌ Failed to send split payment venue owner notification:', error);
+    throw error;
+  }
+};
+
+// 5. Email to initiator when split payment requests are created
+export const sendSplitPaymentRequestsCreated = async (booking, venue, initiator, splitRequests) => {
+  try {
+    console.log('🔄 Sending split payment requests created email');
+    
+    if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.templateId || !EMAILJS_CONFIG.publicKey) {
+      throw new Error('EmailJS configuration incomplete');
+    }
+
+    const initiatorEmail = initiator.email || initiator.customerEmail;
+    if (!initiatorEmail || !initiatorEmail.includes('@')) {
+      throw new Error('Invalid initiator email address');
+    }
+
+    const totalRequested = splitRequests.reduce((sum, request) => sum + (request.amount || 0), 0);
+    const requestsCount = splitRequests.length;
+
+    const templateParams = {
+      customerEmail: initiatorEmail,
+      customerName: initiator.full_name || initiator.customerName || 'Guest',
+      bookingReference: booking.id || booking.bookingId || 'N/A',
+      venueName: venue.name || venue.venueName || 'Venue',
+      bookingDate: booking.booking_date || booking.bookingDate || new Date().toISOString(),
+      bookingTime: booking.start_time || booking.booking_time || '19:00',
+      guestCount: booking.number_of_guests || booking.guest_count || 2,
+      totalAmount: totalRequested,
+      requestsCount: requestsCount,
+      paymentStatus: 'Split payment requests sent',
+      message: `Split payment requests have been sent to ${requestsCount} participants. Total requested: ₦${totalRequested.toLocaleString()}. You will be notified as payments are completed.`,
+      from_name: 'Eddys Members',
+      reply_to: 'info@oneeddy.com'
+    };
+
+    const result = await emailjs.send(
+      EMAILJS_CONFIG.serviceId,
+      EMAILJS_CONFIG.templateId,
+      templateParams
+    );
+
+    console.log('✅ Split payment requests created email sent successfully');
+    return result;
+  } catch (error) {
+    console.error('❌ Failed to send split payment requests created email:', error);
+    throw error;
   }
 };
 
@@ -187,21 +452,26 @@ export const sendCancellationEmail = async (booking, venue, customer) => {
       throw new Error('EmailJS configuration incomplete');
     }
 
-    const emailData = generateEmailData(booking, venue, customer);
-    const cancellationHtml = cancellationTemplate(emailData);
-    
-    // Send to customer
+    const customerEmail = customer.email || customer.customerEmail;
+    if (!customerEmail || !customerEmail.includes('@')) {
+      throw new Error('Invalid customer email address');
+    }
+
+    const templateParams = {
+      customerEmail: customerEmail,
+      customerName: customer.full_name || customer.customerName || 'Guest',
+      bookingReference: booking.id || booking.bookingId || 'N/A',
+      venueName: venue.name || venue.venueName || 'Venue',
+      bookingDate: booking.booking_date || booking.bookingDate || new Date().toISOString(),
+      refundAmount: booking.total_amount || booking.totalAmount || 0,
+      from_name: 'Eddys Members',
+      reply_to: 'info@oneeddy.com'
+    };
+
     const result = await emailjs.send(
       EMAILJS_CONFIG.serviceId,
       EMAILJS_CONFIG.templateId,
-      {
-        to_email: customer.email,
-        to_name: customer.name,
-        subject: `Booking Cancelled - ${venue.name}`,
-        html_content: cancellationHtml,
-        from_name: 'Eddys Members',
-        reply_to: 'info@oneeddy.com'
-      }
+      templateParams
     );
 
     console.log('✅ Cancellation email sent successfully');
@@ -209,6 +479,54 @@ export const sendCancellationEmail = async (booking, venue, customer) => {
   } catch (error) {
     console.error('❌ Failed to send cancellation email:', error);
     throw error;
+  }
+};
+
+// Debug function to test email configuration
+export const debugBookingEmail = async () => {
+  try {
+    console.log('🔍 EmailJS Configuration Debug:');
+    console.log('Service ID:', EMAILJS_CONFIG.serviceId);
+    console.log('Template ID:', EMAILJS_CONFIG.templateId);
+    console.log('Public Key:', EMAILJS_CONFIG.publicKey ? 'Set' : 'Missing');
+    
+    if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.templateId || !EMAILJS_CONFIG.publicKey) {
+      console.error('❌ EmailJS configuration incomplete');
+      return false;
+    }
+    
+    console.log('✅ EmailJS configuration appears complete');
+    
+    // Test with a simple email
+    const testParams = {
+      customerEmail: 'test@example.com',
+      customerName: 'Test User',
+      bookingReference: 'TEST-123',
+      venueName: 'Test Venue',
+      bookingDate: new Date().toISOString(),
+      bookingTime: '19:00',
+      guestCount: 2,
+      totalAmount: 5000
+    };
+    
+    console.log('🧪 Testing email with params:', testParams);
+    
+    const result = await emailjs.send(
+      EMAILJS_CONFIG.serviceId,
+      EMAILJS_CONFIG.templateId,
+      testParams
+    );
+    
+    console.log('✅ Email test successful:', result);
+    return true;
+  } catch (error) {
+    console.error('❌ Error debugging email configuration:', error);
+    console.error('Error details:', {
+      message: error.message,
+      status: error.status,
+      text: error.text
+    });
+    return false;
   }
 };
 
@@ -370,65 +688,7 @@ export const quickEmailTest = async (testEmail = 'test@example.com') => {
   }
 };
 
-// Debug function for booking confirmation email issues
-export const debugBookingEmail = async (booking, venue, customer) => {
-  console.log('🔍 Debugging booking email issue...');
-  console.log('📧 Customer data:', customer);
-  console.log('🏢 Venue data:', venue);
-  console.log('📅 Booking data:', booking);
-  
-  // Check EmailJS configuration
-  console.log('⚙️ EmailJS config:', {
-    serviceId: EMAILJS_CONFIG.serviceId ? '✅ Set' : '❌ Missing',
-    templateId: EMAILJS_CONFIG.templateId ? '✅ Set' : '❌ Missing',
-    publicKey: EMAILJS_CONFIG.publicKey ? '✅ Set' : '❌ Missing'
-  });
-  
-  // Validate customer email
-  const customerEmail = customer.email || customer.customerEmail || customer.full_name;
-  console.log('📧 Customer email found:', customerEmail);
-  
-  if (!customerEmail || !customerEmail.includes('@')) {
-    console.error('❌ Invalid customer email:', customerEmail);
-    return { success: false, error: 'Invalid customer email' };
-  }
-  
-  // Test with minimal data
-  const testParams = {
-    customerEmail: customerEmail, // This matches the template's "To" field
-    to_name: customer.full_name || customer.customerName || 'Test User',
-    customerName: customer.full_name || customer.customerName || 'Test User',
-    to_email: customerEmail, // Keep for backward compatibility
-    bookingReference: 'TEST-123',
-    venueName: venue.name || 'Test Venue'
-  };
-  
-  console.log('🧪 Testing with minimal params:', testParams);
-  
-  try {
-    const result = await emailjs.send(
-      EMAILJS_CONFIG.serviceId,
-      EMAILJS_CONFIG.templateId,
-      testParams
-    );
-    
-    console.log('✅ Debug test successful:', result);
-    return { success: true, result };
-  } catch (error) {
-    console.error('❌ Debug test failed:', error);
-    
-    if (error.text === 'The recipients address is empty') {
-      console.error('🔧 SOLUTION: Your EmailJS template is missing the "To" field configuration.');
-      console.error('   Please go to your EmailJS dashboard and:');
-      console.error('   1. Open your email template');
-      console.error('   2. In the "To" field, add: {{customerEmail}}');
-      console.error('   3. Save the template');
-      console.error('   4. Try again');
-    }
-    
-    return { success: false, error: error.text || error.message };
-  }
-};
+
 
 // Simple console test function for immediate debugging
 export const testEmailJSNow = async (testEmail = 'test@example.com') => {
