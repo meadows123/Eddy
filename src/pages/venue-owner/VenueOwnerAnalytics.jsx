@@ -17,6 +17,7 @@ import { supabase } from '../../lib/supabase';
 import { useToast } from '../../components/ui/use-toast';
 import { format, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek } from 'date-fns';
 import BackToDashboardButton from '../../components/BackToDashboardButton';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 const VenueOwnerAnalytics = () => {
   const { toast } = useToast();
@@ -829,82 +830,80 @@ const VenueOwnerAnalytics = () => {
           {/* Revenue Chart */}
           <Card className="xl:col-span-2 bg-white border-brand-burgundy/10">
             <CardHeader>
-                             <CardTitle className="flex items-center text-sm sm:text-base">
-                 <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                 Revenue Trend (Confirmed Bookings)
-               </CardTitle>
+              <CardTitle className="flex items-center text-sm sm:text-base">
+                <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                Bookings & Revenue Chart
+              </CardTitle>
             </CardHeader>
             <CardContent className="p-3 sm:p-6">
-              {/* Chart Container with horizontal scroll on mobile */}
-              <div className="w-full overflow-x-auto">
-                {/* Debug info for chart data */}
-                <div className="mb-4 p-3 bg-gray-50 rounded text-xs text-gray-600">
-                  <strong>Chart Debug:</strong> {analytics.dailyRevenue.length} days, 
-                  Max revenue: {Math.max(...analytics.dailyRevenue.map(d => d.revenue))}, 
-                  Total days with revenue: {analytics.dailyRevenue.filter(d => d.revenue > 0).length}
-                </div>
-                
-                <div className="min-w-[900px] sm:min-w-full h-48 sm:h-64 flex items-end justify-between space-x-1 px-2">
-                  {analytics.dailyRevenue && analytics.dailyRevenue.length > 0 ? (
-                    analytics.dailyRevenue.map((day, index) => {
-                      const maxRevenue = Math.max(...analytics.dailyRevenue.map(d => d.revenue));
-                      const height = maxRevenue > 0 ? (day.revenue / maxRevenue) * 100 : 0;
-                      
-                      // Debug: Log each day's data
-                      if (index < 5) {
-                        console.log('📊 Chart day data:', {
-                          index,
-                          date: day.date,
-                          revenue: day.revenue,
-                          bookings: day.bookings,
-                          height: height,
-                          maxRevenue
-                        });
-                      }
-                      
-                      return (
-                        <div key={index} className="flex flex-col items-center flex-1 min-w-[16px] group">
-                          <div
-                            className="bg-brand-gold rounded-t w-full min-h-[4px] transition-all duration-300 hover:bg-brand-burgundy cursor-pointer"
-                            style={{ height: `${Math.max(height, 4)}%` }}
-                            title={`${day.date}: ${formatCurrency(day.revenue)} (${day.bookings} bookings)`}
-                          />
-                          <span className="text-[10px] sm:text-xs text-brand-burgundy/70 mt-1 sm:mt-2 transform sm:rotate-45 sm:origin-top-left whitespace-nowrap">
-                            {/* Show abbreviated date on mobile, full on desktop */}
-                            <span className="sm:hidden">{day.date.split(' ')[1]}</span>
-                            <span className="hidden sm:inline">{day.date}</span>
-                          </span>
-                        </div>
-                      );
-                    })
-                  ) : (
-                    <div className="flex items-center justify-center w-full h-full">
-                      <div className="text-center text-gray-500">
-                        <div className="text-4xl mb-2">📊</div>
-                        <p className="text-sm">No revenue data available</p>
-                        <p className="text-xs text-gray-400">Check if you have any confirmed bookings</p>
-                        <div className="mt-2 p-2 bg-gray-100 rounded text-xs">
-                          <strong>Debug:</strong> analytics.dailyRevenue: {analytics.dailyRevenue ? analytics.dailyRevenue.length : 'undefined'}
-                        </div>
+              {/* Debug info for chart data */}
+              <div className="mb-4 p-3 bg-gray-50 rounded text-xs text-gray-600">
+                <strong>Chart Debug:</strong> {analytics.dailyRevenue.length} days, 
+                Max revenue: {Math.max(...analytics.dailyRevenue.map(d => d.revenue))}, 
+                Total days with revenue: {analytics.dailyRevenue.filter(d => d.revenue > 0).length}
+              </div>
+              
+              <div className="h-64 sm:h-80">
+                {analytics.dailyRevenue && analytics.dailyRevenue.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={analytics.dailyRevenue}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis 
+                        dataKey="date" 
+                        stroke="#6b7280"
+                        fontSize={12}
+                      />
+                      <YAxis 
+                        yAxisId="left"
+                        stroke="#8b5cf6"
+                        fontSize={12}
+                      />
+                      <YAxis 
+                        yAxisId="right"
+                        orientation="right"
+                        stroke="#f59e0b"
+                        fontSize={12}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: '#fff', 
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '8px'
+                        }}
+                        formatter={(value, name) => [
+                          name === 'bookings' ? `${value} bookings` : `₦${value.toLocaleString()}`,
+                          name === 'bookings' ? 'Bookings' : 'Revenue'
+                        ]}
+                      />
+                      <Legend />
+                      <Bar 
+                        yAxisId="left"
+                        dataKey="bookings" 
+                        fill="#8b5cf6" 
+                        radius={[4, 4, 0, 0]}
+                        name="Bookings"
+                      />
+                      <Bar 
+                        yAxisId="right"
+                        dataKey="revenue" 
+                        fill="#f59e0b" 
+                        radius={[4, 4, 0, 0]}
+                        name="Revenue (₦)"
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center text-gray-500">
+                      <div className="text-4xl mb-2">📊</div>
+                      <p className="text-sm">No revenue data available</p>
+                      <p className="text-xs text-gray-400">Check if you have any confirmed bookings</p>
+                      <div className="mt-2 p-2 bg-gray-100 rounded text-xs">
+                        <strong>Debug:</strong> analytics.dailyRevenue: {analytics.dailyRevenue ? analytics.dailyRevenue.length : 'undefined'}
                       </div>
                     </div>
-                  )}
-                </div>
-              </div>
-              
-              {/* Mobile scroll indicator */}
-              <div className="sm:hidden text-center mt-2">
-                <p className="text-xs text-brand-burgundy/50">← Swipe to see more data →</p>
-              </div>
-              
-              {/* Legend for mobile */}
-              <div className="mt-4 sm:hidden">
-                <div className="flex items-center justify-center space-x-4 text-xs">
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 bg-brand-gold rounded mr-1"></div>
-                    <span className="text-brand-burgundy/70">Daily Revenue</span>
                   </div>
-                </div>
+                )}
               </div>
             </CardContent>
           </Card>
