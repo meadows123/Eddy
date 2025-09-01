@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../components/ui/use-toast';
-import { format, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek, subWeeks } from 'date-fns';
 import BackToDashboardButton from '../../components/BackToDashboardButton';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
@@ -680,6 +680,32 @@ const VenueOwnerAnalytics = () => {
     return 'text-gray-500';
   };
 
+  const getDateRangeDisplay = () => {
+    const now = new Date();
+    switch (timeRange) {
+      case 'thisWeek':
+        const startOfThisWeek = startOfWeek(now, { weekStartsOn: 1 }); // Monday
+        const endOfThisWeek = endOfWeek(now, { weekStartsOn: 1 });
+        return `${format(startOfThisWeek, 'MMM dd')} - ${format(endOfThisWeek, 'MMM dd, yyyy')}`;
+      case 'lastWeek':
+        const lastWeek = subWeeks(now, 1);
+        const startOfLastWeek = startOfWeek(lastWeek, { weekStartsOn: 1 });
+        const endOfLastWeek = endOfWeek(lastWeek, { weekStartsOn: 1 });
+        return `${format(startOfLastWeek, 'MMM dd')} - ${format(endOfLastWeek, 'MMM dd, yyyy')}`;
+      case 'thisMonth':
+        const startOfThisMonth = startOfMonth(now);
+        const endOfThisMonth = endOfMonth(now);
+        return `${format(startOfThisMonth, 'MMM dd')} - ${format(endOfThisMonth, 'MMM dd, yyyy')}`;
+      case 'lastMonth':
+        const lastMonth = subMonths(now, 1);
+        const startOfLastMonth = startOfMonth(lastMonth);
+        const endOfLastMonth = endOfMonth(lastMonth);
+        return `${format(startOfLastMonth, 'MMM dd')} - ${format(endOfLastMonth, 'MMM dd, yyyy')}`;
+      default:
+        return '';
+    }
+  };
+
   if (loading) {
     return (
       <div className="bg-brand-cream/50 min-h-screen">
@@ -706,19 +732,56 @@ const VenueOwnerAnalytics = () => {
             </div>
             <h1 className="text-2xl sm:text-3xl font-heading text-brand-burgundy mb-2">Analytics Dashboard</h1>
             <p className="text-sm sm:text-base text-brand-burgundy/70">Track your venue's performance and revenue</p>
+            <div className="mt-2 p-2 bg-brand-gold/10 rounded-lg border border-brand-gold/20">
+              <p className="text-xs font-medium text-brand-burgundy">
+                📅 Currently viewing: <span className="font-semibold">{getDateRangeDisplay()}</span>
+              </p>
+            </div>
           </div>
           <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-y-0 sm:space-x-4">
             {/* Time Range Selector */}
-            <select
-              value={timeRange}
-              onChange={(e) => setTimeRange(e.target.value)}
-              className="px-3 py-2 border border-brand-burgundy/20 rounded-lg bg-white text-brand-burgundy w-full sm:w-auto"
-            >
-              <option value="thisWeek">This Week</option>
-              <option value="lastWeek">Last Week</option>
-              <option value="thisMonth">This Month</option>
-              <option value="lastMonth">Last Month</option>
-            </select>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setTimeRange('thisWeek')}
+                className={`px-3 py-2 rounded-lg border transition-all duration-200 text-sm font-medium ${
+                  timeRange === 'thisWeek'
+                    ? 'bg-brand-gold text-brand-burgundy border-brand-gold shadow-md'
+                    : 'bg-white text-brand-burgundy/70 border-brand-burgundy/20 hover:bg-brand-gold/10 hover:border-brand-gold/50'
+                }`}
+              >
+                This Week
+              </button>
+              <button
+                onClick={() => setTimeRange('lastWeek')}
+                className={`px-3 py-2 rounded-lg border transition-all duration-200 text-sm font-medium ${
+                  timeRange === 'lastWeek'
+                    ? 'bg-brand-gold text-brand-burgundy border-brand-gold shadow-md'
+                    : 'bg-white text-brand-burgundy/70 border-brand-burgundy/20 hover:bg-brand-gold/10 hover:border-brand-gold/50'
+                }`}
+              >
+                Last Week
+              </button>
+              <button
+                onClick={() => setTimeRange('thisMonth')}
+                className={`px-3 py-2 rounded-lg border transition-all duration-200 text-sm font-medium ${
+                  timeRange === 'thisMonth'
+                    ? 'bg-brand-gold text-brand-burgundy border-brand-gold shadow-md'
+                    : 'bg-white text-brand-burgundy/70 border-brand-burgundy/20 hover:bg-brand-gold/10 hover:border-brand-gold/50'
+                }`}
+              >
+                This Month
+              </button>
+              <button
+                onClick={() => setTimeRange('lastMonth')}
+                className={`px-3 py-2 rounded-lg border transition-all duration-200 text-sm font-medium ${
+                  timeRange === 'lastMonth'
+                    ? 'bg-brand-gold text-brand-burgundy border-brand-gold shadow-md'
+                    : 'bg-white text-brand-burgundy/70 border-brand-burgundy/20 hover:bg-brand-gold/10 hover:border-brand-gold/50'
+                }`}
+              >
+                Last Month
+              </button>
+            </div>
             
             <Button
               onClick={refreshData}
@@ -833,6 +896,9 @@ const VenueOwnerAnalytics = () => {
               <CardTitle className="flex items-center text-sm sm:text-base">
                 <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
                 Bookings & Revenue Chart
+                <span className="ml-2 text-xs font-normal text-brand-burgundy/60">
+                  ({getDateRangeDisplay()})
+                </span>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-3 sm:p-6">
@@ -882,6 +948,7 @@ const VenueOwnerAnalytics = () => {
                         fill="#8b5cf6" 
                         radius={[4, 4, 0, 0]}
                         name="Bookings"
+                        barSize={40}
                       />
                       <Bar 
                         yAxisId="right"
@@ -889,6 +956,7 @@ const VenueOwnerAnalytics = () => {
                         fill="#f59e0b" 
                         radius={[4, 4, 0, 0]}
                         name="Revenue (₦)"
+                        barSize={40}
                       />
                     </BarChart>
                   </ResponsiveContainer>
