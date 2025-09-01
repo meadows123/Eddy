@@ -449,20 +449,24 @@ const VenueOwnerAnalytics = () => {
       ? ((totalBookings - prevBookings) / prevBookings) * 100 
       : totalBookings > 0 ? 100 : 0;
 
-    // Daily revenue for chart (last 90 days) - EXPANDED RANGE TO SHOW MORE DATA
-    const last90Days = Array.from({ length: 90 }, (_, i) => {
-      const date = new Date();
-      date.setDate(date.getDate() - (89 - i));
+    // Daily revenue for chart - use selected time range
+    const { start: chartStart, end: chartEnd } = getDateRange();
+    const daysInRange = Math.ceil((chartEnd - chartStart) / (1000 * 60 * 60 * 24)) + 1;
+    
+    const dateRange = Array.from({ length: daysInRange }, (_, i) => {
+      const date = new Date(chartStart);
+      date.setDate(date.getDate() + i);
       return date;
     });
 
-    console.log('📅 Last 90 days array:', last90Days.map(d => d.toDateString()));
-    console.log('📅 Date range:', {
-      start: last90Days[0].toDateString(),
-      end: last90Days[89].toDateString()
+    console.log('📅 Date range for chart:', {
+      start: chartStart.toDateString(),
+      end: chartEnd.toDateString(),
+      daysInRange,
+      sampleDates: dateRange.slice(0, 5).map(d => d.toDateString())
     });
 
-    const dailyRevenue = last90Days.map(date => {
+    const dailyRevenue = dateRange.map(date => {
       const dayBookings = bookings.filter(booking => {
         const bookingDate = new Date(booking.booking_date || booking.created_at);
         // Compare dates by date string (ignoring time)
@@ -621,7 +625,7 @@ const VenueOwnerAnalytics = () => {
     // If no real data, generate sample data for testing
     if (dailyRevenue.every(d => d.revenue === 0 && d.bookings === 0)) {
       console.log('⚠️ No real revenue data, generating sample data for testing');
-      const sampleDailyRevenue = last90Days.map((date, index) => ({
+      const sampleDailyRevenue = dateRange.map((date, index) => ({
         date: format(date, 'MMM dd'),
         revenue: Math.floor(Math.random() * 50000) + 10000, // Random 10k-60k revenue
         bookings: Math.floor(Math.random() * 5) + 1 // Random 1-5 bookings
