@@ -123,6 +123,89 @@ const SplitPaymentForm = ({
   // Add this state for tracking split payment creation
   const [splitRequestsCreated, setSplitRequestsCreated] = useState(false);
   const [createdSplitRequests, setCreatedSplitRequests] = useState([]);
+
+  // Function to check if all payments are complete and send completion emails
+  const checkAllPaymentsComplete = async (bookingId) => {
+    try {
+      const { data: requests } = await supabase
+        .from('split_payment_requests')
+        .select('*')
+        .eq('booking_id', bookingId);
+        
+      const allPaid = requests.every(req => req.status === 'paid');
+      
+      if (allPaid) {
+        // Update booking status to confirmed
+        await supabase
+          .from('bookings')
+          .update({ status: 'confirmed' })
+          .eq('id', bookingId);
+
+        // Get booking and venue data for emails
+        const { data: bookingData } = await supabase
+          .from('bookings')
+          .select(`
+            *,
+            venues (
+              name,
+              address,
+              city,
+              contact_email,
+              contact_phone
+            ),
+            profiles!bookings_user_id_fkey (
+              first_name,
+              last_name,
+              email
+            )
+          `)
+          .eq('id', bookingId)
+          .single();
+
+        if (bookingData) {
+          // Send completion email to initiator via Edge Function
+          const { data: completionEmailResult, error: completionEmailError } = await supabase.functions.invoke('send-email', {
+            body: {
+              to: bookingData.profiles?.email || 'initiator@example.com',
+              subject: `Booking Confirmed! - ${bookingData.venues?.name || 'Your Venue'}`,
+              template: 'split-payment-complete',
+              data: {
+                // Recipient info
+                email: bookingData.profiles?.email || 'initiator@example.com',
+                customerName: `${bookingData.profiles?.first_name || ''} ${bookingData.profiles?.last_name || ''}`.trim() || 'Guest',
+                
+                // Booking details
+                bookingId: bookingData.id,
+                bookingDate: bookingData.booking_date || bookingData.bookingDate,
+                bookingTime: bookingData.start_time || bookingData.booking_time,
+                guestCount: bookingData.number_of_guests || bookingData.guest_count,
+                totalAmount: bookingData.total_amount || bookingData.totalAmount,
+                initiatorAmount: requests.find(req => req.requester_id === req.recipient_id)?.amount || 0,
+                
+                // Venue details
+                venueName: bookingData.venues?.name,
+                venueAddress: bookingData.venues?.address,
+                venuePhone: bookingData.venues?.contact_phone,
+                
+                // Dashboard URL
+                dashboardUrl: `${window.location.origin}/profile`
+              }
+            }
+          });
+
+          if (completionEmailError) {
+            console.error('❌ Error sending split payment completion email:', completionEmailError);
+          } else {
+            console.log('✅ Split payment completion email sent successfully');
+          }
+
+          console.log('✅ All split payments completed - booking confirmed');
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error checking payment completion:', error);
+    }
+  };
   // Add state for realBookingId
   const [realBookingId, setRealBookingId] = useState(null);
   // Add myAmount to the state variables
@@ -854,6 +937,9 @@ const SplitPaymentForm = ({
                       if (onSplitCreated) {
                         onSplitCreated(splitRequests);
                       }
+
+                      // Check if all payments are complete (in case initiator is the last to pay)
+                      await checkAllPaymentsComplete(confirmedBookingId);
 
                       // Navigate to success page
                       navigate(`/split-payment-success?payment_intent=${paymentIntentId}&request_id=${splitRequestId}`);
