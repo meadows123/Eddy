@@ -6,11 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabase';
-import { 
-  sendSplitPaymentRecipientConfirmation,
-  sendSplitPaymentCompleteNotification,
-  sendSplitPaymentVenueOwnerNotification
-} from '@/lib/emailService';
+// Remove EmailJS imports - we'll use Edge Function directly
 
 const SplitPaymentSuccessPage = () => {
   const [searchParams] = useSearchParams();
@@ -100,24 +96,41 @@ const SplitPaymentSuccessPage = () => {
             .single();
 
           if (recipientData) {
-            // Send email to recipient confirming their payment
-            await sendSplitPaymentRecipientConfirmation(
-              requestData,
-              requestData.bookings,
-              requestData.bookings.venues,
-              {
-                email: recipientData.email || 'recipient@example.com',
-                full_name: `${recipientData.first_name || ''} ${recipientData.last_name || ''}`.trim() || 'Guest',
-                customerName: `${recipientData.first_name || ''} ${recipientData.last_name || ''}`.trim() || 'Guest'
-              },
-              {
-                email: userProfile?.email || 'requester@example.com',
-                full_name: `${userProfile?.first_name || ''} ${userProfile?.last_name || ''}`.trim() || 'Guest',
-                customerName: `${userProfile?.first_name || ''} ${userProfile?.last_name || ''}`.trim() || 'Guest'
+            // Send confirmation email via Edge Function
+            const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-email', {
+              body: {
+                to: recipientData.email || 'recipient@example.com',
+                subject: `Split Payment Confirmed - ${requestData.bookings.venues?.name || 'Your Venue'}`,
+                template: 'split-payment-confirmation',
+                data: {
+                  // Recipient info
+                  email: recipientData.email || 'recipient@example.com',
+                  customerName: `${recipientData.first_name || ''} ${recipientData.last_name || ''}`.trim() || 'Guest',
+                  
+                  // Booking details
+                  bookingId: requestData.bookings.id,
+                  bookingDate: requestData.bookings.booking_date || requestData.bookings.bookingDate,
+                  bookingTime: requestData.bookings.start_time || requestData.bookings.booking_time,
+                  guestCount: requestData.bookings.number_of_guests || requestData.bookings.guest_count,
+                  totalAmount: requestData.bookings.total_amount || requestData.bookings.totalAmount,
+                  paymentAmount: requestData.amount || 0,
+                  
+                  // Venue details
+                  venueName: requestData.bookings.venues?.name,
+                  venueAddress: requestData.bookings.venues?.address,
+                  venuePhone: requestData.bookings.venues?.contact_phone,
+                  
+                  // Dashboard URL
+                  dashboardUrl: `${window.location.origin}/profile`
+                }
               }
-            );
+            });
 
-            console.log('✅ Split payment recipient confirmation email sent');
+            if (emailError) {
+              console.error('❌ Error sending split payment confirmation email:', emailError);
+            } else {
+              console.log('✅ Split payment confirmation email sent successfully');
+            }
           }
         }
       } catch (emailError) {
