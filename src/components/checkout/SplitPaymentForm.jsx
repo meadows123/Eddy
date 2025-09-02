@@ -691,8 +691,9 @@ const SplitPaymentForm = ({
                             .eq('id', confirmedBookingId)
                             .single();
 
-                          if (bookingData) {
+                          if (bookingData && splitRequests.length > 0) {
                             // Send email to initiator confirming their payment and requests sent
+                            const initiatorRequest = splitRequests[0]; // First request is the initiator
                             await sendSplitPaymentInitiatorConfirmation(
                               initiatorRequest,
                               bookingData,

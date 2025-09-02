@@ -50,11 +50,6 @@ const SplitPaymentSuccessPage = () => {
               city,
               contact_email,
               contact_phone
-            ),
-            profiles!bookings_user_id_fkey (
-              first_name,
-              last_name,
-              email
             )
           )
         `)
@@ -64,6 +59,20 @@ const SplitPaymentSuccessPage = () => {
       if (requestError) {
         console.error('Error fetching request data:', requestError);
         throw new Error('Failed to fetch payment request details');
+      }
+
+      // Fetch user profile information separately
+      let userProfile = null;
+      if (requestData?.bookings?.user_id) {
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('first_name, last_name, email')
+          .eq('id', requestData.bookings.user_id)
+          .single();
+        
+        if (!profileError && profileData) {
+          userProfile = profileData;
+        }
       }
 
       // Update the payment request status
@@ -102,9 +111,9 @@ const SplitPaymentSuccessPage = () => {
                 customerName: `${recipientData.first_name || ''} ${recipientData.last_name || ''}`.trim() || 'Guest'
               },
               {
-                email: requestData.bookings.profiles?.email || 'requester@example.com',
-                full_name: `${requestData.bookings.profiles?.first_name || ''} ${requestData.bookings.profiles?.last_name || ''}`.trim() || 'Guest',
-                customerName: `${requestData.bookings.profiles?.first_name || ''} ${requestData.bookings.profiles?.last_name || ''}`.trim() || 'Guest'
+                email: userProfile?.email || 'requester@example.com',
+                full_name: `${userProfile?.first_name || ''} ${userProfile?.last_name || ''}`.trim() || 'Guest',
+                customerName: `${userProfile?.first_name || ''} ${userProfile?.last_name || ''}`.trim() || 'Guest'
               }
             );
 
