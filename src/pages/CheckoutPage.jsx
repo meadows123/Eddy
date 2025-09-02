@@ -448,15 +448,35 @@ const customerEmailResult = await sendBookingConfirmation(booking, venue, custom
 // Get venue owner info if available for notification
 const dataSource = selection || bookingData;
 const venueOwnerEmail = venue?.contact_email || dataSource?.ownerEmail || venue?.owner_email;
-if (venueOwnerEmail && venueOwnerEmail.includes('@')) {
-const venueOwner = {
-  full_name: 'Venue Owner',
-  email: venueOwnerEmail
-};
 
-// Send venue owner notification (non-blocking)
-sendVenueOwnerNotification(booking, venue, customer, venueOwner)
-  .catch(error => console.log('Venue owner notification failed:', error));
+console.log('🔍 Venue owner email check:', {
+  venueOwnerEmail,
+  hasValidEmail: venueOwnerEmail && venueOwnerEmail.includes('@'),
+  venueContactEmail: venue?.contact_email,
+  dataSourceOwnerEmail: dataSource?.ownerEmail
+});
+
+if (venueOwnerEmail && venueOwnerEmail.includes('@')) {
+  const venueOwner = {
+    full_name: 'Venue Owner',
+    email: venueOwnerEmail
+  };
+
+  // Send venue owner notification (blocking to ensure it's sent)
+  try {
+    console.log('📧 Sending venue owner notification to:', venueOwnerEmail);
+    const venueOwnerResult = await sendVenueOwnerNotification(booking, venue, customer, venueOwner);
+    console.log('✅ Venue owner notification sent successfully:', venueOwnerResult);
+  } catch (venueOwnerError) {
+    console.error('❌ Venue owner notification failed:', venueOwnerError);
+    // Don't fail the entire process if venue owner email fails
+  }
+} else {
+  console.warn('⚠️ No valid venue owner email found:', {
+    venueOwnerEmail,
+    venueContactEmail: venue?.contact_email,
+    dataSourceOwnerEmail: dataSource?.ownerEmail
+  });
 }
 
 console.log('✅ Email service result:', customerEmailResult);

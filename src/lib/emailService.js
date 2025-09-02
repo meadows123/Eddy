@@ -136,21 +136,26 @@ export const sendVenueOwnerNotification = async (booking, venue, customer) => {
     const venueOwnerEmail = venue.contact_email || venue.owner_email || 'info@oneeddy.com';
     
     const templateParams = {
-      to_email: venueOwnerEmail,
-      to_name: 'Venue Manager',
-      subject: `New Booking - ${venue.name || 'Venue'}`,
-      customerName: customer.full_name || customer.customerName || 'Guest',
-      customerEmail: customer.email || customer.customerEmail || 'N/A',
-      customerPhone: customer.phone || customer.customerPhone || 'N/A',
+      customerEmail: venueOwnerEmail, // Use customerEmail for the "To" field
+      customerName: 'Venue Manager',
       bookingReference: booking.id || booking.bookingId || 'N/A',
       venueName: venue.name || venue.venueName || 'Venue',
       bookingDate: booking.booking_date || booking.bookingDate || new Date().toISOString(),
       bookingTime: booking.start_time || booking.booking_time || '19:00',
       guestCount: booking.number_of_guests || booking.guest_count || 2,
       totalAmount: booking.total_amount || booking.totalAmount || 0,
+      venueDescription: venue.description || venue.about || 'Experience luxury dining and entertainment in Lagos\' most exclusive venue.',
+      venueAddress: venue.address || venue.location || 'Lagos, Nigeria',
+      venuePhone: venue.contact_phone || venue.phone || venue.contact_number || '+234 XXX XXX XXXX',
+      venueDressCode: venue.dress_code || venue.dresscode || 'Smart Casual',
+      venueParking: venue.parking || venue.parking_info || 'Valet parking available',
+      venueCuisine: venue.cuisine || venue.cuisine_type || 'International cuisine',
+      venueHours: venue.hours || venue.opening_hours || venue.business_hours || '6:00 PM - 2:00 AM',
       specialRequests: booking.special_requests || booking.notes || booking.additional_notes || 'None specified',
       from_name: 'Eddys Members',
-      reply_to: 'info@oneeddy.com'
+      reply_to: 'info@oneeddy.com',
+      // Customer info for the booking (who made the booking)
+      customerPhone: customer.phone || customer.customerPhone || 'N/A'
     };
 
     // Send to venue owner
