@@ -128,11 +128,6 @@ export const sendBookingConfirmation = async (booking, venue, customer) => {
 
 export const sendVenueOwnerNotification = async (booking, venue, customer, venueOwner) => {
   try {
-    // Check if EmailJS is configured
-    if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.templateId || !EMAILJS_CONFIG.publicKey) {
-      throw new Error('EmailJS configuration incomplete');
-    }
-
     const venueOwnerEmail = venueOwner?.email || venue.contact_email || venue.owner_email || 'info@oneeddy.com';
     
     // Get table information if available
@@ -158,59 +153,46 @@ export const sendVenueOwnerNotification = async (booking, venue, customer, venue
     const bookingTime = booking.start_time || booking.booking_time || '19:00';
     const endTime = booking.end_time || '23:00';
     
-    // Create a focused message for venue owners
-    const venueOwnerMessage = `
-NEW BOOKING CONFIRMED
-
-Booking ID: ${booking.id || booking.bookingId || 'N/A'}
-Customer: ${customer.full_name || customer.customerName || 'Guest'}
-Guests: ${booking.number_of_guests || booking.guest_count || 2}
-Table: ${tableInfo}
-Date: ${bookingDate}
-Time: ${bookingTime} - ${endTime}
-Total Amount: ₦${(booking.total_amount || booking.totalAmount || 0).toLocaleString()}
-
-Customer Contact:
-Email: ${customer.email || customer.customerEmail || 'N/A'}
-Phone: ${customer.phone || customer.customerPhone || 'N/A'}
-
-Please prepare the table and ensure excellent service for your guests.
-
----
-Eddys Members Booking System
-    `.trim();
+    console.log('📧 Sending venue owner notification via Edge Function to:', venueOwnerEmail);
     
-    const templateParams = {
-      customerEmail: venueOwnerEmail, // Use customerEmail for the "To" field
-      customerName: venueOwner?.full_name || 'Venue Manager',
-      bookingReference: booking.id || booking.bookingId || 'N/A',
-      venueName: venue.name || venue.venueName || 'Venue',
-      bookingDate: bookingDate,
-      bookingTime: bookingTime,
-      guestCount: booking.number_of_guests || booking.guest_count || 2,
-      totalAmount: booking.total_amount || booking.totalAmount || 0,
-      message: venueOwnerMessage,
-      from_name: 'Eddys Members',
-      reply_to: 'info@oneeddy.com',
-      // Additional fields for template compatibility
-      customerName: customer.full_name || customer.customerName || 'Guest',
-      customerEmail: customer.email || customer.customerEmail || 'N/A',
-      customerPhone: customer.phone || customer.customerPhone || 'N/A',
-      tableInfo: tableInfo
-    };
+    // Use Supabase Edge Function to send the venue owner notification
+    const { data, error } = await supabase.functions.invoke('send-email', {
+      body: {
+        template: 'venue-owner-booking-notification',
+        data: {
+          // Recipient info
+          email: venueOwnerEmail,
+          ownerName: venueOwner?.full_name || 'Venue Manager',
+          
+          // Booking details
+          bookingId: booking.id || booking.bookingId || 'N/A',
+          customerName: customer.full_name || customer.customerName || 'Guest',
+          customerEmail: customer.email || customer.customerEmail || 'N/A',
+          customerPhone: customer.phone || customer.customerPhone || 'N/A',
+          guestCount: booking.number_of_guests || booking.guest_count || 2,
+          tableInfo: tableInfo,
+          bookingDate: bookingDate,
+          bookingTime: bookingTime,
+          endTime: endTime,
+          totalAmount: booking.total_amount || booking.totalAmount || 0,
+          
+          // Venue details
+          venueName: venue.name || venue.venueName || 'Venue',
+          venueAddress: venue.address || venue.location || 'Lagos, Nigeria',
+          
+          // Special requests
+          specialRequests: booking.special_requests || booking.notes || booking.additional_notes || 'None specified'
+        }
+      }
+    });
 
-    console.log('📧 Sending venue owner notification with message:', venueOwnerMessage);
-    console.log('📧 Template parameters being sent:', templateParams);
+    if (error) {
+      console.error('❌ Failed to send venue owner notification via Edge Function:', error);
+      throw error;
+    }
 
-    // Send to venue owner
-    const result = await emailjs.send(
-      EMAILJS_CONFIG.serviceId,
-      EMAILJS_CONFIG.templateId,
-      templateParams
-    );
-
-    console.log('✅ Venue owner notification sent successfully');
-    return result;
+    console.log('✅ Venue owner notification sent successfully via Edge Function:', data);
+    return data;
   } catch (error) {
     console.error('❌ Failed to send venue owner notification:', error);
     throw error;
@@ -1021,6 +1003,56 @@ export const testVenueOwnerEmail = async (testEmail = 'zak.meadows15@gmail.com')
 // Make test function available globally for debugging
 if (typeof window !== 'undefined') {
   window.testVenueOwnerEmail = testVenueOwnerEmail;
+}
+
+// Test function for venue owner notification via Edge Function
+export const testVenueOwnerEdgeFunction = async (testEmail = 'zak.meadows15@gmail.com') => {
+  try {
+    console.log('🧪 Testing venue owner notification via Edge Function...');
+    
+    const testData = {
+      email: testEmail,
+      ownerName: 'Test Venue Manager',
+      bookingId: 'TEST-12345',
+      customerName: 'Test Customer',
+      customerEmail: 'test@example.com',
+      customerPhone: '+234 123 456 789',
+      guestCount: 2,
+      tableInfo: 'Table 5 (Capacity: 4)',
+      bookingDate: '2024-01-15',
+      bookingTime: '19:00',
+      endTime: '23:00',
+      totalAmount: 25000,
+      venueName: 'Test Venue',
+      venueAddress: 'Test Address, Lagos',
+      specialRequests: 'Test special requests'
+    };
+    
+    console.log('📧 Test data:', testData);
+    
+    const { data, error } = await supabase.functions.invoke('send-email', {
+      body: {
+        template: 'venue-owner-booking-notification',
+        data: testData
+      }
+    });
+
+    if (error) {
+      console.error('❌ Edge Function error:', error);
+      return { success: false, error: error.message };
+    }
+
+    console.log('✅ Venue owner notification test successful:', data);
+    return { success: true, data };
+  } catch (error) {
+    console.error('❌ Error testing venue owner notification:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+// Make test function available globally for debugging
+if (typeof window !== 'undefined') {
+  window.testVenueOwnerEdgeFunction = testVenueOwnerEdgeFunction;
 }
 
 // Test function for contact form emails
