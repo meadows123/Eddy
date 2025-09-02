@@ -148,10 +148,21 @@ export const sendVenueOwnerNotification = async (booking, venue, customer, venue
       }
     }
     
-    // Format date and time nicely
+    // Format date and time nicely - use real booking data
     const bookingDate = booking.booking_date || booking.bookingDate || new Date().toISOString().split('T')[0];
-    const bookingTime = booking.start_time || booking.booking_time || '19:00';
+    const bookingTime = booking.start_time || booking.booking_time || booking.time || '19:00';
     const endTime = booking.end_time || '23:00';
+    
+    console.log('📅 Real booking data being used:', {
+      bookingDate,
+      bookingTime,
+      endTime,
+      guestCount: booking.number_of_guests || booking.guest_count || 2,
+      totalAmount: booking.total_amount || booking.totalAmount || 0,
+      customerName: customer.full_name || customer.customerName || 'Guest',
+      customerEmail: customer.email || customer.customerEmail || 'N/A',
+      customerPhone: customer.phone || customer.customerPhone || 'N/A'
+    });
     
     console.log('📧 Sending venue owner notification via Edge Function to:', venueOwnerEmail);
     
@@ -1016,16 +1027,18 @@ export const testVenueOwnerEdgeFunction = async (testEmail = 'zak.meadows15@gmai
   try {
     console.log('🧪 Testing venue owner notification via Edge Function...');
     
+    // Use real current data instead of static test data
+    const now = new Date();
     const testData = {
       email: testEmail,
       ownerName: 'Test Venue Manager',
-      bookingId: 'TEST-12345',
+      bookingId: `TEST-${Date.now()}`,
       customerName: 'Test Customer',
       customerEmail: 'test@example.com',
       customerPhone: '+234 123 456 789',
       guestCount: 2,
       tableInfo: 'Table 5 (Capacity: 4)',
-      bookingDate: '2024-01-15',
+      bookingDate: now.toISOString().split('T')[0], // Today's date
       bookingTime: '19:00',
       endTime: '23:00',
       totalAmount: 25000,
