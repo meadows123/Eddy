@@ -8,15 +8,24 @@ import { Button } from '@/components/ui/button'; // Add this import
 const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSubmitting, totalAmount, isAuthenticated = false }) => {
   const stripe = useStripe();
   const elements = useElements();
+  const [isProcessingPayment, setIsProcessingPayment] = React.useState(false);
 
   const handlePaymentSubmit = async (e) => {
     e.preventDefault();
     e.stopPropagation();
 
+    // Prevent multiple submissions
+    if (isProcessingPayment || isSubmitting) {
+      console.log('Payment already in progress, ignoring duplicate submission');
+      return;
+    }
+
     if (!stripe || !elements) {
       console.error('Stripe not initialized');
       return;
     }
+
+    setIsProcessingPayment(true);
 
     try {
       const { error: stripeError, paymentMethod } = await stripe.createPaymentMethod({
@@ -38,6 +47,8 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
       await handleSubmit(paymentMethod.id);
     } catch (err) {
       console.error('Payment error:', err);
+    } finally {
+      setIsProcessingPayment(false);
     }
   };
 
@@ -178,13 +189,13 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
         {/* Add the submit button back */}
         <Button 
           type="submit" 
-          disabled={isSubmitting || !stripe} 
+          disabled={isSubmitting || isProcessingPayment || !stripe} 
           className="w-full bg-brand-burgundy text-brand-cream hover:bg-brand-burgundy/90 py-3.5 text-lg rounded-md mt-6"
         >
-          {isSubmitting ? (
+          {isSubmitting || isProcessingPayment ? (
             <div className="flex items-center justify-center">
               <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-brand-cream mr-2"></div>
-              Processing...
+              {isProcessingPayment ? 'Processing Payment...' : 'Processing Booking...'}
             </div>
           ) : `Pay ₦${totalAmount.toLocaleString()}`}
         </Button>
