@@ -96,6 +96,13 @@ const SplitPaymentSuccessPage = () => {
             .single();
 
           if (recipientData) {
+            console.log('📧 Sending confirmation email to recipient:', {
+              email: recipientData.email,
+              name: `${recipientData.first_name || ''} ${recipientData.last_name || ''}`.trim(),
+              bookingId: requestData.bookings.id,
+              amount: requestData.amount
+            });
+
             // Send confirmation email via Edge Function
             const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-email', {
               body: {
@@ -129,7 +136,11 @@ const SplitPaymentSuccessPage = () => {
             if (emailError) {
               console.error('❌ Error sending split payment confirmation email:', emailError);
             } else {
-              console.log('✅ Split payment confirmation email sent successfully');
+              console.log('✅ Split payment confirmation email sent successfully:', {
+                result: emailResult,
+                recipient: recipientData.email,
+                bookingId: requestData.bookings.id
+              });
             }
           }
         }

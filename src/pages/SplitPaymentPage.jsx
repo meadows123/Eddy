@@ -235,12 +235,26 @@ const SplitPaymentPage = () => {
         return;
       }
 
-      // Now fetch the booking data separately
+      // Fetch booking data through the split payment request to avoid RLS issues
       const { data: bookingData, error: bookingError } = await supabase
-        .from('bookings')
-        .select('*')
-        .eq('id', requestData.booking_id)
+        .from('split_payment_requests')
+        .select(`
+          bookings (
+            *,
+            venues (
+              name,
+              address,
+              city,
+              contact_email,
+              contact_phone
+            )
+          )
+        `)
+        .eq('id', requestId)
         .single();
+
+      // Extract the booking data from the nested structure
+      const actualBookingData = bookingData?.bookings;
 
       if (bookingError) {
         console.error('❌ Error fetching booking:', bookingError);
@@ -248,19 +262,19 @@ const SplitPaymentPage = () => {
       }
 
       // Fetch venue data
-      if (bookingData?.venue_id) {
-        await fetchVenueData(bookingData.venue_id);
+      if (actualBookingData?.venue_id) {
+        await fetchVenueData(actualBookingData.venue_id);
       }
 
       // Set the state
       setPaymentRequest(requestData);
-      setBooking(bookingData || {});
+      setBooking(actualBookingData || {});
 
       console.log('✅ All data loaded successfully:', {
         paymentRequest: requestData,
-        booking: bookingData,
+        booking: actualBookingData,
         venue: venue,
-        'booking.venue_id': bookingData?.venue_id,
+        'booking.venue_id': actualBookingData?.venue_id,
         'venue.id': venue?.id
       });
 

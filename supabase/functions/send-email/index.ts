@@ -852,8 +852,8 @@ serve(async (req) => {
       </div>
     </div>
     <div class="content">
-      <h2 class="title">Split Payment Confirmed! ✅</h2>
-      <p class="subtitle">Your split payment has been completed for <strong>${data.venueName || 'Your Venue'}</strong></p>
+      <h2 class="title">Payment Confirmed! ✅</h2>
+      <p class="subtitle">Your payment has been processed for <strong>${data.venueName || 'Your Venue'}</strong></p>
       
       <div class="payment-card">
         <div class="payment-id">Booking ID: ${data.bookingId || 'N/A'}</div>
@@ -878,9 +878,10 @@ serve(async (req) => {
         </div>
 
         <div class="status-section">
-          <div class="status-title">Payment Status: Partial Payment Complete</div>
+          <div class="status-title">Payment Status: Confirmed</div>
           <div class="status-details">
             Your payment has been successfully processed.<br>
+            <strong>Booking Reference: ${data.bookingId || 'N/A'}</strong><br>
             The booking will be fully confirmed once all split payments are completed.
           </div>
         </div>
@@ -911,7 +912,9 @@ serve(async (req) => {
       </div>
       
       <p style="text-align: center; color: #666; font-size: 14px; margin-top: 24px;">
-        Your payment has been processed successfully! The booking will be fully confirmed once all split payments are completed.<br>
+        Your payment has been processed successfully!<br>
+        <strong>Booking Reference: ${data.bookingId || 'N/A'}</strong><br>
+        The booking will be fully confirmed once all split payments are completed.<br>
         Contact us if you have any questions.
       </p>
     </div>
