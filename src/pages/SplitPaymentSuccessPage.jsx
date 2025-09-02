@@ -27,6 +27,7 @@ const SplitPaymentSuccessPage = () => {
 
   const handlePaymentSuccess = async () => {
     try {
+      console.log('🚀 Starting handlePaymentSuccess with:', { paymentIntentId, requestId });
       setLoading(true);
 
       if (!paymentIntentId || !requestId) {
@@ -53,9 +54,17 @@ const SplitPaymentSuccessPage = () => {
         .single();
 
       if (requestError) {
-        console.error('Error fetching request data:', requestError);
+        console.error('❌ Error fetching request data:', requestError);
         throw new Error('Failed to fetch payment request details');
       }
+
+      console.log('✅ Request data fetched successfully:', {
+        requestId: requestData.id,
+        bookingId: requestData.booking_id,
+        recipientId: requestData.recipient_id,
+        amount: requestData.amount,
+        hasBooking: !!requestData.bookings
+      });
 
       // Fetch user profile information separately
       let userProfile = null;
@@ -87,6 +96,12 @@ const SplitPaymentSuccessPage = () => {
 
       // Send email notifications
       try {
+        console.log('📧 About to send email notifications:', {
+          hasRequestData: !!requestData,
+          hasBookings: !!requestData?.bookings,
+          recipientId: requestData?.recipient_id
+        });
+
         if (requestData && requestData.bookings) {
           // Get recipient data
           const { data: recipientData } = await supabase
@@ -104,6 +119,13 @@ const SplitPaymentSuccessPage = () => {
             });
 
             // Send confirmation email via Edge Function
+            console.log('🚀 About to call Edge Function with data:', {
+              to: recipientData.email,
+              subject: `Split Payment Confirmed - ${requestData.bookings.venues?.name || 'Your Venue'}`,
+              template: 'split-payment-confirmation',
+              bookingId: requestData.bookings.id
+            });
+
             const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-email', {
               body: {
                 to: recipientData.email || 'recipient@example.com',
