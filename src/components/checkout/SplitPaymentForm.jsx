@@ -725,6 +725,64 @@ const SplitPaymentForm = ({
                             } else {
                               console.log('✅ Split payment initiation email sent successfully');
                             }
+
+                            // Send request emails to recipients
+                            const recipientRequests = splitRequests.filter(req => req.recipient_id !== user.id);
+                            for (const request of recipientRequests) {
+                              try {
+                                // Get recipient profile data
+                                const { data: recipientProfile } = await supabase
+                                  .from('profiles')
+                                  .select('*')
+                                  .eq('id', request.recipient_id)
+                                  .single();
+
+                                if (recipientProfile) {
+                                  const { data: requestEmailResult, error: requestEmailError } = await supabase.functions.invoke('send-email', {
+                                    body: {
+                                      to: recipientProfile.email,
+                                      subject: `Split Payment Request from ${user.user_metadata?.first_name || 'Your friend'} - ${bookingData.venues?.name || 'Venue Booking'}`,
+                                      template: 'split-payment-request',
+                                      data: {
+                                        // Recipient info
+                                        email: recipientProfile.email,
+                                        customerName: `${recipientProfile.first_name || ''} ${recipientProfile.last_name || ''}`.trim() || 'Guest',
+                                        
+                                        // Initiator info
+                                        initiatorName: `${user.user_metadata?.first_name || ''} ${user.user_metadata?.last_name || ''}`.trim() || user.user_metadata?.full_name || 'Your friend',
+                                        
+                                        // Request details
+                                        requestId: request.id,
+                                        amount: request.amount,
+                                        
+                                        // Booking details
+                                        bookingId: bookingData.id,
+                                        bookingDate: bookingData.booking_date || bookingData.bookingDate,
+                                        bookingTime: bookingData.start_time || bookingData.booking_time,
+                                        guestCount: bookingData.number_of_guests || bookingData.guest_count,
+                                        totalAmount: bookingData.total_amount || bookingData.totalAmount,
+                                        
+                                        // Venue details
+                                        venueName: bookingData.venues?.name,
+                                        venueAddress: bookingData.venues?.address,
+                                        venuePhone: bookingData.venues?.contact_phone,
+                                        
+                                        // Payment URL
+                                        paymentUrl: `${window.location.origin}/split-payment/${request.id}`
+                                      }
+                                    }
+                                  });
+
+                                  if (requestEmailError) {
+                                    console.error(`❌ Error sending split payment request email to ${recipientProfile.email}:`, requestEmailError);
+                                  } else {
+                                    console.log(`✅ Split payment request email sent to ${recipientProfile.email}`);
+                                  }
+                                }
+                              } catch (recipientEmailError) {
+                                console.error(`❌ Error processing recipient email for request ${request.id}:`, recipientEmailError);
+                              }
+                            }
                           }
                         } catch (emailError) {
                           console.error('❌ Error sending split payment emails:', emailError);
