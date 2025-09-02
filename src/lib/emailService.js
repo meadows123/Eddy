@@ -126,37 +126,80 @@ export const sendBookingConfirmation = async (booking, venue, customer) => {
   }
 };
 
-export const sendVenueOwnerNotification = async (booking, venue, customer) => {
+export const sendVenueOwnerNotification = async (booking, venue, customer, venueOwner) => {
   try {
     // Check if EmailJS is configured
     if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.templateId || !EMAILJS_CONFIG.publicKey) {
       throw new Error('EmailJS configuration incomplete');
     }
 
-    const venueOwnerEmail = venue.contact_email || venue.owner_email || 'info@oneeddy.com';
+    const venueOwnerEmail = venueOwner?.email || venue.contact_email || venue.owner_email || 'info@oneeddy.com';
+    
+    // Get table information if available
+    let tableInfo = 'Table not specified';
+    if (booking.table_id) {
+      try {
+        const { data: tableData } = await supabase
+          .from('venue_tables')
+          .select('table_number, capacity')
+          .eq('id', booking.table_id)
+          .single();
+        
+        if (tableData) {
+          tableInfo = `Table ${tableData.table_number} (Capacity: ${tableData.capacity})`;
+        }
+      } catch (tableError) {
+        console.warn('Could not fetch table info:', tableError);
+      }
+    }
+    
+    // Format date and time nicely
+    const bookingDate = booking.booking_date || booking.bookingDate || new Date().toISOString().split('T')[0];
+    const bookingTime = booking.start_time || booking.booking_time || '19:00';
+    const endTime = booking.end_time || '23:00';
+    
+    // Create a focused message for venue owners
+    const venueOwnerMessage = `
+NEW BOOKING CONFIRMED
+
+Booking ID: ${booking.id || booking.bookingId || 'N/A'}
+Customer: ${customer.full_name || customer.customerName || 'Guest'}
+Guests: ${booking.number_of_guests || booking.guest_count || 2}
+Table: ${tableInfo}
+Date: ${bookingDate}
+Time: ${bookingTime} - ${endTime}
+Total Amount: ₦${(booking.total_amount || booking.totalAmount || 0).toLocaleString()}
+
+Customer Contact:
+Email: ${customer.email || customer.customerEmail || 'N/A'}
+Phone: ${customer.phone || customer.customerPhone || 'N/A'}
+
+Please prepare the table and ensure excellent service for your guests.
+
+---
+Eddys Members Booking System
+    `.trim();
     
     const templateParams = {
       customerEmail: venueOwnerEmail, // Use customerEmail for the "To" field
-      customerName: 'Venue Manager',
+      customerName: venueOwner?.full_name || 'Venue Manager',
       bookingReference: booking.id || booking.bookingId || 'N/A',
       venueName: venue.name || venue.venueName || 'Venue',
-      bookingDate: booking.booking_date || booking.bookingDate || new Date().toISOString(),
-      bookingTime: booking.start_time || booking.booking_time || '19:00',
+      bookingDate: bookingDate,
+      bookingTime: bookingTime,
       guestCount: booking.number_of_guests || booking.guest_count || 2,
       totalAmount: booking.total_amount || booking.totalAmount || 0,
-      venueDescription: venue.description || venue.about || 'Experience luxury dining and entertainment in Lagos\' most exclusive venue.',
-      venueAddress: venue.address || venue.location || 'Lagos, Nigeria',
-      venuePhone: venue.contact_phone || venue.phone || venue.contact_number || '+234 XXX XXX XXXX',
-      venueDressCode: venue.dress_code || venue.dresscode || 'Smart Casual',
-      venueParking: venue.parking || venue.parking_info || 'Valet parking available',
-      venueCuisine: venue.cuisine || venue.cuisine_type || 'International cuisine',
-      venueHours: venue.hours || venue.opening_hours || venue.business_hours || '6:00 PM - 2:00 AM',
-      specialRequests: booking.special_requests || booking.notes || booking.additional_notes || 'None specified',
+      message: venueOwnerMessage,
       from_name: 'Eddys Members',
       reply_to: 'info@oneeddy.com',
-      // Customer info for the booking (who made the booking)
-      customerPhone: customer.phone || customer.customerPhone || 'N/A'
+      // Additional fields for template compatibility
+      customerName: customer.full_name || customer.customerName || 'Guest',
+      customerEmail: customer.email || customer.customerEmail || 'N/A',
+      customerPhone: customer.phone || customer.customerPhone || 'N/A',
+      tableInfo: tableInfo
     };
+
+    console.log('📧 Sending venue owner notification with message:', venueOwnerMessage);
 
     // Send to venue owner
     const result = await emailjs.send(
@@ -207,7 +250,11 @@ export const sendBookingConfirmationEmail = async (bookingData) => {
     const customerResult = await sendBookingConfirmation(booking, venue, customer);
     
     // Send venue owner notification
-    const venueOwnerResult = await sendVenueOwnerNotification(booking, venue, customer);
+    const venueOwner = {
+      email: bookingData.venueOwnerEmail,
+      full_name: bookingData.venueOwnerName || 'Venue Manager'
+    };
+    const venueOwnerResult = await sendVenueOwnerNotification(booking, venue, customer, venueOwner);
     
     console.log('✅ Both customer and venue owner emails sent successfully');
     return true;
