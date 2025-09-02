@@ -47,6 +47,18 @@ serve(async (req) => {
     console.log('Request data:', body)
 
     const { to, subject, template, data } = body
+    console.log('Extracted parameters:', { to, subject, template, data })
+    
+    // Validate required parameters
+    if (!to) {
+      throw new Error('Missing required parameter: to (recipient email)')
+    }
+    if (!subject) {
+      throw new Error('Missing required parameter: subject')
+    }
+    if (!template) {
+      throw new Error('Missing required parameter: template')
+    }
 
     let html = ''
     switch (template) {

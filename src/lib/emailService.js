@@ -155,11 +155,11 @@ export const sendVenueOwnerNotification = async (booking, venue, customer, venue
     
     console.log('📧 Sending venue owner notification via Edge Function to:', venueOwnerEmail);
     
-    // Use Supabase Edge Function to send the venue owner notification
-    const { data, error } = await supabase.functions.invoke('send-email', {
-      body: {
-        template: 'venue-owner-booking-notification',
-        data: {
+    const emailPayload = {
+      to: venueOwnerEmail,
+      subject: `New Booking Confirmation - ${venue.name || venue.venueName || 'Your Venue'}`,
+      template: 'venue-owner-booking-notification',
+      data: {
           // Recipient info
           email: venueOwnerEmail,
           ownerName: venueOwner?.full_name || 'Venue Manager',
@@ -183,7 +183,13 @@ export const sendVenueOwnerNotification = async (booking, venue, customer, venue
           // Special requests
           specialRequests: booking.special_requests || booking.notes || booking.additional_notes || 'None specified'
         }
-      }
+      };
+    
+    console.log('📧 Email payload being sent:', emailPayload);
+    
+    // Use Supabase Edge Function to send the venue owner notification
+    const { data, error } = await supabase.functions.invoke('send-email', {
+      body: emailPayload
     });
 
     if (error) {
@@ -1032,6 +1038,8 @@ export const testVenueOwnerEdgeFunction = async (testEmail = 'zak.meadows15@gmai
     
     const { data, error } = await supabase.functions.invoke('send-email', {
       body: {
+        to: testEmail,
+        subject: 'Test Venue Owner Booking Notification',
         template: 'venue-owner-booking-notification',
         data: testData
       }
