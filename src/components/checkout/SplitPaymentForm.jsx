@@ -692,6 +692,9 @@ const SplitPaymentForm = ({
                             .single();
 
                           if (bookingData && splitRequests.length > 0) {
+                            // Get user profile ID for filtering
+                            const userProfileId = user.id;
+                            
                             // Send email to initiator confirming their payment and requests sent
                             const initiatorRequest = splitRequests[0]; // First request is the initiator
                             await sendSplitPaymentInitiatorConfirmation(
