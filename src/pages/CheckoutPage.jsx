@@ -404,23 +404,42 @@ booking = {
 if (booking.venue_id) {
 const { data: venueData, error: venueError } = await supabase
   .from('venues')
-  .select('*')
+  .select(`
+    *,
+    venue_owners!inner(
+      owner_email,
+      owner_name,
+      email
+    )
+  `)
   .eq('id', booking.venue_id)
   .single();
 
 if (!venueError && venueData) {
   venue = venueData;
 } else {
-  console.warn('Could not fetch venue data, using fallback:', venueError);
-  const dataSource = selection || bookingData;
-  venue = {
-    name: bookingData.venueName || dataSource?.venueName,
-    address: dataSource?.venueAddress || 'Lagos, Nigeria',
-    contact_phone: dataSource?.venuePhone || '+234 XXX XXX XXXX',
-    contact_email: dataSource?.venueEmail || 'info@oneeddy.com',
-    images: dataSource?.venueImage ? [dataSource.venueImage] : [],
-    dress_code: 'Smart casual'
-  };
+  console.warn('Could not fetch venue data with join, trying fallback:', venueError);
+  // Fallback to simple venue query if join fails
+  const { data: fallbackVenueData, error: fallbackError } = await supabase
+    .from('venues')
+    .select('*')
+    .eq('id', booking.venue_id)
+    .single();
+  
+  if (!fallbackError && fallbackVenueData) {
+    venue = fallbackVenueData;
+  } else {
+    console.warn('Could not fetch venue data, using fallback:', fallbackError);
+    const dataSource = selection || bookingData;
+    venue = {
+      name: bookingData.venueName || dataSource?.venueName,
+      address: dataSource?.venueAddress || 'Lagos, Nigeria',
+      contact_phone: dataSource?.venuePhone || '+234 XXX XXX XXXX',
+      contact_email: dataSource?.venueEmail || 'info@oneeddy.com',
+      images: dataSource?.venueImage ? [dataSource.venueImage] : [],
+      dress_code: 'Smart casual'
+    };
+  }
 }
 } else {
 // Fallback venue data - use both selection and bookingData
@@ -447,18 +466,20 @@ const customerEmailResult = await sendBookingConfirmation(booking, venue, custom
 
 // Get venue owner info if available for notification
 const dataSource = selection || bookingData;
-const venueOwnerEmail = venue?.contact_email || dataSource?.ownerEmail || venue?.owner_email;
+const venueOwnerEmail = bookingData?.venueOwnerEmail || venue?.venue_owners?.owner_email || venue?.venue_owners?.email || venue?.contact_email || dataSource?.ownerEmail || venue?.owner_email;
 
 console.log('🔍 Venue owner email check:', {
   venueOwnerEmail,
   hasValidEmail: venueOwnerEmail && venueOwnerEmail.includes('@'),
   venueContactEmail: venue?.contact_email,
+  venueOwnerFromJoin: venue?.venue_owners?.owner_email || venue?.venue_owners?.email,
+  bookingDataVenueOwnerEmail: bookingData?.venueOwnerEmail,
   dataSourceOwnerEmail: dataSource?.ownerEmail
 });
 
 if (venueOwnerEmail && venueOwnerEmail.includes('@')) {
   const venueOwner = {
-    full_name: 'Venue Owner',
+    full_name: bookingData?.venueOwnerName || venue?.venue_owners?.owner_name || 'Venue Owner',
     email: venueOwnerEmail
   };
 
@@ -705,15 +726,32 @@ toast({
   className: "bg-green-500 text-white"
 });
 
-    // Get venue data for email
+    // Get venue data for email - include venue owner information
     const { data: venueData, error: venueError } = await supabase
       .from('venues')
-      .select('*')
+      .select(`
+        *,
+        venue_owners!inner(
+          owner_email,
+          owner_name,
+          email
+        )
+      `)
       .eq('id', venueId)
       .single();
 
     if (venueError) {
       console.warn('Could not fetch venue data for email:', venueError);
+      // Fallback to simple venue query if join fails
+      const { data: fallbackVenueData, error: fallbackError } = await supabase
+        .from('venues')
+        .select('*')
+        .eq('id', venueId)
+        .single();
+      
+      if (!fallbackError && fallbackVenueData) {
+        venueData = fallbackVenueData;
+      }
     }
 
     // Send confirmation email with complete data
@@ -727,7 +765,9 @@ toast({
         venueName: venueData?.name || dataSource?.venueName || 'Venue',
         venueAddress: venueData?.address || dataSource?.venueAddress || 'Lagos, Nigeria',
         venuePhone: venueData?.contact_phone || dataSource?.venuePhone || '+234 XXX XXX XXXX',
-        venueEmail: venueData?.contact_email || dataSource?.venueEmail || 'info@oneeddy.com',
+        venueEmail: venueData?.venue_owners?.owner_email || venueData?.venue_owners?.email || venueData?.contact_email || dataSource?.venueEmail || 'info@oneeddy.com',
+        venueOwnerEmail: venueData?.venue_owners?.owner_email || venueData?.venue_owners?.email,
+        venueOwnerName: venueData?.venue_owners?.owner_name,
         venueDescription: venueData?.description || 'Experience luxury dining and entertainment in Lagos\' most exclusive venue.',
         venueDressCode: venueData?.dress_code || 'Smart Casual'
       });
