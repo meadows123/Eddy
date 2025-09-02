@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabase';
-// Remove EmailJS imports - we'll use Edge Function directly
+import { sendSplitPaymentVenueOwnerNotification } from '@/lib/emailService';
 
 const SplitPaymentSuccessPage = () => {
   const [searchParams] = useSearchParams();
@@ -208,17 +208,41 @@ const SplitPaymentSuccessPage = () => {
           .single();
 
         if (bookingData) {
-          // Send email to initiator when all payments are completed
-          await sendSplitPaymentCompleteNotification(
-            bookingData,
-            bookingData.venues,
-            {
-              email: bookingData.profiles?.email || 'initiator@example.com',
-              full_name: `${bookingData.profiles?.first_name || ''} ${bookingData.profiles?.last_name || ''}`.trim() || 'Guest',
-              customerName: `${bookingData.profiles?.first_name || ''} ${bookingData.profiles?.last_name || ''}`.trim() || 'Guest'
-            },
-            requests
-          );
+          // Send completion email to initiator via Edge Function
+          const { data: completionEmailResult, error: completionEmailError } = await supabase.functions.invoke('send-email', {
+            body: {
+              to: bookingData.profiles?.email || 'initiator@example.com',
+              subject: `Booking Confirmed! - ${bookingData.venues?.name || 'Your Venue'}`,
+              template: 'split-payment-complete',
+              data: {
+                // Recipient info
+                email: bookingData.profiles?.email || 'initiator@example.com',
+                customerName: `${bookingData.profiles?.first_name || ''} ${bookingData.profiles?.last_name || ''}`.trim() || 'Guest',
+                
+                // Booking details
+                bookingId: bookingData.id,
+                bookingDate: bookingData.booking_date || bookingData.bookingDate,
+                bookingTime: bookingData.start_time || bookingData.booking_time,
+                guestCount: bookingData.number_of_guests || bookingData.guest_count,
+                totalAmount: bookingData.total_amount || bookingData.totalAmount,
+                initiatorAmount: requests.find(req => req.requester_id === req.recipient_id)?.amount || 0,
+                
+                // Venue details
+                venueName: bookingData.venues?.name,
+                venueAddress: bookingData.venues?.address,
+                venuePhone: bookingData.venues?.contact_phone,
+                
+                // Dashboard URL
+                dashboardUrl: `${window.location.origin}/profile`
+              }
+            }
+          });
+
+          if (completionEmailError) {
+            console.error('❌ Error sending split payment completion email:', completionEmailError);
+          } else {
+            console.log('✅ Split payment completion email sent successfully');
+          }
 
           // Send email to venue owner when all payments are completed
           await sendSplitPaymentVenueOwnerNotification(

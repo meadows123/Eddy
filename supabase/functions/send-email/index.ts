@@ -637,6 +637,154 @@ serve(async (req) => {
 </html>`
         break
 
+      case 'split-payment-complete':
+        html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Eddys Members – Booking Confirmed!</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; background: #f5f5f5; color: #333; line-height: 1.6; }
+    .email-container { max-width: 600px; margin: 0 auto; background: #fff; box-shadow: 0 10px 30px rgba(128,0,32,0.08); }
+    .header { background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); padding: 32px 24px; text-align: center; position: relative; }
+    .header::before { content: ''; position: absolute; inset: 0; opacity: .2; background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="%23FFD700" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="%23FFD700" opacity="0.1"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>') repeat; }
+    .logo { position: relative; z-index: 1; }
+    .logo-image { width: 80px; height: 80px; border-radius: 50%; border: 2px solid #FFD700; box-shadow: 0 6px 16px rgba(255,215,0,.25); margin-bottom: 10px; }
+    .brand { color: #FFF5E6; font-size: 24px; font-weight: 700; letter-spacing: 1.5px; }
+    .content { padding: 32px 24px; }
+    .title { color: #800020; font-size: 24px; font-weight: 700; text-align: center; margin-bottom: 16px; }
+    .subtitle { color: #555; font-size: 16px; text-align: center; margin-bottom: 24px; }
+    .booking-card { background: linear-gradient(135deg, #FFF5E6 0%, #ffffff 100%); border: 2px solid #FFD700; border-radius: 12px; padding: 24px; margin: 20px 0; position: relative; }
+    .booking-card::before { content: '🎉'; position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: #FFD700; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+    .booking-id { background: #800020; color: #FFF5E6; padding: 12px 20px; border-radius: 20px; text-align: center; margin-bottom: 20px; font-weight: 700; font-size: 16px; letter-spacing: 1px; }
+    .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+    .detail-item { background: #f8f9fa; padding: 12px; border-radius: 8px; border-left: 4px solid #FFD700; }
+    .detail-label { color: #800020; font-weight: 700; font-size: 11px; text-transform: uppercase; margin-bottom: 4px; }
+    .detail-value { color: #666; font-size: 14px; word-break: break-word; }
+    .venue-section { background: #f8f9fa; border-left: 4px solid #FFD700; padding: 20px; margin: 20px 0; border-radius: 8px; }
+    .venue-title { color: #800020; font-weight: 700; font-size: 16px; margin-bottom: 12px; }
+    .venue-details { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 14px; }
+    .venue-item { color: #666; }
+    .venue-label { color: #800020; font-weight: 700; margin-right: 8px; }
+    .complete-section { background: rgba(0, 128, 0, 0.1); border: 2px solid #00AA00; border-radius: 10px; padding: 20px; margin: 20px 0; text-align: center; }
+    .complete-title { color: #00AA00; font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+    .complete-details { color: #666; font-size: 14px; }
+    .cta { text-align: center; margin: 24px 0; }
+    .btn { display: inline-block; text-decoration: none; padding: 14px 28px; border-radius: 28px; font-weight: 700; font-size: 14px; letter-spacing: .5px; border: 2px solid #FFD700; box-shadow: 0 6px 18px rgba(128,0,32,.18); }
+    .btn-primary { background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); color: #FFF5E6; }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 22px rgba(128,0,32,.25); }
+    .footer { background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); color: #FFF5E6; padding: 24px; text-align: center; }
+    .footer-content { margin-bottom: 16px; }
+    .footer-title { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .footer-text { font-size: 14px; opacity: 0.9; line-height: 1.6; }
+    .footer-bottom { border-top: 1px solid rgba(255, 245, 230, 0.2); padding-top: 16px; font-size: 12px; opacity: 0.8; }
+    @media (max-width: 600px) { 
+      .email-container { margin: 0; box-shadow: none; } 
+      .header { padding: 24px 20px; } 
+      .logo-image { width: 60px; height: 60px; } 
+      .brand { font-size: 20px; } 
+      .content { padding: 24px 20px; } 
+      .title { font-size: 20px; } 
+      .booking-card { padding: 20px 16px; margin: 16px 0; } 
+      .details-grid { grid-template-columns: 1fr; gap: 12px; } 
+      .venue-details { grid-template-columns: 1fr; gap: 8px; } 
+      .btn { display: block; margin: 12px 0; padding: 12px 24px; font-size: 13px; } 
+      .footer { padding: 20px 16px; } 
+    }
+  </style>
+</head>
+<body>
+  <div class="email-container">
+    <div class="header">
+      <div class="logo">
+        <img src="https://res.cloudinary.com/dq1l3wltu/image/upload/v1753338476/Eddy_Logo-07_vagzzy.jpg" alt="Eddys Members Logo" class="logo-image">
+        <div class="brand">EDDYS MEMBERS</div>
+      </div>
+    </div>
+    <div class="content">
+      <h2 class="title">Booking Confirmed! 🎉</h2>
+      <p class="subtitle">All split payments have been completed for <strong>${data.venueName || 'Your Venue'}</strong></p>
+      
+      <div class="booking-card">
+        <div class="booking-id">Booking ID: ${data.bookingId || 'N/A'}</div>
+        
+        <div class="details-grid">
+          <div class="detail-item">
+            <div class="detail-label">Your Payment</div>
+            <div class="detail-value">₦${(data.initiatorAmount || 0).toLocaleString()}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Total Amount</div>
+            <div class="detail-value">₦${(data.totalAmount || 0).toLocaleString()}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Date</div>
+            <div class="detail-value">${data.bookingDate || 'N/A'}</div>
+          </div>
+          <div class="detail-item">
+            <div class="detail-label">Time</div>
+            <div class="detail-value">${data.bookingTime || 'N/A'}</div>
+          </div>
+        </div>
+
+        <div class="complete-section">
+          <div class="complete-title">Booking Status: Fully Confirmed</div>
+          <div class="complete-details">
+            All split payments have been completed successfully!<br>
+            Your booking is now fully confirmed and ready to enjoy.
+          </div>
+        </div>
+      </div>
+
+      <div class="venue-section">
+        <h4 class="venue-title">Venue Information</h4>
+        <div class="venue-details">
+          <div class="venue-item">
+            <span class="venue-label">Venue:</span> ${data.venueName || 'N/A'}
+          </div>
+          <div class="venue-item">
+            <span class="venue-label">Address:</span> ${data.venueAddress || 'N/A'}
+          </div>
+          <div class="venue-item">
+            <span class="venue-label">Party Size:</span> ${data.guestCount || 'N/A'} guests
+          </div>
+          <div class="venue-item">
+            <span class="venue-label">Contact:</span> ${data.venuePhone || 'N/A'}
+          </div>
+        </div>
+      </div>
+
+      <div class="cta">
+        <a href="${data.dashboardUrl || (Deno.env.get('APP_URL') || '') + '/profile'}" class="btn btn-primary">
+          📊 View Booking Details
+        </a>
+      </div>
+      
+      <p style="text-align: center; color: #666; font-size: 14px; margin-top: 24px;">
+        Your booking is fully confirmed! Enjoy your experience at ${data.venueName || 'the venue'}.<br>
+        Contact us if you have any questions.
+      </p>
+    </div>
+    <div class="footer">
+      <div class="footer-content">
+        <h3 class="footer-title">Thank You for Choosing Eddys Members</h3>
+        <p class="footer-text">Experience Lagos' finest venues with premium service and exclusive access.</p>
+      </div>
+      <div class="footer-bottom">
+        <p>© ${new Date().getFullYear()} Eddys Members. All rights reserved.</p>
+        <p style="margin-top: 8px;">
+          <a href="${Deno.env.get('APP_URL') || ''}" style="color: #FFD700; text-decoration: none;">Visit Website</a> | 
+          <a href="mailto:info@oneeddy.com" style="color: #FFD700; text-decoration: none;">Support</a>
+        </p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>`
+        break
+
       case 'split-payment-confirmation':
         html = `<!DOCTYPE html>
 <html lang="en">
