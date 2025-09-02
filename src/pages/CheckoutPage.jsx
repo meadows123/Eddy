@@ -736,21 +736,65 @@ toast({
 
     // Get venue owner information separately
     let venueOwnerData = null;
+    console.log('🔍 Debug venue data:', {
+      venueId,
+      venueData,
+      hasOwnerId: !!venueData?.owner_id,
+      ownerId: venueData?.owner_id
+    });
+    
     if (venueData?.owner_id) {
+      console.log('🔍 Looking for venue owner with user_id:', venueData.owner_id);
       const { data: ownerData, error: ownerError } = await supabase
         .from('venue_owners')
         .select('owner_email, owner_name, email')
         .eq('user_id', venueData.owner_id)
         .single();
       
+      console.log('🔍 Venue owner query result:', {
+        ownerData,
+        ownerError,
+        hasData: !!ownerData
+      });
+      
       if (!ownerError && ownerData) {
         venueOwnerData = ownerData;
         console.log('✅ Found venue owner data:', ownerData);
       } else {
-        console.warn('Could not fetch venue owner data:', ownerError);
+        console.warn('❌ Could not fetch venue owner data:', ownerError);
+        
+        // Try alternative query - maybe the venue_owners table has different structure
+        console.log('🔍 Trying alternative venue owner lookup...');
+        const { data: altOwnerData, error: altOwnerError } = await supabase
+          .from('venue_owners')
+          .select('*')
+          .eq('user_id', venueData.owner_id);
+        
+        console.log('🔍 Alternative venue owner query result:', {
+          altOwnerData,
+          altOwnerError,
+          count: altOwnerData?.length || 0
+        });
+        
+        // Also try to see what's in the venue_owners table for this venue
+        console.log('🔍 Checking all venue_owners records...');
+        const { data: allOwners, error: allOwnersError } = await supabase
+          .from('venue_owners')
+          .select('*')
+          .limit(5);
+        
+        console.log('🔍 Sample venue_owners records:', {
+          allOwners,
+          allOwnersError,
+          count: allOwners?.length || 0
+        });
       }
     } else {
-      console.warn('No owner_id found for venue:', venueId);
+      console.warn('❌ No owner_id found for venue:', {
+        venueId,
+        venueData: venueData ? 'exists' : 'null',
+        ownerId: venueData?.owner_id
+      });
     }
 
     // Send confirmation email with complete data
