@@ -200,6 +200,7 @@ Eddys Members Booking System
     };
 
     console.log('📧 Sending venue owner notification with message:', venueOwnerMessage);
+    console.log('📧 Template parameters being sent:', templateParams);
 
     // Send to venue owner
     const result = await emailjs.send(
@@ -947,6 +948,79 @@ export const testLocalhostEmail = async (testEmail = 'test@example.com') => {
 // Make test function available globally for debugging
 if (typeof window !== 'undefined') {
   window.testLocalhostEmail = testLocalhostEmail;
+}
+
+// Test function specifically for venue owner emails
+export const testVenueOwnerEmail = async (testEmail = 'zak.meadows15@gmail.com') => {
+  console.log('🧪 Testing venue owner email specifically...');
+  
+  // Check configuration
+  const config = {
+    serviceId: import.meta.env.VITE_EMAILJS_SERVICE_ID,
+    templateId: import.meta.env.VITE_EMAILJS_TEMPLATE_ID,
+    publicKey: import.meta.env.VITE_EMAILJS_PUBLIC_KEY,
+  };
+  
+  console.log('📋 EmailJS Config:', {
+    serviceId: config.serviceId ? '✅ Set' : '❌ Missing',
+    templateId: config.templateId ? '✅ Set' : '❌ Missing',
+    publicKey: config.publicKey ? '✅ Set' : '❌ Missing'
+  });
+  
+  if (!config.serviceId || !config.templateId || !config.publicKey) {
+    console.error('❌ EmailJS configuration incomplete');
+    return { success: false, error: 'EmailJS configuration incomplete' };
+  }
+  
+  try {
+    // Initialize EmailJS
+    emailjs.init(config.publicKey);
+    
+    // Test with the exact same parameters as venue owner notification
+    const testParams = {
+      customerEmail: testEmail, // This should be the "To" field
+      customerName: 'Test Venue Manager',
+      bookingReference: 'TEST-12345',
+      venueName: 'Test Venue',
+      bookingDate: '2024-01-15',
+      bookingTime: '19:00',
+      guestCount: 2,
+      totalAmount: 25000,
+      message: 'TEST VENUE OWNER NOTIFICATION\n\nThis is a test email to verify venue owner notifications are working.\n\nBooking ID: TEST-12345\nCustomer: Test Customer\nGuests: 2\nTable: Table 5 (Capacity: 4)\nDate: 2024-01-15\nTime: 19:00 - 23:00\nTotal Amount: ₦25,000\n\nCustomer Contact:\nEmail: test@example.com\nPhone: +234 123 456 789\n\nPlease prepare the table and ensure excellent service for your guests.\n\n---\nEddys Members Booking System',
+      from_name: 'Eddys Members',
+      reply_to: 'info@oneeddy.com',
+      // Additional fields for template compatibility
+      customerName: 'Test Customer',
+      customerEmail: 'test@example.com',
+      customerPhone: '+234 123 456 789',
+      tableInfo: 'Table 5 (Capacity: 4)'
+    };
+    
+    console.log('📧 Sending test venue owner email with params:', testParams);
+    
+    const result = await emailjs.send(
+      config.serviceId,
+      config.templateId,
+      testParams
+    );
+    
+    console.log('✅ Test venue owner email sent successfully:', result);
+    return { success: true, result };
+  } catch (error) {
+    console.error('❌ Test venue owner email failed:', error);
+    console.error('Error details:', {
+      status: error.status,
+      text: error.text,
+      message: error.message
+    });
+    
+    return { success: false, error: error.text || error.message };
+  }
+};
+
+// Make test function available globally for debugging
+if (typeof window !== 'undefined') {
+  window.testVenueOwnerEmail = testVenueOwnerEmail;
 }
 
 // Test function for contact form emails
