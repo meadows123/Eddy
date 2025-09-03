@@ -280,6 +280,7 @@ const SplitPaymentPage = () => {
       // Then fetch the booking details separately
       let actualBookingData = null;
       if (bookingData?.booking_id) {
+        console.log('🔍 Fetching booking with ID:', bookingData.booking_id);
         const { data: booking, error: bookingFetchError } = await supabase
           .from('bookings')
           .select(`
@@ -290,16 +291,16 @@ const SplitPaymentPage = () => {
               city,
               contact_email,
               contact_phone
-            ),
-            venue_tables (
-              table_number
             )
           `)
           .eq('id', bookingData.booking_id)
           .maybeSingle(); // Use maybeSingle() to handle missing bookings gracefully
 
+        console.log('🔍 Booking query result:', { booking, bookingFetchError });
+        
         if (!bookingFetchError) {
           actualBookingData = booking;
+          console.log('✅ Booking data loaded successfully:', booking);
         } else {
           console.error('❌ Error fetching booking details:', bookingFetchError);
           console.error('🔍 Booking ID:', bookingData.booking_id);
