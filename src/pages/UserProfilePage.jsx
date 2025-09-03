@@ -1533,45 +1533,34 @@ function SimpleReferralSection({ user }) {
         throw new Error('Failed to create referral record');
       }
 
-      // Then send the invitation email
-      // Prepare email payload
-      const emailPayload = {
-        to: friendEmail,
-        subject: `${user.user_metadata?.full_name || 'Someone'} invited you to join VIPClub!`,
-        template: 'referral-invitation',
-        data: {
-          senderName: user.user_metadata?.full_name || 'Your friend',
-          personalMessage,
-          referralCode,
-          signupUrl: `${window.location.origin}/signup?ref=${referralCode}`
+      // Send invitation using Supabase's built-in email
+      try {
+        const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(friendEmail, {
+          data: {
+            referral_code: referralCode,
+            sender_name: user.user_metadata?.full_name || 'Your friend',
+            personal_message: personalMessage
+          }
+        });
+
+        if (inviteError) {
+          console.error('❌ Invitation error:', inviteError);
+          await supabase
+            .from('referrals')
+            .update({ status: 'failed', error_message: inviteError.message })
+            .eq('id', referralData.id);
+        } else {
+          console.log('✅ Invitation sent successfully:', inviteData);
+          await supabase
+            .from('referrals')
+            .update({ status: 'sent' })
+            .eq('id', referralData.id);
         }
-      };
-
-      console.log('📧 Sending email with payload:', emailPayload);
-
-      // Call the Edge Function with proper headers
-      const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
-        body: emailPayload,
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-        }
-      });
-
-      console.log('📧 Email function response:', { emailData, emailError });
-
-      if (emailError) {
-        // If email fails, mark the referral as failed but don't throw
-        console.error('❌ Email function error:', emailError);
+      } catch (error) {
+        console.error('❌ Error sending invitation:', error);
         await supabase
           .from('referrals')
-          .update({ status: 'failed', error_message: emailError.message })
-          .eq('id', referralData.id);
-      } else {
-        // Mark the referral as sent
-        await supabase
-          .from('referrals')
-          .update({ status: 'sent' })
+          .update({ status: 'failed', error_message: error.message })
           .eq('id', referralData.id);
       }
 
