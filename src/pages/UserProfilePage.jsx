@@ -1507,7 +1507,19 @@ function SimpleReferralSection({ user }) {
       const referralCode = `${user.email.split('@')[0].toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
       // Send the invitation email
-      const { error: emailError } = await supabase.functions.invoke('send-email', {
+      console.log('📧 Sending referral invitation email:', {
+        to: friendEmail,
+        subject: `${user.user_metadata?.full_name || 'Someone'} invited you to join VIPClub!`,
+        template: 'referral-invitation',
+        data: {
+          senderName: user.user_metadata?.full_name || 'Your friend',
+          personalMessage: personalMessage,
+          referralCode: referralCode,
+          signupUrl: `${window.location.origin}/signup?ref=${referralCode}`
+        }
+      });
+
+      const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
         body: {
           to: friendEmail,
           subject: `${user.user_metadata?.full_name || 'Someone'} invited you to join VIPClub!`,
@@ -1520,6 +1532,8 @@ function SimpleReferralSection({ user }) {
           }
         }
       });
+
+      console.log('📧 Email function response:', { emailData, emailError });
 
       if (emailError) {
         throw new Error('Failed to send invitation email');
