@@ -101,6 +101,76 @@ serve(async (req) => {
         `
         break
 
+      case 'referral-invitation':
+        html = `
+          <!DOCTYPE html>
+          <html lang="en">
+          <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Join VIPClub - Special Invitation</title></head>
+          <body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;color:#333">
+            <div style="max-width:600px;margin:0 auto;background:#fff;box-shadow:0 10px 30px rgba(128,0,32,0.08)">
+              <div style="background:linear-gradient(135deg,#800020 0%,#A71D2A 100%);padding:36px 28px;text-align:center;position:relative">
+                <img src="https://res.cloudinary.com/dq1l3wltu/image/upload/v1753338476/Eddy_Logo-07_vagzzy.jpg" alt="VIPClub" style="width:110px;height:110px;border-radius:50%;border:3px solid #FFD700;box-shadow:0 8px 20px rgba(255,215,0,.28);margin-bottom:12px">
+                <div style="color:#FFF5E6;font-size:26px;font-weight:700;letter-spacing:1.5px">SPECIAL INVITATION</div>
+              </div>
+
+              <div style="padding:40px 32px">
+                <h2 style="color:#800020;text-align:center;margin:0 0 14px 0">You're Invited to Join VIPClub!</h2>
+                <p style="text-align:center;color:#555;margin:0 0 24px 0">Hi there! ${data.senderName} thinks you'd love being part of VIPClub.</p>
+
+                <div style="background:linear-gradient(135deg,#FFF5E6 0%,#ffffff 100%);border:2px solid #FFD700;border-radius:14px;padding:24px;margin:18px 0">
+                  <div style="color:#800020;font-weight:700;font-size:14px;margin-bottom:12px;text-transform:uppercase">Personal Message</div>
+                  <div style="color:#666;font-style:italic;font-size:16px;line-height:1.5">
+                    "${data.personalMessage || 'Join me on VIPClub and discover the best venues in town!'}"
+                  </div>
+                </div>
+
+                <div style="background:#f8f9fa;padding:20px;border-radius:10px;margin:24px 0">
+                  <h3 style="color:#800020;font-size:18px;margin:0 0 12px 0">Your Special Referral Code</h3>
+                  <div style="background:#800020;color:#FFD700;font-size:24px;font-weight:bold;text-align:center;padding:12px;border-radius:6px;letter-spacing:2px">
+                    ${data.referralCode}
+                  </div>
+                  <p style="color:#666;font-size:14px;text-align:center;margin:12px 0 0 0">
+                    Use this code when signing up to receive special benefits!
+                  </p>
+                </div>
+
+                <div style="text-align:center;margin-top:32px">
+                  <a href="${data.signupUrl}" style="display:inline-block;background:#800020;color:#fff;text-decoration:none;padding:14px 28px;border-radius:6px;font-weight:600;font-size:16px">
+                    Join VIPClub Now
+                  </a>
+                </div>
+
+                <div style="margin-top:32px;text-align:center;color:#666;font-size:14px">
+                  <p>As a VIPClub member, you'll enjoy:</p>
+                  <ul style="list-style:none;padding:0;margin:12px 0;text-align:left">
+                    <li style="margin:8px 0;padding-left:24px;position:relative">
+                      <span style="position:absolute;left:0;color:#800020">✓</span>
+                      Exclusive access to premium venues
+                    </li>
+                    <li style="margin:8px 0;padding-left:24px;position:relative">
+                      <span style="position:absolute;left:0;color:#800020">✓</span>
+                      Special member discounts
+                    </li>
+                    <li style="margin:8px 0;padding-left:24px;position:relative">
+                      <span style="position:absolute;left:0;color:#800020">✓</span>
+                      Priority bookings and VIP treatment
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              <div style="background:#f8f9fa;padding:24px;text-align:center;border-top:1px solid #eee">
+                <p style="color:#666;font-size:12px;margin:0">
+                  This invitation was sent to you by ${data.senderName} via VIPClub.
+                  <br>If you don't want to receive these emails, you can ignore this message.
+                </p>
+              </div>
+            </div>
+          </body>
+          </html>
+        `
+        break
+
       case 'credit-purchase-confirmation':
         html = `
           <!DOCTYPE html>

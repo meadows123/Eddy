@@ -383,12 +383,12 @@ const CreditPurchaseCheckout = () => {
         const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-email', {
           body: {
             to: formData.email,
-            subject: `Credit Purchase Confirmed - ${creditData.venueName}`,
+            subject: `Credit Purchase Confirmed - ${creditData.venue.name}`,
             template: 'credit-purchase-confirmation',
             data: {
               customerName: formData.fullName,
               amount: creditData.amount,
-              venueName: creditData.venueName,
+              venueName: creditData.venue.name,
               dashboardUrl: `${window.location.origin}/profile?tab=wallet`
             }
           }

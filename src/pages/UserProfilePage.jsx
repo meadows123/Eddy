@@ -1503,9 +1503,42 @@ function SimpleReferralSection({ user }) {
 
     setLoading(true);
     try {
-      // For now, just simulate sending an invitation
-      // In a real implementation, you would call your backend API
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
+      // Generate a unique referral code
+      const referralCode = `${user.email.split('@')[0].toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
+      // Send the invitation email
+      const { error: emailError } = await supabase.functions.invoke('send-email', {
+        body: {
+          to: friendEmail,
+          subject: `${user.user_metadata?.full_name || 'Someone'} invited you to join VIPClub!`,
+          template: 'referral-invitation',
+          data: {
+            senderName: user.user_metadata?.full_name || 'Your friend',
+            personalMessage: personalMessage,
+            referralCode: referralCode,
+            signupUrl: `${window.location.origin}/signup?ref=${referralCode}`
+          }
+        }
+      });
+
+      if (emailError) {
+        throw new Error('Failed to send invitation email');
+      }
+
+      // Store the referral in the database
+      const { error: dbError } = await supabase
+        .from('referrals')
+        .insert([{
+          referrer_id: user.id,
+          referral_code: referralCode,
+          recipient_email: friendEmail,
+          status: 'pending'
+        }]);
+
+      if (dbError) {
+        console.error('Error storing referral:', dbError);
+        // Don't throw here, the email was already sent
+      }
       
       setSuccess('Referral invitation sent successfully!');
       setFriendEmail('');
