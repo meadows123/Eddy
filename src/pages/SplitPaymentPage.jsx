@@ -238,11 +238,29 @@ const SplitPaymentPage = () => {
       }
 
       // First get the split payment request
+      console.log('🔍 Looking for split payment request with ID:', requestId);
       const { data: bookingData, error: bookingError } = await supabase
         .from('split_payment_requests')
         .select('*')
         .eq('id', requestId)
         .single();
+
+      if (bookingError) {
+        console.error('❌ Error fetching split payment request:', bookingError);
+        console.error('🔍 Request ID:', requestId);
+        
+        // Try to find any split payment requests to debug
+        const { data: allRequests, error: allRequestsError } = await supabase
+          .from('split_payment_requests')
+          .select('id, booking_id, created_at')
+          .limit(5);
+        
+        if (!allRequestsError && allRequests) {
+          console.log('🔍 Available split payment requests:', allRequests);
+        }
+        
+        throw new Error(`Split payment request not found: ${bookingError.message}`);
+      }
 
       // Then fetch the booking details separately
       let actualBookingData = null;
@@ -269,6 +287,20 @@ const SplitPaymentPage = () => {
           actualBookingData = booking;
         } else {
           console.error('❌ Error fetching booking details:', bookingFetchError);
+          console.error('🔍 Booking ID:', bookingData.booking_id);
+          
+          // Try to find the booking without joins to debug
+          const { data: simpleBooking, error: simpleBookingError } = await supabase
+            .from('bookings')
+            .select('id, user_id, venue_id, table_id, created_at')
+            .eq('id', bookingData.booking_id)
+            .single();
+          
+          if (!simpleBookingError && simpleBooking) {
+            console.log('🔍 Booking exists but join failed:', simpleBooking);
+          } else {
+            console.error('🔍 Booking does not exist:', simpleBookingError);
+          }
         }
       }
 
