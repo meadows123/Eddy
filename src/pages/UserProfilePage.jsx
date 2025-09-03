@@ -1534,17 +1534,27 @@ function SimpleReferralSection({ user }) {
       }
 
       // Then send the invitation email
+      // Prepare email payload
+      const emailPayload = {
+        to: friendEmail,
+        subject: `${user.user_metadata?.full_name || 'Someone'} invited you to join VIPClub!`,
+        template: 'referral-invitation',
+        data: {
+          senderName: user.user_metadata?.full_name || 'Your friend',
+          personalMessage,
+          referralCode,
+          signupUrl: `${window.location.origin}/signup?ref=${referralCode}`
+        }
+      };
+
+      console.log('📧 Sending email with payload:', emailPayload);
+
+      // Call the Edge Function with proper headers
       const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
-        body: {
-          to: friendEmail,
-          subject: `${user.user_metadata?.full_name || 'Someone'} invited you to join VIPClub!`,
-          template: 'referral-invitation',
-          data: {
-            senderName: user.user_metadata?.full_name || 'Your friend',
-            personalMessage,
-            referralCode,
-            signupUrl: `${window.location.origin}/signup?ref=${referralCode}`
-          }
+        body: emailPayload,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
         }
       });
 
