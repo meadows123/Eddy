@@ -55,10 +55,9 @@ const SplitPaymentSuccessPage = () => {
               contact_email,
               contact_phone
             ),
-            venue_tables (
-              name,
-              table_number,
-              capacity
+            venue_tables!bookings_table_id_fkey (
+              table_name,
+              table_number
             )
           `)
           .eq('id', requestData.booking_id)
@@ -194,12 +193,18 @@ const SplitPaymentSuccessPage = () => {
       // Check if all payments are complete and send completion emails
       await checkAllPaymentsComplete(requestData.booking_id);
 
-      // Set basic success data
+      // Set payment details with booking data
       setPaymentDetails({
         id: requestId,
-        amount: 1275, // Use the amount from the URL or state
+        amount: requestData.amount,
         status: 'paid',
-        paymentIntentId
+        paymentIntentId,
+        booking_date: bookingData?.booking_date,
+        booking_time: bookingData?.start_time || bookingData?.booking_time,
+        venue_name: bookingData?.venues?.name,
+        table_name: bookingData?.venue_tables?.table_name,
+        table_number: bookingData?.venue_tables?.table_number,
+        number_of_guests: bookingData?.number_of_guests
       });
 
       setSuccess(true);
@@ -225,14 +230,34 @@ const SplitPaymentSuccessPage = () => {
 
   const checkAllPaymentsComplete = async (bookingId) => {
     try {
-      const { data: requests } = await supabase
+      console.log('🔍 Checking if all payments are complete for booking:', bookingId);
+
+      const { data: requests, error: requestsError } = await supabase
         .from('split_payment_requests')
         .select('*')
         .eq('booking_id', bookingId);
+
+      if (requestsError) {
+        console.error('❌ Error fetching split payment requests:', requestsError);
+        return;
+      }
+
+      console.log('✅ Found split payment requests:', {
+        totalRequests: requests?.length,
+        paidRequests: requests?.filter(req => req.status === 'paid').length,
+        requests: requests?.map(req => ({
+          id: req.id,
+          status: req.status,
+          amount: req.amount,
+          recipient_id: req.recipient_id
+        }))
+      });
         
-      const allPaid = requests.every(req => req.status === 'paid');
+      const allPaid = requests?.every(req => req.status === 'paid');
+      console.log('📊 Payment status check:', { allPaid });
       
       if (allPaid) {
+        console.log('🎉 All payments are complete! Sending completion emails...');
         // Update booking status to confirmed
         await supabase
           .from('bookings')
@@ -240,7 +265,8 @@ const SplitPaymentSuccessPage = () => {
           .eq('id', bookingId);
 
         // Get booking and venue data for emails
-        const { data: bookingData } = await supabase
+        console.log('📚 Fetching booking data for completion email...');
+        const { data: bookingData, error: bookingError } = await supabase
           .from('bookings')
           .select(`
             *,
@@ -260,7 +286,26 @@ const SplitPaymentSuccessPage = () => {
           .eq('id', bookingId)
           .single();
 
+        if (bookingError) {
+          console.error('❌ Error fetching booking data for completion email:', bookingError);
+          return;
+        }
+
+        console.log('✅ Booking data fetched:', {
+          bookingId: bookingData?.id,
+          venueName: bookingData?.venues?.name,
+          initiatorEmail: bookingData?.profiles?.email,
+          hasVenue: !!bookingData?.venues,
+          hasProfile: !!bookingData?.profiles
+        });
+
         if (bookingData) {
+          console.log('📧 Preparing to send completion email to initiator:', {
+            to: bookingData.profiles?.email,
+            subject: `Booking Confirmed! - ${bookingData.venues?.name || 'Your Venue'}`,
+            template: 'split-payment-complete'
+          });
+
           // Send completion email to initiator via Edge Function
           const { data: completionEmailResult, error: completionEmailError } = await supabase.functions.invoke('send-email', {
             body: {
@@ -292,9 +337,21 @@ const SplitPaymentSuccessPage = () => {
           });
 
           if (completionEmailError) {
-            console.error('❌ Error sending split payment completion email:', completionEmailError);
+            console.error('❌ Error sending split payment completion email:', {
+              error: completionEmailError,
+              response: completionEmailResult,
+              emailData: {
+                to: bookingData.profiles?.email,
+                subject: `Booking Confirmed! - ${bookingData.venues?.name || 'Your Venue'}`,
+                template: 'split-payment-complete'
+              }
+            });
           } else {
-            console.log('✅ Split payment completion email sent successfully');
+            console.log('✅ Split payment completion email sent successfully:', {
+              result: completionEmailResult,
+              recipient: bookingData.profiles?.email,
+              template: 'split-payment-complete'
+            });
           }
 
           // Send email to venue owner when all payments are completed
@@ -412,9 +469,42 @@ const SplitPaymentSuccessPage = () => {
                   <div>
                     <span className="text-muted-foreground">Booking Date</span>
                     <p className="font-medium">
-                      {new Date(paymentDetails?.bookings?.booking_date).toLocaleDateString()}
+                      {paymentDetails?.booking_date ? new Date(paymentDetails.booking_date).toLocaleDateString() : 'Not specified'}
                     </p>
                   </div>
+                  {paymentDetails?.booking_time && (
+                    <div>
+                      <span className="text-muted-foreground">Booking Time</span>
+                      <p className="font-medium">
+                        {new Date(paymentDetails.booking_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                  )}
+                  {paymentDetails?.venue_name && (
+                    <div>
+                      <span className="text-muted-foreground">Venue</span>
+                      <p className="font-medium">
+                        {paymentDetails.venue_name}
+                      </p>
+                    </div>
+                  )}
+                  {paymentDetails?.table_name && (
+                    <div>
+                      <span className="text-muted-foreground">Table</span>
+                      <p className="font-medium">
+                        {paymentDetails.table_name}
+                        {paymentDetails.table_number && ` (${paymentDetails.table_number})`}
+                      </p>
+                    </div>
+                  )}
+                  {paymentDetails?.number_of_guests && (
+                    <div>
+                      <span className="text-muted-foreground">Party Size</span>
+                      <p className="font-medium">
+                        {paymentDetails.number_of_guests} guests
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
