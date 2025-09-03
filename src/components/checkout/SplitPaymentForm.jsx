@@ -153,7 +153,7 @@ const SplitPaymentForm = ({
               contact_email,
               contact_phone
             ),
-            profiles!bookings_user_id_fkey (
+            profiles (
               first_name,
               last_name,
               email
@@ -166,13 +166,13 @@ const SplitPaymentForm = ({
           // Send completion email to initiator via Edge Function
           const { data: completionEmailResult, error: completionEmailError } = await supabase.functions.invoke('send-email', {
             body: {
-              to: bookingData.profiles?.email || 'initiator@example.com',
-              subject: `Booking Confirmed! - ${bookingData.venues?.name || 'Your Venue'}`,
-              template: 'split-payment-complete',
-              data: {
-                // Recipient info
-                email: bookingData.profiles?.email || 'initiator@example.com',
-                customerName: `${bookingData.profiles?.first_name || ''} ${bookingData.profiles?.last_name || ''}`.trim() || 'Guest',
+                                            to: bookingData.profiles?.email || 'initiator@example.com',
+                              subject: `Booking Confirmed! - ${bookingData.venues?.name || 'Your Venue'}`,
+                              template: 'split-payment-complete',
+                              data: {
+                                // Recipient info
+                                email: bookingData.profiles?.email || 'initiator@example.com',
+                                customerName: `${bookingData.profiles?.first_name || ''} ${bookingData.profiles?.last_name || ''}`.trim() || 'Guest',
                 
                 // Booking details
                 bookingId: bookingData.id,
