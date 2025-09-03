@@ -45,24 +45,32 @@ const SplitPaymentSuccessPage = () => {
       let bookingData = null;
       if (requestData?.booking_id) {
         const { data: booking, error: bookingError } = await supabase
-          .from('split_payment_requests')
+          .from('bookings')
           .select(`
-            bookings (
-              *,
-              venues (
-                name,
-                address,
-                city,
-                contact_email,
-                contact_phone
-              )
+            *,
+            venues (
+              name,
+              address,
+              city,
+              contact_email,
+              contact_phone
+            ),
+            venue_tables (
+              name,
+              table_number,
+              capacity
             )
           `)
-          .eq('id', requestId)
+          .eq('id', requestData.booking_id)
           .single();
         
-        bookingData = booking?.bookings;
-        console.log('📋 Booking data fetch result:', { bookingData, bookingError });
+        bookingData = booking;
+        console.log('📋 Booking data fetch result:', { 
+          bookingData, 
+          bookingError,
+          hasVenue: !!bookingData?.venues,
+          hasTable: !!bookingData?.venue_tables
+        });
       }
 
       if (requestError) {

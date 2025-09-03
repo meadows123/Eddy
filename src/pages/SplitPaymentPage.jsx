@@ -239,6 +239,7 @@ const SplitPaymentPage = () => {
       const { data: bookingData, error: bookingError } = await supabase
         .from('split_payment_requests')
         .select(`
+          *,
           bookings (
             *,
             venues (
@@ -247,6 +248,11 @@ const SplitPaymentPage = () => {
               city,
               contact_email,
               contact_phone
+            ),
+            venue_tables (
+              name,
+              table_number,
+              capacity
             )
           )
         `)
@@ -255,15 +261,45 @@ const SplitPaymentPage = () => {
 
       // Extract the booking data from the nested structure
       const actualBookingData = bookingData?.bookings;
+      
+      console.log('📋 Booking data fetch result:', { 
+        bookingData, 
+        bookingError,
+        hasBookings: !!actualBookingData,
+        hasVenue: !!actualBookingData?.venues,
+        hasTable: !!actualBookingData?.venue_tables
+      });
 
       if (bookingError) {
         console.error('❌ Error fetching booking:', bookingError);
         // Don't throw here, just log the error
       }
 
-      // Fetch venue data
-      if (actualBookingData?.venue_id) {
-        await fetchVenueData(actualBookingData.venue_id);
+      // Set venue data from the booking data (already fetched)
+      if (actualBookingData?.venues) {
+        setVenue({
+          id: actualBookingData.venue_id,
+          name: actualBookingData.venues.name || 'Venue Name Not Available',
+          address: actualBookingData.venues.address || 'Address Not Available',
+          city: actualBookingData.venues.city || 'City Not Available',
+          contact_phone: actualBookingData.venues.contact_phone || 'N/A',
+          contact_email: actualBookingData.venues.contact_email || 'N/A',
+          type: 'Restaurant', // Default type
+          description: 'Venue details from booking',
+          price_range: 'N/A'
+        });
+      } else {
+        // Fallback if no venue data
+        setVenue({
+          name: 'Venue Information Unavailable',
+          address: 'Location details not available',
+          city: 'Unknown',
+          type: 'Unknown',
+          description: 'Venue details could not be loaded. Please contact the person who sent you this payment request for more information.',
+          price_range: 'Unknown',
+          contact_phone: 'N/A',
+          contact_email: 'N/A'
+        });
       }
 
       // Set the state
@@ -273,9 +309,11 @@ const SplitPaymentPage = () => {
       console.log('✅ All data loaded successfully:', {
         paymentRequest: requestData,
         booking: actualBookingData,
-        venue: venue,
+        venue: actualBookingData?.venues,
         'booking.venue_id': actualBookingData?.venue_id,
-        'venue.id': venue?.id
+        'booking.table_id': actualBookingData?.table_id,
+        'booking.table_name': actualBookingData?.table_name,
+        'booking.table_number': actualBookingData?.table_number
       });
 
     } catch (error) {
@@ -504,6 +542,35 @@ const SplitPaymentPage = () => {
                         </div>
                       )}
                       
+                      {/* Table Information */}
+                      {booking?.table_name || booking?.table_number ? (
+                        <div className="mt-3 pt-3 border-t border-brand-gold/20">
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                            <h4 className="font-semibold text-blue-800 mb-2">Table Details</h4>
+                            <div className="grid grid-cols-2 gap-3 text-sm">
+                              {booking?.table_name && (
+                                <div>
+                                  <span className="font-medium text-blue-700">Table Name:</span>
+                                  <span className="ml-1 text-blue-600">{booking.table_name}</span>
+                                </div>
+                              )}
+                              {booking?.table_number && (
+                                <div>
+                                  <span className="font-medium text-blue-700">Table Number:</span>
+                                  <span className="ml-1 text-blue-600">{booking.table_number}</span>
+                                </div>
+                              )}
+                              {booking?.number_of_guests && (
+                                <div>
+                                  <span className="font-medium text-blue-700">Party Size:</span>
+                                  <span className="ml-1 text-blue-600">{booking.number_of_guests} guests</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ) : null}
+                      
                       {/* Show helpful message when venue info is unavailable */}
                       {venue.name === 'Venue Information Unavailable' && (
                         <div className="mt-3 pt-3 border-t border-brand-gold/20">
@@ -651,6 +718,30 @@ const SplitPaymentPage = () => {
                       {booking?.booking_date ? new Date(booking.booking_date).toLocaleDateString() : 'Not specified'}
                     </p>
                   </div>
+                  {booking?.start_time && (
+                    <div>
+                      <Label className="text-muted-foreground">Booking Time</Label>
+                      <p className="font-medium">
+                        {new Date(booking.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                  )}
+                  {booking?.table_name && (
+                    <div>
+                      <Label className="text-muted-foreground">Table</Label>
+                      <p className="font-medium">
+                        {booking.table_name}
+                      </p>
+                    </div>
+                  )}
+                  {booking?.number_of_guests && (
+                    <div>
+                      <Label className="text-muted-foreground">Party Size</Label>
+                      <p className="font-medium">
+                        {booking.number_of_guests} guests
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 
