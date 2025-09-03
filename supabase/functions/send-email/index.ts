@@ -33,25 +33,27 @@ serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     console.log('🔄 Handling OPTIONS request');
-    return new Response('ok', { 
-      headers: {
-        ...corsHeaders,
-        'Content-Type': 'application/json',
-        'Content-Length': '0'
-      },
+    return new Response(null, { 
+      headers: corsHeaders,
       status: 204
     });
   }
 
   if (req.headers.get("content-type") !== "application/json") {
-    return new Response(JSON.stringify({ error: "Invalid content type" }), { status: 400 });
+    return new Response(JSON.stringify({ error: "Invalid content type" }), { 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 400 
+    });
   }
 
   let body;
   try {
     body = await req.json();
   } catch (e) {
-    return new Response(JSON.stringify({ error: "Invalid JSON" }), { status: 400 });
+    return new Response(JSON.stringify({ error: "Invalid JSON" }), { 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 400 
+    });
   }
 
   try {

@@ -135,12 +135,7 @@ const SplitPaymentPage = () => {
         const { data: bookingData, error: bookingError } = await supabase
           .from('bookings')
           .select(`
-            *,
-            profiles!inner(id.eq.user_id) (
-              first_name,
-              last_name,
-              email
-            )
+            *
           `)
           .eq('id', bookingId)
           .single();
@@ -265,11 +260,6 @@ const SplitPaymentPage = () => {
             ),
             venue_tables (
               table_number
-            ),
-            profiles (
-              first_name,
-              last_name,
-              email
             )
           `)
           .eq('id', bookingData.booking_id)
