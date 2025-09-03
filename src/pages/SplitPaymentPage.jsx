@@ -249,7 +249,7 @@ const SplitPaymentPage = () => {
               contact_email,
               contact_phone
             ),
-            venue_tables!table_id (
+            venue_tables!inner(venue_id=venues.id) (
               table_number
             )
           )
