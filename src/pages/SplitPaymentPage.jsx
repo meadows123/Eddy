@@ -281,7 +281,7 @@ const SplitPaymentPage = () => {
             )
           `)
           .eq('id', bookingData.booking_id)
-          .single();
+          .maybeSingle(); // Use maybeSingle() to handle missing bookings gracefully
 
         if (!bookingFetchError) {
           actualBookingData = booking;
@@ -294,12 +294,15 @@ const SplitPaymentPage = () => {
             .from('bookings')
             .select('id, user_id, venue_id, table_id, created_at')
             .eq('id', bookingData.booking_id)
-            .single();
+            .maybeSingle(); // Use maybeSingle() instead of single() to avoid PGRST116
           
           if (!simpleBookingError && simpleBooking) {
             console.log('🔍 Booking exists but join failed:', simpleBooking);
+          } else if (simpleBookingError) {
+            console.error('🔍 Booking query error:', simpleBookingError);
           } else {
-            console.error('🔍 Booking does not exist:', simpleBookingError);
+            console.error('🔍 Booking does not exist in database');
+            console.error('🔍 This split payment request references a non-existent booking');
           }
         }
       }
@@ -320,7 +323,21 @@ const SplitPaymentPage = () => {
       }
 
       // Set venue data from the booking data (already fetched)
-      if (bookingData?.bookings?.venues) {
+      if (actualBookingData?.venues) {
+        const venueData = actualBookingData.venues;
+        setVenue({
+          id: actualBookingData.venue_id,
+          name: venueData.name || 'Venue Name Not Available',
+          address: venueData.address || 'Address Not Available',
+          city: venueData.city || 'City Not Available',
+          contact_phone: venueData.contact_phone || 'N/A',
+          contact_email: venueData.contact_email || 'N/A',
+          type: 'Restaurant', // Default type
+          description: 'Venue details from booking',
+          price_range: 'N/A'
+        });
+        console.log('✅ Venue data set from actualBookingData:', venueData);
+      } else if (bookingData?.bookings?.venues) {
         const venueData = bookingData.bookings.venues;
         setVenue({
           id: bookingData.bookings.venue_id,
@@ -335,14 +352,17 @@ const SplitPaymentPage = () => {
         });
         console.log('✅ Venue data set:', venueData);
       } else {
-        console.log('❌ No venue data found in:', bookingData?.bookings);
-        // Fallback if no venue data
+        console.log('❌ No venue data found. Booking may not exist.');
+        console.log('🔍 Split payment request data:', bookingData);
+        console.log('🔍 Actual booking data:', actualBookingData);
+        
+        // Fallback if no venue data - booking doesn't exist
         setVenue({
-          name: 'Venue Information Unavailable',
-          address: 'Location details not available',
+          name: 'Booking Not Found',
+          address: 'This booking may have been cancelled or deleted',
           city: 'Unknown',
           type: 'Unknown',
-          description: 'Venue details could not be loaded. Please contact the person who sent you this payment request for more information.',
+          description: 'The booking associated with this payment request could not be found. Please contact the person who sent you this payment request for more information.',
           price_range: 'Unknown',
           contact_phone: 'N/A',
           contact_email: 'N/A'
