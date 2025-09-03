@@ -1538,7 +1538,9 @@ function SimpleReferralSection({ user }) {
         body: emailPayload,
         headers: {
           'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          'x-client-info': 'Eddy'
         }
       });
 
