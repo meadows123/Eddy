@@ -298,22 +298,26 @@ const SplitPaymentPage = () => {
 
         console.log('🔍 Booking query result:', { booking, bookingFetchError });
         
-        if (!bookingFetchError) {
+        if (!bookingFetchError && booking) {
           actualBookingData = booking;
           console.log('✅ Booking data loaded successfully:', booking);
         } else {
           console.error('❌ Error fetching booking details:', bookingFetchError);
           console.error('🔍 Booking ID:', bookingData.booking_id);
           
-          // Try to find the booking without joins to debug
+          // Try to find the booking without any joins to debug
+          console.log('🔍 Trying to fetch booking without joins...');
           const { data: simpleBooking, error: simpleBookingError } = await supabase
             .from('bookings')
-            .select('id, user_id, venue_id, table_id, created_at')
+            .select('*')
             .eq('id', bookingData.booking_id)
-            .maybeSingle(); // Use maybeSingle() instead of single() to avoid PGRST116
+            .maybeSingle();
+          
+          console.log('🔍 Simple booking query result:', { simpleBooking, simpleBookingError });
           
           if (!simpleBookingError && simpleBooking) {
-            console.log('🔍 Booking exists but join failed:', simpleBooking);
+            console.log('✅ Booking exists without joins, using simple data');
+            actualBookingData = simpleBooking;
           } else if (simpleBookingError) {
             console.error('🔍 Booking query error:', simpleBookingError);
           } else {
@@ -353,6 +357,10 @@ const SplitPaymentPage = () => {
           price_range: 'N/A'
         });
         console.log('✅ Venue data set from actualBookingData:', venueData);
+      } else if (actualBookingData?.venue_id) {
+        // If we have booking data but no venue join, fetch venue separately
+        console.log('🔍 Fetching venue data separately for venue_id:', actualBookingData.venue_id);
+        await fetchVenueData(actualBookingData.venue_id);
       } else if (bookingData?.bookings?.venues) {
         const venueData = bookingData.bookings.venues;
         setVenue({
