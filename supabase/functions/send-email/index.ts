@@ -4,8 +4,10 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Max-Age': '86400',
+  'Access-Control-Allow-Credentials': 'true'
 }
 
 // Initialize Supabase client with service_role key
@@ -24,11 +26,21 @@ const supabaseClient = createClient(
 const supabaseUrl = Deno.env.get('SUPABASE_URL') || '';
 // SendGrid API key (optional). If present, we will use SendGrid HTTP API instead of SMTP
 const SENDGRID_API_KEY = Deno.env.get('SENDGRID_API_KEY') || '';
+// FROM_EMAIL for SendGrid
+const FROM_EMAIL = Deno.env.get('SMTP_FROM') || 'info@oneeddy.com';
 
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
+    console.log('🔄 Handling OPTIONS request');
+    return new Response('ok', { 
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json',
+        'Content-Length': '0'
+      },
+      status: 204
+    });
   }
 
   if (req.headers.get("content-type") !== "application/json") {
@@ -1551,41 +1563,80 @@ serve(async (req) => {
 
     // Prefer SendGrid HTTP API if configured
     if (SENDGRID_API_KEY) {
-      console.log('Sending email via SendGrid API...')
-      const sgResponse = await fetch('https://api.sendgrid.com/v3/mail/send', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${SENDGRID_API_KEY}`,
-          'Content-Type': 'application/json',
+      console.log('Sending email via SendGrid API...');
+      
+      const emailBody = {
+        personalizations: [
+          { to: [{ email: to }] }
+        ],
+        from: {
+          email: Deno.env.get('SMTP_FROM') || 'info@oneeddy.com',
+          name: 'VIPClub'
         },
-        body: JSON.stringify({
-          personalizations: [
-            { to: [{ email: to }] }
-          ],
-          from: {
-            email: Deno.env.get('SMTP_FROM') || 'info@oneeddy.com',
-            name: 'VIPClub'
+        subject,
+        content: [
+          { type: 'text/html', value: html }
+        ]
+      };
+
+      console.log('📧 SendGrid request:', {
+        to,
+        from: emailBody.from.email,
+        subject,
+        hasHtml: !!html
+      });
+
+      try {
+        const sgResponse = await fetch('https://api.sendgrid.com/v3/mail/send', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${SENDGRID_API_KEY}`,
+            'Content-Type': 'application/json',
           },
-          subject,
-          content: [
-            { type: 'text/html', value: html }
-          ]
-        })
-      })
+          body: JSON.stringify(emailBody)
+        });
 
-      if (!sgResponse.ok) {
-        const errorText = await sgResponse.text()
-        throw new Error(`SendGrid API error (${sgResponse.status}): ${errorText}`)
+        if (!sgResponse.ok) {
+          const errorText = await sgResponse.text();
+          console.error('❌ SendGrid API error:', {
+            status: sgResponse.status,
+            statusText: sgResponse.statusText,
+            error: errorText
+          });
+          return new Response(
+            JSON.stringify({ 
+              error: 'Failed to send email',
+              details: `SendGrid API error: ${sgResponse.status} ${sgResponse.statusText}`,
+              apiError: errorText
+            }), 
+            { 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 500
+            }
+          );
+        }
+
+        console.log('✅ Email sent successfully via SendGrid API');
+        return new Response(
+          JSON.stringify({ success: true }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200,
+          }
+        );
+      } catch (error) {
+        console.error('❌ SendGrid API error:', error);
+        return new Response(
+          JSON.stringify({ 
+            error: 'Failed to send email',
+            details: error.message
+          }), 
+          { 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 500
+          }
+        );
       }
-
-      console.log('Email sent successfully via SendGrid API')
-      return new Response(
-        JSON.stringify({ success: true }),
-        {
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 200,
-        },
-      )
     }
 
     // Fallback to SMTP (implicit TLS expected if using port 465)
