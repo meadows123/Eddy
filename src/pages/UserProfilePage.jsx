@@ -1506,57 +1506,34 @@ function SimpleReferralSection({ user }) {
       // Generate a unique referral code
       const referralCode = `${user.email.split('@')[0].toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
-      // Send the invitation email
-      console.log('📧 Sending referral invitation email:', {
-        to: friendEmail,
-        subject: `${user.user_metadata?.full_name || 'Someone'} invited you to join VIPClub!`,
-        template: 'referral-invitation',
+      // Send invitation using Supabase Auth
+      console.log('📧 Sending referral invitation via Supabase Auth:', {
+        email: friendEmail,
         data: {
+          referralCode,
           senderName: user.user_metadata?.full_name || 'Your friend',
-          personalMessage: personalMessage,
-          referralCode: referralCode,
-          signupUrl: `${window.location.origin}/signup?ref=${referralCode}`
+          personalMessage
         }
       });
 
-      // Send the invitation email with detailed error handling
-      const emailPayload = {
-        to: friendEmail,
-        subject: `${user.user_metadata?.full_name || 'Someone'} invited you to join VIPClub!`,
-        template: 'referral-invitation',
+      const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(friendEmail, {
+        redirectTo: `${window.location.origin}/signup?ref=${referralCode}`,
         data: {
+          referralCode,
           senderName: user.user_metadata?.full_name || 'Your friend',
-          personalMessage: personalMessage,
-          referralCode: referralCode,
-          signupUrl: `${window.location.origin}/signup?ref=${referralCode}`
-        }
-      };
-
-      console.log('📧 Sending email with payload:', emailPayload);
-
-      const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
-        body: emailPayload,
-        headers: {
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          'Content-Type': 'application/json',
-          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-          'x-client-info': 'Eddy'
+          personalMessage,
+          invitedBy: user.id
         }
       });
 
-      console.log('📧 Email function response:', { emailData, emailError });
+      console.log('📧 Supabase invitation response:', { inviteData, inviteError });
 
-      if (emailError) {
-        console.error('❌ Email function error:', emailError);
-        throw new Error(`Failed to send invitation email: ${emailError.message}`);
+      if (inviteError) {
+        console.error('❌ Invitation error:', inviteError);
+        throw new Error(`Failed to send invitation: ${inviteError.message}`);
       }
 
-      if (!emailData) {
-        console.error('❌ No email data returned');
-        throw new Error('No response from email service');
-      }
-
-      console.log('✅ Email function success:', emailData);
+      console.log('✅ Invitation sent successfully:', inviteData);
 
       // Store the referral in the database
       const { error: dbError } = await supabase
