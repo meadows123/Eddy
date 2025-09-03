@@ -55,7 +55,7 @@ const SplitPaymentSuccessPage = () => {
               contact_email,
               contact_phone
             ),
-            venue_tables!bookings_table_id_fkey (
+            table:venue_tables!table_id (
               table_name,
               table_number
             )
@@ -162,6 +162,10 @@ const SplitPaymentSuccessPage = () => {
                   guestCount: bookingData.number_of_guests || bookingData.guest_count,
                   totalAmount: bookingData.total_amount || bookingData.totalAmount,
                   paymentAmount: requestData.amount || 0,
+                  
+                  // Table details
+                  tableName: bookingData.table?.table_name,
+                  tableNumber: bookingData.table?.table_number,
                   
                   // Venue details
                   venueName: bookingData.venues?.name,
@@ -277,7 +281,7 @@ const SplitPaymentSuccessPage = () => {
               contact_email,
               contact_phone
             ),
-            profiles!bookings_user_id_fkey (
+            user:profiles!user_id (
               first_name,
               last_name,
               email
@@ -309,13 +313,13 @@ const SplitPaymentSuccessPage = () => {
           // Send completion email to initiator via Edge Function
           const { data: completionEmailResult, error: completionEmailError } = await supabase.functions.invoke('send-email', {
             body: {
-              to: bookingData.profiles?.email || 'initiator@example.com',
+              to: bookingData.user?.email || 'initiator@example.com',
               subject: `Booking Confirmed! - ${bookingData.venues?.name || 'Your Venue'}`,
               template: 'split-payment-complete',
               data: {
                 // Recipient info
-                email: bookingData.profiles?.email || 'initiator@example.com',
-                customerName: `${bookingData.profiles?.first_name || ''} ${bookingData.profiles?.last_name || ''}`.trim() || 'Guest',
+                email: bookingData.user?.email || 'initiator@example.com',
+                customerName: `${bookingData.user?.first_name || ''} ${bookingData.user?.last_name || ''}`.trim() || 'Guest',
                 
                 // Booking details
                 bookingId: bookingData.id,
@@ -324,6 +328,10 @@ const SplitPaymentSuccessPage = () => {
                 guestCount: bookingData.number_of_guests || bookingData.guest_count,
                 totalAmount: bookingData.total_amount || bookingData.totalAmount,
                 initiatorAmount: requests.find(req => req.requester_id === req.recipient_id)?.amount || 0,
+                
+                // Table details
+                tableName: bookingData.table?.table_name,
+                tableNumber: bookingData.table?.table_number,
                 
                 // Venue details
                 venueName: bookingData.venues?.name,

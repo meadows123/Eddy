@@ -249,10 +249,9 @@ const SplitPaymentPage = () => {
               contact_email,
               contact_phone
             ),
-            venue_tables (
-              name,
-              table_number,
-              capacity
+            table:venue_tables!table_id (
+              table_name,
+              table_number
             )
           )
         `)
@@ -543,21 +542,21 @@ const SplitPaymentPage = () => {
                       )}
                       
                       {/* Table Information */}
-                      {booking?.table_name || booking?.table_number ? (
+                      {(booking?.table?.table_name || booking?.table?.table_number) ? (
                         <div className="mt-3 pt-3 border-t border-brand-gold/20">
                           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                             <h4 className="font-semibold text-blue-800 mb-2">Table Details</h4>
                             <div className="grid grid-cols-2 gap-3 text-sm">
-                              {booking?.table_name && (
+                              {booking?.table?.table_name && (
                                 <div>
                                   <span className="font-medium text-blue-700">Table Name:</span>
-                                  <span className="ml-1 text-blue-600">{booking.table_name}</span>
+                                  <span className="ml-1 text-blue-600">{booking.table.table_name}</span>
                                 </div>
                               )}
-                              {booking?.table_number && (
+                              {booking?.table?.table_number && (
                                 <div>
                                   <span className="font-medium text-blue-700">Table Number:</span>
-                                  <span className="ml-1 text-blue-600">{booking.table_number}</span>
+                                  <span className="ml-1 text-blue-600">{booking.table.table_number}</span>
                                 </div>
                               )}
                               {booking?.number_of_guests && (
