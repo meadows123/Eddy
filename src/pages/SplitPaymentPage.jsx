@@ -134,7 +134,14 @@ const SplitPaymentPage = () => {
         // For initiator, we need to fetch the booking directly and create a mock payment request
         const { data: bookingData, error: bookingError } = await supabase
           .from('bookings')
-          .select('*')
+          .select(`
+            *,
+            profiles!inner(id.eq.user_id) (
+              first_name,
+              last_name,
+              email
+            )
+          `)
           .eq('id', bookingId)
           .single();
 
@@ -249,8 +256,13 @@ const SplitPaymentPage = () => {
               contact_email,
               contact_phone
             ),
-            table:venue_tables (
+            venue_tables!inner(venue_id.eq.venues.id) (
               table_number
+            ),
+            profiles!inner(id.eq.user_id) (
+              first_name,
+              last_name,
+              email
             )
           )
         `)

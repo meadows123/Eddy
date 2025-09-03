@@ -281,7 +281,7 @@ const SplitPaymentSuccessPage = () => {
               contact_email,
               contact_phone
             ),
-            profiles!bookings_user_id_fkey (
+            profiles!inner(id.eq.user_id) (
               first_name,
               last_name,
               email
