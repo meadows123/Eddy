@@ -265,7 +265,10 @@ const SplitPaymentPage = () => {
         bookingError,
         hasBookings: !!actualBookingData,
         hasVenue: !!actualBookingData?.venues,
-        hasTable: !!actualBookingData?.venue_tables
+        hasTable: !!actualBookingData?.table,
+        actualBookingData,
+        venues: actualBookingData?.venues,
+        table: actualBookingData?.table
       });
 
       if (bookingError) {
@@ -274,19 +277,22 @@ const SplitPaymentPage = () => {
       }
 
       // Set venue data from the booking data (already fetched)
-      if (actualBookingData?.venues) {
+      if (bookingData?.bookings?.venues) {
+        const venueData = bookingData.bookings.venues;
         setVenue({
-          id: actualBookingData.venue_id,
-          name: actualBookingData.venues.name || 'Venue Name Not Available',
-          address: actualBookingData.venues.address || 'Address Not Available',
-          city: actualBookingData.venues.city || 'City Not Available',
-          contact_phone: actualBookingData.venues.contact_phone || 'N/A',
-          contact_email: actualBookingData.venues.contact_email || 'N/A',
+          id: bookingData.bookings.venue_id,
+          name: venueData.name || 'Venue Name Not Available',
+          address: venueData.address || 'Address Not Available',
+          city: venueData.city || 'City Not Available',
+          contact_phone: venueData.contact_phone || 'N/A',
+          contact_email: venueData.contact_email || 'N/A',
           type: 'Restaurant', // Default type
           description: 'Venue details from booking',
           price_range: 'N/A'
         });
+        console.log('✅ Venue data set:', venueData);
       } else {
+        console.log('❌ No venue data found in:', bookingData?.bookings);
         // Fallback if no venue data
         setVenue({
           name: 'Venue Information Unavailable',
