@@ -307,6 +307,9 @@ const SplitPaymentPage = () => {
           
           // Try to find the booking without any joins to debug
           console.log('🔍 Trying to fetch booking without joins...');
+          console.log('🔍 Looking for booking ID:', bookingData.booking_id);
+          console.log('🔍 Query: SELECT * FROM bookings WHERE id =', bookingData.booking_id);
+          
           const { data: simpleBooking, error: simpleBookingError } = await supabase
             .from('bookings')
             .select('*')
@@ -314,6 +317,14 @@ const SplitPaymentPage = () => {
             .maybeSingle();
           
           console.log('🔍 Simple booking query result:', { simpleBooking, simpleBookingError });
+          
+          // Test query to see if we can fetch any bookings
+          const { data: testBookings, error: testError } = await supabase
+            .from('bookings')
+            .select('id, user_id, created_at')
+            .limit(3);
+          
+          console.log('🔍 Test query - any bookings found:', { testBookings, testError });
           
           if (!simpleBookingError && simpleBooking) {
             console.log('✅ Booking exists without joins, using simple data');
