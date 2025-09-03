@@ -43,11 +43,67 @@ serve(async (req) => {
   }
 
   try {
-    console.log('Received request:', req.method)
-    console.log('Request data:', body)
+    // Check if SendGrid API key is set
+    if (!SENDGRID_API_KEY) {
+      console.error('❌ SENDGRID_API_KEY is not set');
+      return new Response(
+        JSON.stringify({ 
+          error: 'Email service configuration error',
+          details: 'SendGrid API key is not configured'
+        }), 
+        { 
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
 
-    const { to, subject, template, data } = body
-    console.log('Extracted parameters:', { to, subject, template, data })
+    // Check if FROM_EMAIL is set
+    if (!FROM_EMAIL) {
+      console.error('❌ FROM_EMAIL is not set');
+      return new Response(
+        JSON.stringify({ 
+          error: 'Email service configuration error',
+          details: 'Sender email is not configured'
+        }), 
+        { 
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    console.log('🔍 Received request:', {
+      method: req.method,
+      contentType: req.headers.get('content-type'),
+      body
+    });
+
+    const { to, subject, template, data } = body;
+
+    // Validate required fields
+    if (!to || !subject || !template) {
+      console.error('❌ Missing required fields:', { to, subject, template });
+      return new Response(
+        JSON.stringify({ 
+          error: 'Missing required fields',
+          details: 'Email recipient, subject, and template are required'
+        }), 
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    console.log('📧 Processing email request:', { 
+      to, 
+      subject, 
+      template,
+      data,
+      hasApiKey: !!SENDGRID_API_KEY,
+      fromEmail: FROM_EMAIL
+    });
     
     // Validate required parameters
     if (!to) {

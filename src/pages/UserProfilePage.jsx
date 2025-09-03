@@ -1519,25 +1519,42 @@ function SimpleReferralSection({ user }) {
         }
       });
 
+      // Send the invitation email with detailed error handling
+      const emailPayload = {
+        to: friendEmail,
+        subject: `${user.user_metadata?.full_name || 'Someone'} invited you to join VIPClub!`,
+        template: 'referral-invitation',
+        data: {
+          senderName: user.user_metadata?.full_name || 'Your friend',
+          personalMessage: personalMessage,
+          referralCode: referralCode,
+          signupUrl: `${window.location.origin}/signup?ref=${referralCode}`
+        }
+      };
+
+      console.log('📧 Sending email with payload:', emailPayload);
+
       const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
-        body: {
-          to: friendEmail,
-          subject: `${user.user_metadata?.full_name || 'Someone'} invited you to join VIPClub!`,
-          template: 'referral-invitation',
-          data: {
-            senderName: user.user_metadata?.full_name || 'Your friend',
-            personalMessage: personalMessage,
-            referralCode: referralCode,
-            signupUrl: `${window.location.origin}/signup?ref=${referralCode}`
-          }
+        body: emailPayload,
+        headers: {
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+          'Content-Type': 'application/json'
         }
       });
 
       console.log('📧 Email function response:', { emailData, emailError });
 
       if (emailError) {
-        throw new Error('Failed to send invitation email');
+        console.error('❌ Email function error:', emailError);
+        throw new Error(`Failed to send invitation email: ${emailError.message}`);
       }
+
+      if (!emailData) {
+        console.error('❌ No email data returned');
+        throw new Error('No response from email service');
+      }
+
+      console.log('✅ Email function success:', emailData);
 
       // Store the referral in the database
       const { error: dbError } = await supabase
