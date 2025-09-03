@@ -1506,8 +1506,8 @@ function SimpleReferralSection({ user }) {
       // Generate a unique referral code
       const referralCode = `${user.email.split('@')[0].toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
 
-      // Send invitation using Supabase Auth
-      console.log('📧 Sending referral invitation via Supabase Auth:', {
+      // Send invitation using Edge Function
+      console.log('📧 Sending referral invitation:', {
         email: friendEmail,
         data: {
           referralCode,
@@ -1516,40 +1516,57 @@ function SimpleReferralSection({ user }) {
         }
       });
 
-      const { data: inviteData, error: inviteError } = await supabase.auth.admin.inviteUserByEmail(friendEmail, {
-        redirectTo: `${window.location.origin}/signup?ref=${referralCode}`,
-        data: {
-          referralCode,
-          senderName: user.user_metadata?.full_name || 'Your friend',
-          personalMessage,
-          invitedBy: user.id
-        }
-      });
-
-      console.log('📧 Supabase invitation response:', { inviteData, inviteError });
-
-      if (inviteError) {
-        console.error('❌ Invitation error:', inviteError);
-        throw new Error(`Failed to send invitation: ${inviteError.message}`);
-      }
-
-      console.log('✅ Invitation sent successfully:', inviteData);
-
-      // Store the referral in the database
-      const { error: dbError } = await supabase
+      // First, store the referral in the database
+      const { data: referralData, error: referralError } = await supabase
         .from('referrals')
         .insert([{
           referrer_id: user.id,
           referral_code: referralCode,
           recipient_email: friendEmail,
           status: 'pending'
-        }]);
+        }])
+        .select()
+        .single();
 
-      if (dbError) {
-        console.error('Error storing referral:', dbError);
-        // Don't throw here, the email was already sent
+      if (referralError) {
+        console.error('❌ Error storing referral:', referralError);
+        throw new Error('Failed to create referral record');
       }
-      
+
+      // Then send the invitation email
+      const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
+        body: {
+          to: friendEmail,
+          subject: `${user.user_metadata?.full_name || 'Someone'} invited you to join VIPClub!`,
+          template: 'referral-invitation',
+          data: {
+            senderName: user.user_metadata?.full_name || 'Your friend',
+            personalMessage,
+            referralCode,
+            signupUrl: `${window.location.origin}/signup?ref=${referralCode}`
+          }
+        }
+      });
+
+      console.log('📧 Email function response:', { emailData, emailError });
+
+      if (emailError) {
+        // If email fails, mark the referral as failed but don't throw
+        console.error('❌ Email function error:', emailError);
+        await supabase
+          .from('referrals')
+          .update({ status: 'failed', error_message: emailError.message })
+          .eq('id', referralData.id);
+      } else {
+        // Mark the referral as sent
+        await supabase
+          .from('referrals')
+          .update({ status: 'sent' })
+          .eq('id', referralData.id);
+      }
+
+      console.log('✅ Referral process completed');
+
       setSuccess('Referral invitation sent successfully!');
       setFriendEmail('');
       setPersonalMessage('');
