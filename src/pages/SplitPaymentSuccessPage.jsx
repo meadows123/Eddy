@@ -55,8 +55,7 @@ const SplitPaymentSuccessPage = () => {
               contact_email,
               contact_phone
             ),
-            table:venue_tables!table_id (
-              table_name,
+            venue_tables!inner(id.eq.table_id) (
               table_number
             )
           `)
