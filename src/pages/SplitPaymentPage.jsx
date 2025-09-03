@@ -249,8 +249,7 @@ const SplitPaymentPage = () => {
               contact_email,
               contact_phone
             ),
-            table:venue_tables!table_id (
-              table_name,
+            venue_tables!table_id (
               table_number
             )
           )
@@ -542,23 +541,15 @@ const SplitPaymentPage = () => {
                       )}
                       
                       {/* Table Information */}
-                      {(booking?.table?.table_name || booking?.table?.table_number) ? (
+                      {booking?.table?.table_number ? (
                         <div className="mt-3 pt-3 border-t border-brand-gold/20">
                           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                             <h4 className="font-semibold text-blue-800 mb-2">Table Details</h4>
                             <div className="grid grid-cols-2 gap-3 text-sm">
-                              {booking?.table?.table_name && (
-                                <div>
-                                  <span className="font-medium text-blue-700">Table Name:</span>
-                                  <span className="ml-1 text-blue-600">{booking.table.table_name}</span>
-                                </div>
-                              )}
-                              {booking?.table?.table_number && (
-                                <div>
-                                  <span className="font-medium text-blue-700">Table Number:</span>
-                                  <span className="ml-1 text-blue-600">{booking.table.table_number}</span>
-                                </div>
-                              )}
+                              <div>
+                                <span className="font-medium text-blue-700">Table Number:</span>
+                                <span className="ml-1 text-blue-600">{booking.table.table_number}</span>
+                              </div>
                               {booking?.number_of_guests && (
                                 <div>
                                   <span className="font-medium text-blue-700">Party Size:</span>
@@ -725,11 +716,11 @@ const SplitPaymentPage = () => {
                       </p>
                     </div>
                   )}
-                  {booking?.table_name && (
+                  {booking?.table?.table_number && (
                     <div>
                       <Label className="text-muted-foreground">Table</Label>
                       <p className="font-medium">
-                        {booking.table_name}
+                        {booking.table.table_number}
                       </p>
                     </div>
                   )}
