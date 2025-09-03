@@ -138,10 +138,15 @@ const SplitPaymentPage = () => {
             *
           `)
           .eq('id', bookingId)
-          .single();
+          .maybeSingle();
 
         if (bookingError) {
           console.error('❌ Error fetching booking for initiator:', bookingError);
+          throw new Error('Booking not found');
+        }
+        
+        if (!bookingData) {
+          console.error('❌ Booking not found for initiator');
           throw new Error('Booking not found');
         }
 
@@ -174,7 +179,7 @@ const SplitPaymentPage = () => {
         .select('*')
         .eq('id', requestId)
         .eq('booking_id', bookingId)
-        .single();
+        .maybeSingle();
 
       if (requestError) {
         console.error('❌ Error fetching payment request:', requestError);
@@ -200,6 +205,11 @@ const SplitPaymentPage = () => {
         await debugDatabaseState();
         
         throw requestError;
+      }
+
+      if (!requestData) {
+        console.error('❌ Split payment request not found');
+        throw new Error('Split payment request not found');
       }
 
       console.log('✅ Payment request found:', requestData);
@@ -243,7 +253,7 @@ const SplitPaymentPage = () => {
         .from('split_payment_requests')
         .select('*')
         .eq('id', requestId)
-        .single();
+        .maybeSingle();
 
       if (bookingError) {
         console.error('❌ Error fetching split payment request:', bookingError);
@@ -260,6 +270,11 @@ const SplitPaymentPage = () => {
         }
         
         throw new Error(`Split payment request not found: ${bookingError.message}`);
+      }
+
+      if (!bookingData) {
+        console.error('❌ Split payment request not found');
+        throw new Error('Split payment request not found');
       }
 
       // Then fetch the booking details separately
@@ -405,7 +420,7 @@ const SplitPaymentPage = () => {
         .from('venues')
         .select('id, name, address, city, type, description, price_range, contact_phone, contact_email')
         .eq('id', venueId)
-        .single();
+        .maybeSingle();
 
       if (!venueError && venue) {
         setVenue(venue);
