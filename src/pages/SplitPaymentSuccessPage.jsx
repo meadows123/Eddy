@@ -37,21 +37,33 @@ const SplitPaymentSuccessPage = () => {
       // Fetch the payment request details first
       const { data: requestData, error: requestError } = await supabase
         .from('split_payment_requests')
-        .select(`
-          *,
-          bookings (
-            *,
-            venues (
-              name,
-              address,
-              city,
-              contact_email,
-              contact_phone
-            )
-          )
-        `)
+        .select('*')
         .eq('id', requestId)
         .single();
+
+      // If we have the request data, fetch booking data separately
+      let bookingData = null;
+      if (requestData?.booking_id) {
+        const { data: booking, error: bookingError } = await supabase
+          .from('split_payment_requests')
+          .select(`
+            bookings (
+              *,
+              venues (
+                name,
+                address,
+                city,
+                contact_email,
+                contact_phone
+              )
+            )
+          `)
+          .eq('id', requestId)
+          .single();
+        
+        bookingData = booking?.bookings;
+        console.log('📋 Booking data fetch result:', { bookingData, bookingError });
+      }
 
       if (requestError) {
         console.error('❌ Error fetching request data:', requestError);
@@ -63,16 +75,16 @@ const SplitPaymentSuccessPage = () => {
         bookingId: requestData.booking_id,
         recipientId: requestData.recipient_id,
         amount: requestData.amount,
-        hasBooking: !!requestData.bookings
+        hasBooking: !!bookingData
       });
 
       // Fetch user profile information separately
       let userProfile = null;
-      if (requestData?.bookings?.user_id) {
+      if (bookingData?.user_id) {
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('first_name, last_name, email')
-          .eq('id', requestData.bookings.user_id)
+          .eq('id', bookingData.user_id)
           .single();
         
         if (!profileError && profileData) {
@@ -98,11 +110,11 @@ const SplitPaymentSuccessPage = () => {
       try {
         console.log('📧 About to send email notifications:', {
           hasRequestData: !!requestData,
-          hasBookings: !!requestData?.bookings,
+          hasBookings: !!bookingData,
           recipientId: requestData?.recipient_id
         });
 
-        if (requestData && requestData.bookings) {
+        if (requestData && bookingData) {
           // Get recipient data
           const { data: recipientData } = await supabase
             .from('profiles')
@@ -114,22 +126,22 @@ const SplitPaymentSuccessPage = () => {
             console.log('📧 Sending confirmation email to recipient:', {
               email: recipientData.email,
               name: `${recipientData.first_name || ''} ${recipientData.last_name || ''}`.trim(),
-              bookingId: requestData.bookings.id,
+              bookingId: bookingData.id,
               amount: requestData.amount
             });
 
             // Send confirmation email via Edge Function
             console.log('🚀 About to call Edge Function with data:', {
               to: recipientData.email,
-              subject: `Split Payment Confirmed - ${requestData.bookings.venues?.name || 'Your Venue'}`,
+              subject: `Split Payment Confirmed - ${bookingData.venues?.name || 'Your Venue'}`,
               template: 'split-payment-confirmation',
-              bookingId: requestData.bookings.id
+              bookingId: bookingData.id
             });
 
             const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-email', {
               body: {
                 to: recipientData.email || 'recipient@example.com',
-                subject: `Split Payment Confirmed - ${requestData.bookings.venues?.name || 'Your Venue'}`,
+                subject: `Split Payment Confirmed - ${bookingData.venues?.name || 'Your Venue'}`,
                 template: 'split-payment-confirmation',
                 data: {
                   // Recipient info
@@ -137,17 +149,17 @@ const SplitPaymentSuccessPage = () => {
                   customerName: `${recipientData.first_name || ''} ${recipientData.last_name || ''}`.trim() || 'Guest',
                   
                   // Booking details
-                  bookingId: requestData.bookings.id,
-                  bookingDate: requestData.bookings.booking_date || requestData.bookings.bookingDate,
-                  bookingTime: requestData.bookings.start_time || requestData.bookings.booking_time,
-                  guestCount: requestData.bookings.number_of_guests || requestData.bookings.guest_count,
-                  totalAmount: requestData.bookings.total_amount || requestData.bookings.totalAmount,
+                  bookingId: bookingData.id,
+                  bookingDate: bookingData.booking_date || bookingData.bookingDate,
+                  bookingTime: bookingData.start_time || bookingData.booking_time,
+                  guestCount: bookingData.number_of_guests || bookingData.guest_count,
+                  totalAmount: bookingData.total_amount || bookingData.totalAmount,
                   paymentAmount: requestData.amount || 0,
                   
                   // Venue details
-                  venueName: requestData.bookings.venues?.name,
-                  venueAddress: requestData.bookings.venues?.address,
-                  venuePhone: requestData.bookings.venues?.contact_phone,
+                  venueName: bookingData.venues?.name,
+                  venueAddress: bookingData.venues?.address,
+                  venuePhone: bookingData.venues?.contact_phone,
                   
                   // Dashboard URL
                   dashboardUrl: `${window.location.origin}/profile`
@@ -161,7 +173,7 @@ const SplitPaymentSuccessPage = () => {
               console.log('✅ Split payment confirmation email sent successfully:', {
                 result: emailResult,
                 recipient: recipientData.email,
-                bookingId: requestData.bookings.id
+                bookingId: bookingData.id
               });
             }
           }
