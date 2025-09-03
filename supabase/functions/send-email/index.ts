@@ -101,6 +101,60 @@ serve(async (req) => {
         `
         break
 
+      case 'credit-purchase-confirmation':
+        html = `
+          <!DOCTYPE html>
+          <html lang="en">
+          <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Credit Purchase Confirmation</title></head>
+          <body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;color:#333">
+            <div style="max-width:600px;margin:0 auto;background:#fff;box-shadow:0 10px 30px rgba(128,0,32,0.08)">
+              <div style="background:linear-gradient(135deg,#800020 0%,#A71D2A 100%);padding:36px 28px;text-align:center;position:relative">
+                <img src="https://res.cloudinary.com/dq1l3wltu/image/upload/v1753338476/Eddy_Logo-07_vagzzy.jpg" alt="VIPClub" style="width:110px;height:110px;border-radius:50%;border:3px solid #FFD700;box-shadow:0 8px 20px rgba(255,215,0,.28);margin-bottom:12px">
+                <div style="color:#FFF5E6;font-size:26px;font-weight:700;letter-spacing:1.5px">CREDIT PURCHASE CONFIRMATION</div>
+              </div>
+
+              <div style="padding:40px 32px">
+                <h2 style="color:#800020;text-align:center;margin:0 0 14px 0">Credit Purchase Successful!</h2>
+                <p style="text-align:center;color:#555;margin:0 0 24px 0">Hi ${data.customerName || 'there'}, your credit purchase has been confirmed.</p>
+
+                <div style="background:linear-gradient(135deg,#FFF5E6 0%,#ffffff 100%);border:2px solid #FFD700;border-radius:14px;padding:24px;margin:18px 0">
+                  <div style="color:#800020;font-weight:700;font-size:14px;margin-bottom:12px;text-transform:uppercase">Purchase Details</div>
+                  <div style="display:grid;grid-template-columns:1fr;gap:14px">
+                    <div style="background:#f8f9fa;padding:12px;border-radius:8px;border-left:4px solid #FFD700">
+                      <div style="color:#800020;font-weight:700;font-size:11px;margin-bottom:4px;text-transform:uppercase">Amount</div>
+                      <div style="color:#666;font-size:16px;font-weight:bold">₦${data.amount.toLocaleString()}</div>
+                    </div>
+                    <div style="background:#f8f9fa;padding:12px;border-radius:8px;border-left:4px solid #FFD700">
+                      <div style="color:#800020;font-weight:700;font-size:11px;margin-bottom:4px;text-transform:uppercase">Venue</div>
+                      <div style="color:#666;font-size:16px">${data.venueName}</div>
+                    </div>
+                    <div style="background:#f8f9fa;padding:12px;border-radius:8px;border-left:4px solid #FFD700">
+                      <div style="color:#800020;font-weight:700;font-size:11px;margin-bottom:4px;text-transform:uppercase">Transaction Date</div>
+                      <div style="color:#666;font-size:13px">${new Date().toLocaleDateString()}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div style="text-align:center;margin-top:32px">
+                  <a href="${data.dashboardUrl}" style="display:inline-block;background:#800020;color:#fff;text-decoration:none;padding:12px 24px;border-radius:6px;font-weight:600">View Your Credits</a>
+                </div>
+
+                <p style="text-align:center;color:#666;margin-top:32px;font-size:13px">
+                  Thank you for choosing VIPClub. Your credits are now available in your account.
+                </p>
+              </div>
+
+              <div style="background:#f8f9fa;padding:24px;text-align:center;border-top:1px solid #eee">
+                <p style="color:#666;font-size:12px;margin:0">
+                  If you have any questions, please contact our support team.
+                </p>
+              </div>
+            </div>
+          </body>
+          </html>
+        `
+        break
+
       case 'booking-confirmation':
         html = `<!DOCTYPE html>
 <html lang="en">

@@ -242,12 +242,19 @@ const SplitPaymentPage = () => {
         return;
       }
 
-      // Fetch booking data through the split payment request to avoid RLS issues
+      // First get the split payment request
       const { data: bookingData, error: bookingError } = await supabase
         .from('split_payment_requests')
-        .select(`
-          *,
-          bookings (
+        .select('*')
+        .eq('id', requestId)
+        .single();
+
+      // Then fetch the booking details separately
+      let actualBookingData = null;
+      if (bookingData?.booking_id) {
+        const { data: booking, error: bookingFetchError } = await supabase
+          .from('bookings')
+          .select(`
             *,
             venues (
               name,
@@ -256,31 +263,33 @@ const SplitPaymentPage = () => {
               contact_email,
               contact_phone
             ),
-            venue_tables!inner(venue_id.eq.venues.id) (
+            venue_tables (
               table_number
             ),
-            profiles!inner(id.eq.user_id) (
+            profiles (
               first_name,
               last_name,
               email
             )
-          )
-        `)
-        .eq('id', requestId)
-        .single();
+          `)
+          .eq('id', bookingData.booking_id)
+          .single();
 
-      // Extract the booking data from the nested structure
-      const actualBookingData = bookingData?.bookings;
-      
+        if (!bookingFetchError) {
+          actualBookingData = booking;
+        } else {
+          console.error('❌ Error fetching booking details:', bookingFetchError);
+        }
+      }
+
       console.log('📋 Booking data fetch result:', { 
         bookingData, 
         bookingError,
-        hasBookings: !!actualBookingData,
-        hasVenue: !!actualBookingData?.venues,
-        hasTable: !!actualBookingData?.table,
-        actualBookingData,
-        venues: actualBookingData?.venues,
-        table: actualBookingData?.table
+        hasBookings: !!bookingData,
+        hasVenue: !!bookingData?.venues,
+        hasTable: !!bookingData?.venue_tables,
+        venues: bookingData?.venues,
+        table: bookingData?.venue_tables
       });
 
       if (bookingError) {
@@ -422,7 +431,19 @@ const SplitPaymentPage = () => {
     if (bookingId) {
       const { data: booking, error: bookingError } = await supabase
         .from('bookings')
-        .select('*')
+        .select(`
+          *,
+          venues (
+            name,
+            address,
+            city,
+            contact_email,
+            contact_phone
+          ),
+          venue_tables!inner(id.eq.table_id) (
+            table_number
+          )
+        `)
         .eq('id', bookingId);
       
       if (bookingError) {

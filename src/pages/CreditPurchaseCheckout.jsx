@@ -377,6 +377,33 @@ const CreditPurchaseCheckout = () => {
 
       console.log('✅ Venue credit created successfully:', creditRecord);
 
+      // Send confirmation email
+      try {
+        console.log('📧 Sending credit purchase confirmation email...');
+        const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-email', {
+          body: {
+            to: formData.email,
+            subject: `Credit Purchase Confirmed - ${creditData.venueName}`,
+            template: 'credit-purchase-confirmation',
+            data: {
+              customerName: formData.fullName,
+              amount: creditData.amount,
+              venueName: creditData.venueName,
+              dashboardUrl: `${window.location.origin}/profile?tab=wallet`
+            }
+          }
+        });
+
+        if (emailError) {
+          console.error('❌ Error sending credit purchase confirmation email:', emailError);
+        } else {
+          console.log('✅ Credit purchase confirmation email sent successfully');
+        }
+      } catch (emailError) {
+        console.error('❌ Error sending email:', emailError);
+        // Don't fail the process if email fails
+      }
+
       // Show success message
       toast({
         title: "Credits Purchased Successfully! 🎉",
