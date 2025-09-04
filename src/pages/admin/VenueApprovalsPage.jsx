@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useToast } from '@/components/ui/use-toast';
 import { 
   Building2, 
   User, 
@@ -19,22 +22,101 @@ import {
   Eye,
   Store,
   Globe,
-  FileText
+  FileText,
+  Shield,
+  Lock
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const VenueApprovalsPage = () => {
   console.log('🚨 ADMIN VenueApprovalsPage component loaded - this should ONLY be at /admin/venue-approvals');
   
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [approvalCompleted, setApprovalCompleted] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
-    loadRequests();
+    checkAuth();
   }, []);
+
+  const checkAuth = async () => {
+    try {
+      console.log('🔐 Checking admin authentication...');
+      
+      // Check if user is logged in
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('❌ Session error:', sessionError);
+        throw sessionError;
+      }
+      
+      if (!session) {
+        console.log('❌ No session found, redirecting to login...');
+        toast({
+          title: 'Authentication Required',
+          description: 'Please log in to access the admin panel',
+          variant: 'destructive',
+        });
+        navigate('/venue-owner/login');
+        return;
+      }
+
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) {
+        console.error('❌ User error:', userError);
+        throw userError;
+      }
+
+      console.log('👤 Current user:', user.email);
+
+      // Check if user is an admin
+      // For now, we'll check if the user email is in a list of admin emails
+      // In production, you might want to create an 'admins' table
+      const adminEmails = [
+        'info@oneeddy.com',
+        'admin@oneeddy.com',
+        'owner@nightvibe.com',
+        'zakmeadows1@hotmail.com' // Add your email for testing
+      ];
+
+      const isUserAdmin = adminEmails.includes(user.email?.toLowerCase());
+      
+      if (!isUserAdmin) {
+        console.log('❌ User is not an admin, redirecting...');
+        toast({
+          title: 'Access Denied',
+          description: 'You do not have permission to access the admin panel',
+          variant: 'destructive',
+        });
+        navigate('/');
+        return;
+      }
+
+      console.log('✅ User is authenticated as admin');
+      setIsAdmin(true);
+      loadRequests();
+      
+    } catch (error) {
+      console.error('❌ Auth check error:', error);
+      toast({
+        title: 'Authentication Error',
+        description: 'Failed to verify authentication',
+        variant: 'destructive',
+      });
+      navigate('/');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
 
   const loadRequests = async () => {
     try {
@@ -242,6 +324,42 @@ const VenueApprovalsPage = () => {
     });
   };
 
+  // Show loading state while checking authentication
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-brand-cream/50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-burgundy mx-auto"></div>
+          <p className="mt-4 text-brand-burgundy">Verifying admin access...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show access denied if not admin
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-brand-cream/50 flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto p-8">
+          <div className="p-4 bg-red-100 rounded-full w-20 h-20 mx-auto mb-6 flex items-center justify-center">
+            <Lock className="h-10 w-10 text-red-600" />
+          </div>
+          <h1 className="text-2xl font-bold text-brand-burgundy mb-4">Access Denied</h1>
+          <p className="text-brand-burgundy/70 mb-6">
+            You do not have permission to access the admin panel. Only authorized administrators can view venue applications.
+          </p>
+          <Button 
+            onClick={() => navigate('/')}
+            className="bg-brand-burgundy hover:bg-brand-burgundy/90"
+          >
+            Return to Home
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading state while loading requests
   if (loading) {
     return (
       <div className="min-h-screen bg-brand-cream/50 flex items-center justify-center">
@@ -258,13 +376,19 @@ const VenueApprovalsPage = () => {
       <div className="container mx-auto py-8 px-4">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 bg-brand-burgundy/10 rounded-full">
-              <Store className="h-8 w-8 text-brand-burgundy" />
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-brand-burgundy/10 rounded-full">
+                <Store className="h-8 w-8 text-brand-burgundy" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-brand-burgundy">Venue Owner Applications</h1>
+                <p className="text-brand-burgundy/70">Review and manage venue partnership requests</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-3xl font-bold text-brand-burgundy">Venue Owner Applications</h1>
-              <p className="text-brand-burgundy/70">Review and manage venue partnership requests</p>
+            <div className="flex items-center gap-2 bg-green-100 px-3 py-2 rounded-full">
+              <Shield className="h-4 w-4 text-green-600" />
+              <span className="text-sm font-medium text-green-700">Admin Access</span>
             </div>
           </div>
           
