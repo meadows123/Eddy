@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Settings, Heart, Calendar } from 'lucide-react';
 import { Card } from '@/components/ui/card';
-import { Button } from '../components/ui/button.jsx';
+import { Button } from '@/components/ui/button';
 
 // Get user profile by ID
 export const getUserProfile = async (userId) => {
@@ -315,7 +315,7 @@ export async function notifyAdminOfVenueSubmission(newVenue, venueOwner, user) {
         month: 'long',
         day: 'numeric'
       }),
-      viewUrl: 'https://your-production-domain.com/admin/venue-approvals', // Update this to your actual production URL
+      viewUrl: 'https://oneeddy.com/admin/venue-approvals', // Updated to correct production URL
       
       // Email routing (for EmailJS)
       to_email: ADMIN_EMAIL,
@@ -332,7 +332,10 @@ export async function notifyAdminOfVenueSubmission(newVenue, venueOwner, user) {
       timestamp: new Date().toISOString()
     });
     
-    // Send email via EmailJS with timeout
+    // Log the complete template data for debugging
+    console.log('📋 Complete template data being sent to EmailJS:', templateData);
+    
+    // Send email via EmailJS (preferred method)
     const emailPromise = emailjs.send(
       EMAILJS_CONFIG.serviceId,
       EMAILJS_CONFIG.templateId,
@@ -350,7 +353,7 @@ export async function notifyAdminOfVenueSubmission(newVenue, venueOwner, user) {
     return { success: true, result };
     
   } catch (error) {
-    console.error("❌ Error sending admin notification via EmailJS:", error);
+    console.error("❌ Error sending admin notification:", error);
     console.error("❌ Full error details:", {
       name: error.name,
       message: error.message,

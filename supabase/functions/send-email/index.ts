@@ -1559,6 +1559,279 @@ serve(async (req) => {
 </html>`
         break;
 
+      case 'venue-owner-application':
+        html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>New Venue Owner Application</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(128, 0, 32, 0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #800020 0%, #A71D2A 100%);
+            color: #FFF5E6;
+            padding: 40px 30px 30px 30px;
+            text-align: center;
+            position: relative;
+        }
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="%23FFD700" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="%23FFD700" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="%23FFD700" opacity="0.15"/><circle cx="10" cy="60" r="0.5" fill="%23FFD700" opacity="0.15"/><circle cx="90" cy="40" r="0.5" fill="%23FFD700" opacity="0.15"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>') repeat;
+            opacity: 0.3;
+        }
+        .logo {
+            position: relative;
+            z-index: 2;
+        }
+        .logo-image {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            margin-bottom: 15px;
+            box-shadow: 0 8px 20px rgba(255, 215, 0, 0.3);
+            border: 3px solid #FFD700;
+        }
+        .brand-name {
+            color: #FFF5E6;
+            font-size: 32px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            margin: 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .tagline {
+            color: #FFF5E6;
+            font-size: 14px;
+            opacity: 0.9;
+            margin-top: 8px;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .section-title {
+            color: #800020;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #FFD700;
+            padding-bottom: 8px;
+        }
+        .detail-row {
+            display: flex;
+            margin-bottom: 12px;
+            align-items: center;
+        }
+        .detail-label {
+            font-weight: 600;
+            color: #800020;
+            min-width: 120px;
+            margin-right: 15px;
+        }
+        .detail-value {
+            color: #333;
+            flex: 1;
+        }
+        .venue-card {
+            background-color: #f8f9fa;
+            border: 2px solid #FFD700;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .venue-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #800020;
+            margin-bottom: 10px;
+        }
+        .venue-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .venue-detail {
+            font-size: 14px;
+        }
+        .venue-detail strong {
+            color: #800020;
+        }
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #800020 0%, #A71D2A 100%);
+            color: #FFF5E6;
+            padding: 15px 30px;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 16px;
+            margin: 20px 0;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(139, 38, 53, 0.2);
+            border: 2px solid #FFD700;
+        }
+        .cta-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(139, 38, 53, 0.3);
+        }
+        .footer {
+            background: linear-gradient(135deg, #800020 0%, #A71D2A 100%);
+            color: #FFF5E6;
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .footer h3 {
+            margin: 0 0 15px 0;
+            font-size: 18px;
+        }
+        .footer p {
+            margin: 0;
+            opacity: 0.9;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .footer-links {
+            margin-top: 20px;
+        }
+        .footer-links a {
+            color: #FFD700;
+            text-decoration: none;
+            margin: 0 10px;
+            font-weight: 500;
+        }
+        .footer-links a:hover {
+            text-decoration: underline;
+        }
+        .urgency-note {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 6px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #856404;
+        }
+        .urgency-note strong {
+            color: #800020;
+        }
+        @media (max-width: 600px) {
+            .container {
+                margin: 10px;
+                border-radius: 8px;
+            }
+            .header, .content, .footer {
+                padding: 20px;
+            }
+            .venue-details {
+                grid-template-columns: 1fr;
+            }
+            .detail-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .detail-label {
+                min-width: auto;
+                margin-bottom: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <img src="https://res.cloudinary.com/dq1l3wltu/image/upload/v1753338476/Eddy_Logo-07_vagzzy.jpg" alt="Eddys Members Logo" class="logo-image">
+                <h1 class="brand-name">EDDYS MEMBERS</h1>
+                <p class="tagline">Admin Dashboard</p>
+            </div>
+        </div>
+        <div class="content">
+            <div class="section">
+                <h2 class="section-title">🏢 New Venue Owner Application</h2>
+                <p>A new venue owner has submitted an application to join Eddys Members' exclusive network. Please review the details below and take appropriate action.</p>
+            </div>
+            <div class="section">
+                <h3 class="section-title">Application Details</h3>
+                <div class="detail-row">
+                    <span class="detail-label">Owner Name:</span>
+                    <span class="detail-value">${data.ownerName || 'Not provided'}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Email Address:</span>
+                    <span class="detail-value">${data.ownerEmail || 'Not provided'}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Phone Number:</span>
+                    <span class="detail-value">${data.ownerPhone || 'Not provided'}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Application Date:</span>
+                    <span class="detail-value">${data.applicationDate || new Date().toLocaleDateString()}</span>
+                </div>
+            </div>
+            <div class="venue-card">
+                <div class="venue-name">🏛️ ${data.venueName || 'Venue Name'}</div>
+                <p style="margin: 10px 0; color: #666;">${data.venueDescription || 'No description provided'}</p>
+                <div class="venue-details">
+                    <div class="venue-detail"><strong>Type:</strong> ${data.venueType || 'Not specified'}</div>
+                    <div class="venue-detail"><strong>Capacity:</strong> ${data.venueCapacity || 'Not specified'} guests</div>
+                    <div class="venue-detail"><strong>Location:</strong> ${data.venueAddress || 'Not provided'}</div>
+                    <div class="venue-detail"><strong>Price Range:</strong> ${data.priceRange || 'Not specified'}</div>
+                    <div class="venue-detail"><strong>Hours:</strong> ${data.openingHours || 'Not provided'}</div>
+                    <div class="venue-detail"><strong>Contact:</strong> ${data.venuePhone || 'Not provided'}</div>
+                </div>
+            </div>
+            <div style="text-align: center;">
+                <a href="${data.viewUrl || 'https://oneeddy.com/admin/venue-approvals'}" class="cta-button">
+                    📝 VIEW FULL DETAILS
+                </a>
+            </div>
+            <div class="urgency-note">
+                <strong>⏰ Please review and respond to this application within 48 hours</strong>
+            </div>
+            <p style="text-align: center; color: #666; font-size: 14px;">
+                Questions about this application? Contact the Eddys Members development team at <strong>info@oneeddy.com</strong>
+            </p>
+        </div>
+        <div class="footer">
+            <h3>Eddys Members Admin System</h3>
+            <p>Manage venue partnerships and maintain the highest standards for Lagos' most exclusive venue booking platform. Every approval shapes the Eddys Members experience.</p>
+            <div class="footer-links">
+                <a href="https://oneeddy.com/admin">Admin Dashboard</a> |
+                <a href="mailto:info@oneeddy.com">Support</a> |
+                <a href="https://oneeddy.com/docs">Documentation</a>
+            </div>
+            <p style="margin-top: 20px; font-size: 12px; opacity: 0.8;">
+                © 2025 Eddys Members Nigeria. All rights reserved.
+            </p>
+        </div>
+    </div>
+</body>
+</html>`
+        break;
+
       default:
         throw new Error('Invalid template')
     }

@@ -10,15 +10,59 @@ import { useToast } from '../../components/ui/use-toast';
 import { supabase } from '../../lib/supabase';
 import { notifyAdminOfVenueSubmission } from '../../lib/api'; // Adjust path if needed
 import { sendBasicEmail } from '../../lib/emailService.js';
-import { 
-  notifyAdminOfVenueOwnerRegistration 
-} from '../../lib/venueOwnerEmailService.js';
-import emailjs from '@emailjs/browser';
+// import { 
+//   notifyAdminOfVenueOwnerRegistration 
+// } from '../../lib/venueOwnerEmailService.js'; // Replaced with Edge Function
+// import emailjs from '@emailjs/browser'; // Replaced with Edge Function
 
 const VenueOwnerRegister = () => {
   console.log('🎯 VenueOwnerRegister component loaded - this is the CORRECT component');
   
   const navigate = useNavigate();
+
+  // Function to send admin notification via Edge Function
+  const sendAdminNotification = async (formData) => {
+    try {
+      const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
+        body: {
+          to: 'info@oneeddy.com',
+          subject: `New Venue Owner Application - ${formData.venue_name}`,
+          template: 'venue-owner-application',
+          data: {
+            ownerName: formData.full_name,
+            ownerEmail: formData.email,
+            ownerPhone: formData.phone,
+            applicationDate: new Date().toLocaleDateString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            }),
+            venueName: formData.venue_name,
+            venueDescription: formData.venue_description,
+            venueType: formData.venue_type || 'Not specified',
+            venueCapacity: formData.capacity || 'Not specified',
+            venueAddress: formData.venue_address,
+            priceRange: formData.price_range || 'Not specified',
+            openingHours: formData.opening_hours || 'Not specified',
+            venuePhone: formData.phone,
+            viewUrl: 'https://oneeddy.com/admin/venue-approvals'
+          }
+        }
+      });
+
+      if (emailError) {
+        console.error('❌ Edge Function email error:', emailError);
+        throw emailError;
+      }
+
+      console.log('✅ Admin notification email sent via Edge Function:', emailData);
+      return emailData;
+    } catch (error) {
+      console.error('❌ Failed to send admin notification:', error);
+      throw error;
+    }
+  };
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -432,21 +476,10 @@ const VenueOwnerRegister = () => {
       // Remove the venue owner and venue creation code from here
       // The admin approval process will handle creating those records
 
-      // Send admin notification email
+      // Send admin notification email via Edge Function
       try {
-        const venueOwnerData = {
-          email: formData.email,
-          owner_name: formData.full_name,
-          phone: formData.phone,
-          venue_name: formData.venue_name,
-          venue_type: formData.venue_type,
-          venue_address: formData.venue_address,
-          venue_city: formData.venue_city
-        };
-        
-        // Notify admin of new registration
-        await notifyAdminOfVenueOwnerRegistration(venueOwnerData);
-        console.log('✅ Admin notification sent successfully');
+        await sendAdminNotification(formData);
+        console.log('✅ Admin notification sent successfully via Edge Function');
       } catch (emailError) {
         console.error('❌ Failed to send admin notification email:', {
           message: emailError.message || 'Unknown error',
