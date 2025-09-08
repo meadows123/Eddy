@@ -41,6 +41,7 @@ const VenueApprovalsPage = () => {
   const [approvalCompleted, setApprovalCompleted] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [adminRole, setAdminRole] = useState(null);
 
   useEffect(() => {
     checkAuth();
@@ -78,19 +79,25 @@ const VenueApprovalsPage = () => {
 
       console.log('👤 Current user:', user.email);
 
-      // Check if user is an admin
-      // For now, we'll check if the user email is in a list of admin emails
-      // In production, you might want to create an 'admins' table
-      const adminEmails = [
-        'info@oneeddy.com',
-        'admin@oneeddy.com',
-        'owner@nightvibe.com',
-        'zakmeadows1@hotmail.com' // Add your email for testing
-      ];
+      // Check if user is an admin using the database function
+      const { data: isAdminResult, error: adminCheckError } = await supabase
+        .rpc('is_admin', { user_email: user.email });
 
-      const isUserAdmin = adminEmails.includes(user.email?.toLowerCase());
-      
-      if (!isUserAdmin) {
+      if (adminCheckError) {
+        console.error('❌ Admin check error:', adminCheckError);
+        // Fallback to hardcoded list if database function fails
+        const adminEmails = [
+          'info@oneeddy.com',
+          'admin@oneeddy.com',
+          'owner@nightvibe.com',
+          'zakmeadows1@hotmail.com'
+        ];
+        const isUserAdmin = adminEmails.includes(user.email?.toLowerCase());
+        
+        if (!isUserAdmin) {
+          throw new Error('User is not an admin');
+        }
+      } else if (!isAdminResult) {
         console.log('❌ User is not an admin, redirecting...');
         toast({
           title: 'Access Denied',
@@ -101,6 +108,15 @@ const VenueApprovalsPage = () => {
         return;
       }
 
+      // Get admin role
+      const { data: adminRoleResult, error: roleError } = await supabase
+        .rpc('get_admin_role', { user_email: user.email });
+
+      if (!roleError && adminRoleResult) {
+        setAdminRole(adminRoleResult);
+        console.log('👑 Admin role:', adminRoleResult);
+      }
+
       console.log('✅ User is authenticated as admin');
       setIsAdmin(true);
       loadRequests();
@@ -109,7 +125,7 @@ const VenueApprovalsPage = () => {
       console.error('❌ Auth check error:', error);
       toast({
         title: 'Authentication Error',
-        description: 'Failed to verify authentication',
+        description: 'Failed to verify admin access. Please contact support if you believe this is an error.',
         variant: 'destructive',
       });
       navigate('/');
