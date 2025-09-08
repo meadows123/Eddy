@@ -304,61 +304,339 @@ serve(async (req) => {
     <title>Eddys Members - Booking Confirmation</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Arial', sans-serif; background-color: #f5f5f5; color: #333; line-height: 1.6; }
-        .email-container { max-width: 600px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 10px 30px rgba(128, 0, 32, 0.1); }
-        .header { background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); padding: 40px 30px; text-align: center; position: relative; }
-        .header::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="%23FFD700" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="%23FFD700" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="%23FFD700" opacity="0.15"/><circle cx="10" cy="60" r="0.5" fill="%23FFD700" opacity="0.15"/><circle cx="90" cy="40" r="0.5" fill="%23FFD700" opacity="0.15"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>') repeat; opacity: 0.3; }
-        .logo { position: relative; z-index: 2; }
-        .logo-image { width: 120px; height: 120px; border-radius: 50%; margin-bottom: 15px; box-shadow: 0 8px 20px rgba(255, 215, 0, 0.3); border: 3px solid #FFD700; }
-        .brand-name { color: #FFF5E6; font-size: 32px; font-weight: bold; letter-spacing: 2px; margin: 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
-        .tagline { color: #FFF5E6; font-size: 14px; opacity: 0.9; margin-top: 8px; font-weight: 300; letter-spacing: 1px; }
-        .content { padding: 50px 40px; background-color: #ffffff; }
-        .title { color: #800020; font-size: 28px; font-weight: bold; margin-bottom: 20px; text-align: center; }
-        .subtitle { color: #555; font-size: 16px; margin-bottom: 30px; text-align: center; line-height: 1.7; }
-        .booking-section { background: linear-gradient(135deg, #FFF5E6 0%, #ffffff 100%); border: 2px solid #FFD700; border-radius: 15px; padding: 35px; margin: 35px 0; position: relative; }
-        .booking-section::before { content: '🎉'; position: absolute; top: -15px; left: 50%; transform: translateX(-50%); background: #FFD700; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; }
-        .booking-title { color: #800020; font-size: 20px; font-weight: bold; margin-bottom: 20px; text-align: center; }
-        .booking-reference { background: #800020; color: #FFF5E6; padding: 15px 25px; border-radius: 25px; text-align: center; margin-bottom: 25px; font-weight: bold; font-size: 18px; letter-spacing: 1px; }
-        .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px; }
-        .detail-item { background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #FFD700; }
-        .detail-label { color: #800020; font-weight: bold; font-size: 12px; text-transform: uppercase; margin-bottom: 5px; }
-        .detail-value { color: #666; font-size: 14px; word-break: break-word; }
-        .venue-section { background: #f8f9fa; border-left: 4px solid #FFD700; padding: 25px; margin: 30px 0; border-radius: 8px; }
-        .venue-title { color: #800020; font-weight: bold; font-size: 18px; margin-bottom: 15px; display: flex; align-items: center; }
-        .venue-description { color: #666; font-size: 14px; line-height: 1.6; margin-bottom: 20px; }
-        .venue-details { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; font-size: 13px; }
-        .venue-detail-item { color: #666; }
-        .venue-detail-label { color: #800020; font-weight: bold; margin-right: 5px; }
-        .table-info { background: rgba(255, 215, 0, 0.1); border: 2px solid #FFD700; border-radius: 12px; padding: 25px; margin: 25px 0; text-align: center; }
-        .table-number { color: #800020; font-size: 24px; font-weight: bold; margin-bottom: 10px; }
-        .table-details { color: #666; font-size: 14px; line-height: 1.6; }
-        .special-requests { background: rgba(128, 0, 32, 0.05); border: 1px solid rgba(128, 0, 32, 0.2); border-radius: 10px; padding: 20px; margin: 25px 0; }
-        .special-requests-title { color: #800020; font-weight: bold; font-size: 14px; margin-bottom: 10px; }
-        .special-requests-text { color: #666; font-size: 14px; line-height: 1.6; }
-        .action-buttons { text-align: center; margin: 30px 0; }
-        .action-button { display: inline-block; text-decoration: none; padding: 16px 30px; border-radius: 50px; font-weight: bold; font-size: 16px; letter-spacing: 1px; transition: all 0.3s ease; margin: 0 10px 10px 10px; box-shadow: 0 8px 25px rgba(128, 0, 32, 0.3); border: 2px solid #FFD700; }
-        .primary-button { background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); color: #FFF5E6; }
-        .primary-button:hover { transform: translateY(-2px); box-shadow: 0 12px 35px rgba(128, 0, 32, 0.4); background: linear-gradient(135deg, #A71D2A 0%, #800020 100%); }
-        .secondary-button { background: linear-gradient(135deg, #FFD700 0%, #FFF5E6 100%); color: #800020; }
-        .secondary-button:hover { transform: translateY(-2px); box-shadow: 0 12px 35px rgba(255, 215, 0, 0.4); background: linear-gradient(135deg, #FFF5E6 0%, #FFD700 100%); }
-        .features-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin: 30px 0; }
-        .feature-item { background: #f8f9fa; padding: 20px; border-radius: 10px; text-align: center; border: 1px solid rgba(128, 0, 32, 0.1); }
-        .feature-icon { font-size: 24px; margin-bottom: 10px; }
-        .feature-title { color: #800020; font-weight: bold; font-size: 14px; margin-bottom: 5px; }
-        .feature-text { color: #666; font-size: 12px; }
-        .important-notice { background: rgba(255, 215, 0, 0.1); border: 1px solid #FFD700; border-radius: 10px; padding: 20px; margin: 25px 0; text-align: center; }
-        .important-notice-text { color: #800020; font-size: 14px; font-weight: bold; }
-        .footer { background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); color: #FFF5E6; padding: 40px 30px; text-align: center; }
-        .footer-content { margin-bottom: 20px; }
-        .footer-title { font-size: 18px; font-weight: bold; margin-bottom: 10px; }
-        .footer-text { font-size: 14px; opacity: 0.9; line-height: 1.6; }
-        .footer-bottom { border-top: 1px solid rgba(255, 245, 230, 0.2); padding-top: 20px; font-size: 12px; opacity: 0.8; color: #FFF5E6; }
-        .footer-link { color: #FFD700; text-decoration: none; }
-        @media (max-width: 600px) { .email-container { margin: 0; box-shadow: none; } .header { padding: 30px 20px; } .logo-image { width: 90px; height: 90px; } .brand-name { font-size: 24px; } .content { padding: 30px 20px; } .title { font-size: 24px; } .booking-section { padding: 25px 20px; margin: 25px 0; } .details-grid { grid-template-columns: 1fr; gap: 15px; } .action-button { display: block; margin: 10px 0; padding: 14px 25px; font-size: 15px; } .venue-details { grid-template-columns: 1fr; gap: 10px; } .features-grid { grid-template-columns: 1fr; gap: 15px; } .footer { padding: 30px 20px; } }
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            box-shadow: 0 10px 30px rgba(128, 0, 32, 0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #800020 0%, #A71D2A 100%);
+            padding: 40px 30px;
+            text-align: center;
+            position: relative;
+        }
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="%23FFD700" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="%23FFD700" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="%23FFD700" opacity="0.15"/><circle cx="10" cy="60" r="0.5" fill="%23FFD700" opacity="0.15"/><circle cx="90" cy="40" r="0.5" fill="%23FFD700" opacity="0.15"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>') repeat;
+            opacity: 0.3;
+        }
+        .logo {
+            position: relative;
+            z-index: 2;
+        }
+        .logo-image {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            margin-bottom: 15px;
+            box-shadow: 0 8px 20px rgba(255, 215, 0, 0.3);
+            border: 3px solid #FFD700;
+        }
+        .brand-name {
+            color: #FFF5E6;
+            font-size: 32px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            margin: 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .tagline {
+            color: #FFF5E6;
+            font-size: 14px;
+            opacity: 0.9;
+            margin-top: 8px;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+        .content {
+            padding: 50px 40px;
+            background-color: #ffffff;
+        }
+        .title {
+            color: #800020;
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .subtitle {
+            color: #555;
+            font-size: 16px;
+            margin-bottom: 30px;
+            text-align: center;
+            line-height: 1.7;
+        }
+        .booking-section {
+            background: linear-gradient(135deg, #FFF5E6 0%, #ffffff 100%);
+            border: 2px solid #FFD700;
+            border-radius: 15px;
+            padding: 35px;
+            margin: 35px 0;
+            position: relative;
+        }
+        .booking-section::before {
+            content: '🎉';
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #FFD700;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        .booking-title {
+            color: #800020;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .booking-reference {
+            background: #800020;
+            color: #FFF5E6;
+            padding: 15px 25px;
+            border-radius: 25px;
+            text-align: center;
+            margin-bottom: 25px;
+            font-weight: bold;
+            font-size: 18px;
+            letter-spacing: 1px;
+        }
+        .details-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        .detail-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #FFD700;
+        }
+        .detail-label {
+            color: #800020;
+            font-weight: bold;
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+        .detail-value {
+            color: #666;
+            font-size: 14px;
+            word-break: break-word;
+        }
+        .venue-section {
+            background: #f8f9fa;
+            border-left: 4px solid #FFD700;
+            padding: 25px;
+            margin: 30px 0;
+            border-radius: 8px;
+        }
+        .venue-title {
+            color: #800020;
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+        .venue-description {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 20px;
+        }
+        .venue-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            font-size: 13px;
+        }
+        .venue-detail-item {
+            color: #666;
+        }
+        .venue-detail-label {
+            color: #800020;
+            font-weight: bold;
+            margin-right: 5px;
+        }
+        .table-info {
+            background: rgba(255, 215, 0, 0.1);
+            border: 2px solid #FFD700;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 25px 0;
+            text-align: center;
+        }
+        .table-number {
+            color: #800020;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .table-details {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .special-requests {
+            background: rgba(128, 0, 32, 0.05);
+            border: 1px solid rgba(128, 0, 32, 0.2);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 25px 0;
+        }
+        .special-requests-title {
+            color: #800020;
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        .special-requests-text {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .action-buttons {
+            text-align: center;
+            margin: 30px 0;
+        }
+        .action-button {
+            display: inline-block;
+            text-decoration: none;
+            padding: 16px 30px;
+            border-radius: 50px;
+            font-weight: bold;
+            font-size: 16px;
+            letter-spacing: 1px;
+            transition: all 0.3s ease;
+            margin: 0 10px 10px 10px;
+            box-shadow: 0 8px 25px rgba(128, 0, 32, 0.3);
+            border: 2px solid #FFD700;
+        }
+        .primary-button {
+            background: linear-gradient(135deg, #800020 0%, #A71D2A 100%);
+            color: #FFF5E6;
+        }
+        .primary-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 35px rgba(128, 0, 32, 0.4);
+            background: linear-gradient(135deg, #A71D2A 0%, #800020 100%);
+        }
+        .secondary-button {
+            background: linear-gradient(135deg, #FFD700 0%, #FFF5E6 100%);
+            color: #800020;
+        }
+        .secondary-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 35px rgba(255, 215, 0, 0.4);
+            background: linear-gradient(135deg, #FFF5E6 0%, #FFD700 100%);
+        }
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin: 30px 0;
+        }
+        .feature-item {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            border: 1px solid rgba(128, 0, 32, 0.1);
+        }
+        .feature-icon {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        .feature-title {
+            color: #800020;
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        .feature-text {
+            color: #666;
+            font-size: 12px;
+        }
+        .important-notice {
+            background: rgba(255, 215, 0, 0.1);
+            border: 1px solid #FFD700;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 25px 0;
+            text-align: center;
+        }
+        .important-notice-text {
+            color: #800020;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .footer {
+            background: linear-gradient(135deg, #800020 0%, #A71D2A 100%);
+            color: #FFF5E6;
+            padding: 40px 30px;
+            text-align: center;
+        }
+        .footer-content {
+            margin-bottom: 20px;
+        }
+        .footer-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .footer-text {
+            font-size: 14px;
+            opacity: 0.9;
+            line-height: 1.6;
+        }
+        .footer-bottom {
+            border-top: 1px solid rgba(255, 245, 230, 0.2);
+            padding-top: 20px;
+            font-size: 12px;
+            opacity: 0.8;
+            color: #FFF5E6;
+        }
+        .footer-link {
+            color: #FFD700;
+            text-decoration: none;
+        }
+        /* Mobile Responsive */
+        @media (max-width: 600px) {
+            .email-container { margin: 0; box-shadow: none; }
+            .header { padding: 30px 20px; }
+            .logo-image { width: 90px; height: 90px; }
+            .brand-name { font-size: 24px; }
+            .content { padding: 30px 20px; }
+            .title { font-size: 24px; }
+            .booking-section { padding: 25px 20px; margin: 25px 0; }
+            .details-grid { grid-template-columns: 1fr; gap: 15px; }
+            .action-button { display: block; margin: 10px 0; padding: 14px 25px; font-size: 15px; }
+            .venue-details { grid-template-columns: 1fr; gap: 10px; }
+            .features-grid { grid-template-columns: 1fr; gap: 15px; }
+            .footer { padding: 30px 20px; }
+        }
     </style>
-    </head>
+</head>
 <body>
     <div class="email-container">
+        <!-- Header Section -->
         <div class="header">
             <div class="logo">
                 <img src="https://res.cloudinary.com/dq1l3wltu/image/upload/v1753338476/Eddy_Logo-07_vagzzy.jpg" alt="Eddys Members Logo" class="logo-image">
@@ -366,101 +644,157 @@ serve(async (req) => {
                 <p class="tagline">Your Gateway to Exclusive Experiences</p>
             </div>
         </div>
+        <!-- Main Content -->
         <div class="content">
-            <h2 class="title">Booking Confirmed! 🎉</h2>
-            <p class="subtitle">Congratulations ${data.customerName || 'Guest'}! Your VIP table reservation has been successfully confirmed.</p>
+            <h2 class="title">Booking Confirmed! </h2>
+            <p class="subtitle">
+                Congratulations ${data.customerName || 'Valued Customer'}! Your VIP table reservation has been successfully confirmed. 
+                Get ready for an unforgettable experience at one of Lagos' most exclusive venues.
+            </p>
+            <!-- Booking Confirmation Section -->
             <div class="booking-section">
                 <h3 class="booking-title">Your Reservation Details</h3>
-                <div class="booking-reference">Booking Reference: ${data.bookingReference}</div>
-                
+                <div class="booking-reference">
+                    Booking Reference: ${data.bookingReference || 'N/A'}
+                </div>
                 <div class="details-grid">
                     <div class="detail-item">
                         <div class="detail-label">Guest Name</div>
-                        <div class="detail-value">${data.customerName}</div>
+                        <div class="detail-value">${data.customerName || 'Not provided'}</div>
                     </div>
                     <div class="detail-item">
                         <div class="detail-label">Contact Email</div>
-                        <div class="detail-value">${data.customerEmail}</div>
+                        <div class="detail-value">${data.customerEmail || 'Not provided'}</div>
                     </div>
                     <div class="detail-item">
                         <div class="detail-label">Phone Number</div>
-                        <div class="detail-value">${data.customerPhone}</div>
+                        <div class="detail-value">${data.customerPhone || 'Not provided'}</div>
                     </div>
                     <div class="detail-item">
                         <div class="detail-label">Party Size</div>
-                        <div class="detail-value">${data.guestCount} guests</div>
+                        <div class="detail-value">${data.partySize || '1'} guests</div>
                     </div>
                     <div class="detail-item">
-                        <div class="detail-label">Date</div>
-                        <div class="detail-value">${data.bookingDate}</div>
-                    </div>
-                    <div class="detail-item">
-                        <div class="detail-label">Time</div>
-                        <div class="detail-value">${data.bookingTime}</div>
+                        <div class="detail-label">Date & Time</div>
+                        <div class="detail-value">${data.bookingDate || 'Not specified'} at ${data.bookingTime || 'Not specified'}</div>
                     </div>
                     <div class="detail-item">
                         <div class="detail-label">Duration</div>
-                        <div class="detail-value">${data.duration}</div>
+                        <div class="detail-value">${data.bookingDuration || '2'} hours</div>
                     </div>
-                </div>
-
-                <div class="table-info">
-                    <div class="table-number">Table ${data.tableNumber}</div>
-                    <div class="table-details">
-                        <p>${data.tableType}</p>
-                        <p>${data.tableLocation}</p>
-                    </div>
-                </div>
-
-                <div class="venue-section">
-                    <h4 class="venue-title">Venue Information</h4>
-                    <p class="venue-description">${data.venueDescription}</p>
-                    <div class="venue-details">
-                        <div class="venue-detail-item">
-                            <span class="venue-detail-label">Address:</span> ${data.venueAddress}, ${data.venueCity}, ${data.venueCountry}
-                        </div>
-                        <div class="venue-detail-item">
-                            <span class="venue-detail-label">Phone:</span> ${data.venuePhone}
-                        </div>
-                        <div class="venue-detail-item">
-                            <span class="venue-detail-label">Email:</span> ${data.venueEmail}
-                        </div>
-                        <div class="venue-detail-item">
-                            <span class="venue-detail-label">Dress Code:</span> ${data.dressCode}
-                        </div>
-                    </div>
-                </div>
-
-                <div class="special-requests">
-                    <div class="special-requests-title">Special Requests</div>
-                    <div class="special-requests-text">${data.specialRequests}</div>
                 </div>
             </div>
+            <!-- Table Information -->
+            <div class="table-info">
+                <div class="table-number">
+                    Table ${data.tableNumber || 'TBD'}
+                </div>
+                <div class="table-details">
+                    <strong>${data.tableType || 'VIP Table'}</strong> • Seats up to ${data.tableCapacity || '4'} guests<br>
+                    ${data.tableLocation || 'Prime location'} • ${data.tableFeatures || 'Premium features'}
+                </div>
+            </div>
+            <!-- Venue Details -->
+            <div class="venue-section">
+                <h4 class="venue-title">
+                    ️ Venue Information
+                </h4>
+                <div class="venue-description">
+                    <strong>${data.venueName || 'Venue Name'}</strong><br>
+                    ${data.venueDescription || 'An exclusive venue offering premium dining and entertainment experiences.'}
+                </div>
+                <div class="venue-details">
+                    <div class="venue-detail-item">
+                        <span class="venue-detail-label">Address:</span>${data.venueAddress || 'Address not provided'}
+                    </div>
+                    <div class="venue-detail-item">
+                        <span class="venue-detail-label">Phone:</span>${data.venuePhone || 'Contact not provided'}
+                    </div>
+                    <div class="venue-detail-item">
+                        <span class="venue-detail-label">Dress Code:</span>${data.venueDressCode || 'Smart casual'}
+                    </div>
+                    <div class="venue-detail-item">
+                        <span class="venue-detail-label">Parking:</span>${data.venueParking || 'Valet available'}
+                    </div>
+                    <div class="venue-detail-item">
+                        <span class="venue-detail-label">Cuisine:</span>${data.venueCuisine || 'International'}
+                    </div>
+                    <div class="venue-detail-item">
+                        <span class="venue-detail-label">Hours:</span>${data.venueHours || '6:00 PM - 2:00 AM'}
+                    </div>
+                </div>
+            </div>
+            <!-- Special Requests -->
+            <div class="special-requests">
+                <div class="special-requests-title"> Special Requests & Notes</div>
+                <div class="special-requests-text">${data.specialRequests || 'No special requests'}</div>
+            </div>
+            <!-- Action Buttons -->
             <div class="action-buttons">
-                <a href="${data.viewBookingUrl || (Deno.env.get('APP_URL') || '') + '/profile'}" class="action-button primary-button">📅 VIEW BOOKING DETAILS</a>
-                <a href="${data.modifyBookingUrl || (Deno.env.get('APP_URL') || '') + '/profile'}" class="action-button secondary-button">✏️ MODIFY RESERVATION</a>
-                <a href="${data.cancelBookingUrl || (Deno.env.get('APP_URL') || '') + '/profile'}" class="action-button secondary-button">❌ CANCEL BOOKING</a>
-              </div>
+                <a href="${data.viewBookingUrl || (Deno.env.get('APP_URL') || '') + '/profile'}" class="action-button primary-button">
+                    📅 VIEW BOOKING DETAILS
+                </a>
+                <a href="${data.modifyBookingUrl || (Deno.env.get('APP_URL') || '') + '/profile'}" class="action-button secondary-button">
+                    ✏️ MODIFY RESERVATION
+                </a>
+                <a href="${data.cancelBookingUrl || (Deno.env.get('APP_URL') || '') + '/profile'}" class="action-button secondary-button">
+                    ❌ CANCEL BOOKING
+                </a>
+            </div>
+            <!-- Features Grid -->
             <div class="features-grid">
-                <div class="feature-item"><div class="feature-icon">🍾</div><div class="feature-title">Premium Service</div><div class="feature-text">Dedicated VIP host</div></div>
-                <div class="feature-item"><div class="feature-icon">🎵</div><div class="feature-title">Perfect Ambiance</div><div class="feature-text">Curated music & lighting</div></div>
-                <div class="feature-item"><div class="feature-icon">🍸</div><div class="feature-title">Signature Cocktails</div><div class="feature-text">Exclusive drink menu</div></div>
-                <div class="feature-item"><div class="feature-icon">⭐</div><div class="feature-title">VIP Treatment</div><div class="feature-text">Priority seating & service</div></div>
-              </div>
-            <div class="important-notice"><p class="important-notice-text">⏰ Please arrive 15 minutes before your reservation time. Late arrivals may result in table reassignment.</p></div>
-            <p style="text-align: center; color: #666; font-size: 14px; margin-top: 30px;">Need to make changes to your booking? Contact us at <a href="mailto:sales@oneeddy.com" style="color: #800020; text-decoration: none; font-weight: bold;">sales@oneeddy.com</a> or call <a href="tel:${data.venuePhone || ''}" style="color: #800020; text-decoration: none; font-weight: bold;">${data.venuePhone || ''}</a></p>
-              </div>
+                <div class="feature-item">
+                    <div class="feature-icon">🍾</div>
+                    <div class="feature-title">Premium Service</div>
+                    <div class="feature-text">Dedicated VIP host</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">🎵</div>
+                    <div class="feature-title">Perfect Ambiance</div>
+                    <div class="feature-text">Curated music & lighting</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">🍸</div>
+                    <div class="feature-title">Signature Cocktails</div>
+                    <div class="feature-text">Exclusive drink menu</div>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">⭐</div>
+                    <div class="feature-title">VIP Treatment</div>
+                    <div class="feature-text">Priority seating & service</div>
+                </div>
+            </div>
+            <!-- Important Notice -->
+            <div class="important-notice">
+                <p class="important-notice-text">
+                    ⏰ Please arrive 15 minutes before your reservation time. Late arrivals may result in table reassignment.
+                </p>
+            </div>
+            <p style="text-align: center; color: #666; font-size: 14px; margin-top: 30px;">
+                Need to make changes to your booking? Contact us at 
+                <a href="mailto:sales@oneeddy.com" style="color: #800020; text-decoration: none; font-weight: bold;">sales@oneeddy.com</a>
+                or call <a href="tel:${data.venuePhone || ''}" style="color: #800020; text-decoration: none; font-weight: bold;">${data.venuePhone || ''}</a>
+            </p>
+        </div>
+        <!-- Footer -->
         <div class="footer">
             <div class="footer-content">
                 <h3 class="footer-title">Thank You for Choosing Eddys Members</h3>
-                <p class="footer-text">Experience Lagos' finest venues with premium service, exclusive access, and unforgettable moments. Your VIP journey starts here.</p>
-              </div>
+                <p class="footer-text">
+                    Experience Lagos' finest venues with premium service, exclusive access, 
+                    and unforgettable moments. Your VIP journey starts here.
+                </p>
+            </div>
             <div class="footer-bottom">
                 <p style="color: #FFF5E6;">© 2025 Eddys Members. All rights reserved.</p>
-                <p style="margin-top: 10px; color: #FFF5E6;"><a href="${data.websiteUrl || (Deno.env.get('APP_URL') || '')}" class="footer-link">Visit Website</a> | <a href="${data.supportUrl || (Deno.env.get('APP_URL') || '') + '/contact'}" class="footer-link">Support</a> | <a href="${data.unsubscribeUrl || (Deno.env.get('APP_URL') || '') + '/profile'}" class="footer-link">Unsubscribe</a></p>
+                <p style="margin-top: 10px; color: #FFF5E6;">
+                    <a href="${data.websiteUrl || (Deno.env.get('APP_URL') || '')}" class="footer-link">Visit Website</a> | 
+                    <a href="${data.supportUrl || (Deno.env.get('APP_URL') || '') + '/contact'}" class="footer-link">Support</a> | 
+                    <a href="${data.unsubscribeUrl || (Deno.env.get('APP_URL') || '') + '/profile'}" class="footer-link">Unsubscribe</a>
+                </p>
             </div>
-            </div>
-          </div>
+        </div>
+    </div>
 </body>
 </html>`
         break

@@ -32,17 +32,11 @@ const optimizeEmailDelivery = (params) => {
   };
 };
 
+// UPDATED: Use Supabase send-email function for booking confirmations
 export const sendBookingConfirmation = async (booking, venue, customer) => {
   try {
-    // Check if EmailJS is configured
-    if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.templateId || !EMAILJS_CONFIG.publicKey) {
-      console.warn('⚠️ EmailJS not fully configured. Check your .env file for:');
-      console.warn('   - VITE_EMAILJS_SERVICE_ID');
-      console.warn('   - VITE_EMAILJS_TEMPLATE_ID'); 
-      console.warn('   - VITE_EMAILJS_PUBLIC_KEY');
-      throw new Error('EmailJS configuration incomplete');
-    }
-
+    console.log('🔄 Sending booking confirmation via Supabase Edge Function...');
+    
     // Validate customer email
     const customerEmail = customer.email || customer.customerEmail || customer.full_name;
     if (!customerEmail || !customerEmail.includes('@')) {
@@ -50,17 +44,22 @@ export const sendBookingConfirmation = async (booking, venue, customer) => {
       throw new Error('Invalid customer email address');
     }
 
-    // Use exact parameter names that match the EmailJS template
-    const templateParams = {
-      // EmailJS required fields - these MUST match your template exactly
-      customerEmail: customerEmail,
+    // Format booking data for the template
+    const bookingData = {
       customerName: customer.full_name || customer.customerName || 'Guest',
+      customerEmail: customerEmail,
+      customerPhone: customer.phone || customer.customerPhone || 'Not provided',
       bookingReference: booking.id || booking.bookingId || 'N/A',
-      venueName: venue.name || venue.venueName || 'Venue',
-      bookingDate: booking.booking_date || booking.bookingDate || new Date().toISOString(),
+      partySize: booking.number_of_guests || booking.guest_count || 2,
+      bookingDate: booking.booking_date || booking.bookingDate || new Date().toISOString().split('T')[0],
       bookingTime: booking.start_time || booking.booking_time || '19:00',
-      guestCount: booking.number_of_guests || booking.guest_count || 2,
-      totalAmount: booking.total_amount || booking.totalAmount || 0,
+      bookingDuration: booking.duration || '3',
+      tableNumber: booking.table_number || 'TBD',
+      tableType: booking.table_type || 'VIP Table',
+      tableCapacity: booking.table_capacity || '4',
+      tableLocation: booking.table_location || 'Prime location',
+      tableFeatures: booking.table_features || 'Premium features',
+      venueName: venue.name || venue.venueName || 'Venue',
       venueDescription: venue.description || venue.about || 'Experience luxury dining and entertainment in Lagos\' most exclusive venue.',
       venueAddress: venue.address || venue.location || 'Lagos, Nigeria',
       venuePhone: venue.contact_phone || venue.phone || venue.contact_number || '+234 XXX XXX XXXX',
@@ -68,46 +67,46 @@ export const sendBookingConfirmation = async (booking, venue, customer) => {
       venueParking: venue.parking || venue.parking_info || 'Valet parking available',
       venueCuisine: venue.cuisine || venue.cuisine_type || 'International cuisine',
       venueHours: venue.hours || venue.opening_hours || venue.business_hours || '6:00 PM - 2:00 AM',
-      
-      // Special Information - Use actual booking notes
       specialRequests: booking.special_requests || booking.notes || booking.additional_notes || 'None specified',
-      
-      // Action URLs (you can update these later)
       viewBookingUrl: `${window.location.origin}/profile`,
       modifyBookingUrl: `${window.location.origin}/profile`,
       cancelBookingUrl: `${window.location.origin}/profile`,
       websiteUrl: window.location.origin,
-      supportUrl: 'mailto:info@oneeddy.com',
-      unsubscribeUrl: `${window.location.origin}/settings`
+      supportUrl: `${window.location.origin}/contact`,
+      unsubscribeUrl: `${window.location.origin}/profile`
     };
 
-    // Optimize email delivery to reduce spam filtering
-    const optimizedParams = optimizeEmailDelivery(templateParams);
-
-    console.log('🔄 Sending booking confirmation with optimized parameters:', {
-      to_email: optimizedParams.customerEmail,
-      customerName: optimizedParams.customerName,
-      bookingReference: optimizedParams.bookingReference,
-      venueName: optimizedParams.venueName,
-      subject: optimizedParams.subject
+    console.log('📧 Sending booking confirmation with data:', {
+      to: customerEmail,
+      customerName: bookingData.customerName,
+      bookingReference: bookingData.bookingReference,
+      venueName: bookingData.venueName
     });
     
-    // Send to customer using optimized template parameters
-    const result = await emailjs.send(
-      EMAILJS_CONFIG.serviceId,
-      EMAILJS_CONFIG.templateId,
-      optimizedParams
-    );
+    // Send using Supabase Edge Function
+    const { data, error } = await supabase.functions.invoke('send-email', {
+      body: {
+        to: customerEmail,
+        subject: `Booking Confirmed - ${bookingData.venueName}`,
+        template: 'booking-confirmation',
+        data: bookingData
+      }
+    });
 
-    console.log('✅ Booking confirmation email sent successfully:', result);
+    if (error) {
+      console.error('❌ Failed to send booking confirmation via Edge Function:', error);
+      throw error;
+    }
+
+    console.log('✅ Booking confirmation email sent successfully via Supabase:', data);
     
     // Log delivery optimization tips
     console.log('📧 Email Delivery Tips:');
     console.log('   - Check spam/junk folder if email not received');
     console.log('   - Mark as "Not Spam" to improve future delivery');
-    console.log('   - Add support@vipclub.com to contacts');
+    console.log('   - Add info@oneeddy.com to contacts');
     
-    return result;
+    return data;
   } catch (error) {
     console.error('❌ Failed to send booking confirmation:', error);
     console.error('Error details:', {
@@ -116,16 +115,11 @@ export const sendBookingConfirmation = async (booking, venue, customer) => {
       text: error.text
     });
     
-    // Provide more specific error messages
-    if (error.text === 'The recipients address is empty') {
-      console.error('❌ EmailJS template issue: The "To" field in your EmailJS template is missing or incorrectly configured.');
-      console.error('   Please ensure your EmailJS template has {{customerEmail}} in the "To" field.');
-    }
-    
     throw error;
   }
 };
 
+// Keep the existing venue owner notification function (already using Supabase)
 export const sendVenueOwnerNotification = async (booking, venue, customer, venueOwner) => {
   try {
     const venueOwnerEmail = venueOwner?.email || venue.contact_email || venue.owner_email || 'info@oneeddy.com';
@@ -216,7 +210,7 @@ export const sendVenueOwnerNotification = async (booking, venue, customer, venue
   }
 };
 
-// New function that matches what CheckoutPage is calling
+// Updated function that matches what CheckoutPage is calling
 export const sendBookingConfirmationEmail = async (bookingData) => {
   try {
     console.log('🔄 sendBookingConfirmationEmail called with:', bookingData);
@@ -246,17 +240,17 @@ export const sendBookingConfirmationEmail = async (bookingData) => {
       phone: bookingData.customerPhone || 'N/A'
     };
 
-    // Send customer confirmation email
+    // Send customer confirmation email using Supabase
     const customerResult = await sendBookingConfirmation(booking, venue, customer);
     
-    // Send venue owner notification
+    // Send venue owner notification using Supabase
     const venueOwner = {
       email: bookingData.venueOwnerEmail,
       full_name: bookingData.venueOwnerName || 'Venue Manager'
     };
     const venueOwnerResult = await sendVenueOwnerNotification(booking, venue, customer, venueOwner);
     
-    console.log('✅ Both customer and venue owner emails sent successfully');
+    console.log('✅ Both customer and venue owner emails sent successfully via Supabase');
     return true;
     
   } catch (error) {
