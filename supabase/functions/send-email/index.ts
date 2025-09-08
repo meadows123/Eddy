@@ -1804,8 +1804,8 @@ serve(async (req) => {
                 </div>
             </div>
             <div style="text-align: center;">
-                <a href="${data.viewUrl || 'https://oneeddy.com/admin/venue-approvals'}" class="cta-button">
-                    📝 VIEW FULL DETAILS
+                <a href="${data.viewUrl || (Deno.env.get('APP_URL') || 'https://oneeddy.com') + '/admin/venue-approvals'}" class="cta-button">
+                     VIEW FULL DETAILS
                 </a>
             </div>
             <div class="urgency-note">
@@ -1819,9 +1819,9 @@ serve(async (req) => {
             <h3>Eddys Members Admin System</h3>
             <p>Manage venue partnerships and maintain the highest standards for Lagos' most exclusive venue booking platform. Every approval shapes the Eddys Members experience.</p>
             <div class="footer-links">
-                <a href="https://oneeddy.com/admin">Admin Dashboard</a> |
+                <a href="${Deno.env.get('APP_URL') || 'https://oneeddy.com'}/admin">Admin Dashboard</a> |
                 <a href="mailto:info@oneeddy.com">Support</a> |
-                <a href="https://oneeddy.com/docs">Documentation</a>
+                <a href="${Deno.env.get('APP_URL') || 'https://oneeddy.com'}/docs">Documentation</a>
             </div>
             <p style="margin-top: 20px; font-size: 12px; opacity: 0.8;">
                 © 2025 Eddys Members Nigeria. All rights reserved.
