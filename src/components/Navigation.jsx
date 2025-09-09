@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { useAuth } from '../contexts/AuthContext';
+import { Capacitor } from '@capacitor/core';
 
 const Navigation = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -29,6 +30,9 @@ const Navigation = () => {
   const navigate = useNavigate();
   const { signOut, user } = useAuth();
   const isOwner = location.pathname.includes('/venue-owner');
+  
+  // Detect if running on iOS
+  const isIOS = Capacitor.getPlatform() === 'ios';
 
   // Debug logging
   useEffect(() => {
@@ -76,14 +80,21 @@ const Navigation = () => {
   return (
     <nav className="bg-white border-b border-brand-burgundy/10 relative">
       <div className="container mx-auto px-4">
-        <div className="flex justify-between items-center h-14 sm:h-16">
-          {/* Logo */}
+        <div className={`flex justify-between items-center ${
+          isIOS ? 'h-16 sm:h-18 md:h-20' : 'h-14 sm:h-16'
+        }`}>
+          {/* Logo with conditional sizing */}
           <Link to="/" className="flex items-center space-x-2">
             <img
               src="logos/Logo1-Trans-new.png"
               alt="Eddys Members"
-              className="h-6 w-auto object-contain sm:h-8 md:h-10"
-              style={{ maxWidth: '120px', minHeight: '24px' }}
+              className={`w-auto object-contain ${
+                isIOS ? 'h-8 sm:h-10 md:h-12' : 'h-6 sm:h-8 md:h-10'
+              }`}
+              style={{ 
+                maxWidth: isIOS ? '140px' : '120px', 
+                minHeight: isIOS ? '32px' : '24px' 
+              }}
               onError={(e) => {
                 console.log('❌ Navigation logo failed to load from:', e.target.src);
                 if (e.target.src.includes('Logo1-Trans-new.png')) {
@@ -181,9 +192,11 @@ const Navigation = () => {
             )}
           </div>
 
-          {/* Mobile Menu Button - Enhanced for iOS */}
+          {/* Hamburger button with conditional styling */}
           <button
-            className="md:hidden p-2 text-brand-burgundy touch-manipulation"
+            className={`md:hidden text-brand-burgundy touch-manipulation active:bg-brand-burgundy/10 rounded-lg transition-colors ${
+              isIOS ? 'p-3' : 'p-2'
+            }`}
             onClick={toggleMobileMenu}
             onTouchStart={(e) => {
               e.preventDefault();
@@ -191,39 +204,51 @@ const Navigation = () => {
             }}
             style={{ 
               WebkitTapHighlightColor: 'transparent',
-              touchAction: 'manipulation'
+              touchAction: 'manipulation',
+              minWidth: isIOS ? '44px' : '36px',
+              minHeight: isIOS ? '44px' : '36px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
             aria-label="Toggle mobile menu"
           >
             {isMobileMenuOpen ? (
-              <X className="h-5 w-5 sm:h-6 sm:w-6" />
+              <X className={isIOS ? "h-6 w-6" : "h-5 w-5 sm:h-6 sm:w-6"} />
             ) : (
-              <Menu className="h-5 w-5 sm:h-6 sm:w-6" />
+              <Menu className={isIOS ? "h-6 w-6" : "h-5 w-5 sm:h-6 sm:w-6"} />
             )}
           </button>
         </div>
 
-        {/* Mobile Menu - Enhanced for iOS */}
+        {/* Mobile menu with conditional styling */}
         {isMobileMenuOpen && (
           <div 
-            className="md:hidden py-4 border-t border-brand-burgundy/10 bg-white relative z-50"
+            className="md:hidden bg-white border-t border-brand-burgundy/10 shadow-lg"
             style={{
               position: 'relative',
               zIndex: 9999,
               WebkitTransform: 'translateZ(0)',
-              transform: 'translateZ(0)'
+              transform: 'translateZ(0)',
+              marginTop: isIOS ? '8px' : '0px',
+              borderRadius: isIOS ? '0 0 12px 12px' : '0'
             }}
           >
-            <div className="flex flex-col space-y-3 sm:space-y-4">
+            <div className={`space-y-4 ${
+              isIOS ? 'px-4 py-6' : 'py-4'
+            }`}>
+              {/* Menu items with conditional touch targets */}
               {navItems.map((item) => (
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`flex items-center space-x-3 text-sm font-medium transition-colors py-2 px-3 rounded-lg touch-manipulation
-                    ${location.pathname === item.path 
+                  className={`flex items-center space-x-4 font-medium transition-colors rounded-lg touch-manipulation active:bg-brand-burgundy/10 ${
+                    isIOS ? 'text-base py-3 px-4' : 'text-sm py-2 px-3'
+                  } ${
+                    location.pathname === item.path 
                       ? 'text-brand-gold bg-brand-gold/10' 
                       : 'text-brand-burgundy/70 hover:text-brand-gold hover:bg-brand-burgundy/5'
-                    }`}
+                  }`}
                   onClick={() => {
                     console.log('📱 Mobile menu item clicked:', item.name);
                     setIsMobileMenuOpen(false);
@@ -235,10 +260,13 @@ const Navigation = () => {
                   }}
                   style={{ 
                     WebkitTapHighlightColor: 'transparent',
-                    touchAction: 'manipulation'
+                    touchAction: 'manipulation',
+                    minHeight: isIOS ? '44px' : '36px',
+                    display: 'flex',
+                    alignItems: 'center'
                   }}
                 >
-                  <item.icon className="h-4 w-4" />
+                  <item.icon className={isIOS ? "h-5 w-5" : "h-4 w-4"} />
                   <span>{item.name}</span>
                 </Link>
               ))}
