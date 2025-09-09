@@ -48,26 +48,24 @@ import EmailTemplateTest from './components/EmailTemplateTest';
 import { supabase } from './lib/supabase.js';
 import OpenRedirect from './pages/OpenRedirect';
 import AppRedirectPage from './pages/AppRedirectPage.jsx';
-import { SplashScreen } from '@capacitor/splash-screen'; // Add this import
+import { SplashScreen as CapacitorSplashScreen } from '@capacitor/splash-screen'; // Renamed import
 
 const App = () => {
   const [showSplashScreen, setShowSplashScreen] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Add this new effect to handle the native splash screen
+  // Update the effect to use the renamed import
   useEffect(() => {
-    // Hide native splash screen when our app is ready
     const hideSplashScreen = async () => {
       try {
-        await SplashScreen.hide();
+        await CapacitorSplashScreen.hide(); // Use renamed import
         console.log('✅ Native splash screen hidden');
       } catch (error) {
         console.error('❌ Error hiding splash screen:', error);
       }
     };
 
-    // Call when our custom splash screen is done
     if (!showSplashScreen) {
       hideSplashScreen();
     }
