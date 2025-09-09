@@ -37,7 +37,8 @@ const Navigation = () => {
     console.log('👤 User:', user);
     console.log('🏢 Is Owner:', isOwner);
     console.log('🖼️ Logo loaded:', logoLoaded);
-  }, [location.pathname, user, isOwner, logoLoaded]);
+    console.log('📱 Mobile menu open:', isMobileMenuOpen);
+  }, [location.pathname, user, isOwner, logoLoaded, isMobileMenuOpen]);
 
   const handleLogout = async () => {
     try {
@@ -51,12 +52,16 @@ const Navigation = () => {
     }
   };
 
+  const toggleMobileMenu = () => {
+    console.log(' Mobile menu toggle clicked, current state:', isMobileMenuOpen);
+    setIsMobileMenuOpen(!isMobileMenuOpen);
+  };
+
   const customerNavItems = [
     { name: 'Home', path: '/home', icon: Home },
     { name: 'Explore', path: '/explore', icon: Compass },
     { name: 'Venues', path: '/venues', icon: Building2 },
     ...(user ? [{ name: 'My Bookings', path: '/bookings', icon: Calendar }] : []),
-    // Remove Profile from main nav items since it's in the user menu
   ];
 
   const ownerNavItems = [
@@ -69,22 +74,22 @@ const Navigation = () => {
   const navItems = isOwner ? ownerNavItems : customerNavItems;
 
   return (
-    <nav className="bg-white border-b border-brand-burgundy/10">
+    <nav className="bg-white border-b border-brand-burgundy/10 relative">
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center h-14 sm:h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
             <img
-                             src="logos/Logo1-Trans-new.png"
+              src="logos/Logo1-Trans-new.png"
               alt="Eddys Members"
               className="h-6 w-auto object-contain sm:h-8 md:h-10"
               style={{ maxWidth: '120px', minHeight: '24px' }}
               onError={(e) => {
                 console.log('❌ Navigation logo failed to load from:', e.target.src);
                 if (e.target.src.includes('Logo1-Trans-new.png')) {
-                                                 e.target.src = 'logos/Logo1-Trans.png';
-             } else if (e.target.src.includes('Logo1-Trans.png')) {
-               e.target.src = 'logos/Logo-Trans.png';
+                  e.target.src = 'logos/Logo1-Trans.png';
+                } else if (e.target.src.includes('Logo1-Trans.png')) {
+                  e.target.src = 'logos/Logo-Trans.png';
                 } else {
                   e.target.style.display = 'none';
                   e.target.nextSibling.style.display = 'inline';
@@ -176,10 +181,19 @@ const Navigation = () => {
             )}
           </div>
 
-          {/* Mobile Menu Button */}
+          {/* Mobile Menu Button - Enhanced for iOS */}
           <button
-            className="md:hidden p-2 text-brand-burgundy"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="md:hidden p-2 text-brand-burgundy touch-manipulation"
+            onClick={toggleMobileMenu}
+            onTouchStart={(e) => {
+              e.preventDefault();
+              toggleMobileMenu();
+            }}
+            style={{ 
+              WebkitTapHighlightColor: 'transparent',
+              touchAction: 'manipulation'
+            }}
+            aria-label="Toggle mobile menu"
           >
             {isMobileMenuOpen ? (
               <X className="h-5 w-5 sm:h-6 sm:w-6" />
@@ -189,20 +203,40 @@ const Navigation = () => {
           </button>
         </div>
 
-        {/* Mobile Menu */}
+        {/* Mobile Menu - Enhanced for iOS */}
         {isMobileMenuOpen && (
-          <div className="md:hidden py-4 border-t border-brand-burgundy/10">
+          <div 
+            className="md:hidden py-4 border-t border-brand-burgundy/10 bg-white relative z-50"
+            style={{
+              position: 'relative',
+              zIndex: 9999,
+              WebkitTransform: 'translateZ(0)',
+              transform: 'translateZ(0)'
+            }}
+          >
             <div className="flex flex-col space-y-3 sm:space-y-4">
               {navItems.map((item) => (
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`flex items-center space-x-3 text-sm font-medium transition-colors py-2 px-3 rounded-lg
+                  className={`flex items-center space-x-3 text-sm font-medium transition-colors py-2 px-3 rounded-lg touch-manipulation
                     ${location.pathname === item.path 
                       ? 'text-brand-gold bg-brand-gold/10' 
                       : 'text-brand-burgundy/70 hover:text-brand-gold hover:bg-brand-burgundy/5'
                     }`}
-                  onClick={() => setIsMobileMenuOpen(false)}
+                  onClick={() => {
+                    console.log('📱 Mobile menu item clicked:', item.name);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  onTouchStart={(e) => {
+                    e.preventDefault();
+                    console.log('📱 Mobile menu item touched:', item.name);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  style={{ 
+                    WebkitTapHighlightColor: 'transparent',
+                    touchAction: 'manipulation'
+                  }}
                 >
                   <item.icon className="h-4 w-4" />
                   <span>{item.name}</span>
@@ -212,23 +246,59 @@ const Navigation = () => {
                 <div className="pt-3 sm:pt-4 border-t border-brand-burgundy/10 space-y-3 sm:space-y-4">
                   <Link
                     to={isOwner ? "/venue-owner/dashboard" : "/profile"}
-                    className="flex items-center space-x-3 text-sm font-medium text-brand-burgundy/70 hover:text-brand-gold py-2 px-3 rounded-lg hover:bg-brand-burgundy/5"
-                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center space-x-3 text-sm font-medium text-brand-burgundy/70 hover:text-brand-gold py-2 px-3 rounded-lg hover:bg-brand-burgundy/5 touch-manipulation"
+                    onClick={() => {
+                      console.log('📱 Profile clicked');
+                      setIsMobileMenuOpen(false);
+                    }}
+                    onTouchStart={(e) => {
+                      e.preventDefault();
+                      console.log('📱 Profile touched');
+                      setIsMobileMenuOpen(false);
+                    }}
+                    style={{ 
+                      WebkitTapHighlightColor: 'transparent',
+                      touchAction: 'manipulation'
+                    }}
                   >
                     <User className="h-4 w-4" />
                     <span>{isOwner ? "Dashboard" : "Profile"}</span>
                   </Link>
                   <Link
                     to={isOwner ? "/venue-owner/settings" : "/settings"}
-                    className="flex items-center space-x-3 text-sm font-medium text-brand-burgundy/70 hover:text-brand-gold py-2 px-3 rounded-lg hover:bg-brand-burgundy/5"
-                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center space-x-3 text-sm font-medium text-brand-burgundy/70 hover:text-brand-gold py-2 px-3 rounded-lg hover:bg-brand-burgundy/5 touch-manipulation"
+                    onClick={() => {
+                      console.log('📱 Settings clicked');
+                      setIsMobileMenuOpen(false);
+                    }}
+                    onTouchStart={(e) => {
+                      e.preventDefault();
+                      console.log('📱 Settings touched');
+                      setIsMobileMenuOpen(false);
+                    }}
+                    style={{ 
+                      WebkitTapHighlightColor: 'transparent',
+                      touchAction: 'manipulation'
+                    }}
                   >
                     <Settings className="h-4 w-4" />
                     <span>Settings</span>
                   </Link>
                   <button
-                    onClick={handleLogout}
-                    className="flex items-center space-x-3 text-sm font-medium text-red-600 py-2 px-3 rounded-lg hover:bg-red-50 w-full text-left"
+                    onClick={() => {
+                      console.log(' Logout clicked');
+                      handleLogout();
+                    }}
+                    onTouchStart={(e) => {
+                      e.preventDefault();
+                      console.log(' Logout touched');
+                      handleLogout();
+                    }}
+                    className="flex items-center space-x-3 text-sm font-medium text-red-600 py-2 px-3 rounded-lg hover:bg-red-50 w-full text-left touch-manipulation"
+                    style={{ 
+                      WebkitTapHighlightColor: 'transparent',
+                      touchAction: 'manipulation'
+                    }}
                   >
                     <LogOut className="h-4 w-4" />
                     <span>Log out</span>
@@ -238,8 +308,20 @@ const Navigation = () => {
                 <div className="pt-3 sm:pt-4 border-t border-brand-burgundy/10">
                   <Link
                     to={isOwner ? "/venue-owner/login" : "/profile"}
-                    className="flex items-center space-x-3 text-sm font-medium text-brand-burgundy/70 hover:text-brand-gold py-2 px-3 rounded-lg hover:bg-brand-burgundy/5"
-                    onClick={() => setIsMobileMenuOpen(false)}
+                    className="flex items-center space-x-3 text-sm font-medium text-brand-burgundy/70 hover:text-brand-gold py-2 px-3 rounded-lg hover:bg-brand-burgundy/5 touch-manipulation"
+                    onClick={() => {
+                      console.log('📱 Sign in clicked');
+                      setIsMobileMenuOpen(false);
+                    }}
+                    onTouchStart={(e) => {
+                      e.preventDefault();
+                      console.log('📱 Sign in touched');
+                      setIsMobileMenuOpen(false);
+                    }}
+                    style={{ 
+                      WebkitTapHighlightColor: 'transparent',
+                      touchAction: 'manipulation'
+                    }}
                   >
                     <User className="h-4 w-4" />
                     <span>{isOwner ? "Venue Login" : "Sign In"}</span>
