@@ -51,26 +51,38 @@ import AppRedirectPage from './pages/AppRedirectPage.jsx';
 
 const App = () => {
   const [showSplashScreen, setShowSplashScreen] = useState(true);
+  const [appReady, setAppReady] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Handle splash screen hiding
+  // Initialize app and hide native splash screen
   useEffect(() => {
-    const hideSplashScreen = async () => {
+    const initializeApp = async () => {
       try {
+        // Hide native splash screen immediately when app loads
         if (Capacitor.isNativePlatform()) {
           await CapacitorSplashScreen.hide();
           console.log('✅ Native splash screen hidden');
         }
+        
+        // Set app as ready after a short delay
+        setTimeout(() => {
+          setAppReady(true);
+        }, 100);
       } catch (error) {
-        console.error('❌ Error hiding splash screen:', error);
+        console.error('❌ Error initializing app:', error);
+        setAppReady(true); // Continue even if there's an error
       }
     };
 
-    if (!showSplashScreen) {
-      hideSplashScreen();
-    }
-  }, [showSplashScreen]);
+    initializeApp();
+  }, []);
+
+  // Handle splash screen completion
+  const handleSplashComplete = () => {
+    console.log('🎬 Custom splash screen completed');
+    setShowSplashScreen(false);
+  };
 
   // Handle app/web redirects (email confirmation, etc.)
   useEffect(() => {
@@ -118,6 +130,11 @@ const App = () => {
     };
   }, [navigate]);
 
+  // Don't render anything until app is ready
+  if (!appReady) {
+    return null;
+  }
+
   return (
     <AuthProvider>
       <Router>
@@ -125,7 +142,7 @@ const App = () => {
         <Toaster />
         
         {showSplashScreen ? (
-          <SplashScreen onComplete={() => setShowSplashScreen(false)} />
+          <SplashScreen onComplete={handleSplashComplete} />
         ) : (
           <div className="min-h-screen bg-gray-50 flex flex-col">
             <Navigation />
