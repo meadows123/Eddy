@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { App as CapacitorApp } from '@capacitor/app';
+import { SplashScreen as CapacitorSplashScreen } from '@capacitor/splash-screen';
+import { Capacitor } from '@capacitor/core';
 import { Toaster } from './components/ui/toaster';
 import Navigation from './components/Navigation';
 import Footer from './components/Footer';
@@ -28,7 +30,6 @@ import SettingsPage from './pages/SettingsPage';
 import ExplorePage from './pages/ExplorePage';
 import VenueCreditPurchase from './pages/VenueCreditPurchase';
 import CreditPurchaseCheckout from './pages/CreditPurchaseCheckout';
-// import SupabaseTest from './components/SupabaseTest';
 import AuthTestPage from './pages/AuthTestPage';
 import EmailTest from './components/EmailTest';
 import EmailTestPage from './pages/EmailTestPage';
@@ -38,7 +39,6 @@ import SplitPaymentSuccessPage from './pages/SplitPaymentSuccessPage';
 import { AuthProvider } from './contexts/AuthContext';
 import HomePage from './pages/HomePage';
 import RegisterPage from './pages/RegisterPage';
-// New pages for footer links
 import AboutPage from './pages/AboutPage';
 import ContactPage from './pages/ContactPage';
 import TermsPage from './pages/TermsPage';
@@ -48,19 +48,20 @@ import EmailTemplateTest from './components/EmailTemplateTest';
 import { supabase } from './lib/supabase.js';
 import OpenRedirect from './pages/OpenRedirect';
 import AppRedirectPage from './pages/AppRedirectPage.jsx';
-import { SplashScreen as CapacitorSplashScreen } from '@capacitor/splash-screen'; // Renamed import
 
 const App = () => {
   const [showSplashScreen, setShowSplashScreen] = useState(true);
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Update the effect to use the renamed import
+  // Handle splash screen hiding
   useEffect(() => {
     const hideSplashScreen = async () => {
       try {
-        await CapacitorSplashScreen.hide(); // Use renamed import
-        console.log('✅ Native splash screen hidden');
+        if (Capacitor.isNativePlatform()) {
+          await CapacitorSplashScreen.hide();
+          console.log('✅ Native splash screen hidden');
+        }
       } catch (error) {
         console.error('❌ Error hiding splash screen:', error);
       }
@@ -73,15 +74,13 @@ const App = () => {
 
   // Handle app/web redirects (email confirmation, etc.)
   useEffect(() => {
-    // If someone lands directly on a confirmation URL without /open, try to detect and forward to /open
     const url = new URL(window.location.href);
     const hasTokens = url.searchParams.get('access_token') || new URLSearchParams(window.location.hash.replace('#','')).get('access_token');
     const target = url.searchParams.get('target') || new URLSearchParams(window.location.hash.replace('#','')).get('target');
     if (hasTokens || target) {
       navigate('/open' + url.search, { replace: true });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [navigate]);
 
   // Handle deep links from mobile app (oneeddy:// scheme)
   useEffect(() => {
@@ -90,20 +89,15 @@ const App = () => {
       try {
         const url = new URL(data.url);
         if (url.protocol === 'oneeddy:') {
-          const host = url.host; // e.g. 'admin' for oneeddy://admin/venue-approvals
-          const pathname = url.pathname; // e.g. '/venue-approvals'
+          const host = url.host;
+          const pathname = url.pathname;
           const search = url.search || '';
 
-          // Build an app route from scheme + host + path
-          // Supports both:
-          // - oneeddy://admin/venue-approvals           -> /admin/venue-approvals
-          // - oneeddy:///admin/venue-approvals          -> /admin/venue-approvals
           let route = pathname;
           if (host) {
             route = `/${host}${pathname}`;
           }
 
-          // Ensure route starts with '/'
           if (!route.startsWith('/')) {
             route = `/${route}`;
           }
@@ -126,77 +120,82 @@ const App = () => {
 
   return (
     <AuthProvider>
-      {showSplashScreen && <SplashScreen onComplete={() => setShowSplashScreen(false)} />}
-      <div className="min-h-screen bg-gray-50 flex flex-col">
+      <Router>
         <ScrollToTop />
-        <Navigation />
-        <main className="flex-grow">
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/home" element={<HomePage />} />
-            <Route path="/venues" element={<VenuesPage />} />
-            <Route path="/venues/:id" element={<VenueDetailPage />} />
-            <Route path="/checkout" element={<CheckoutPage />} />
-            <Route path="/checkout/:id" element={<CheckoutPage />} />
-            <Route path="/checkout/deposit" element={<CheckoutPage />} />
-            <Route path="/split-payment" element={<Navigate to="/profile" replace />} />
-            <Route path="/split-payment/:bookingId/:requestId" element={<SplitPaymentPage />} />
-            <Route path="/split-payment-success" element={<SplitPaymentSuccessPage />} />
-            <Route path="/explore" element={<ExplorePage />} />
-            <Route path="/open" element={<OpenRedirect />} />
-            <Route path="/app-redirect" element={<AppRedirectPage />} />
-
-            {/* Customer Routes */}
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/bookings" element={<BookingsPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/reset-password" element={<VenueOwnerResetPassword />} />
-            <Route path="/venue-credit-purchase" element={<VenueCreditPurchase />} />
-            <Route path="/credit-purchase-checkout" element={<CreditPurchaseCheckout />} />
-
-            {/* Information Pages */}
-            <Route path="/about" element={<AboutPage />} />
-            <Route path="/contact" element={<ContactPage />} />
-            <Route path="/terms" element={<TermsPage />} />
-            <Route path="/privacy" element={<PrivacyPage />} />
-            <Route path="/faq" element={<FAQPage />} />
-
-            {/* Venue Owner Routes */}
-            <Route path="/venue-owner/login" element={<VenueOwnerLogin />} />
-            <Route path="/venue-owner/register" element={<VenueOwnerRegister />} />
-            <Route path="/venue-owner/reset-password" element={<VenueOwnerResetPassword />} />
-            <Route path="/venue-owner/pending" element={<VenueOwnerPending />} />
-            <Route path="/venue-owner/dashboard" element={<VenueOwnerDashboard />} />
-            <Route path="/venue-owner/bookings" element={<VenueOwnerBookings />} />
-            <Route path="/venue-owner/tables" element={<VenueOwnerTables />} />
-            <Route path="/venue-owner/analytics" element={<VenueOwnerAnalytics />} />
-            <Route path="/venue-owner/settings" element={<VenueOwnerSettings />} />
-            <Route path="/venue-owner/credits" element={<VenueOwnerCredits />} />
-            <Route path="/venue-owner/receipts" element={<VenueOwnerReceipts />} />
-            <Route path="/venue-owner/credits/purchase" element={<VenueCreditPurchase />} />
-
-            {/* Admin Routes */}
-            <Route path="/admin/venue-approvals" element={<VenueApprovalsPage />} />
-
-            {/* Test Routes */}
-            {/* <Route path="/test" element={<SupabaseTest />} /> */}
-            <Route path="/auth-test" element={<AuthTestPage />} />
-            <Route path="/email-test" element={<EmailTest />} />
-            <Route path="/email-debug" element={<EmailTestPage />} />
-            <Route path="/email-templates" element={<EmailTemplateTest />} />
-            <Route path="/map-test" element={<MapTest />} />
-
-            {/* Register Route */}
-            <Route path="/register" element={<RegisterPage />} />
-
-            {/* Fallback Route */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </main>
-        <Footer />
         <Toaster />
-      </div>
+        
+        {showSplashScreen ? (
+          <SplashScreen onComplete={() => setShowSplashScreen(false)} />
+        ) : (
+          <div className="min-h-screen bg-gray-50 flex flex-col">
+            <Navigation />
+            <main className="flex-grow">
+              <Routes>
+                {/* Public Routes */}
+                <Route path="/" element={<LandingPage />} />
+                <Route path="/home" element={<HomePage />} />
+                <Route path="/venues" element={<VenuesPage />} />
+                <Route path="/venues/:id" element={<VenueDetailPage />} />
+                <Route path="/checkout" element={<CheckoutPage />} />
+                <Route path="/checkout/:id" element={<CheckoutPage />} />
+                <Route path="/checkout/deposit" element={<CheckoutPage />} />
+                <Route path="/split-payment" element={<Navigate to="/profile" replace />} />
+                <Route path="/split-payment/:bookingId/:requestId" element={<SplitPaymentPage />} />
+                <Route path="/split-payment-success" element={<SplitPaymentSuccessPage />} />
+                <Route path="/explore" element={<ExplorePage />} />
+                <Route path="/open" element={<OpenRedirect />} />
+                <Route path="/app-redirect" element={<AppRedirectPage />} />
+
+                {/* Customer Routes */}
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/bookings" element={<BookingsPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/reset-password" element={<VenueOwnerResetPassword />} />
+                <Route path="/venue-credit-purchase" element={<VenueCreditPurchase />} />
+                <Route path="/credit-purchase-checkout" element={<CreditPurchaseCheckout />} />
+
+                {/* Information Pages */}
+                <Route path="/about" element={<AboutPage />} />
+                <Route path="/contact" element={<ContactPage />} />
+                <Route path="/terms" element={<TermsPage />} />
+                <Route path="/privacy" element={<PrivacyPage />} />
+                <Route path="/faq" element={<FAQPage />} />
+
+                {/* Venue Owner Routes */}
+                <Route path="/venue-owner/login" element={<VenueOwnerLogin />} />
+                <Route path="/venue-owner/register" element={<VenueOwnerRegister />} />
+                <Route path="/venue-owner/reset-password" element={<VenueOwnerResetPassword />} />
+                <Route path="/venue-owner/pending" element={<VenueOwnerPending />} />
+                <Route path="/venue-owner/dashboard" element={<VenueOwnerDashboard />} />
+                <Route path="/venue-owner/bookings" element={<VenueOwnerBookings />} />
+                <Route path="/venue-owner/tables" element={<VenueOwnerTables />} />
+                <Route path="/venue-owner/analytics" element={<VenueOwnerAnalytics />} />
+                <Route path="/venue-owner/settings" element={<VenueOwnerSettings />} />
+                <Route path="/venue-owner/credits" element={<VenueOwnerCredits />} />
+                <Route path="/venue-owner/receipts" element={<VenueOwnerReceipts />} />
+                <Route path="/venue-owner/credits/purchase" element={<VenueCreditPurchase />} />
+
+                {/* Admin Routes */}
+                <Route path="/admin/venue-approvals" element={<VenueApprovalsPage />} />
+
+                {/* Test Routes */}
+                <Route path="/auth-test" element={<AuthTestPage />} />
+                <Route path="/email-test" element={<EmailTest />} />
+                <Route path="/email-debug" element={<EmailTestPage />} />
+                <Route path="/email-templates" element={<EmailTemplateTest />} />
+                <Route path="/map-test" element={<MapTest />} />
+
+                {/* Register Route */}
+                <Route path="/register" element={<RegisterPage />} />
+
+                {/* Fallback Route */}
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </main>
+            <Footer />
+          </div>
+        )}
+      </Router>
     </AuthProvider>
   );
 };
