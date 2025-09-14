@@ -65,10 +65,8 @@ const App = () => {
           console.log('✅ Native splash screen hidden');
         }
         
-        // Set app as ready after a short delay
-        setTimeout(() => {
-          setAppReady(true);
-        }, 100);
+        // Set app as ready immediately so custom splash can show
+        setAppReady(true);
       } catch (error) {
         console.error('❌ Error initializing app:', error);
         setAppReady(true); // Continue even if there's an error
