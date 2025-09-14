@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Capacitor } from '@capacitor/core';
 
-const SplashScreen = ({ onComplete, durationMs = 5000 }) => {
+const SplashScreen = ({ onComplete, durationMs = 2000 }) => {
   const [isVisible, setIsVisible] = useState(true);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const isNative = Capacitor.isNativePlatform();
@@ -21,8 +21,8 @@ const SplashScreen = ({ onComplete, durationMs = 5000 }) => {
     return () => clearTimeout(timer);
   }, [durationMs, onComplete]);
 
-  // Don't render the React splash screen on native platforms
-  if (!isVisible || isNative) return null;
+  // Show splash screen on all platforms
+  if (!isVisible) return null;
 
   return (
     <AnimatePresence>
