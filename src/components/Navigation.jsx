@@ -25,6 +25,8 @@ import { Capacitor } from '@capacitor/core';
 
 const Navigation = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isNavVisible, setIsNavVisible] = useState(true);
+  const [lastScrollY, setLastScrollY] = useState(0);
   const location = useLocation();
   const navigate = useNavigate();
   
@@ -44,6 +46,28 @@ const Navigation = () => {
   
   const isOwner = location.pathname.includes('/venue-owner');
   const isIOS = Capacitor.getPlatform() === 'ios';
+
+  // Handle scroll behavior
+  useEffect(() => {
+    const handleScroll = () => {
+      const currentScrollY = window.scrollY;
+      
+      // Show nav when scrolling up, hide when scrolling down
+      if (currentScrollY < lastScrollY || currentScrollY < 10) {
+        setIsNavVisible(true);
+      } else {
+        setIsNavVisible(false);
+      }
+      
+      setLastScrollY(currentScrollY);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, [lastScrollY]);
 
   // Force the mobile menu to close when changing routes
   useEffect(() => {
@@ -84,21 +108,21 @@ const Navigation = () => {
   return (
     <>
       {/* Safe area spacer for iOS */}
-      {isIOS && <div className="h-12 bg-white" />}
+      {isIOS && <div className="h-8 bg-white" />}
 
       {/* Main navigation */}
-      <div className={`fixed top-0 left-0 right-0 z-50 bg-white shadow-sm ${
-        isIOS ? 'mt-12' : 'mt-0'
-      }`}>
-        <nav className="mx-auto px-4 h-16">
+      <div className={`fixed top-0 left-0 right-0 z-50 bg-white shadow-sm transition-transform duration-300 ${
+        isIOS ? 'mt-8' : 'mt-0'
+      } ${isNavVisible ? 'translate-y-0' : '-translate-y-full'}`}>
+        <nav className="mx-auto px-4 h-12">
           <div className="flex items-center justify-between h-full">
             {/* Logo */}
             <Link to="/" className="flex items-center">
               <img
                 src="/logos/Logo1-Trans-new.png"
                 alt="Eddys Members"
-                className="h-8 w-auto"
-                style={{ maxWidth: '120px' }}
+                className="h-6 w-auto"
+                style={{ maxWidth: '100px' }}
                 onError={(e) => {
                   console.log('❌ Navigation logo failed to load from:', e.target.src);
                   if (e.target.src.includes('Logo1-Trans-new.png')) {
@@ -113,43 +137,43 @@ const Navigation = () => {
             </Link>
 
             {/* Desktop Navigation - Hidden on mobile */}
-            <div className="hidden md:flex items-center space-x-6 lg:space-x-8">
+            <div className="hidden md:flex items-center space-x-4 lg:space-x-6">
               {navItems.map((item) => (
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`flex items-center space-x-2 text-sm font-medium transition-colors
+                  className={`flex items-center space-x-1 text-xs font-medium transition-colors
                     ${location.pathname === item.path 
                       ? 'text-brand-gold' 
                       : 'text-brand-burgundy/70 hover:text-brand-gold'
                     }`}
                 >
-                  <item.icon className="h-4 w-4" />
+                  <item.icon className="h-3 w-3" />
                   <span>{item.name}</span>
                 </Link>
               ))}
               {!isOwner && (
                 <Link
                   to="/profile"
-                  className={`flex items-center space-x-2 text-sm font-medium transition-colors
+                  className={`flex items-center space-x-1 text-xs font-medium transition-colors
                     ${location.pathname === '/profile' 
                       ? 'text-brand-gold' 
                       : 'text-brand-burgundy/70 hover:text-brand-gold'
                     }`}
                 >
-                  <User className="h-4 w-4" />
+                  <User className="h-3 w-3" />
                   <span>Profile</span>
                 </Link>
               )}
             </div>
 
             {/* Desktop User Menu - Hidden on mobile */}
-            <div className="hidden md:flex items-center space-x-4">
+            <div className="hidden md:flex items-center space-x-2">
               {user ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                      <User className="h-4 w-4" />
+                    <Button variant="ghost" className="relative h-6 w-6 rounded-full">
+                      <User className="h-3 w-3" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent className="w-56" align="end">
@@ -182,7 +206,7 @@ const Navigation = () => {
               ) : (
                 <div className="flex items-center space-x-2">
                   <Link to="/profile">
-                    <Button variant="outline" size="sm" className="border-brand-burgundy text-brand-burgundy hover:bg-brand-burgundy/10">
+                    <Button variant="outline" size="sm" className="border-brand-burgundy text-brand-burgundy hover:bg-brand-burgundy/10 text-xs px-2 py-1">
                       Sign In
                     </Button>
                   </Link>
@@ -190,10 +214,10 @@ const Navigation = () => {
               )}
             </div>
 
-            {/* Mobile Hamburger Menu Button - Always visible on mobile */}
+            {/* Mobile Hamburger Menu Button - Only visible on mobile */}
             <button
               onClick={toggleMobileMenu}
-              className="md:hidden flex items-center justify-center w-12 h-12 text-brand-burgundy hover:bg-brand-burgundy/10 rounded-lg transition-colors"
+              className="md:hidden flex items-center justify-center w-8 h-8 text-brand-burgundy hover:bg-brand-burgundy/10 rounded-lg transition-colors"
               style={{ 
                 WebkitTapHighlightColor: 'transparent',
                 touchAction: 'manipulation'
@@ -201,9 +225,9 @@ const Navigation = () => {
               aria-label="Toggle mobile menu"
             >
               {isMobileMenuOpen ? (
-                <X className="h-6 w-6" />
+                <X className="h-5 w-5" />
               ) : (
-                <Menu className="h-6 w-6" />
+                <Menu className="h-5 w-5" />
               )}
             </button>
           </div>
@@ -212,7 +236,7 @@ const Navigation = () => {
         {/* Mobile menu panel */}
         {isMobileMenuOpen && (
           <div className="md:hidden bg-white border-t border-gray-200 shadow-lg">
-            <div className="px-4 py-4 space-y-2">
+            <div className="px-4 py-3 space-y-2">
               {navItems.map((item) => (
                 <Link
                   key={item.path}
@@ -220,8 +244,8 @@ const Navigation = () => {
                   className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-brand-burgundy/5 text-brand-burgundy"
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
-                  <item.icon className="h-5 w-5" />
-                  <span className="font-medium">{item.name}</span>
+                  <item.icon className="h-4 w-4" />
+                  <span className="font-medium text-sm">{item.name}</span>
                 </Link>
               ))}
               
@@ -232,23 +256,23 @@ const Navigation = () => {
                     className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-brand-burgundy/5 text-brand-burgundy"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    <User className="h-5 w-5" />
-                    <span className="font-medium">{isOwner ? "Dashboard" : "Profile"}</span>
+                    <User className="h-4 w-4" />
+                    <span className="font-medium text-sm">{isOwner ? "Dashboard" : "Profile"}</span>
                   </Link>
                   <Link
                     to={isOwner ? "/venue-owner/settings" : "/settings"}
                     className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-brand-burgundy/5 text-brand-burgundy"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    <Settings className="h-5 w-5" />
-                    <span className="font-medium">Settings</span>
+                    <Settings className="h-4 w-4" />
+                    <span className="font-medium text-sm">Settings</span>
                   </Link>
                   <button
                     onClick={handleLogout}
                     className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-red-50 w-full text-left text-red-600"
                   >
-                    <LogOut className="h-5 w-5" />
-                    <span className="font-medium">Log out</span>
+                    <LogOut className="h-4 w-4" />
+                    <span className="font-medium text-sm">Log out</span>
                   </button>
                 </div>
               ) : (
@@ -258,8 +282,8 @@ const Navigation = () => {
                     className="flex items-center space-x-3 px-3 py-2 rounded-lg hover:bg-brand-burgundy/5 text-brand-burgundy"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
-                    <User className="h-5 w-5" />
-                    <span className="font-medium">{isOwner ? "Venue Login" : "Sign In"}</span>
+                    <User className="h-4 w-4" />
+                    <span className="font-medium text-sm">{isOwner ? "Venue Login" : "Sign In"}</span>
                   </Link>
                 </div>
               )}
@@ -269,7 +293,7 @@ const Navigation = () => {
       </div>
 
       {/* Content spacer */}
-      <div className={isIOS ? 'h-28' : 'h-16'} />
+      <div className={isIOS ? 'h-20' : 'h-12'} />
     </>
   );
 };
