@@ -107,8 +107,8 @@ const Navigation = () => {
 
   return (
     <>
-      {/* Safe area spacer for iOS */}
-      {isIOS && <div className="h-8 bg-white" />}
+      {/* Safe area spacer for iOS - Match main content background */}
+      {isIOS && <div className="h-8 bg-gray-50" />}
 
       {/* Main navigation */}
       <div className={`fixed top-0 left-0 right-0 z-50 bg-white shadow-sm transition-transform duration-300 ${
