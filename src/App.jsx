@@ -1,4 +1,53 @@
-// ... existing imports ...
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
+import { App as CapacitorApp } from '@capacitor/app';
+import { SplashScreen as CapacitorSplashScreen } from '@capacitor/splash-screen';
+import { Capacitor } from '@capacitor/core';
+import { Toaster } from './components/ui/toaster';
+import Navigation from './components/Navigation';
+import Footer from './components/Footer';
+import ScrollToTop from './components/ScrollToTop';
+import SplashScreen from './components/SplashScreen';
+import LandingPage from './pages/LandingPage';
+import VenuesPage from './pages/VenuesPage';
+import VenueDetailPage from './pages/VenueDetailPage';
+import CheckoutPage from './pages/CheckoutPage';
+import VenueOwnerDashboard from './pages/venue-owner/VenueOwnerDashboard';
+import VenueOwnerLogin from './pages/venue-owner/VenueOwnerLogin';
+import VenueOwnerRegister from './pages/venue-owner/VenueOwnerRegister';
+import VenueOwnerResetPassword from './pages/venue-owner/VenueOwnerResetPassword';
+import VenueOwnerPending from './pages/venue-owner/VenueOwnerPending';
+import VenueOwnerBookings from './pages/venue-owner/VenueOwnerBookings';
+import VenueOwnerTables from './pages/venue-owner/VenueOwnerTables';
+import VenueOwnerAnalytics from './pages/venue-owner/VenueOwnerAnalytics';
+import VenueOwnerSettings from './pages/venue-owner/VenueOwnerSettings';
+import VenueOwnerCredits from './pages/venue-owner/VenueOwnerCredits';
+import VenueOwnerReceipts from './pages/venue-owner/VenueOwnerReceipts';
+import VenueApprovalsPage from './pages/admin/VenueApprovalsPage';
+import ProfilePage from './pages/ProfilePage';
+import BookingsPage from './pages/BookingsPage';
+import SettingsPage from './pages/SettingsPage';
+import ExplorePage from './pages/ExplorePage';
+import VenueCreditPurchase from './pages/VenueCreditPurchase';
+import CreditPurchaseCheckout from './pages/CreditPurchaseCheckout';
+import AuthTestPage from './pages/AuthTestPage';
+import EmailTest from './components/EmailTest';
+import EmailTestPage from './pages/EmailTestPage';
+import MapTest from './components/MapTest';
+import SplitPaymentPage from './pages/SplitPaymentPage';
+import SplitPaymentSuccessPage from './pages/SplitPaymentSuccessPage';
+import { AuthProvider } from './contexts/AuthContext';
+import HomePage from './pages/HomePage';
+import RegisterPage from './pages/RegisterPage';
+import AboutPage from './pages/AboutPage';
+import ContactPage from './pages/ContactPage';
+import TermsPage from './pages/TermsPage';
+import PrivacyPage from './pages/PrivacyPage';
+import FAQPage from './pages/FAQPage';
+import EmailTemplateTest from './components/EmailTemplateTest';
+import { supabase } from './lib/supabase.js';
+import OpenRedirect from './pages/OpenRedirect';
+import AppRedirectPage from './pages/AppRedirectPage.jsx';
 
 const App = () => {
   const [showSplashScreen, setShowSplashScreen] = useState(true);
@@ -6,18 +55,29 @@ const App = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Add debug logging
+  console.log('🚀 App component rendering');
+  console.log('�� showSplashScreen:', showSplashScreen);
+  console.log('📱 appReady:', appReady);
+  console.log('📱 Capacitor.isNativePlatform():', Capacitor.isNativePlatform());
+
   // Initialize app and hide native splash screen
   useEffect(() => {
+    console.log('�� useEffect running - initializing app');
     const initializeApp = async () => {
       try {
+        console.log('�� Starting app initialization');
         // Hide native splash screen immediately when app loads
         if (Capacitor.isNativePlatform()) {
+          console.log('🔧 Hiding native splash screen');
           await CapacitorSplashScreen.hide();
           console.log('✅ Native splash screen hidden');
         }
         
         // Set app as ready immediately so custom splash can show
+        console.log('🔧 Setting app as ready');
         setAppReady(true);
+        console.log('✅ App is ready');
       } catch (error) {
         console.error('❌ Error initializing app:', error);
         setAppReady(true); // Continue even if there's an error
@@ -81,9 +141,11 @@ const App = () => {
 
   // Don't render anything until app is ready
   if (!appReady) {
+    console.log('⏳ App not ready yet, returning null');
     return null;
   }
 
+  console.log('�� Rendering app content');
   return (
     <AuthProvider>
       <Router>
@@ -91,9 +153,43 @@ const App = () => {
         <Toaster />
         
         {showSplashScreen ? (
-          <SplashScreen onComplete={handleSplashComplete} />
+          <div>
+            <div style={{ 
+              position: 'fixed', 
+              top: 0, 
+              left: 0, 
+              width: '100%', 
+              height: '100%', 
+              backgroundColor: '#5B0202', 
+              color: 'white', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              flexDirection: 'column',
+              zIndex: 9999
+            }}>
+              <h1>Custom Splash Screen</h1>
+              <p>Loading...</p>
+              <button 
+                onClick={handleSplashComplete}
+                style={{
+                  padding: '10px 20px',
+                  backgroundColor: 'white',
+                  color: '#5B0202',
+                  border: 'none',
+                  borderRadius: '5px',
+                  marginTop: '20px'
+                }}
+              >
+                Skip Splash
+              </button>
+            </div>
+          </div>
         ) : (
           <div className="min-h-screen bg-gray-50 flex flex-col">
+            <div style={{ padding: '20px', backgroundColor: 'lightgreen', textAlign: 'center' }}>
+              Main App Content - Splash Complete!
+            </div>
             <Navigation />
             <main className="flex-grow">
               <Routes>
