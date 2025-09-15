@@ -113,7 +113,7 @@ const Navigation = () => {
       {/* Main navigation */}
       <div className={`fixed top-0 left-0 right-0 z-50 bg-white shadow-sm transition-transform duration-300 ${
         isIOS ? 'mt-8' : 'mt-0'
-      } ${isNavVisible ? 'translate-y-0' : '-translate-y-full'}`}>
+      } ${isNavVisible ? 'translate-y-0' : '-translate-y-[120%]'}`}>
         <nav className="mx-auto px-4 h-12">
           <div className="flex items-center justify-between h-full">
             {/* Logo */}
