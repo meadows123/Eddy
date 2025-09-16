@@ -386,24 +386,17 @@ try {
 // Use the actual database booking record if available
 if (bookingData.dbRecord) {
 booking = bookingData.dbRecord;
-console.log('📧 Using database record for email:', booking);
 } else {
-// Fallback to constructed data - use both selection and bookingData
-const dataSource = selection || bookingData;
+// Fallback to constructed data
 booking = {
   id: bookingData.bookingId || bookingData.id,
-  booking_date: bookingData.bookingDate || dataSource?.date || new Date().toISOString(),
-  start_time: dataSource?.time || '19:00:00',
-  number_of_guests: dataSource?.guests || dataSource?.guestCount || 2,
-  table_number: dataSource?.table?.name || dataSource?.table?.table_number || dataSource?.selectedTable?.name || dataSource?.selectedTable?.table_number,
+  booking_date: bookingData.bookingDate || new Date().toISOString(),
+  booking_time: selection.time || '19:00:00',
+  guest_count: selection.guests || selection.guestCount || 2,
+  table_number: selection.table?.name || selection.table?.table_number,
   total_amount: bookingData.totalAmount,
   status: 'confirmed'
 };
-console.log('📧 Using fallback data for email:', {
-  booking,
-  dataSource,
-  bookingData
-});
 }
 
 // Fetch actual venue data from database if venue_id is available
