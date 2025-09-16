@@ -437,10 +437,10 @@ const VenueOwnerDashboard = () => {
     );
   }
 
-    return (
-      <div className="min-h-screen w-full bg-brand-cream/50">
-        <div className="w-full">
-          <div className="p-2 sm:p-3 md:p-4 lg:p-6">
+  return (
+      <div className="min-h-screen w-full bg-brand-cream/50 overflow-x-hidden">
+        <div className="w-full max-w-full overflow-x-hidden">
+          <div className="p-2 sm:p-3 md:p-4 lg:p-6 max-w-full">
           {/* Venue login message */}
           {loginVenueMessage && (
             <div className="mb-3 sm:mb-4 p-3 rounded bg-green-50 border border-green-200 text-green-800 text-center text-sm">
@@ -448,12 +448,12 @@ const VenueOwnerDashboard = () => {
             </div>
           )}
           
-            {/* Header Section - Mobile Optimized */}
+          {/* Header Section - Mobile Optimized */}
             <div className="mb-3 sm:mb-4 md:mb-6">
               <div className="text-center mb-3 sm:mb-4">
                 <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-heading text-brand-burgundy mb-1">Venue Dashboard</h1>
-                <p className="text-xs sm:text-sm text-brand-burgundy/70">Manage your venue, bookings, and revenue</p>
-              </div>
+              <p className="text-xs sm:text-sm text-brand-burgundy/70">Manage your venue, bookings, and revenue</p>
+            </div>
             
             {/* Action Buttons - Mobile Grid Layout */}
             <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-2">
@@ -500,18 +500,18 @@ const VenueOwnerDashboard = () => {
             </div>
           </div>
 
-            {/* Quick Stats - Mobile Optimized Grid */}
+          {/* Quick Stats - Mobile Optimized Grid */}
             <div className="grid grid-cols-2 gap-1.5 sm:gap-3 md:gap-4 mb-3 sm:mb-4 md:mb-6">
-              <Card className="bg-white border-brand-burgundy/10">
+            <Card className="bg-white border-brand-burgundy/10">
                 <CardHeader className="flex flex-row items-center justify-between pb-1 px-2 sm:px-3 py-1.5 sm:py-2">
-                  <CardTitle className="text-xs font-medium text-brand-burgundy/70">Revenue</CardTitle>
-                  <CreditCard className="h-3 w-3 text-brand-gold" />
-                </CardHeader>
+                <CardTitle className="text-xs font-medium text-brand-burgundy/70">Revenue</CardTitle>
+                <CreditCard className="h-3 w-3 text-brand-gold" />
+              </CardHeader>
                 <CardContent className="px-2 sm:px-3 pb-2 sm:pb-3">
                   <div className="text-xs sm:text-sm md:text-lg font-bold text-brand-burgundy">₦{(stats.totalRevenue ?? 0).toLocaleString()}</div>
-                  <p className="text-xs text-brand-burgundy/70">All time</p>
-                </CardContent>
-              </Card>
+                <p className="text-xs text-brand-burgundy/70">All time</p>
+              </CardContent>
+            </Card>
 
             <Card className="bg-white border-brand-burgundy/10">
               <CardHeader className="flex flex-row items-center justify-between pb-1 px-2 sm:px-3 py-1.5 sm:py-2">

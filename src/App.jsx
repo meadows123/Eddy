@@ -110,10 +110,10 @@ const App = () => {
   return (
     <AuthProvider>
       {showSplashScreen && <SplashScreen onComplete={() => setShowSplashScreen(false)} />}
-      <div className="min-h-screen bg-gray-50 flex flex-col">
+      <div className="min-h-screen w-full bg-gray-50 flex flex-col overflow-x-hidden">
         <ScrollToTop />
         <Navigation />
-        <main className="flex-grow">
+        <main className="flex-grow w-full overflow-x-hidden">
           <Routes>
             {/* Public Routes */}
             <Route path="/" element={<LandingPage />} />
