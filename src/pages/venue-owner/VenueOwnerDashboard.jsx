@@ -437,10 +437,10 @@ const VenueOwnerDashboard = () => {
     );
   }
 
-  return (
-    <div className="h-screen w-screen fixed inset-0 bg-brand-cream/50 overflow-hidden">
-      <div className="h-full w-full overflow-y-auto">
-        <div className="p-3 sm:p-4 lg:p-6">
+    return (
+      <div className="min-h-screen w-full bg-brand-cream/50">
+        <div className="w-full">
+          <div className="p-2 sm:p-3 md:p-4 lg:p-6">
           {/* Venue login message */}
           {loginVenueMessage && (
             <div className="mb-3 sm:mb-4 p-3 rounded bg-green-50 border border-green-200 text-green-800 text-center text-sm">
@@ -448,12 +448,12 @@ const VenueOwnerDashboard = () => {
             </div>
           )}
           
-          {/* Header Section - Mobile Optimized */}
-          <div className="mb-4 sm:mb-6">
-            <div className="text-center mb-4">
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-heading text-brand-burgundy mb-1">Venue Dashboard</h1>
-              <p className="text-xs sm:text-sm text-brand-burgundy/70">Manage your venue, bookings, and revenue</p>
-            </div>
+            {/* Header Section - Mobile Optimized */}
+            <div className="mb-3 sm:mb-4 md:mb-6">
+              <div className="text-center mb-3 sm:mb-4">
+                <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-heading text-brand-burgundy mb-1">Venue Dashboard</h1>
+                <p className="text-xs sm:text-sm text-brand-burgundy/70">Manage your venue, bookings, and revenue</p>
+              </div>
             
             {/* Action Buttons - Mobile Grid Layout */}
             <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:gap-2">
@@ -500,85 +500,85 @@ const VenueOwnerDashboard = () => {
             </div>
           </div>
 
-          {/* Quick Stats - Mobile Optimized Grid */}
-          <div className="grid grid-cols-2 gap-2 sm:gap-4 mb-4 sm:mb-6">
-            <Card className="bg-white border-brand-burgundy/10">
-              <CardHeader className="flex flex-row items-center justify-between pb-1 px-3 py-2">
-                <CardTitle className="text-xs font-medium text-brand-burgundy/70">Revenue</CardTitle>
-                <CreditCard className="h-3 w-3 text-brand-gold" />
-              </CardHeader>
-              <CardContent className="px-3 pb-3">
-                <div className="text-sm sm:text-lg font-bold text-brand-burgundy">₦{(stats.totalRevenue ?? 0).toLocaleString()}</div>
-                <p className="text-xs text-brand-burgundy/70">All time</p>
-              </CardContent>
-            </Card>
+            {/* Quick Stats - Mobile Optimized Grid */}
+            <div className="grid grid-cols-2 gap-1.5 sm:gap-3 md:gap-4 mb-3 sm:mb-4 md:mb-6">
+              <Card className="bg-white border-brand-burgundy/10">
+                <CardHeader className="flex flex-row items-center justify-between pb-1 px-2 sm:px-3 py-1.5 sm:py-2">
+                  <CardTitle className="text-xs font-medium text-brand-burgundy/70">Revenue</CardTitle>
+                  <CreditCard className="h-3 w-3 text-brand-gold" />
+                </CardHeader>
+                <CardContent className="px-2 sm:px-3 pb-2 sm:pb-3">
+                  <div className="text-xs sm:text-sm md:text-lg font-bold text-brand-burgundy">₦{(stats.totalRevenue ?? 0).toLocaleString()}</div>
+                  <p className="text-xs text-brand-burgundy/70">All time</p>
+                </CardContent>
+              </Card>
 
             <Card className="bg-white border-brand-burgundy/10">
-              <CardHeader className="flex flex-row items-center justify-between pb-1 px-3 py-2">
+              <CardHeader className="flex flex-row items-center justify-between pb-1 px-2 sm:px-3 py-1.5 sm:py-2">
                 <CardTitle className="text-xs font-medium text-brand-burgundy/70">Payouts</CardTitle>
                 <TrendingUp className="h-3 w-3 text-brand-gold" />
               </CardHeader>
-              <CardContent className="px-3 pb-3">
-                <div className="text-sm sm:text-lg font-bold text-brand-burgundy">₦{(stats.pendingPayouts ?? 0).toLocaleString()}</div>
+              <CardContent className="px-2 sm:px-3 pb-2 sm:pb-3">
+                <div className="text-xs sm:text-sm md:text-lg font-bold text-brand-burgundy">₦{(stats.pendingPayouts ?? 0).toLocaleString()}</div>
                 <p className="text-xs text-brand-burgundy/70">Pending</p>
               </CardContent>
             </Card>
 
             <Card className="bg-white border-brand-burgundy/10">
-              <CardHeader className="flex flex-row items-center justify-between pb-1 px-3 py-2">
+              <CardHeader className="flex flex-row items-center justify-between pb-1 px-2 sm:px-3 py-1.5 sm:py-2">
                 <CardTitle className="text-xs font-medium text-brand-burgundy/70">Bookings</CardTitle>
                 <Calendar className="h-3 w-3 text-brand-gold" />
               </CardHeader>
-              <CardContent className="px-3 pb-3">
-                <div className="text-sm sm:text-lg font-bold text-brand-burgundy">{stats.activeBookings}</div>
+              <CardContent className="px-2 sm:px-3 pb-2 sm:pb-3">
+                <div className="text-xs sm:text-sm md:text-lg font-bold text-brand-burgundy">{stats.activeBookings}</div>
                 <p className="text-xs text-brand-burgundy/70">Active</p>
               </CardContent>
             </Card>
 
             <Card className="bg-white border-brand-burgundy/10">
-              <CardHeader className="flex flex-row items-center justify-between pb-1 px-3 py-2">
+              <CardHeader className="flex flex-row items-center justify-between pb-1 px-2 sm:px-3 py-1.5 sm:py-2">
                 <CardTitle className="text-xs font-medium text-brand-burgundy/70">Tables</CardTitle>
                 <Table2 className="h-3 w-3 text-brand-gold" />
               </CardHeader>
-              <CardContent className="px-3 pb-3">
-                <div className="text-sm sm:text-lg font-bold text-brand-burgundy">{stats.totalTables}</div>
+              <CardContent className="px-2 sm:px-3 pb-2 sm:pb-3">
+                <div className="text-xs sm:text-sm md:text-lg font-bold text-brand-burgundy">{stats.totalTables}</div>
                 <p className="text-xs text-brand-burgundy/70">Total</p>
               </CardContent>
             </Card>
           </div>
 
           {/* Main Content - Mobile Optimized Tabs */}
-          <Tabs defaultValue="bookings" className="space-y-3 sm:space-y-4">
-            <TabsList className="bg-white p-1 rounded-lg border border-brand-burgundy/10 w-full grid grid-cols-4">
+          <Tabs defaultValue="bookings" className="space-y-2 sm:space-y-3 md:space-y-4">
+            <TabsList className="bg-white p-0.5 sm:p-1 rounded-lg border border-brand-burgundy/10 w-full grid grid-cols-4">
               <TabsTrigger 
                 value="bookings" 
-                className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy text-xs py-2 px-1"
+                className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy text-xs py-1.5 sm:py-2 px-1"
               >
-                <Calendar className="h-3 w-3 mr-1" />
+                <Calendar className="h-3 w-3 mr-0.5 sm:mr-1" />
                 <span className="hidden sm:inline">Bookings</span>
                 <span className="sm:hidden">Book</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="tables" 
-                className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy text-xs py-2 px-1"
+                className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy text-xs py-1.5 sm:py-2 px-1"
               >
-                <Table2 className="h-3 w-3 mr-1" />
+                <Table2 className="h-3 w-3 mr-0.5 sm:mr-1" />
                 <span className="hidden sm:inline">Tables</span>
                 <span className="sm:hidden">Table</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="images" 
-                className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy text-xs py-2 px-1"
+                className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy text-xs py-1.5 sm:py-2 px-1"
               >
-                <Image className="h-3 w-3 mr-1" />
+                <Image className="h-3 w-3 mr-0.5 sm:mr-1" />
                 <span className="hidden sm:inline">Images</span>
                 <span className="sm:hidden">Img</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="analytics" 
-                className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy text-xs py-2 px-1"
+                className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy text-xs py-1.5 sm:py-2 px-1"
               >
-                <BarChart3 className="h-3 w-3 mr-1" />
+                <BarChart3 className="h-3 w-3 mr-0.5 sm:mr-1" />
                 <span className="hidden sm:inline">Analytics</span>
                 <span className="sm:hidden">Stats</span>
               </TabsTrigger>
@@ -586,7 +586,7 @@ const VenueOwnerDashboard = () => {
 
             <TabsContent value="bookings">
               <Card className="bg-white border-brand-burgundy/10">
-                <CardContent className="pt-3 px-3 pb-3">
+                <CardContent className="pt-2 sm:pt-3 px-2 sm:px-3 pb-2 sm:pb-3">
                   <BookingList currentUser={currentUser} />
                 </CardContent>
               </Card>
@@ -594,7 +594,7 @@ const VenueOwnerDashboard = () => {
 
             <TabsContent value="tables">
               <Card className="bg-white border-brand-burgundy/10">
-                <CardContent className="pt-3 px-3 pb-3">
+                <CardContent className="pt-2 sm:pt-3 px-2 sm:px-3 pb-2 sm:pb-3">
                   <TableManagement currentUser={currentUser} />
                 </CardContent>
               </Card>
@@ -602,7 +602,7 @@ const VenueOwnerDashboard = () => {
 
             <TabsContent value="images">
               <Card className="bg-white border-brand-burgundy/10">
-                <CardContent className="pt-3 px-3 pb-3">
+                <CardContent className="pt-2 sm:pt-3 px-2 sm:px-3 pb-2 sm:pb-3">
                   <ImageManagement currentUser={currentUser} />
                 </CardContent>
               </Card>
@@ -610,24 +610,25 @@ const VenueOwnerDashboard = () => {
 
             <TabsContent value="analytics">
               <Card className="bg-white border-brand-burgundy/10">
-                <CardContent className="pt-3 px-3 pb-3">
-                  <div className="space-y-4">
+                <CardContent className="pt-2 sm:pt-3 px-2 sm:px-3 pb-2 sm:pb-3">
+                  <div className="space-y-3 sm:space-y-4">
                     {/* Booking Trends Chart - Mobile Optimized */}
                     <div>
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-sm sm:text-base font-semibold text-brand-burgundy">Trends (7 Days)</h3>
+                      <div className="flex items-center justify-between mb-2 sm:mb-3">
+                        <h3 className="text-xs sm:text-sm md:text-base font-semibold text-brand-burgundy">Trends (7 Days)</h3>
                         <Button
                           onClick={() => fetchVenueData(true)}
                           variant="outline"
                           size="sm"
-                          className="border-brand-gold text-brand-gold hover:bg-brand-gold/10 text-xs px-2 py-1"
+                          className="border-brand-gold text-brand-gold hover:bg-brand-gold/10 text-xs px-1.5 sm:px-2 py-1"
                         >
-                          <RefreshCw className="h-3 w-3 mr-1" />
-                          Refresh
+                          <RefreshCw className="h-3 w-3 mr-0.5 sm:mr-1" />
+                          <span className="hidden sm:inline">Refresh</span>
+                          <span className="sm:hidden">↻</span>
                         </Button>
                       </div>
                       
-                      <div className="h-48 sm:h-64">
+                      <div className="h-40 sm:h-48 md:h-64">
                         {bookingTrends && bookingTrends.length > 0 ? (
                           <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={bookingTrends}>
@@ -680,10 +681,10 @@ const VenueOwnerDashboard = () => {
 
                     {/* Recent Bookings - Mobile Optimized */}
                     <div>
-                      <h3 className="text-sm sm:text-base font-semibold text-brand-burgundy mb-3">Recent Bookings</h3>
-                      <div className="space-y-2">
+                      <h3 className="text-xs sm:text-sm md:text-base font-semibold text-brand-burgundy mb-2 sm:mb-3">Recent Bookings</h3>
+                      <div className="space-y-1.5 sm:space-y-2">
                         {recentBookings.map((booking) => (
-                          <div key={booking.id} className="flex justify-between items-center p-2 sm:p-3 bg-brand-cream/30 rounded-lg">
+                          <div key={booking.id} className="flex justify-between items-center p-1.5 sm:p-2 md:p-3 bg-brand-cream/30 rounded-lg">
                             <div className="flex-1 min-w-0">
                               <div className="font-medium text-brand-burgundy text-xs sm:text-sm truncate">
                                 #{booking.id.slice(0, 8)}...
