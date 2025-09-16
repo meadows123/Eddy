@@ -20,6 +20,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/ta
 import { useNavigate } from 'react-router-dom';
 import BookingList from './components/BookingList';
 import ImageManagement from './components/ImageManagement';
+import TableManagement from './components/TableManagement';
 import { supabase } from '../../lib/supabase';
 import { toast } from '../../components/ui/use-toast';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -548,7 +549,7 @@ const VenueOwnerDashboard = () => {
 
           {/* Main Content - Mobile Optimized Tabs */}
           <Tabs defaultValue="bookings" className="space-y-3 sm:space-y-4">
-            <TabsList className="bg-white p-1 rounded-lg border border-brand-burgundy/10 w-full grid grid-cols-3">
+            <TabsList className="bg-white p-1 rounded-lg border border-brand-burgundy/10 w-full grid grid-cols-4">
               <TabsTrigger 
                 value="bookings" 
                 className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy text-xs py-2 px-1"
@@ -556,6 +557,14 @@ const VenueOwnerDashboard = () => {
                 <Calendar className="h-3 w-3 mr-1" />
                 <span className="hidden sm:inline">Bookings</span>
                 <span className="sm:hidden">Book</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="tables" 
+                className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy text-xs py-2 px-1"
+              >
+                <Table2 className="h-3 w-3 mr-1" />
+                <span className="hidden sm:inline">Tables</span>
+                <span className="sm:hidden">Table</span>
               </TabsTrigger>
               <TabsTrigger 
                 value="images" 
@@ -579,6 +588,14 @@ const VenueOwnerDashboard = () => {
               <Card className="bg-white border-brand-burgundy/10">
                 <CardContent className="pt-3 px-3 pb-3">
                   <BookingList currentUser={currentUser} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="tables">
+              <Card className="bg-white border-brand-burgundy/10">
+                <CardContent className="pt-3 px-3 pb-3">
+                  <TableManagement currentUser={currentUser} />
                 </CardContent>
               </Card>
             </TabsContent>
@@ -698,4 +715,4 @@ const VenueOwnerDashboard = () => {
   );
 };
 
-export default VenueOwnerDashboard; 
+export default VenueOwnerDashboard;
