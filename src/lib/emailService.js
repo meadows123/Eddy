@@ -93,22 +93,39 @@ export const sendBookingConfirmation = async (booking, venue, customer) => {
       tableInfo
     });
 
+    // Additional debugging to see all available fields
+    console.log('🔍 All booking fields available:', Object.keys(booking));
+    console.log('🔍 Booking object values:', {
+      'number_of_guests': booking.number_of_guests,
+      'guest_count': booking.guest_count,
+      'guests': booking.guests,
+      'booking_date': booking.booking_date,
+      'bookingDate': booking.bookingDate,
+      'start_time': booking.start_time,
+      'booking_time': booking.booking_time,
+      'time': booking.time,
+      'total_amount': booking.total_amount,
+      'amount': booking.amount,
+      'totalAmount': booking.totalAmount
+    });
+
     // Format booking data for the template - use actual user input, no static fallbacks
     const bookingData = {
       customerName: customer.full_name || customer.customerName || customer.name || 'Guest',
       customerEmail: customerEmail,
       customerPhone: customer.phone || customer.customerPhone || customer.phone_number || 'Not provided',
       bookingId: booking.id || booking.bookingId || 'N/A',
-      guestCount: actualGuestCount,
+      bookingReference: booking.booking_reference || `VIP-${booking.id || booking.bookingId || 'N/A'}`,
+      guestCount: actualGuestCount || 1, // Fallback to 1 if no value found
       bookingDate: actualBookingDate ? new Date(actualBookingDate).toLocaleDateString('en-US', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
         day: 'numeric'
       }) : 'Date not specified',
-      bookingTime: actualBookingTime,
-      endTime: booking.end_time || booking.endTime,
-      totalAmount: actualTotalAmount,
+      bookingTime: actualBookingTime || 'Time not specified',
+      endTime: booking.end_time || booking.endTime || 'End time not specified',
+      totalAmount: actualTotalAmount || 0,
       tableInfo: tableInfo,
       tableNumber: tableNumber,
       tableType: tableType,
