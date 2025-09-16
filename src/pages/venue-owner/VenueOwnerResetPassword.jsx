@@ -17,7 +17,6 @@ const VenueOwnerResetPassword = () => {
   const [success, setSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [debugInfo, setDebugInfo] = useState(null);
   const [isStandardReset, setIsStandardReset] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -32,32 +31,14 @@ const VenueOwnerResetPassword = () => {
     const standardToken = searchParams.get('token');
     const type = searchParams.get('type');
     
-    console.log('🔍 Reset password page loaded with params:', {
-      accessToken: accessToken ? 'Present' : 'Missing',
-      refreshToken: refreshToken ? 'Present' : 'Missing',
-      standardToken: standardToken ? 'Present' : 'Missing',
-      type: type,
-      allParams: Object.fromEntries(searchParams.entries())
-    });
-
-    setDebugInfo({
-      accessToken: accessToken ? 'Present' : 'Missing',
-      refreshToken: refreshToken ? 'Present' : 'Missing',
-      standardToken: standardToken ? 'Present' : 'Missing',
-      type: type,
-      allParams: Object.fromEntries(searchParams.entries())
-    });
-
     // Handle standard Supabase password reset (token parameter)
     if (standardToken) {
-      console.log('🔄 Standard password reset detected');
       setIsStandardReset(true);
       return;
     }
 
     // Handle venue owner specific reset (access_token/refresh_token)
     if (!accessToken || !refreshToken) {
-      console.error('❌ Missing tokens for password reset');
       setError('Invalid or missing reset link. Please request a new password reset.');
       return;
     }
@@ -65,33 +46,24 @@ const VenueOwnerResetPassword = () => {
     // Set the session with the tokens from the URL
     const setSession = async () => {
       try {
-        console.log('🔄 Setting session with tokens...');
-        
         const { error } = await supabase.auth.setSession({
           access_token: accessToken,
           refresh_token: refreshToken
         });
 
         if (error) {
-          console.error('❌ Session error:', error);
           setError('Invalid reset link. Please request a new password reset.');
           return;
         }
-
-        console.log('✅ Session set successfully');
         
         // Verify we have a user
         const { data: { user }, error: userError } = await supabase.auth.getUser();
         if (userError || !user) {
-          console.error('❌ User verification failed:', userError);
           setError('Unable to verify user. Please request a new password reset.');
           return;
         }
-
-        console.log('✅ User verified:', user.email);
         
       } catch (error) {
-        console.error('❌ Error setting session:', error);
         setError('Failed to validate reset link. Please try again.');
       }
     };
@@ -210,23 +182,23 @@ const VenueOwnerResetPassword = () => {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="h-screen w-screen bg-gray-50 flex items-center justify-center p-4 fixed inset-0 overflow-hidden">
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-lg text-center"
+          className="w-full max-w-sm space-y-6 bg-white p-4 rounded-xl shadow-lg text-center"
         >
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2 }}
-            className="mx-auto h-16 w-16 bg-green-100 rounded-full flex items-center justify-center"
+            className="mx-auto h-12 w-12 bg-green-100 rounded-full flex items-center justify-center"
           >
-            <CheckCircle className="h-8 w-8 text-green-600" />
+            <CheckCircle className="h-6 w-6 text-green-600" />
           </motion.div>
           
           <div>
-            <h2 className="text-2xl font-heading text-gray-900">
+            <h2 className="text-xl font-heading text-gray-900">
               Password Updated Successfully!
             </h2>
             <p className="mt-2 text-sm text-gray-600">
@@ -247,22 +219,22 @@ const VenueOwnerResetPassword = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="h-screen w-screen bg-gray-50 flex items-center justify-center p-4 fixed inset-0 overflow-hidden">
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-lg"
+        className="w-full max-w-sm space-y-6 bg-white p-4 rounded-xl shadow-lg overflow-y-auto max-h-full"
       >
         <div className="text-center">
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2 }}
-            className="mx-auto h-12 w-12 bg-brand-burgundy/10 rounded-full flex items-center justify-center"
+            className="mx-auto h-10 w-10 bg-brand-burgundy/10 rounded-full flex items-center justify-center"
           >
-            <Store className="h-6 w-6 text-brand-burgundy" />
+            <Store className="h-5 w-5 text-brand-burgundy" />
           </motion.div>
-          <h2 className="mt-6 text-3xl font-heading text-brand-burgundy">
+          <h2 className="mt-4 text-2xl font-heading text-brand-burgundy">
             Reset Your Password
           </h2>
           <p className="mt-2 text-sm text-brand-burgundy/70">
@@ -291,19 +263,7 @@ const VenueOwnerResetPassword = () => {
           </motion.div>
         )}
 
-        {debugInfo && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-blue-50 border border-blue-200 rounded-md p-4"
-          >
-            <p className="text-xs text-blue-600 font-mono">
-              Debug: {JSON.stringify(debugInfo, null, 2)}
-            </p>
-          </motion.div>
-        )}
-
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div>
               <Label htmlFor="password" className="text-brand-burgundy">
@@ -384,7 +344,7 @@ const VenueOwnerResetPassword = () => {
           </div>
         </form>
 
-        <div className="text-center mt-6">
+        <div className="text-center mt-4">
           <p className="text-sm text-brand-burgundy/70">
             Remember your password?{' '}
             <button
