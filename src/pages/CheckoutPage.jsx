@@ -387,13 +387,14 @@ try {
 if (bookingData.dbRecord) {
 booking = bookingData.dbRecord;
 } else {
-// Fallback to constructed data
+// Fallback to constructed data - use both selection and bookingData
+const dataSource = selection || bookingData;
 booking = {
   id: bookingData.bookingId || bookingData.id,
   booking_date: bookingData.bookingDate || new Date().toISOString(),
-  booking_time: selection.time || '19:00:00',
-  guest_count: selection.guests || selection.guestCount || 2,
-  table_number: selection.table?.name || selection.table?.table_number,
+  booking_time: dataSource?.time || '19:00:00',
+  guest_count: dataSource?.guests || dataSource?.guestCount || 2,
+  table_number: dataSource?.table?.name || dataSource?.table?.table_number,
   total_amount: bookingData.totalAmount,
   status: 'confirmed'
 };

@@ -32,17 +32,11 @@ const optimizeEmailDelivery = (params) => {
   };
 };
 
+// UPDATED: Use Supabase send-email function for booking confirmations
 export const sendBookingConfirmation = async (booking, venue, customer) => {
   try {
-    // Check if EmailJS is configured
-    if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.templateId || !EMAILJS_CONFIG.publicKey) {
-      console.warn('⚠️ EmailJS not fully configured. Check your .env file for:');
-      console.warn('   - VITE_EMAILJS_SERVICE_ID');
-      console.warn('   - VITE_EMAILJS_TEMPLATE_ID'); 
-      console.warn('   - VITE_EMAILJS_PUBLIC_KEY');
-      throw new Error('EmailJS configuration incomplete');
-    }
-
+    console.log('🔄 Sending booking confirmation via Supabase Edge Function...');
+    
     // Validate customer email
     const customerEmail = customer.email || customer.customerEmail || customer.full_name;
     if (!customerEmail || !customerEmail.includes('@')) {
@@ -50,38 +44,78 @@ export const sendBookingConfirmation = async (booking, venue, customer) => {
       throw new Error('Invalid customer email address');
     }
 
-    // Use exact parameter names that match the EmailJS template
-    const templateParams = {
-      // EmailJS required fields - these MUST match your template exactly
-      customerEmail: customerEmail, // This matches the template's "To" field
-      to_name: customer.full_name || customer.customerName || customer.name || 'Valued Customer',
-      
-      // Customer Information
-      customerName: customer.full_name || customer.customerName || customer.name || 'Valued Customer',
-      to_email: customerEmail, // Keep this for backward compatibility
-      customerPhone: customer.phone || customer.customerPhone || customer.phone_number || 'N/A',
-      
-      // Booking Information - Use actual booking data
-      bookingReference: booking.booking_reference || `VIP-${booking.id}`,
-      partySize: booking.guest_count || booking.guests || booking.number_of_guests || '2',
-      bookingDate: new Date(booking.booking_date).toLocaleDateString('en-US', {
+    // Get table information if table_id exists
+    let tableInfo = 'Table to be confirmed';
+    let tableNumber = 'TBC';
+    let tableType = 'VIP Table';
+    let tableCapacity = '4';
+
+    if (booking.table_id) {
+      try {
+        const { data: tableData, error: tableError } = await supabase
+          .from('venue_tables')
+          .select('table_number, table_type, capacity')
+          .eq('id', booking.table_id)
+          .single();
+        
+        if (!tableError && tableData) {
+          tableInfo = `Table ${tableData.table_number}`;
+          tableNumber = tableData.table_number;
+          tableType = tableData.table_type || 'VIP Table';
+          tableCapacity = tableData.capacity || '4';
+        }
+      } catch (error) {
+        console.warn('Could not fetch table information:', error);
+      }
+    } else if (booking.table_number) {
+      tableInfo = `Table ${booking.table_number}`;
+      tableNumber = booking.table_number;
+    }
+
+    // Debug: Log the actual booking data being received
+    console.log('🔍 Raw booking data received:', {
+      booking: booking,
+      venue: venue,
+      customer: customer
+    });
+
+    // Extract the actual user input values - prioritize database record over fallbacks
+    const actualGuestCount = booking.number_of_guests || booking.guest_count || booking.guests;
+    const actualBookingDate = booking.booking_date || booking.bookingDate;
+    const actualBookingTime = booking.start_time || booking.booking_time || booking.time;
+    const actualTotalAmount = booking.total_amount || booking.amount || booking.totalAmount;
+
+    console.log('🎯 Extracted actual values:', {
+      actualGuestCount,
+      actualBookingDate,
+      actualBookingTime,
+      actualTotalAmount,
+      tableInfo
+    });
+
+    // Format booking data for the template - use actual user input, no static fallbacks
+    const bookingData = {
+      customerName: customer.full_name || customer.customerName || customer.name || 'Guest',
+      customerEmail: customerEmail,
+      customerPhone: customer.phone || customer.customerPhone || customer.phone_number || 'Not provided',
+      bookingId: booking.id || booking.bookingId || 'N/A',
+      guestCount: actualGuestCount,
+      bookingDate: actualBookingDate ? new Date(actualBookingDate).toLocaleDateString('en-US', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
         day: 'numeric'
-      }),
-      bookingTime: booking.booking_time || booking.start_time || '7:00 PM',
-      bookingDuration: booking.duration || booking.booking_duration || '4',
-      
-      // Table Information - Use actual table data
-      tableNumber: booking.table_number || booking.table_id || 'VIP-001',
-      tableType: booking.table_type || venue.table_type || 'VIP Table',
-      tableCapacity: booking.guest_count || booking.guests || booking.number_of_guests || '2',
-      tableLocation: booking.table_location || venue.table_location || 'Prime Location',
-      tableFeatures: booking.table_features || venue.table_features || 'Premium seating with excellent view',
-      
-      // Venue Information - Use actual venue data
-      venueName: venue.name || 'Premium Venue',
+      }) : 'Date not specified',
+      bookingTime: actualBookingTime,
+      endTime: booking.end_time || booking.endTime,
+      totalAmount: actualTotalAmount,
+      tableInfo: tableInfo,
+      tableNumber: tableNumber,
+      tableType: tableType,
+      tableCapacity: tableCapacity,
+      tableLocation: booking.table_location || 'Prime location',
+      tableFeatures: booking.table_features || 'Premium features',
+      venueName: venue.name || venue.venueName || 'Venue',
       venueDescription: venue.description || venue.about || 'Experience luxury dining and entertainment in Lagos\' most exclusive venue.',
       venueAddress: venue.address || venue.location || 'Lagos, Nigeria',
       venuePhone: venue.contact_phone || venue.phone || venue.contact_number || '+234 XXX XXX XXXX',
@@ -89,47 +123,70 @@ export const sendBookingConfirmation = async (booking, venue, customer) => {
       venueParking: venue.parking || venue.parking_info || 'Valet parking available',
       venueCuisine: venue.cuisine || venue.cuisine_type || 'International cuisine',
       venueHours: venue.hours || venue.opening_hours || venue.business_hours || '6:00 PM - 2:00 AM',
-      
-      // Special Information - Use actual booking notes
       specialRequests: booking.special_requests || booking.notes || booking.additional_notes || 'None specified',
-      
-      // Action URLs (you can update these later)
       viewBookingUrl: `${window.location.origin}/profile`,
       modifyBookingUrl: `${window.location.origin}/profile`,
       cancelBookingUrl: `${window.location.origin}/profile`,
       websiteUrl: window.location.origin,
-      supportUrl: 'mailto:info@oneeddy.com',
-      unsubscribeUrl: `${window.location.origin}/settings`
+      supportUrl: `${window.location.origin}/contact`,
+      unsubscribeUrl: `${window.location.origin}/profile`
     };
 
-    // Optimize email delivery to reduce spam filtering
-    const optimizedParams = optimizeEmailDelivery(templateParams);
+    // Debug: Log the formatted booking data
+    console.log('📧 Formatted booking data for email:', {
+      guestCount: bookingData.guestCount,
+      bookingDate: bookingData.bookingDate,
+      bookingTime: bookingData.bookingTime,
+      tableInfo: bookingData.tableInfo,
+      totalAmount: bookingData.totalAmount
+    });
 
-    console.log('🔄 Sending booking confirmation with optimized parameters:', {
-      to_email: optimizedParams.to_email,
-      customerName: optimizedParams.customerName,
-      bookingReference: optimizedParams.bookingReference,
-      venueName: optimizedParams.venueName,
-      subject: optimizedParams.subject
+    // Additional debugging for troubleshooting
+    console.log('🔍 Debugging info:', {
+      'booking.number_of_guests': booking.number_of_guests,
+      'booking.guest_count': booking.guest_count,
+      'booking.guests': booking.guests,
+      'booking.booking_date': booking.booking_date,
+      'booking.bookingDate': booking.bookingDate,
+      'booking.start_time': booking.start_time,
+      'booking.booking_time': booking.booking_time,
+      'booking.time': booking.time,
+      'booking.total_amount': booking.total_amount,
+      'booking.amount': booking.amount,
+      'booking.totalAmount': booking.totalAmount
+    });
+
+    console.log('📧 Sending booking confirmation with data:', {
+      to: customerEmail,
+      customerName: bookingData.customerName,
+      bookingReference: bookingData.bookingReference,
+      venueName: bookingData.venueName
     });
     
-    // Send to customer using optimized template parameters
-    const result = await emailjs.send(
-      EMAILJS_CONFIG.serviceId,
-      EMAILJS_CONFIG.templateId,
-      optimizedParams
-    );
+    // Send using Supabase Edge Function
+    const { data, error } = await supabase.functions.invoke('send-email', {
+      body: {
+        to: customerEmail,
+        subject: `Booking Confirmed - ${bookingData.venueName}`,
+        template: 'booking-confirmation',
+        data: bookingData
+      }
+    });
 
-    console.log('✅ Booking confirmation email sent successfully:', result);
+    if (error) {
+      console.error('❌ Failed to send booking confirmation via Edge Function:', error);
+      throw error;
+    }
+
+    console.log('✅ Booking confirmation email sent successfully via Supabase:', data);
     
     // Log delivery optimization tips
     console.log('📧 Email Delivery Tips:');
     console.log('   - Check spam/junk folder if email not received');
     console.log('   - Mark as "Not Spam" to improve future delivery');
     console.log('   - Add info@oneeddy.com to contacts');
-    console.log('   - Reply to the email to improve sender reputation');
     
-    return result;
+    return data;
   } catch (error) {
     console.error('❌ Failed to send booking confirmation:', error);
     console.error('Error details:', {
@@ -138,8 +195,7 @@ export const sendBookingConfirmation = async (booking, venue, customer) => {
       text: error.text
     });
     
-    // Don't throw the error to prevent booking failure
-    return false;
+    throw error;
   }
 };
 
