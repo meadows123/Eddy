@@ -44,19 +44,75 @@ export const sendBookingConfirmation = async (booking, venue, customer) => {
       throw new Error('Invalid customer email address');
     }
 
-    // Format booking data for the template
+    // Get table information if table_id exists
+    let tableInfo = 'Table to be confirmed';
+    let tableNumber = 'TBC';
+    let tableType = 'VIP Table';
+    let tableCapacity = '4';
+
+    if (booking.table_id) {
+      try {
+        const { data: tableData, error: tableError } = await supabase
+          .from('venue_tables')
+          .select('table_number, table_type, capacity')
+          .eq('id', booking.table_id)
+          .single();
+        
+        if (!tableError && tableData) {
+          tableInfo = `Table ${tableData.table_number}`;
+          tableNumber = tableData.table_number;
+          tableType = tableData.table_type || 'VIP Table';
+          tableCapacity = tableData.capacity || '4';
+        }
+      } catch (error) {
+        console.warn('Could not fetch table information:', error);
+      }
+    } else if (booking.table_number) {
+      tableInfo = `Table ${booking.table_number}`;
+      tableNumber = booking.table_number;
+    }
+
+    // Debug: Log the actual booking data being received
+    console.log('🔍 Raw booking data received:', {
+      booking: booking,
+      venue: venue,
+      customer: customer
+    });
+
+    // Extract the actual user input values - prioritize database record over fallbacks
+    const actualGuestCount = booking.number_of_guests || booking.guest_count || booking.guests;
+    const actualBookingDate = booking.booking_date || booking.bookingDate;
+    const actualBookingTime = booking.start_time || booking.booking_time || booking.time;
+    const actualTotalAmount = booking.total_amount || booking.amount || booking.totalAmount;
+
+    console.log('🎯 Extracted actual values:', {
+      actualGuestCount,
+      actualBookingDate,
+      actualBookingTime,
+      actualTotalAmount,
+      tableInfo
+    });
+
+    // Format booking data for the template - use actual user input, no static fallbacks
     const bookingData = {
-      customerName: customer.full_name || customer.customerName || 'Guest',
+      customerName: customer.full_name || customer.customerName || customer.name || 'Guest',
       customerEmail: customerEmail,
-      customerPhone: customer.phone || customer.customerPhone || 'Not provided',
-      bookingReference: booking.id || booking.bookingId || 'N/A',
-      partySize: booking.number_of_guests || booking.guest_count || 2,
-      bookingDate: booking.booking_date || booking.bookingDate || new Date().toISOString().split('T')[0],
-      bookingTime: booking.start_time || booking.booking_time || '19:00',
-      bookingDuration: booking.duration || '3',
-      tableNumber: booking.table_number || 'TBD',
-      tableType: booking.table_type || 'VIP Table',
-      tableCapacity: booking.table_capacity || '4',
+      customerPhone: customer.phone || customer.customerPhone || customer.phone_number || 'Not provided',
+      bookingId: booking.id || booking.bookingId || 'N/A',
+      guestCount: actualGuestCount,
+      bookingDate: actualBookingDate ? new Date(actualBookingDate).toLocaleDateString('en-US', {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      }) : 'Date not specified',
+      bookingTime: actualBookingTime,
+      endTime: booking.end_time || booking.endTime,
+      totalAmount: actualTotalAmount,
+      tableInfo: tableInfo,
+      tableNumber: tableNumber,
+      tableType: tableType,
+      tableCapacity: tableCapacity,
       tableLocation: booking.table_location || 'Prime location',
       tableFeatures: booking.table_features || 'Premium features',
       venueName: venue.name || venue.venueName || 'Venue',
@@ -75,6 +131,30 @@ export const sendBookingConfirmation = async (booking, venue, customer) => {
       supportUrl: `${window.location.origin}/contact`,
       unsubscribeUrl: `${window.location.origin}/profile`
     };
+
+    // Debug: Log the formatted booking data
+    console.log('📧 Formatted booking data for email:', {
+      guestCount: bookingData.guestCount,
+      bookingDate: bookingData.bookingDate,
+      bookingTime: bookingData.bookingTime,
+      tableInfo: bookingData.tableInfo,
+      totalAmount: bookingData.totalAmount
+    });
+
+    // Additional debugging for troubleshooting
+    console.log('🔍 Debugging info:', {
+      'booking.number_of_guests': booking.number_of_guests,
+      'booking.guest_count': booking.guest_count,
+      'booking.guests': booking.guests,
+      'booking.booking_date': booking.booking_date,
+      'booking.bookingDate': booking.bookingDate,
+      'booking.start_time': booking.start_time,
+      'booking.booking_time': booking.booking_time,
+      'booking.time': booking.time,
+      'booking.total_amount': booking.total_amount,
+      'booking.amount': booking.amount,
+      'booking.totalAmount': booking.totalAmount
+    });
 
     console.log('📧 Sending booking confirmation with data:', {
       to: customerEmail,
