@@ -16,6 +16,8 @@ const VenueReviews = ({ venueId, venueName }) => {
   const { toast } = useToast();
   const { user } = useAuth();
 
+  console.log('🔍 VenueReviews component loaded with:', { venueId, venueName });
+
   // Fetch reviews from database
   const fetchReviews = async () => {
     try {
@@ -23,7 +25,7 @@ const VenueReviews = ({ venueId, venueName }) => {
         .from('venue_reviews')
         .select(`
           *,
-          user_profiles:user_id (
+          profiles:user_id (
             first_name,
             last_name
           )
@@ -170,12 +172,20 @@ const VenueReviews = ({ venueId, venueName }) => {
         </div>
         
         {/* Add Review Button */}
-        <Dialog open={isAddingReview} onOpenChange={setIsAddingReview}>
+        <Dialog open={isAddingReview} onOpenChange={(open) => {
+          console.log('🔍 Dialog state changing to:', open);
+          setIsAddingReview(open);
+        }}>
           <DialogTrigger asChild>
             <Button 
               variant="outline" 
               size="sm"
               className="border-brand-burgundy/20 text-brand-burgundy hover:bg-brand-burgundy/5"
+              data-testid="add-review-dialog-trigger"
+              onClick={() => {
+                console.log('🔍 Add Review button clicked!');
+                setIsAddingReview(true);
+              }}
             >
               <Plus className="h-4 w-4 mr-2" />
               Add Review
@@ -272,13 +282,13 @@ const VenueReviews = ({ venueId, venueName }) => {
               <div className="flex items-start gap-3 mb-3">
                 <div className="w-12 h-12 bg-brand-burgundy rounded-full flex items-center justify-center flex-shrink-0">
                   <span className="text-white font-medium text-sm">
-                    {getUserInitials(review.user_profiles)}
+                    {getUserInitials(review.profiles)}
                   </span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-medium text-brand-burgundy truncate">
-                      {getUserName(review.user_profiles)}
+                      {getUserName(review.profiles)}
                     </span>
                     <div className="w-4 h-4 bg-green-500 rounded-full flex items-center justify-center flex-shrink-0">
                       <CheckCircle className="w-3 h-3 text-white" />

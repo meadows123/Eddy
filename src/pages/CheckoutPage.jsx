@@ -387,14 +387,13 @@ try {
 if (bookingData.dbRecord) {
 booking = bookingData.dbRecord;
 } else {
-// Fallback to constructed data - use both selection and bookingData
-const dataSource = selection || bookingData;
+// Fallback to constructed data
 booking = {
   id: bookingData.bookingId || bookingData.id,
   booking_date: bookingData.bookingDate || new Date().toISOString(),
-  booking_time: dataSource?.time || '19:00:00',
-  guest_count: dataSource?.guests || dataSource?.guestCount || 2,
-  table_number: dataSource?.table?.name || dataSource?.table?.table_number,
+  booking_time: selection.time || '19:00:00',
+  guest_count: selection.guests || selection.guestCount || 2,
+  table_number: selection.table?.name || selection.table?.table_number,
   total_amount: bookingData.totalAmount,
   status: 'confirmed'
 };
@@ -577,8 +576,24 @@ throw new Error('Failed to create user account - no user returned from signup');
 
       console.log('Successfully created user:', newUser.user.id);
 
-      // For new users, we don't need to verify the session immediately
-      // The user object from signup is sufficient for creating the profile
+      // CRITICAL: For new users, ensure Supabase session is properly established for RLS
+      if (newUser.session) {
+        console.log('✅ New user has session, setting it for RLS...');
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: newUser.session.access_token,
+          refresh_token: newUser.session.refresh_token
+        });
+        
+        if (sessionError) {
+          console.error('❌ Failed to set session for new user:', sessionError);
+          throw new Error('Failed to establish authentication session');
+        }
+        
+        console.log('✅ Session established for new user - RLS should now work');
+      } else {
+        console.warn('⚠️ No session returned from signup, RLS may fail');
+      }
+
       console.log('New user created successfully, proceeding with profile creation');
 
       // Skip client-side profile upsert here to avoid RLS errors during email-confirmation flow.

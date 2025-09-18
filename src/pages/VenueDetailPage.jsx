@@ -184,21 +184,9 @@ const VenueDetailPage = () => {
     );
   }
 
-  // Calculate review statistics from database
-  const reviewCount = reviews?.length || 0; // Number of reviews available
-  const totalReviews = reviews?.length || 0; // Total number of reviews from database
-  
-  // Calculate average rating from actual reviews
-  const averageRating = reviews && reviews.length > 0 
-    ? (reviews.reduce((sum, review) => sum + (review.rating || 0), 0) / reviews.length).toFixed(1)
-    : venue?.rating || 4.5;
-    
   // Debug logging
   console.log('🔍 VenueDetailPage Debug:', {
     venue: venue?.id,
-    reviewsCount: reviews?.length || 0,
-    reviews: reviews || [],
-    averageRating,
     venueRating: venue?.rating
   });
 
@@ -280,7 +268,7 @@ const VenueDetailPage = () => {
               <span className="font-medium text-brand-burgundy">{venue.rating}</span>
             </div>
             <span className="text-brand-burgundy/60">·</span>
-            <span className="text-brand-burgundy/60 underline">{reviewCount} reviews</span>
+            <span className="text-brand-burgundy/60 underline">Reviews</span>
             <span className="text-brand-burgundy/60">·</span>
             <div className="flex items-center gap-1">
               <MapPin className="h-4 w-4 text-brand-burgundy/60" />

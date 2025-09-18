@@ -132,23 +132,48 @@ const SplitPaymentPage = () => {
         console.log('🔍 Handling initiator request for booking:', bookingId);
         
         // For initiator, we need to fetch the booking directly and create a mock payment request
-        const { data: bookingData, error: bookingError } = await supabase
+        console.log('🔍 Attempting to fetch booking with ID:', bookingId);
+        
+        // Try a simpler query first without joins to see if booking exists
+        const { data: simpleBooking, error: simpleError } = await supabase
           .from('bookings')
-          .select(`
-            *
-          `)
+          .select('*')
           .eq('id', bookingId)
-          .maybeSingle();
-
-        if (bookingError) {
-          console.error('❌ Error fetching booking for initiator:', bookingError);
+          .single();
+          
+        console.log('🔍 Simple booking query result:', { simpleBooking, simpleError });
+        
+        if (simpleError || !simpleBooking) {
+          console.error('❌ Booking not found with simple query:', { simpleError, simpleBooking });
           throw new Error('Booking not found');
         }
         
-        if (!bookingData) {
-          console.error('❌ Booking not found for initiator');
-          throw new Error('Booking not found');
-        }
+        // Now get venue and user data separately
+        const { data: venueData, error: venueError } = await supabase
+          .from('venues')
+          .select('name, address, city')
+          .eq('id', simpleBooking.venue_id)
+          .single();
+          
+        const { data: userData, error: userError } = await supabase
+          .from('profiles')
+          .select('first_name, last_name')
+          .eq('id', simpleBooking.user_id)
+          .single();
+          
+        console.log('🔍 Additional data queries:', { venueData, venueError, userData, userError });
+        
+        // Combine the data
+        const bookingData = {
+          ...simpleBooking,
+          venues: venueData || { name: 'Unknown Venue', address: 'Lagos', city: 'Lagos' },
+          profiles: userData || { first_name: 'User', last_name: '' }
+        };
+        
+        console.log('✅ Combined booking data:', bookingData);
+
+        // Use the combined booking data
+        const finalBookingData = bookingData;
 
         // Create a mock payment request for the initiator
         const mockRequest = {
@@ -162,12 +187,10 @@ const SplitPaymentPage = () => {
         };
 
         setPaymentRequest(mockRequest);
-        setBooking(bookingData);
+        setBooking(finalBookingData);
+        setVenue(finalBookingData.venues);
         
-        // Fetch venue data
-        if (bookingData.venue_id) {
-          await fetchVenueData(bookingData.venue_id);
-        }
+        console.log('✅ Set booking and venue data for initiator');
         
         setLoading(false);
         return;

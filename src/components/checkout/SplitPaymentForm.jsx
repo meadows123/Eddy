@@ -361,6 +361,30 @@ const SplitPaymentForm = ({
       setRealBookingId(newBookingId);
       console.log('Set realBookingId to:', newBookingId);
 
+      // CRITICAL: Verify the booking actually exists in the database before proceeding
+      console.log('🔍 Verifying booking exists in database before creating split requests...');
+      const { data: bookingVerification, error: verifyError } = await supabase
+        .from('bookings')
+        .select('id, status')
+        .eq('id', newBookingId)
+        .single();
+        
+      if (verifyError || !bookingVerification) {
+        console.error('❌ Booking verification failed:', { verifyError, bookingVerification });
+        
+        // Show all bookings for debugging
+        const { data: allBookings } = await supabase
+          .from('bookings')
+          .select('id, status, created_at')
+          .order('created_at', { ascending: false })
+          .limit(5);
+        console.log('🔍 Recent bookings in database:', allBookings);
+        
+        throw new Error(`Booking ${newBookingId} was not properly saved to database. Please try again.`);
+      }
+      
+      console.log('✅ Booking verified in database:', bookingVerification);
+
       // Ensure we have recipients before creating requests
       if (!splitRecipients || splitRecipients.length === 0) {
         throw new Error('Please select recipients for split payment.');

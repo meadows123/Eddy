@@ -3,12 +3,17 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Calendar, Clock, Users, AlertCircle } from 'lucide-react';
+import { Calendar, Clock, Users, AlertCircle, User, Mail, Phone, Lock } from 'lucide-react';
 import { checkTableAvailability, getAvailableTables } from '@/lib/api';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/components/ui/use-toast';
+import { supabase } from '@/lib/supabase';
 
 const BookingModal = ({ isOpen, onClose, venue }) => {
   const navigate = useNavigate();
+  const { user, signIn, signUp } = useAuth();
+  const { toast } = useToast();
   
   // State for booking form
   const [selectedDate, setSelectedDate] = useState('');
@@ -21,6 +26,79 @@ const BookingModal = ({ isOpen, onClose, venue }) => {
   const [timeAvailability, setTimeAvailability] = useState([]);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  
+  // Authentication modal state
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authMode, setAuthMode] = useState('login'); // 'login' or 'signup'
+  const [authForm, setAuthForm] = useState({
+    email: '',
+    password: '',
+    fullName: '',
+    phone: ''
+  });
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState('');
+
+  // Authentication functions
+  const handleAuthSubmit = async (e) => {
+    e.preventDefault();
+    setAuthLoading(true);
+    setAuthError('');
+
+    try {
+      if (authMode === 'login') {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: authForm.email,
+          password: authForm.password
+        });
+        if (error) throw error;
+        
+        toast({
+          title: "Logged in successfully!",
+          description: "You can now proceed with your booking",
+          className: "bg-green-500 text-white"
+        });
+      } else {
+        const { data, error } = await supabase.auth.signUp({
+          email: authForm.email,
+          password: authForm.password,
+          options: {
+            data: {
+              full_name: authForm.fullName,
+              phone: authForm.phone
+            }
+          }
+        });
+        if (error) throw error;
+        
+        toast({
+          title: "Account created successfully!",
+          description: "You can now proceed with your booking",
+          className: "bg-green-500 text-white"
+        });
+      }
+
+      // Close auth modal and proceed to checkout
+      setShowAuthModal(false);
+      setAuthForm({ email: '', password: '', fullName: '', phone: '' });
+      
+      // Wait a moment for auth state to update, then proceed
+      setTimeout(() => {
+        continueToCheckout();
+      }, 500);
+
+    } catch (error) {
+      console.error('Authentication error:', error);
+      setAuthError(error.message || 'Authentication failed');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
+
+  const handleAuthInputChange = (field, value) => {
+    setAuthForm(prev => ({ ...prev, [field]: value }));
+    if (authError) setAuthError(''); // Clear error when user types
+  };
 
   // Load available tables when modal opens
   useEffect(() => {
@@ -97,6 +175,18 @@ const BookingModal = ({ isOpen, onClose, venue }) => {
       return;
     }
 
+    // Check if user is authenticated before proceeding to checkout
+    if (!user) {
+      console.log('🔐 User not authenticated, showing auth modal');
+      setShowAuthModal(true);
+      return;
+    }
+
+    console.log('✅ User authenticated, proceeding to checkout');
+    continueToCheckout();
+  };
+
+  const continueToCheckout = () => {
     // Prepare the booking data
     const bookingData = {
       venue: venue,
@@ -150,6 +240,7 @@ const BookingModal = ({ isOpen, onClose, venue }) => {
   };
 
   return (
+    <>
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -304,6 +395,124 @@ const BookingModal = ({ isOpen, onClose, venue }) => {
         </div>
       </DialogContent>
     </Dialog>
+
+    {/* Authentication Modal */}
+    <Dialog open={showAuthModal} onOpenChange={setShowAuthModal}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>
+            {authMode === 'login' ? 'Log In to Book' : 'Create Account to Book'}
+          </DialogTitle>
+        </DialogHeader>
+        
+        <div className="space-y-4">
+          {authError && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+              <div className="flex items-center">
+                <AlertCircle className="h-4 w-4 text-red-500 mr-2" />
+                <span className="text-sm text-red-700">{authError}</span>
+              </div>
+            </div>
+          )}
+
+          <form onSubmit={handleAuthSubmit} className="space-y-4">
+            {authMode === 'signup' && (
+              <div>
+                <Label htmlFor="fullName" className="text-sm font-medium">Full Name</Label>
+                <div className="relative">
+                  <User className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
+                  <Input
+                    id="fullName"
+                    type="text"
+                    placeholder="Enter your full name"
+                    value={authForm.fullName}
+                    onChange={(e) => handleAuthInputChange('fullName', e.target.value)}
+                    className="pl-10"
+                    required={authMode === 'signup'}
+                  />
+                </div>
+              </div>
+            )}
+
+            <div>
+              <Label htmlFor="email" className="text-sm font-medium">Email</Label>
+              <div className="relative">
+                <Mail className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="Enter your email"
+                  value={authForm.email}
+                  onChange={(e) => handleAuthInputChange('email', e.target.value)}
+                  className="pl-10"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="password" className="text-sm font-medium">Password</Label>
+              <div className="relative">
+                <Lock className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="Enter your password"
+                  value={authForm.password}
+                  onChange={(e) => handleAuthInputChange('password', e.target.value)}
+                  className="pl-10"
+                  required
+                />
+              </div>
+            </div>
+
+            {authMode === 'signup' && (
+              <div>
+                <Label htmlFor="phone" className="text-sm font-medium">Phone Number</Label>
+                <div className="relative">
+                  <Phone className="h-4 w-4 absolute left-3 top-3 text-gray-400" />
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="Enter your phone number"
+                    value={authForm.phone}
+                    onChange={(e) => handleAuthInputChange('phone', e.target.value)}
+                    className="pl-10"
+                    required={authMode === 'signup'}
+                  />
+                </div>
+              </div>
+            )}
+
+            <Button
+              type="submit"
+              className="w-full bg-brand-burgundy hover:bg-brand-burgundy/90"
+              disabled={authLoading}
+            >
+              {authLoading ? (
+                'Processing...'
+              ) : (
+                authMode === 'login' ? 'Log In & Continue' : 'Create Account & Continue'
+              )}
+            </Button>
+          </form>
+
+          <div className="text-center">
+            <button
+              type="button"
+              onClick={() => setAuthMode(authMode === 'login' ? 'signup' : 'login')}
+              className="text-sm text-brand-burgundy hover:underline"
+            >
+              {authMode === 'login' 
+                ? "Don't have an account? Create one" 
+                : "Already have an account? Log in"
+              }
+            </button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 };
 
