@@ -475,9 +475,9 @@ const SplitPaymentSuccessPage = () => {
               <div className="bg-brand-cream/30 border border-brand-gold/20 rounded-lg p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div>
-                    <h3 className="font-semibold text-lg">{paymentDetails?.bookings?.venues?.name}</h3>
+                    <h3 className="font-semibold text-lg">{paymentDetails?.venue_name}</h3>
                     <p className="text-sm text-muted-foreground">
-                      {paymentDetails?.bookings?.venues?.address}, {paymentDetails?.bookings?.venues?.city}
+                      Venue details
                     </p>
                   </div>
                 </div>

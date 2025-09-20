@@ -290,18 +290,26 @@ const SplitPaymentPage = () => {
 
       // Fetch requester profile separately
       if (bookingData.requester_id) {
+        console.log('🔍 Attempting to fetch requester profile for ID:', bookingData.requester_id);
+        console.log('�� Current user ID:', user?.id);
+        
         const { data: requesterProfile, error: requesterError } = await supabase
           .from('profiles')
           .select('first_name, last_name, phone')
           .eq('id', bookingData.requester_id)
           .single();
 
+        console.log('🔍 Profile fetch result:', { requesterProfile, requesterError });
+
         if (!requesterError && requesterProfile) {
           bookingData.requester_profile = requesterProfile;
           console.log('✅ Requester profile loaded:', requesterProfile);
         } else {
           console.error('❌ Error fetching requester profile:', requesterError);
+          console.error('❌ This might be an RLS policy issue - user cannot access other user profiles');
         }
+      } else {
+        console.error('❌ No requester_id found in bookingData');
       }
 
       // Then fetch the booking details separately
@@ -431,11 +439,15 @@ const SplitPaymentPage = () => {
       }
 
       // Set the state
-      setPaymentRequest(requestData);
+      console.log('🔍 Setting payment request with profile data:', {
+        hasRequesterProfile: !!bookingData.requester_profile,
+        requesterProfile: bookingData.requester_profile
+      });
+      setPaymentRequest(bookingData);
       setBooking(actualBookingData || {});
 
       console.log('✅ All data loaded successfully:', {
-        paymentRequest: requestData,
+        paymentRequest: bookingData,
         booking: actualBookingData,
         venue: actualBookingData?.venues,
         'booking.venue_id': actualBookingData?.venue_id,
