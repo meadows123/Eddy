@@ -888,7 +888,12 @@ const SplitPaymentPage = () => {
                 )}
                 
                 <div className="mt-4 text-sm text-muted-foreground">
-                  <p>Requested by: {paymentRequest.requester_id ? `User ${paymentRequest.requester_id.slice(0, 8)}...` : 'Unknown User'}</p>
+                  <p>Requested by: {paymentRequest.requester_profile ? 
+                    `${paymentRequest.requester_profile.first_name} ${paymentRequest.requester_profile.last_name}`.trim() || 
+                    paymentRequest.requester_profile.phone || 
+                    'Unknown User'
+                    : 'Unknown User'}
+                  </p>
                   <p>Booking ID: {paymentRequest.booking_id}</p>
                 </div>
               </div>

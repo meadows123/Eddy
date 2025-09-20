@@ -208,13 +208,14 @@ const SplitPaymentSuccessPage = () => {
         amount: requestData.amount,
         status: 'paid',
         paymentIntentId,
-        booking_date: bookingData?.booking_date || new Date().toISOString().split('T')[0], // Fallback to today
-        booking_time: bookingData?.start_time || '19:00:00', // Fallback time
+        booking_date: bookingData?.booking_date || new Date().toISOString().split('T')[0],
+        booking_time: bookingData?.start_time || '19:00:00',
         venue_name: bookingData?.venues?.name,
         venue_price_range: bookingData?.venues?.price_range,
-        table_name: bookingData?.venue_tables?.[0]?.table_name, // Handle array
-        table_number: bookingData?.venue_tables?.[0]?.table_number, // Handle array
-        number_of_guests: bookingData?.number_of_guests
+        table_name: bookingData?.venue_tables?.[0]?.table_name,
+        table_number: bookingData?.venue_tables?.[0]?.table_number,
+        number_of_guests: bookingData?.number_of_guests,
+        requester_profile: userProfile // Add this line
       });
 
       // Add debug logging
@@ -485,7 +486,11 @@ const SplitPaymentSuccessPage = () => {
                   <div>
                     <span className="text-muted-foreground">Requested by</span>
                     <p className="font-medium">
-                      {paymentDetails?.bookings?.profiles?.first_name} {paymentDetails?.bookings?.profiles?.last_name}
+                      {paymentDetails?.requester_profile ? 
+                        `${paymentDetails.requester_profile.first_name} ${paymentDetails.requester_profile.last_name}`.trim() || 
+                        paymentDetails.requester_profile.email || 
+                        'Unknown User'
+                        : 'Unknown User'}
                     </p>
                   </div>
                   <div>
