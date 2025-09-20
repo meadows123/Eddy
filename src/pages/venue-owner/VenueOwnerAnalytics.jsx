@@ -263,7 +263,7 @@ const VenueOwnerAnalytics = () => {
         totalBookings: bookingsData?.length || 0,
         sampleBooking: bookingsData?.[0],
         venueIds,
-        dateRange: `${sixMonthsAgo.toISOString()} to ${new Date().toISOString()}`
+        dateRange: `${twelveMonthsAgo.toISOString()} to ${new Date().toISOString()}`
       });
 
       if (bookingsData && bookingsData.length > 0) {

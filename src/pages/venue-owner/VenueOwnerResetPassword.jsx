@@ -219,11 +219,11 @@ const VenueOwnerResetPassword = () => {
   }
 
   return (
-    <div className="min-h-screen w-full bg-gray-50 flex items-center justify-center p-2 sm:p-4">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-6 px-4 sm:py-12 sm:px-6 lg:px-8">
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-sm space-y-4 sm:space-y-6 bg-white p-3 sm:p-4 md:p-6 rounded-xl shadow-lg"
+        className="max-w-md w-full space-y-6 sm:space-y-8 bg-white p-6 sm:p-8 rounded-xl shadow-lg"
       >
         <div className="text-center">
           <motion.div
@@ -234,10 +234,10 @@ const VenueOwnerResetPassword = () => {
           >
             <Store className="h-4 w-4 sm:h-5 sm:w-5 text-brand-burgundy" />
           </motion.div>
-          <h2 className="mt-3 sm:mt-4 text-lg sm:text-xl md:text-2xl font-heading text-brand-burgundy">
+          <h2 className="mt-4 sm:mt-6 text-2xl sm:text-3xl font-heading text-brand-burgundy">
             Reset Your Password
           </h2>
-          <p className="mt-1 sm:mt-2 text-xs sm:text-sm text-brand-burgundy/70">
+          <p className="mt-2 text-sm text-brand-burgundy/70">
             Enter your new password below
           </p>
         </div>
@@ -281,7 +281,7 @@ const VenueOwnerResetPassword = () => {
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className="pl-9 sm:pl-10 pr-9 sm:pr-10 bg-white border-brand-burgundy/20 focus:border-brand-burgundy text-xs sm:text-sm"
+                  className="pl-10 pr-10 py-3 sm:py-2 bg-white border-brand-burgundy/20 focus:border-brand-burgundy text-base sm:text-sm"
                   placeholder="Enter your new password"
                 />
                 <button
@@ -314,7 +314,7 @@ const VenueOwnerResetPassword = () => {
                   required
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  className="pl-9 sm:pl-10 pr-9 sm:pr-10 bg-white border-brand-burgundy/20 focus:border-brand-burgundy text-xs sm:text-sm"
+                  className="pl-10 pr-10 py-3 sm:py-2 bg-white border-brand-burgundy/20 focus:border-brand-burgundy text-base sm:text-sm"
                   placeholder="Confirm your new password"
                 />
                 <button
