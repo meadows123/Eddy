@@ -92,11 +92,11 @@ const SplitPaymentSuccessPage = () => {
 
       // Fetch user profile information separately
       let userProfile = null;
-      if (bookingData?.user_id) {
+      if (requestData?.requester_id) {
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('first_name, last_name, email')
-          .eq('id', bookingData.user_id)
+          .eq('id', requestData.requester_id) // Use requester_id instead of bookingData.user_id
           .single();
         
         if (!profileError && profileData) {
@@ -483,16 +483,6 @@ const SplitPaymentSuccessPage = () => {
                 </div>
                 
                 <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Requested by</span>
-                    <p className="font-medium">
-                      {paymentDetails?.requester_profile ? 
-                        `${paymentDetails.requester_profile.first_name} ${paymentDetails.requester_profile.last_name}`.trim() || 
-                        paymentDetails.requester_profile.email || 
-                        'Unknown User'
-                        : 'Unknown User'}
-                    </p>
-                  </div>
                   <div>
                     <span className="text-muted-foreground">Booking Date</span>
                     <p className="font-medium">
