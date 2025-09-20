@@ -141,7 +141,7 @@ const UserProfilePage = () => {
           .from('split_payment_requests')
           .select(`
             *,
-            recipient_profile:profiles!recipient_id (
+            profiles!split_payment_requests_recipient_id_fkey (
               first_name,
               last_name,
               phone
@@ -155,7 +155,7 @@ const UserProfilePage = () => {
           .from('split_payment_requests')
           .select(`
             *,
-            requester_profile:profiles!requester_id (
+            profiles!split_payment_requests_requester_id_fkey (
               first_name,
               last_name,
               phone
@@ -164,14 +164,27 @@ const UserProfilePage = () => {
           .eq('recipient_id', user.id)
           .order('created_at', { ascending: false });
           
+        console.log('Split payments data:', { sent, received, sentError, receivedError });
+          
         if (sentError || receivedError) throw sentError || receivedError;
         
-        setSplitPaymentsSent(sent || []);
-        setSplitPaymentsReceived(received || []);
+        // Map the joined data to the expected format
+        const mappedSent = (sent || []).map(request => ({
+          ...request,
+          recipient_profile: request.profiles
+        }));
+        
+        const mappedReceived = (received || []).map(request => ({
+          ...request,
+          requester_profile: request.profiles
+        }));
+        
+        setSplitPaymentsSent(mappedSent);
+        setSplitPaymentsReceived(mappedReceived);
         setSplitPaymentsError(null);
         
         // Notification for new received requests
-        const newRequest = (received || []).find(r => r.status === 'pending' && !r.seen_by_recipient);
+        const newRequest = mappedReceived.find(r => r.status === 'pending' && !r.seen_by_recipient);
         if (newRequest) setSplitPaymentNotification('You have a new split payment request!');
       } catch (err) {
         console.error('Error fetching split payments:', err);

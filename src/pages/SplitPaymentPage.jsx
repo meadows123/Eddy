@@ -325,8 +325,7 @@ const SplitPaymentPage = () => {
               address,
               city,
               contact_email,
-              contact_phone,
-              price_range
+              contact_phone
             )
           `)
           .eq('id', bookingData.booking_id)
@@ -402,8 +401,7 @@ const SplitPaymentPage = () => {
           contact_phone: venueData.contact_phone || 'N/A',
           contact_email: venueData.contact_email || 'N/A',
           type: 'Restaurant', // Default type
-          description: 'Venue details from booking',
-          price_range: venueData.price_range || 'N/A'
+          description: 'Venue details from booking'
         });
         console.log('✅ Venue data set from actualBookingData:', venueData);
       } else if (actualBookingData?.venue_id) {
@@ -420,8 +418,7 @@ const SplitPaymentPage = () => {
           contact_phone: venueData.contact_phone || 'N/A',
           contact_email: venueData.contact_email || 'N/A',
           type: 'Restaurant', // Default type
-          description: 'Venue details from booking',
-          price_range: venueData.price_range || 'N/A'
+          description: 'Venue details from booking'
         });
         console.log('✅ Venue data set:', venueData);
       } else {
@@ -436,7 +433,6 @@ const SplitPaymentPage = () => {
           city: 'Unknown',
           type: 'Unknown',
           description: 'The booking associated with this payment request could not be found. Please contact the person who sent you this payment request for more information.',
-          price_range: 'Unknown',
           contact_phone: 'N/A',
           contact_email: 'N/A'
         });
@@ -476,7 +472,7 @@ const SplitPaymentPage = () => {
       
       const { data: venue, error: venueError } = await supabase
         .from('venues')
-        .select('id, name, address, city, type, description, price_range, contact_phone, contact_email')
+        .select('id, name, address, city, type, description, contact_phone, contact_email')
         .eq('id', venueId)
         .maybeSingle();
 
@@ -492,7 +488,6 @@ const SplitPaymentPage = () => {
           city: 'Unknown',
           type: 'Unknown',
           description: 'Venue details could not be loaded. Please contact the person who sent you this payment request for more information.',
-          price_range: 'Unknown',
           contact_phone: 'N/A',
           contact_email: 'N/A'
         });
@@ -505,7 +500,6 @@ const SplitPaymentPage = () => {
         city: 'Unknown',
         type: 'Unknown',
         description: 'Venue details could not be loaded. Please contact the person who sent you this payment request for more information.',
-        price_range: 'Unknown',
         contact_phone: 'N/A',
         contact_email: 'N/A'
       });
@@ -677,7 +671,7 @@ const SplitPaymentPage = () => {
                               {venue.description}
                             </p>
                           )}
-                          <div className="grid grid-cols-2 gap-3 text-xs">
+                          <div className="grid grid-cols-1 gap-3 text-xs">
                             {venue.contact_phone && venue.contact_phone !== 'N/A' && (
                               <div>
                                 <span className="font-medium text-brand-burgundy">Contact:</span>
@@ -807,7 +801,7 @@ const SplitPaymentPage = () => {
                         {venue.description}
                       </p>
                     )}
-                    <div className="grid grid-cols-2 gap-3 text-xs">
+                    <div className="grid grid-cols-1 gap-3 text-xs">
                       {venue.contact_phone && venue.contact_phone !== 'N/A' && (
                         <div>
                           <span className="font-medium text-brand-burgundy">Contact:</span>
