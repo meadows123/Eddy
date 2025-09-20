@@ -439,9 +439,13 @@ const SplitPaymentPage = () => {
       }
 
       // Set the state
-      console.log('🔍 Setting payment request with profile data:', {
-        hasRequesterProfile: !!bookingData.requester_profile,
-        requesterProfile: bookingData.requester_profile
+      console.log('🔍 About to set payment request with data:', {
+        requester_id: bookingData.requester_id,
+        requester_profile: bookingData.requester_profile,
+        hasProfile: !!bookingData.requester_profile,
+        profileName: bookingData.requester_profile ? 
+          `${bookingData.requester_profile.first_name} ${bookingData.requester_profile.last_name}` : 
+          'No profile'
       });
       setPaymentRequest(bookingData);
       setBooking(actualBookingData || {});
