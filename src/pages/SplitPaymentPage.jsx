@@ -274,42 +274,34 @@ const SplitPaymentPage = () => {
       console.log('🔍 Looking for split payment request with ID:', requestId);
       const { data: bookingData, error: bookingError } = await supabase
         .from('split_payment_requests')
-        .select(`
-          *,
-          requester_profile:profiles!requester_id (
-            first_name,
-            last_name,
-            phone
-          ),
-          recipient_profile:profiles!recipient_id (
-            first_name,
-            last_name,
-            phone
-          )
-        `)
+        .select('*')
         .eq('id', requestId)
         .maybeSingle();
 
       if (bookingError) {
         console.error('❌ Error fetching split payment request:', bookingError);
-        console.error('🔍 Request ID:', requestId);
-        
-        // Try to find any split payment requests to debug
-        const { data: allRequests, error: allRequestsError } = await supabase
-          .from('split_payment_requests')
-          .select('id, booking_id, created_at')
-          .limit(5);
-        
-        if (!allRequestsError && allRequests) {
-          console.log('🔍 Available split payment requests:', allRequests);
-        }
-        
         throw new Error(`Split payment request not found: ${bookingError.message}`);
       }
 
       if (!bookingData) {
         console.error('❌ Split payment request not found');
         throw new Error('Split payment request not found');
+      }
+
+      // Fetch requester profile separately
+      if (bookingData.requester_id) {
+        const { data: requesterProfile, error: requesterError } = await supabase
+          .from('profiles')
+          .select('first_name, last_name, phone')
+          .eq('id', bookingData.requester_id)
+          .single();
+
+        if (!requesterError && requesterProfile) {
+          bookingData.requester_profile = requesterProfile;
+          console.log('✅ Requester profile loaded:', requesterProfile);
+        } else {
+          console.error('❌ Error fetching requester profile:', requesterError);
+        }
       }
 
       // Then fetch the booking details separately
