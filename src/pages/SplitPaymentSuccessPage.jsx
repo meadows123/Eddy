@@ -53,7 +53,8 @@ const SplitPaymentSuccessPage = () => {
               address,
               city,
               contact_email,
-              contact_phone
+              contact_phone,
+              price_range
             ),
             venue_tables!inner(id.eq.table_id) (
               table_number
@@ -203,8 +204,9 @@ const SplitPaymentSuccessPage = () => {
         status: 'paid',
         paymentIntentId,
         booking_date: bookingData?.booking_date,
-        booking_time: bookingData?.start_time || bookingData?.booking_time,
+        booking_time: bookingData?.start_time, // This is a TIME string like "19:00:00"
         venue_name: bookingData?.venues?.name,
+        venue_price_range: bookingData?.venues?.price_range, // Add price range
         table_name: bookingData?.venue_tables?.table_name,
         table_number: bookingData?.venue_tables?.table_number,
         number_of_guests: bookingData?.number_of_guests
@@ -483,7 +485,7 @@ const SplitPaymentSuccessPage = () => {
                     <div>
                       <span className="text-muted-foreground">Booking Time</span>
                       <p className="font-medium">
-                        {new Date(paymentDetails.booking_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {paymentDetails.booking_time.slice(0, 5)} {/* Format "19:00:00" to "19:00" */}
                       </p>
                     </div>
                   )}
@@ -509,6 +511,14 @@ const SplitPaymentSuccessPage = () => {
                       <span className="text-muted-foreground">Party Size</span>
                       <p className="font-medium">
                         {paymentDetails.number_of_guests} guests
+                      </p>
+                    </div>
+                  )}
+                  {paymentDetails?.venue_price_range && (
+                    <div>
+                      <span className="text-muted-foreground">Price Range</span>
+                      <p className="font-medium">
+                        {paymentDetails.venue_price_range}
                       </p>
                     </div>
                   )}

@@ -272,6 +272,14 @@ useEffect(() => {
       // Set the booking data for display
       setBookingData(incomingData);
       
+      // CRITICAL FIX: Set selection state for OrderSummary component
+      setSelection({
+        ...incomingData,
+        venueName: incomingData.venue?.name || incomingData.venueName,
+        venueLocation: incomingData.venue?.city || incomingData.venueLocation,
+        isFromModal: true
+      });
+      
       // Set form data from booking - match the actual data structure
       setFormData(prev => ({
         ...prev,
@@ -576,23 +584,34 @@ throw new Error('Failed to create user account - no user returned from signup');
 
       console.log('Successfully created user:', newUser.user.id);
 
-      // CRITICAL: For new users, ensure Supabase session is properly established for RLS
-      if (newUser.session) {
-        console.log('✅ New user has session, setting it for RLS...');
-        const { error: sessionError } = await supabase.auth.setSession({
-          access_token: newUser.session.access_token,
-          refresh_token: newUser.session.refresh_token
-        });
-        
-        if (sessionError) {
-          console.error('❌ Failed to set session for new user:', sessionError);
-          throw new Error('Failed to establish authentication session');
+        // CRITICAL: For new users, ensure Supabase session is properly established for RLS
+        if (newUser.session) {
+          console.log('✅ New user has session, setting it for RLS...');
+          const { error: sessionError } = await supabase.auth.setSession({
+            access_token: newUser.session.access_token,
+            refresh_token: newUser.session.refresh_token
+          });
+          
+          if (sessionError) {
+            console.error('❌ Failed to set session for new user:', sessionError);
+            throw new Error('Failed to establish authentication session');
+          }
+          
+          // Wait a moment for the session to be fully established
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+          // Verify the session is working
+          const { data: verifySession, error: verifyError } = await supabase.auth.getUser();
+          if (verifyError || !verifySession.user || verifySession.user.id !== newUser.user.id) {
+            console.error('❌ Session verification failed:', { verifyError, verifySession });
+            throw new Error('Authentication session verification failed');
+          }
+          
+          console.log('✅ Session established and verified for new user - RLS should now work');
+        } else {
+          console.error('❌ No session returned from signup - RLS will fail');
+          throw new Error('No authentication session available - please try again');
         }
-        
-        console.log('✅ Session established for new user - RLS should now work');
-      } else {
-        console.warn('⚠️ No session returned from signup, RLS may fail');
-      }
 
       console.log('New user created successfully, proceeding with profile creation');
 
@@ -873,18 +892,19 @@ if (!selection && !bookingData) return 0;
 
 // Handle new booking modal format vs old format
 let basePrice = 0;
-if (selection?.isFromModal) {
-// New format from booking modal
-basePrice = selection.selectedTable?.price || 50;
-} else if (bookingData?.isFromModal) {
-// New format from booking modal (when bookingData is available)
-    basePrice = bookingData.table?.price || bookingData.selectedTable?.price || 50;
+if (selection?.isFromModal || bookingData?.isFromModal) {
+  // New format from booking modal - try all possible locations for table price
+  basePrice = selection?.selectedTable?.price || 
+              selection?.table?.price || 
+              bookingData?.selectedTable?.price || 
+              bookingData?.table?.price || 
+              50;
 } else {
-    // Old format - check both selection and bookingData
-    basePrice = (selection?.ticket?.price || 0) + 
-                (selection?.table?.price || 0) + 
-                (bookingData?.table?.price || 0);
-  }
+  // Old format - check both selection and bookingData
+  basePrice = (selection?.ticket?.price || 0) + 
+              (selection?.table?.price || 0) + 
+              (bookingData?.table?.price || 0);
+}
 
   // Add logging to see what price is being used
   console.log('💰 Price calculation:', {

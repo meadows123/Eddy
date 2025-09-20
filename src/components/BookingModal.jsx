@@ -212,7 +212,7 @@ const BookingModal = ({ isOpen, onClose, venue }) => {
 
     // Navigate FIRST, then close modal
     console.log('🧭 Navigating to /checkout...');
-    navigate('/checkout', {
+    navigate(`/checkout/${venue?.id}`, {
       state: bookingData,
       replace: true
     });
