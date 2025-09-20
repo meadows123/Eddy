@@ -313,7 +313,8 @@ const SplitPaymentPage = () => {
               address,
               city,
               contact_email,
-              contact_phone
+              contact_phone,
+              price_range
             )
           `)
           .eq('id', bookingData.booking_id)
@@ -388,7 +389,7 @@ const SplitPaymentPage = () => {
           contact_email: venueData.contact_email || 'N/A',
           type: 'Restaurant', // Default type
           description: 'Venue details from booking',
-          price_range: 'N/A'
+          price_range: venueData.price_range || 'N/A'
         });
         console.log('✅ Venue data set from actualBookingData:', venueData);
       } else if (actualBookingData?.venue_id) {
@@ -406,7 +407,7 @@ const SplitPaymentPage = () => {
           contact_email: venueData.contact_email || 'N/A',
           type: 'Restaurant', // Default type
           description: 'Venue details from booking',
-          price_range: 'N/A'
+          price_range: venueData.price_range || 'N/A'
         });
         console.log('✅ Venue data set:', venueData);
       } else {
@@ -851,7 +852,7 @@ const SplitPaymentPage = () => {
                     <div>
                       <Label className="text-muted-foreground">Booking Time</Label>
                       <p className="font-medium">
-                        {new Date(booking.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {booking.start_time.slice(0, 5)} {/* Format "19:00:00" to "19:00" */}
                       </p>
                     </div>
                   )}
