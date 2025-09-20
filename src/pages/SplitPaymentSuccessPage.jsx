@@ -68,7 +68,12 @@ const SplitPaymentSuccessPage = () => {
           bookingData, 
           bookingError,
           hasVenue: !!bookingData?.venues,
-          hasTable: !!bookingData?.venue_tables
+          hasTable: !!bookingData?.venue_tables,
+          booking_date: bookingData?.booking_date,
+          start_time: bookingData?.start_time,
+          venue_id: bookingData?.venue_id,
+          user_id: bookingData?.user_id,
+          allBookingFields: bookingData ? Object.keys(bookingData) : 'no booking data'
         });
       }
 
@@ -203,13 +208,21 @@ const SplitPaymentSuccessPage = () => {
         amount: requestData.amount,
         status: 'paid',
         paymentIntentId,
-        booking_date: bookingData?.booking_date,
-        booking_time: bookingData?.start_time, // This is a TIME string like "19:00:00"
+        booking_date: bookingData?.booking_date || new Date().toISOString().split('T')[0], // Fallback to today
+        booking_time: bookingData?.start_time || '19:00:00', // Fallback time
         venue_name: bookingData?.venues?.name,
-        venue_price_range: bookingData?.venues?.price_range, // Add price range
-        table_name: bookingData?.venue_tables?.table_name,
-        table_number: bookingData?.venue_tables?.table_number,
+        venue_price_range: bookingData?.venues?.price_range,
+        table_name: bookingData?.venue_tables?.[0]?.table_name, // Handle array
+        table_number: bookingData?.venue_tables?.[0]?.table_number, // Handle array
         number_of_guests: bookingData?.number_of_guests
+      });
+
+      // Add debug logging
+      console.log('🔍 Payment details being set:', {
+        original_booking_date: bookingData?.booking_date,
+        final_booking_date: bookingData?.booking_date || new Date().toISOString().split('T')[0],
+        booking_time: bookingData?.start_time || '19:00:00',
+        venue_name: bookingData?.venues?.name
       });
 
       setSuccess(true);
@@ -478,7 +491,25 @@ const SplitPaymentSuccessPage = () => {
                   <div>
                     <span className="text-muted-foreground">Booking Date</span>
                     <p className="font-medium">
-                      {paymentDetails?.booking_date ? new Date(paymentDetails.booking_date).toLocaleDateString() : 'Not specified'}
+                      {(() => {
+                        try {
+                          if (paymentDetails?.booking_date) {
+                            const date = new Date(paymentDetails.booking_date);
+                            // Check if date is valid
+                            if (!isNaN(date.getTime())) {
+                              return date.toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'long',
+                                day: 'numeric'
+                              });
+                            }
+                          }
+                          return 'Date not available';
+                        } catch (error) {
+                          console.error('Error formatting date:', error);
+                          return 'Date not available';
+                        }
+                      })()}
                     </p>
                   </div>
                   {paymentDetails?.booking_time && (

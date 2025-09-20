@@ -274,7 +274,19 @@ const SplitPaymentPage = () => {
       console.log('🔍 Looking for split payment request with ID:', requestId);
       const { data: bookingData, error: bookingError } = await supabase
         .from('split_payment_requests')
-        .select('*')
+        .select(`
+          *,
+          requester_profile:profiles!requester_id (
+            first_name,
+            last_name,
+            phone
+          ),
+          recipient_profile:profiles!recipient_id (
+            first_name,
+            last_name,
+            phone
+          )
+        `)
         .eq('id', requestId)
         .maybeSingle();
 
@@ -365,11 +377,13 @@ const SplitPaymentPage = () => {
       console.log('📋 Booking data fetch result:', { 
         bookingData, 
         bookingError,
-        hasBookings: !!bookingData,
         hasVenue: !!bookingData?.venues,
         hasTable: !!bookingData?.venue_tables,
-        venues: bookingData?.venues,
-        table: bookingData?.venue_tables
+        booking_date: bookingData?.booking_date,
+        start_time: bookingData?.start_time,
+        venue_id: bookingData?.venue_id,
+        user_id: bookingData?.user_id,
+        allBookingFields: bookingData ? Object.keys(bookingData) : 'no booking data'
       });
 
       if (bookingError) {

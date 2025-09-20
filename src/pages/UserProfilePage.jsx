@@ -136,26 +136,45 @@ const UserProfilePage = () => {
     setSplitPaymentsLoading(true);
     const fetchSplitPayments = async () => {
       try {
-        // Sent requests
+        // Sent requests - join with recipient profiles
         const { data: sent, error: sentError } = await supabase
           .from('split_payment_requests')
-          .select('*')
+          .select(`
+            *,
+            recipient_profile:profiles!recipient_id (
+              first_name,
+              last_name,
+              phone
+            )
+          `)
           .eq('requester_id', user.id)
           .order('created_at', { ascending: false });
-        // Received requests
+        
+        // Received requests - join with requester profiles  
         const { data: received, error: receivedError } = await supabase
           .from('split_payment_requests')
-          .select('*')
+          .select(`
+            *,
+            requester_profile:profiles!requester_id (
+              first_name,
+              last_name,
+              phone
+            )
+          `)
           .eq('recipient_id', user.id)
           .order('created_at', { ascending: false });
+          
         if (sentError || receivedError) throw sentError || receivedError;
+        
         setSplitPaymentsSent(sent || []);
         setSplitPaymentsReceived(received || []);
         setSplitPaymentsError(null);
+        
         // Notification for new received requests
         const newRequest = (received || []).find(r => r.status === 'pending' && !r.seen_by_recipient);
         if (newRequest) setSplitPaymentNotification('You have a new split payment request!');
       } catch (err) {
+        console.error('Error fetching split payments:', err);
         setSplitPaymentsError('Failed to load split payment requests.');
       } finally {
         setSplitPaymentsLoading(false);
@@ -1078,7 +1097,13 @@ const UserProfilePage = () => {
                           <div className="flex items-center justify-between">
                             <div>
                               <div className="font-medium text-brand-burgundy">₦{request.amount?.toLocaleString()}</div>
-                              <div className="text-sm text-brand-burgundy/70">From: {request.requester_id ? `User ${request.requester_id.slice(0, 8)}...` : 'A friend'}</div>
+                              <div className="text-sm text-brand-burgundy/70">
+                                From: {request.requester_profile ? 
+                                  `${request.requester_profile.first_name} ${request.requester_profile.last_name}`.trim() || 
+                                  request.requester_profile.phone || 
+                                  'Unknown User'
+                                  : 'A friend'}
+                              </div>
                               <div className="text-xs text-brand-burgundy/50">
                                 {new Date(request.created_at).toLocaleDateString()}
                               </div>
@@ -1093,7 +1118,11 @@ const UserProfilePage = () => {
                                     Pay Your Portion (₦{request.amount?.toLocaleString()})
                                   </Button>
                                   <div className="text-xs text-muted-foreground">
-                                    Split payment request from {request.requester_id ? `User ${request.requester_id.slice(0, 8)}...` : 'Unknown User'}
+                                    Split payment request from {request.requester_profile ? 
+                                      `${request.requester_profile.first_name} ${request.requester_profile.last_name}`.trim() || 
+                                      request.requester_profile.phone || 
+                                      'Unknown User'
+                                      : 'A friend'}
                                   </div>
                                 </div>
                               )}
@@ -1130,7 +1159,14 @@ const UserProfilePage = () => {
                           <div className="flex items-center justify-between">
                             <div>
                               <div className="font-medium text-brand-burgundy">₦{request.amount?.toLocaleString()}</div>
-                              <div className="text-sm text-brand-burgundy/70">To: {request.recipient_name || request.recipient_phone}</div>
+                              <div className="text-sm text-brand-burgundy/70">
+                                To: {request.recipient_profile ? 
+                                  `${request.recipient_profile.first_name} ${request.recipient_profile.last_name}`.trim() || 
+                                  request.recipient_profile.phone || 
+                                  request.recipient_phone || 
+                                  'Unknown User'
+                                : 'A friend'}
+                              </div>
                               <div className="text-xs text-brand-burgundy/50">
                                 {new Date(request.created_at).toLocaleDateString()}
                               </div>
