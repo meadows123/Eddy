@@ -678,12 +678,6 @@ const SplitPaymentPage = () => {
                             </p>
                           )}
                           <div className="grid grid-cols-2 gap-3 text-xs">
-                            {venue.price_range && venue.price_range !== 'Unknown' && (
-                              <div>
-                                <span className="font-medium text-brand-burgundy">Price Range:</span>
-                                <span className="ml-1">{venue.price_range}</span>
-                              </div>
-                            )}
                             {venue.contact_phone && venue.contact_phone !== 'N/A' && (
                               <div>
                                 <span className="font-medium text-brand-burgundy">Contact:</span>
@@ -814,12 +808,6 @@ const SplitPaymentPage = () => {
                       </p>
                     )}
                     <div className="grid grid-cols-2 gap-3 text-xs">
-                      {venue.price_range && venue.price_range !== 'Unknown' && (
-                        <div>
-                          <span className="font-medium text-brand-burgundy">Price Range:</span>
-                          <span className="ml-1">{venue.price_range}</span>
-                        </div>
-                      )}
                       {venue.contact_phone && venue.contact_phone !== 'N/A' && (
                         <div>
                           <span className="font-medium text-brand-burgundy">Contact:</span>
@@ -853,23 +841,30 @@ const SplitPaymentPage = () => {
                   <div>
                     <Label className="text-muted-foreground">Requested by</Label>
                     <p className="font-medium">
-                      {paymentRequest.requester_id ? `User ${paymentRequest.requester_id.slice(0, 8)}...` : 'Unknown User'}
+                      {paymentRequest.requester_id ? 
+                        `${paymentRequest.requester_profile?.first_name || ''} ${paymentRequest.requester_profile?.last_name || ''}`.trim() || 
+                        paymentRequest.requester_profile?.phone || 
+                        'Unknown User'
+                      : 'A friend'}
                     </p>
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Booking Date</Label>
                     <p className="font-medium">
-                      {booking?.booking_date ? new Date(booking.booking_date).toLocaleDateString() : 'Not specified'}
+                      {booking?.booking_date ? 
+                        new Date(booking.booking_date).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        }) : 
+                        new Date().toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'long', 
+                          day: 'numeric'
+                        })
+                      }
                     </p>
                   </div>
-                  {booking?.start_time && (
-                    <div>
-                      <Label className="text-muted-foreground">Booking Time</Label>
-                      <p className="font-medium">
-                        {booking.start_time.slice(0, 5)} {/* Format "19:00:00" to "19:00" */}
-                      </p>
-                    </div>
-                  )}
                   {booking?.table?.table_number && (
                     <div>
                       <Label className="text-muted-foreground">Table</Label>
