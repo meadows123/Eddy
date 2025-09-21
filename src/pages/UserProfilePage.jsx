@@ -381,6 +381,7 @@ const UserProfilePage = () => {
       }
 
       // Load bookings with proper relationships
+      console.log('🔍 Fetching bookings for user:', user.id);
       const { data: bookingsData, error: bookingsError } = await supabase
         .from('bookings')
         .select(`
@@ -399,11 +400,14 @@ const UserProfilePage = () => {
         `)
         .eq('user_id', user.id)
         .order('booking_date', { ascending: false });
-      
+
+      console.log('📊 Bookings query result:', { data: bookingsData, error: bookingsError });
+
       if (bookingsError) {
-        console.error('Bookings error:', bookingsError);
+        console.error('❌ Bookings error:', bookingsError);
         setBookings([]);
       } else {
+        console.log('✅ Bookings loaded successfully:', bookingsData?.length || 0);
         setBookings(bookingsData || []);
       }
     } catch (error) {
