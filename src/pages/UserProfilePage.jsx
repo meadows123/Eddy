@@ -382,6 +382,16 @@ const UserProfilePage = () => {
 
       // Load bookings with proper relationships
       console.log('🔍 Fetching bookings for user:', user.id);
+
+      // First, let's check if the bookings table exists and has any data
+      const { data: testData, error: testError } = await supabase
+        .from('bookings')
+        .select('id')
+        .limit(1);
+
+      console.log('📊 Test query result:', { testData, testError });
+
+      // Now try the full query
       const { data: bookingsData, error: bookingsError } = await supabase
         .from('bookings')
         .select(`
@@ -401,13 +411,29 @@ const UserProfilePage = () => {
         .eq('user_id', user.id)
         .order('booking_date', { ascending: false });
 
-      console.log('📊 Bookings query result:', { data: bookingsData, error: bookingsError });
+      // Log the full response
+      console.log('📊 Full bookings query:', {
+        query: 'SELECT * FROM bookings WHERE user_id = ' + user.id,
+        data: bookingsData,
+        error: bookingsError,
+        count: bookingsData?.length || 0
+      });
 
+      // Check if we got any data
       if (bookingsError) {
         console.error('❌ Bookings error:', bookingsError);
         setBookings([]);
       } else {
-        console.log('✅ Bookings loaded successfully:', bookingsData?.length || 0);
+        if (bookingsData && bookingsData.length > 0) {
+          console.log('✅ Found bookings:', bookingsData.map(b => ({
+            id: b.id,
+            venue: b.venues?.name,
+            date: b.booking_date,
+            status: b.status
+          })));
+        } else {
+          console.log('⚠️ No bookings found for user');
+        }
         setBookings(bookingsData || []);
       }
     } catch (error) {
