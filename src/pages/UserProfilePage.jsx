@@ -392,18 +392,25 @@ const UserProfilePage = () => {
       console.log('📊 Test query result:', { testData, testError });
 
       // Now try the full query
+      console.log('🔍 Trying full query with explicit joins...');
       const { data: bookingsData, error: bookingsError } = await supabase
         .from('bookings')
         .select(`
-          *,
-          venues (
+          id,
+          booking_date,
+          start_time,
+          end_time,
+          number_of_guests,
+          status,
+          total_amount,
+          venues!inner (
             id,
             name,
             type,
             city,
             address
           ),
-          venue_tables!table_id (
+          venue_tables!inner (
             id,
             table_number
           )
@@ -411,9 +418,7 @@ const UserProfilePage = () => {
         .eq('user_id', user.id)
         .order('booking_date', { ascending: false });
 
-      // Log the full response
-      console.log('📊 Full bookings query:', {
-        query: 'SELECT * FROM bookings WHERE user_id = ' + user.id,
+      console.log('📊 Full query result:', {
         data: bookingsData,
         error: bookingsError,
         count: bookingsData?.length || 0
