@@ -194,8 +194,8 @@ const VenuesPage = () => {
         const { data: venues, error } = await supabase
           .from('venues')
           .select('*')
-          .eq('status', 'active')  // Make sure we're only getting active venues
-          .eq('is_active', true);  // And they're marked as active
+          .eq('status', 'active')
+          .eq('is_active', true);
 
         if (error) throw error;
 
@@ -373,7 +373,17 @@ const VenuesPage = () => {
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {filteredVenues.length > 0 ? (
+        {loading ? (
+          <div className="text-center py-16">
+            <div className="w-24 h-24 mx-auto mb-6 bg-brand-burgundy/10 rounded-full flex items-center justify-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-burgundy"></div>
+            </div>
+            <h3 className="text-xl font-medium text-brand-burgundy mb-2">Loading venues...</h3>
+            <p className="text-brand-burgundy/70 mb-6 max-w-md mx-auto">
+              Please wait while we fetch the latest venues for you.
+            </p>
+          </div>
+        ) : filteredVenues.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {filteredVenues.map((venue) => (
               <VenueCard key={venue.id} venue={venue} />

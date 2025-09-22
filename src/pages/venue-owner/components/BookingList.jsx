@@ -11,7 +11,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Eye, Check, X, RefreshCw } from 'lucide-react';
+import { Eye, Check, X, RefreshCw, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/components/ui/use-toast';
 
@@ -316,6 +316,73 @@ const BookingList = ({ currentUser }) => {
     }
   };
 
+  const cancelBooking = async (bookingId) => {
+    try {
+      // Get booking details first
+      const booking = bookings.find(b => b.id === bookingId);
+      if (!booking) throw new Error('Booking not found');
+      
+      // Check refund eligibility
+      const now = new Date();
+      const bookingDateTime = new Date(`${booking.booking_date} ${booking.start_time}`);
+      const hoursUntilBooking = (bookingDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+      
+      if (hoursUntilBooking < 24) {
+        toast({
+          title: "Limited Cancellation Options",
+          description: "For bookings within 24 hours, please contact our support team for assistance with cancellation.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Process automatic refund
+      const { data, error } = await supabase.functions.invoke('process-booking-refund', {
+        body: { 
+          bookingId,
+          reason: 'venue_owner_cancellation'
+        }
+      });
+      
+      if (error) throw error;
+      
+      // Update local state
+      setBookings(prev => 
+        prev.map(booking => 
+          booking.id === bookingId 
+            ? { 
+                ...booking, 
+                status: 'cancelled',
+                refund_status: data.refunded ? 'refunded' : 'no_payment'
+              }
+            : booking
+        )
+      );
+      
+      if (data.refunded) {
+        toast({
+          title: "Booking Cancelled & Refunded",
+          description: `The booking has been cancelled and ₦${(data.amount_refunded / 100).toLocaleString()} will be refunded to the customer within 5-10 business days.`,
+          className: "bg-green-500 text-white"
+        });
+      } else {
+        toast({
+          title: "Booking Cancelled",
+          description: "The booking has been cancelled successfully.",
+          className: "bg-green-500 text-white"
+        });
+      }
+      
+    } catch (error) {
+      console.error('Error cancelling booking:', error);
+      toast({
+        title: "Cancellation Failed",
+        description: error.message || "Failed to cancel booking. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'confirmed':
@@ -425,6 +492,16 @@ const BookingList = ({ currentUser }) => {
                 </Button>
               </div>
             )}
+            {(booking.status === 'confirmed' || booking.status === 'pending') && (
+              <Button
+                onClick={() => cancelBooking(booking.id)}
+                variant="outline"
+                className="mt-2 text-red-500 border-red-500 hover:bg-red-50 w-full sm:w-auto"
+              >
+                <AlertTriangle className="h-4 w-4 mr-1" />
+                Cancel & Refund
+              </Button>
+            )}
           </div>
         </div>
       </CardContent>
@@ -526,6 +603,17 @@ const BookingList = ({ currentUser }) => {
                         title="Mark as completed"
                       >
                         <Check className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {(booking.status === 'confirmed' || booking.status === 'pending') && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-red-600 hover:text-red-700"
+                        onClick={() => cancelBooking(booking.id)}
+                        title="Cancel & Refund"
+                      >
+                        <AlertTriangle className="h-4 w-4" />
                       </Button>
                     )}
                   </div>

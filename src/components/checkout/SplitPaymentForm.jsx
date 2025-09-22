@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/contexts/AuthContext';
 // Remove EmailJS imports - we'll use Edge Function directly
 import { 
   Plus, 
@@ -111,6 +112,7 @@ const SplitPaymentForm = ({
 }) => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { loading: authLoading } = useAuth();
   const [splitCount, setSplitCount] = useState(2);
   const [splitAmounts, setSplitAmounts] = useState([]);
   const [splitRecipients, setSplitRecipients] = useState([]);
@@ -271,7 +273,13 @@ const SplitPaymentForm = ({
     console.log('Searching users with user object:', user);
     setIsSearching(true);
     try {
-      // Validate user exists and is authenticated
+      // Validate user exists and is authenticated (only check if auth is loaded)
+      if (authLoading) {
+        console.log('Auth still loading, skipping search');
+        setSearchResults([]);
+        return;
+      }
+      
       if (!user?.id) {
         console.error('No user ID available for search. User object:', user);
         toast({
@@ -328,7 +336,12 @@ const SplitPaymentForm = ({
   };
 
   const openSearchDialog = (index) => {
-    // Check if user is authenticated before opening search dialog
+    // Check if user is authenticated before opening search dialog (only if auth is loaded)
+    if (authLoading) {
+      console.log('Auth still loading, cannot open search dialog');
+      return;
+    }
+    
     if (!user?.id) {
       toast({
         title: "Authentication Required",
@@ -515,7 +528,21 @@ const SplitPaymentForm = ({
   return (
     <div className="space-y-6">
       {/* Authentication Status */}
-      {!user?.id && (
+      {authLoading ? (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardContent className="pt-4 sm:pt-6">
+            <div className="flex items-center gap-2 sm:gap-3 text-blue-800">
+              <div className="w-4 h-4 sm:w-5 sm:h-5 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0">
+                <User className="h-2 w-2 sm:h-3 sm:w-3" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="font-medium text-sm sm:text-base">Loading...</div>
+                <div className="text-xs sm:text-sm">Please wait while we verify your authentication.</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ) : !user?.id ? (
         <Card className="border-orange-200 bg-orange-50">
           <CardContent className="pt-4 sm:pt-6">
             <div className="flex items-center gap-2 sm:gap-3 text-orange-800">
@@ -529,7 +556,7 @@ const SplitPaymentForm = ({
             </div>
           </CardContent>
         </Card>
-      )}
+      ) : null}
 
       {/* Split Count Control */}
       <Card>
@@ -632,11 +659,11 @@ const SplitPaymentForm = ({
                     variant="outline"
                     className="w-full text-sm sm:text-base"
                     onClick={() => openSearchDialog(index)}
-                    disabled={!user?.id}
+                    disabled={authLoading || !user?.id}
                   >
                     <Search className="h-4 w-4 mr-2" />
                     <span className="truncate">
-                      {user?.id ? "Search for recipient" : "Sign in to search"}
+                      {authLoading ? "Loading..." : user?.id ? "Search for recipient" : "Sign in to search"}
                     </span>
                   </Button>
                 )}

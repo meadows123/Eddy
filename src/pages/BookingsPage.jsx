@@ -55,7 +55,7 @@ const BookingsPage = () => {
           )
         `)
         .eq('user_id', userId)
-        .order('booking_date', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (bookingsError) throw bookingsError;
 

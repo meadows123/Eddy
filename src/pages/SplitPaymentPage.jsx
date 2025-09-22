@@ -82,11 +82,15 @@ const PaymentForm = ({ amount, onSuccess }) => {
 
 // Main component
 const SplitPaymentPage = () => {
+  // Let's add debug logs to trace the flow
+  console.log('🔍 Starting to check SplitPaymentPage.jsx');
+
+  // First, let's see what's happening in the component
   const { bookingId, requestId } = useParams();
   console.log('🔍 Split Payment Params:', { bookingId, requestId });
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   
   const [paymentRequest, setPaymentRequest] = useState(null);
   const [booking, setBooking] = useState(null);
@@ -94,19 +98,29 @@ const SplitPaymentPage = () => {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
 
-  // Check if user is authenticated
+  // Add debug logs to trace the auth state
+  console.log('🔍 SplitPaymentPage auth check:', {
+    isUserAuthenticated: !!user,
+    userData: user,
+    sessionState: supabase.auth.session
+  });
+
+  // Check if user is authenticated (only after loading is complete)
   useEffect(() => {
+    // Don't redirect if still loading
+    if (authLoading) return;
+    
     if (!user) {
-      console.log('❌ User not authenticated, redirecting to profile');
+      console.log('❌ User not authenticated, redirecting to login');
       toast({
         title: "Authentication Required",
         description: "Please log in to complete this payment.",
         variant: "destructive"
       });
-      navigate('/profile');
+      navigate('/login');
       return;
     }
-  }, [user, navigate, toast]);
+  }, [user, authLoading, navigate, toast]);
 
   useEffect(() => {
     console.log('🔍 SplitPaymentPage useEffect triggered with:', { bookingId, requestId, user });
@@ -597,7 +611,7 @@ const SplitPaymentPage = () => {
     }
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <div className="container py-20 text-center">
         <div className="animate-pulse flex flex-col items-center">

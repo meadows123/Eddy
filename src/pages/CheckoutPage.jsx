@@ -63,6 +63,7 @@ const [bookingData, setBookingData] = useState(null);
 // Add Stripe instance state
 const [stripe, setStripe] = useState(null);
 
+
 // Initialize Stripe
 useEffect(() => {
   const initStripe = async () => {
@@ -1218,21 +1219,12 @@ setShowShareDialog(true);
 
                 <TabsContent value="split">
                   <Elements stripe={stripePromise}>
-                  <SplitPaymentForm
-                    totalAmount={parseFloat(calculateTotal())}
-                    onSplitCreated={handleSplitPaymentCreated}
-                    user={user}
-                    bookingId={selection?.id || bookingData?.id}
-                    createBooking={async () => {
-                      const u = await ensureSession();
-                      // If booking already exists, return its ID
-                      if (selection?.id) return selection.id;
-                      
-                      // Create new booking
-                      const bookingId = await createBooking();
-                      return bookingId;
-                    }}
-                  />
+                    <SplitPaymentForm
+                      totalAmount={parseFloat(calculateTotal())}
+                      user={user}
+                      bookingId={null}
+                      createBookingIfNeeded={createBooking}
+                    />
                   </Elements>
                 </TabsContent>
               </Tabs>
