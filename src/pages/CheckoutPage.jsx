@@ -72,7 +72,78 @@ useEffect(() => {
   initStripe();
 }, []);
 
-// Add these missing auth functions here
+// Add this helper function at the top
+const ensureTimeFormat = (time) => {
+  if (!time) return null;
+  
+  // If time is in HH:MM format, add :00 for seconds
+  if (/^\d{2}:\d{2}$/.test(time)) {
+    return `${time}:00`;
+  }
+  // If time is already in HH:MM:SS format, return as is
+  if (/^\d{2}:\d{2}:\d{2}$/.test(time)) {
+    return time;
+  }
+  // If time is just hours, add minutes and seconds
+  if (/^\d{2}$/.test(time)) {
+    return `${time}:00:00`;
+  }
+  return time;
+};
+
+// Add this function near the top of the file
+const validateBookingTimes = (startTime, endTime) => {
+  console.log('🕒 Validating booking times:', { startTime, endTime });
+  
+  // Convert times to comparable format
+  const start = new Date(`1970-01-01T${startTime}`);
+  let end = new Date(`1970-01-01T${endTime}`);
+  
+  console.log('📅 Initial date objects:', {
+    start: start.toISOString(),
+    end: end.toISOString()
+  });
+
+  // If end time is before start time, assume it's the next day
+  if (end <= start) {
+    end = new Date(`1970-01-02T${endTime}`);
+    console.log('🌙 Adjusted end time to next day:', end.toISOString());
+  }
+
+  // Venue closing time (01:30)
+  const closingTime = new Date(`1970-01-02T01:30:00`);
+  
+  console.log('⏰ Time comparisons:', {
+    isEndAfterStart: end > start,
+    isEndBeforeClosing: end <= closingTime,
+    endTime: end.toISOString(),
+    closingTime: closingTime.toISOString()
+  });
+
+  // If booking extends past closing time, adjust it
+  if (end > closingTime) {
+    end = closingTime;
+    endTime = '01:30:00';
+    console.log('🔄 Adjusted to closing time:', endTime);
+  }
+  
+  // Ensure times are in HH:MM:SS format
+  const timeFormat = /^\d{2}:\d{2}:\d{2}$/;
+  console.log('✅ Time format check:', {
+    startTimeValid: timeFormat.test(startTime),
+    endTimeValid: timeFormat.test(endTime)
+  });
+
+  if (!timeFormat.test(startTime) || !timeFormat.test(endTime)) {
+    throw new Error('Times must be in HH:MM:SS format');
+  }
+  
+  return {
+    startTime,
+    endTime
+  };
+};
+
 const handleAuthSubmit = async (e) => {
   e.preventDefault();
   setAuthLoading(true);
@@ -183,6 +254,25 @@ const ensureSession = async () => {
   return user;
 };
 
+// Add this helper function to handle times that cross midnight
+const adjustTimeForMidnight = (startTime, endTime) => {
+  // Add seconds if missing
+  startTime = ensureTimeFormat(startTime);
+  endTime = ensureTimeFormat(endTime);
+
+  // If end time is less than start time, it means it's the next day
+  // Add 24 hours to the end time
+  if (endTime < startTime) {
+    // Extract hours from end time
+    const [hours, minutes, seconds] = endTime.split(':').map(Number);
+    // Add 24 to hours
+    const newHours = (hours + 24).toString().padStart(2, '0');
+    endTime = `${newHours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  }
+
+  return { startTime, endTime };
+};
+
 const createBooking = async () => {
   try {
     // Prepare booking data for database - use the correct data structure
@@ -208,12 +298,64 @@ const createBooking = async () => {
       venue_id: venueId,
       table_id: tableId,
       booking_date: selection?.date || bookingData?.date || new Date().toISOString().split('T')[0],
-      start_time: selection?.time || bookingData?.time || '19:00:00',
-      end_time: selection?.endTime || bookingData?.endTime || '23:00:00',
       number_of_guests: parseInt(selection?.guests) || parseInt(bookingData?.guestCount) || 2,
-      status: 'pending', // Use 'pending' for split payments
+      status: 'pending',
       total_amount: parseFloat(calculateTotal())
     };
+
+    // Handle the times
+    const rawStartTime = selection?.time || bookingData?.time || '19:00';
+    const rawEndTime = selection?.endTime || bookingData?.endTime || '23:00';
+
+    console.log('🕒 Processing times:', { rawStartTime, rawEndTime });
+
+    const { startTime, endTime } = adjustTimeForMidnight(rawStartTime, rawEndTime);
+
+    bookingDataToInsert.start_time = startTime;
+    bookingDataToInsert.end_time = endTime;
+
+    console.log('�� Attempting booking with data:', {
+      ...bookingDataToInsert,
+      crossesMidnight: endTime.includes('+1')
+    });
+
+    // Validate the times are in order
+    if (!bookingDataToInsert.start_time || !bookingDataToInsert.end_time) {
+      throw new Error('Start time and end time are required');
+    }
+
+    // If booking goes past midnight, adjust end time for comparison
+    let endTimeForComparison = bookingDataToInsert.end_time;
+    if (endTimeForComparison < bookingDataToInsert.start_time) {
+      // Booking spans midnight, end time is actually next day
+      endTimeForComparison = '23:59:59'; // Set to end of day
+    }
+
+    // Ensure end time is after start time
+    if (bookingDataToInsert.start_time >= endTimeForComparison) {
+      throw new Error('End time must be after start time');
+    }
+
+    // Add this debug log
+    console.log(' Attempting booking with data:', {
+      date: bookingDataToInsert.booking_date,
+      startTime: bookingDataToInsert.start_time,
+      endTime: bookingDataToInsert.end_time,
+      rawStartTime: selection?.time || bookingData?.time,
+      rawEndTime: selection?.endTime || bookingData?.endTime
+    });
+
+    // Validate and potentially adjust times
+    try {
+      const { startTime, endTime } = validateBookingTimes(
+        bookingDataToInsert.start_time, 
+        bookingDataToInsert.end_time
+      );
+      bookingDataToInsert.start_time = startTime;
+      bookingDataToInsert.end_time = endTime;
+    } catch (error) {
+      throw new Error(`Invalid booking times: ${error.message}`);
+    }
 
     console.log('Creating booking for split payment:', bookingDataToInsert);
 
@@ -1081,7 +1223,7 @@ setShowShareDialog(true);
                     onSplitCreated={handleSplitPaymentCreated}
                     user={user}
                     bookingId={selection?.id || bookingData?.id}
-                    createBookingIfNeeded={async () => {
+                    createBooking={async () => {
                       const u = await ensureSession();
                       // If booking already exists, return its ID
                       if (selection?.id) return selection.id;

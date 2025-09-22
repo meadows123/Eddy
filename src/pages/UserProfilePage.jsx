@@ -383,16 +383,24 @@ const UserProfilePage = () => {
       // Load bookings with proper relationships
       console.log('🔍 Fetching bookings for user:', user.id);
 
-      // First, let's check if the bookings table exists and has any data
+      // In loadUserData function
+      console.log('🔍 Starting bookings query...');
+
+      // First, test a simple query with created_at
       const { data: testData, error: testError } = await supabase
         .from('bookings')
-        .select('id')
-        .limit(1);
+        .select('id, booking_date, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(5);
 
-      console.log('📊 Test query result:', { testData, testError });
+      console.log('🔍 Recent bookings test:', testData?.map(b => ({
+        id: b.id,
+        booking_date: b.booking_date,
+        created_at: b.created_at
+      })));
 
-      // Now try the full query
-      console.log('🔍 Trying full query with explicit joins...');
+      // Then the full query with both sorts
       const { data: bookingsData, error: bookingsError } = await supabase
         .from('bookings')
         .select(`
@@ -403,23 +411,16 @@ const UserProfilePage = () => {
           number_of_guests,
           status,
           total_amount,
-          venues!inner (
-            id,
-            name,
-            type,
-            city,
-            address
-          ),
-          venue_tables!inner (
-            id,
-            table_number
-          )
+          created_at,
+          venues:venue_id (*),
+          venue_tables:table_id (*)
         `)
         .eq('user_id', user.id)
-        .order('booking_date', { ascending: false });
+        .order('created_at', { ascending: false }) // Sort by creation time first
+        .order('booking_date', { ascending: false }); // Then by booking date
 
       console.log('📊 Full query result:', {
-        data: bookingsData,
+        data: bookingsData?.slice(0, 5), // Log first 5 bookings
         error: bookingsError,
         count: bookingsData?.length || 0
       });
@@ -439,7 +440,22 @@ const UserProfilePage = () => {
         } else {
           console.log('⚠️ No bookings found for user');
         }
-        setBookings(bookingsData || []);
+        if (bookingsData) {
+          console.log('🔄 Setting bookings state with:', {
+            count: bookingsData.length,
+            newest: bookingsData[0],
+            oldest: bookingsData[bookingsData.length - 1]
+          });
+          
+          // Force a fresh state update
+          setBookings([]);
+          setTimeout(() => {
+            setBookings(bookingsData);
+          }, 0);
+        } else {
+          console.error('❌ No bookings data received:', bookingsError);
+          setBookings([]);
+        }
       }
     } catch (error) {
       console.error('Error loading user data:', error);
@@ -559,6 +575,88 @@ const UserProfilePage = () => {
   };
 
   const [activeTab, setActiveTab] = useState(location.state?.activeTab || "profile");
+
+  // Add a debug effect for tab changes
+  useEffect(() => {
+    console.log('�� Active tab changed:', activeTab);
+  }, [activeTab]);
+
+  // Add near the top of the component where other useEffects are
+  useEffect(() => {
+    if (!user) return;
+
+    // Set up real-time subscription for new bookings
+    const bookingsSubscription = supabase
+      .channel('bookings_channel')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen for all events (insert, update, delete)
+          schema: 'public',
+          table: 'bookings',
+          filter: `user_id=eq.${user.id}` // Only listen for this user's bookings
+        },
+        (payload) => {
+          console.log('🔄 Booking change detected:', payload);
+          // Reload the bookings data
+          loadUserData();
+        }
+      )
+      .subscribe((status) => {
+        console.log('🔄 Subscription status:', status);
+      });
+
+    // Debug log to confirm subscription is set up
+    console.log('✅ Bookings subscription initialized');
+
+    // Cleanup subscription on unmount
+    return () => {
+      console.log('🔄 Cleaning up bookings subscription');
+      bookingsSubscription.unsubscribe();
+    };
+  }, [user]); // Only re-run if user changes
+
+  // Add this near your other useEffects
+  useEffect(() => {
+    console.log('📊 Bookings state changed:', {
+      count: bookings?.length || 0,
+      newest: bookings?.[0],
+      timestamp: new Date().toISOString()
+    });
+  }, [bookings]);
+
+  // Add near the top with other useEffects
+  useEffect(() => {
+    if (!user) return;
+
+    console.log('🔄 Setting up realtime subscription for bookings');
+
+    const channel = supabase
+      .channel('bookings_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen for all events (insert, update, delete)
+          schema: 'public',
+          table: 'bookings',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('📥 Realtime booking update received:', payload);
+          // Reload the bookings data when we get an update
+          loadUserData();
+        }
+      )
+      .subscribe((status) => {
+        console.log('📡 Subscription status:', status);
+      });
+
+    // Cleanup subscription when component unmounts
+    return () => {
+      console.log('❌ Cleaning up realtime subscription');
+      channel.unsubscribe();
+    };
+  }, [user]);
 
   if (!user) {
     return (
@@ -811,6 +909,7 @@ const UserProfilePage = () => {
           className="space-y-4 sm:space-y-6"
         >
           <TabsList className="bg-white p-1 rounded-lg border border-brand-burgundy/10 grid grid-cols-2 md:grid-cols-7 h-auto">
+            {console.log('🔄 Rendering tabs list, active tab:', activeTab)}
             <TabsTrigger value="profile" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 p-2 md:p-3 text-xs md:text-sm">
               <User className="h-3 w-3 md:h-4 md:w-4" />
               <span className="hidden sm:inline">Profile</span>
@@ -821,7 +920,12 @@ const UserProfilePage = () => {
               <span className="hidden sm:inline">Saved</span>
               <span className="sm:hidden">Saved</span>
             </TabsTrigger>
-            <TabsTrigger value="bookings" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 p-2 md:p-3 text-xs md:text-sm">
+            <TabsTrigger value="bookings" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 p-2 md:p-3 text-xs md:text-sm"
+              onClick={() => {
+                console.log('📚 Bookings tab clicked');
+                setActiveTab('bookings');
+              }}
+            >
               <Calendar className="h-3 w-3 md:h-4 md:w-4" />
               <span className="hidden sm:inline">Bookings</span>
               <span className="sm:hidden">Bookings</span>
@@ -1027,13 +1131,31 @@ const UserProfilePage = () => {
           </TabsContent>
 
           <TabsContent value="bookings">
+            {console.log(`🕒 [${new Date().toISOString()}] Rendering bookings tab:`, {
+              activeTab,
+              bookingsCount: bookings?.length || 0,
+              firstBookingId: bookings?.[0]?.id
+            })}
             <Card className="bg-white border-brand-burgundy/10">
               <div className="p-2 sm:p-4 md:p-6">
                 <h2 className="text-xl font-semibold mb-4">My Bookings</h2>
+                  {console.log('📊 Bookings data in render:', bookings?.length)}
                   {bookings.length > 0 ? (
                   <div className="space-y-4">
-                    {bookings.map((booking) => (
-                      <Card key={booking.id} className="p-4">
+                    {bookings.map((booking) => {
+                      console.log('�� Booking data:', {
+                        id: booking.id,
+                        venue: booking.venues,
+                        date: booking.booking_date,
+                        time: booking.start_time,
+                        guests: booking.number_of_guests,
+                        table: booking.venue_tables,
+                        amount: booking.total_amount,
+                        status: booking.status
+                      });
+                      
+                      return (
+                        <Card key={booking.id} className="p-4">
                           <div className="flex justify-between items-start">
                             <div>
                             <h3 className="font-semibold">{booking.venues?.name || 'Venue not found'}</h3>
@@ -1041,7 +1163,7 @@ const UserProfilePage = () => {
                               {booking.booking_date ? new Date(booking.booking_date).toLocaleDateString() : 'Date not set'} at {booking.start_time || 'Time not set'}
                             </p>
                             <p className="text-sm text-brand-burgundy/70">
-                              {booking.number_of_guests || booking.guest_count || 0} guests
+                              {booking.number_of_guests || 0} guests
                             </p>
                             {booking.venue_tables && (
                               <p className="text-sm text-brand-burgundy/70">
@@ -1049,7 +1171,7 @@ const UserProfilePage = () => {
                               </p>
                             )}
                             <p className="text-sm text-brand-burgundy/70">
-                              Total: ₦{(booking.total_amount || 0).toLocaleString()}
+                              Total: ₦{(parseFloat(booking.total_amount) || 0).toLocaleString()}
                             </p>
                           </div>
                           <div className="text-right">
@@ -1125,8 +1247,9 @@ const UserProfilePage = () => {
                           </div>
                         </div>
                       </Card>
-                      ))}
-                    </div>
+                    );
+                  })}
+                </div>
                   ) : (
                   <p>No bookings yet</p>
                   )}
