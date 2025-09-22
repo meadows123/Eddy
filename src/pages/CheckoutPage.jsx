@@ -94,46 +94,30 @@ const ensureTimeFormat = (time) => {
 
 // Add this function near the top of the file
 const validateBookingTimes = (startTime, endTime) => {
-  console.log('🕒 Validating booking times:', { startTime, endTime });
   
   // Convert times to comparable format
   const start = new Date(`1970-01-01T${startTime}`);
   let end = new Date(`1970-01-01T${endTime}`);
   
-  console.log('📅 Initial date objects:', {
-    start: start.toISOString(),
-    end: end.toISOString()
-  });
 
+  
   // If end time is before start time, assume it's the next day
   if (end <= start) {
     end = new Date(`1970-01-02T${endTime}`);
-    console.log('🌙 Adjusted end time to next day:', end.toISOString());
   }
 
   // Venue closing time (01:30)
   const closingTime = new Date(`1970-01-02T01:30:00`);
   
-  console.log('⏰ Time comparisons:', {
-    isEndAfterStart: end > start,
-    isEndBeforeClosing: end <= closingTime,
-    endTime: end.toISOString(),
-    closingTime: closingTime.toISOString()
-  });
 
   // If booking extends past closing time, adjust it
   if (end > closingTime) {
     end = closingTime;
     endTime = '01:30:00';
-    console.log('🔄 Adjusted to closing time:', endTime);
   }
   
   // Ensure times are in HH:MM:SS format
   const timeFormat = /^\d{2}:\d{2}:\d{2}$/;
-  console.log('✅ Time format check:', {
-    startTimeValid: timeFormat.test(startTime),
-    endTimeValid: timeFormat.test(endTime)
-  });
 
   if (!timeFormat.test(startTime) || !timeFormat.test(endTime)) {
     throw new Error('Times must be in HH:MM:SS format');
@@ -280,13 +264,6 @@ const createBooking = async () => {
     const venueId = selection?.venue?.id || bookingData?.venue?.id || selection?.venueId || selection?.id;
     const tableId = selection?.table?.id || bookingData?.table?.id || selection?.selectedTable?.id || selection?.tableId || null;
 
-    console.log('🔍 Debug venue ID lookup:', {
-      'selection?.venue?.id': selection?.venue?.id,
-      'bookingData?.venue?.id': bookingData?.venue?.id,
-      'selection?.venueId': selection?.venueId,
-      'selection?.id': selection?.id,
-      'final venueId': venueId
-    });
 
     // Validate required fields
     if (!venueId) {
@@ -308,7 +285,6 @@ const createBooking = async () => {
     const rawStartTime = selection?.time || bookingData?.time || '19:00';
     const rawEndTime = selection?.endTime || bookingData?.endTime || '23:00';
 
-    console.log('🕒 Processing times:', { rawStartTime, rawEndTime });
 
     const { startTime, endTime } = adjustTimeForMidnight(rawStartTime, rawEndTime);
 
@@ -337,14 +313,6 @@ const createBooking = async () => {
       throw new Error('End time must be after start time');
     }
 
-    // Add this debug log
-    console.log(' Attempting booking with data:', {
-      date: bookingDataToInsert.booking_date,
-      startTime: bookingDataToInsert.start_time,
-      endTime: bookingDataToInsert.end_time,
-      rawStartTime: selection?.time || bookingData?.time,
-      rawEndTime: selection?.endTime || bookingData?.endTime
-    });
 
     // Validate and potentially adjust times
     try {
@@ -358,7 +326,6 @@ const createBooking = async () => {
       throw new Error(`Invalid booking times: ${error.message}`);
     }
 
-    console.log('Creating booking for split payment:', bookingDataToInsert);
 
     // Save booking to database
     const { data: bookingRecord, error: bookingError } = await supabase
@@ -371,7 +338,6 @@ const createBooking = async () => {
       throw new Error(`Failed to create booking: ${bookingError.message}`);
     }
 
-    console.log('Split payment booking created:', bookingRecord.id);
     return bookingRecord.id;
 
   } catch (error) {
@@ -391,26 +357,14 @@ const [awaitingConfirm, setAwaitingConfirm] = useState(false);
 
 // Add the useEffect to handle booking data from location.state
 useEffect(() => {
-  console.log('🔍 CheckoutPage useEffect triggered');
-  console.log('📍 Current location:', window.location.href);
-  console.log('📦 Location state:', location.state);
-  console.log(' User:', user);
   
   if (location.state) {
     // Get booking data from navigation state
     const incomingData = location.state;
     
-    console.log('📋 Booking data received:', incomingData);
     
     if (incomingData.venue && incomingData.date && incomingData.time) {
       // Regular booking flow
-      console.log('✅ Valid booking data found:', {
-        incomingData,
-        'incomingData.table': incomingData.table,
-        'incomingData.table?.price': incomingData.table?.price,
-        'incomingData.selectedTable': incomingData.selectedTable,
-        'incomingData.selectedTable?.price': incomingData.selectedTable?.price
-      });
       
       // Set the booking data for display
       setBookingData(incomingData);
@@ -434,52 +388,27 @@ useEffect(() => {
         numberOfGuests: incomingData.guestCount
       }));
       
-      console.log('📝 Form data set successfully');
-      console.log('🎯 Component should now render with data');
       
       // 🚨 CRITICAL FIX: Set loading to false when we have data
       setLoading(false);
-      console.log('✅ Loading set to false');
       
     } else {
-      console.log('❌ Incomplete booking data, redirecting to venues');
-      console.log('Missing:', {
-        venue: !incomingData.venue,
-        date: !incomingData.date,
-        time: !incomingData.time
-      });
       navigate('/venues');
     }
   } else {
-    console.log('❌ No location state, redirecting to venues');
     navigate('/venues');
   }
 }, [location.state, navigate, user]);
 
-// Add debugging for the render conditions
-console.log('🎭 Render conditions check:', {
-  loading,
-  selection: !!selection,
-  bookingData: !!bookingData,
-  hasData: !!(selection || bookingData)
-});
 
 // Add this useEffect to handle loading state
 useEffect(() => {
-  console.log('🔄 Loading state changed:', loading);
-  console.log('📊 Current state:', {
-    loading,
-    selection: !!selection,
-    bookingData: !!bookingData,
-    formData: !!formData
-  });
 }, [loading, selection, bookingData, formData]);
 
   // Add a safety timeout to prevent infinite loading
   useEffect(() => {
     const loadingTimeout = setTimeout(() => {
       if (loading) {
-        console.log('⏰ Loading timeout reached, forcing loading to false');
         setLoading(false);
       }
     }, 5000); // 5 second timeout
@@ -490,7 +419,6 @@ useEffect(() => {
 // Add this useEffect after your existing useEffects to populate form data for authenticated users
 useEffect(() => {
   if (user && !formData.fullName && !formData.email) {
-    console.log(' User authenticated, populating form with profile data');
     
     // Populate form with user's profile information
     setFormData(prev => ({
@@ -500,11 +428,6 @@ useEffect(() => {
       phone: user.user_metadata?.phone || ''
     }));
     
-    console.log('✅ Form populated with user data:', {
-      fullName: user.user_metadata?.full_name || user.user_metadata?.name || '',
-      email: user.email || '',
-      phone: user.user_metadata?.phone || ''
-    });
   }
 }, [user, formData.fullName, formData.email]);
 
@@ -571,13 +494,10 @@ if (!venueError && venueData) {
     
     if (!ownerError && ownerData) {
       venue.venue_owners = ownerData;
-      console.log('✅ Found venue owner data in sendBookingConfirmationEmail:', ownerData);
     } else {
-      console.warn('Could not fetch venue owner data in sendBookingConfirmationEmail:', ownerError);
     }
   }
 } else {
-  console.warn('Could not fetch venue data, using fallback:', venueError);
   const dataSource = selection || bookingData;
   venue = {
     name: bookingData.venueName || dataSource?.venueName,
@@ -615,14 +535,6 @@ const customerEmailResult = await sendBookingConfirmation(booking, venue, custom
 const dataSource = selection || bookingData;
 const venueOwnerEmail = bookingData?.venueOwnerEmail || venue?.venue_owners?.owner_email || venue?.venue_owners?.email || venue?.contact_email || dataSource?.ownerEmail || venue?.owner_email;
 
-console.log('🔍 Venue owner email check:', {
-  venueOwnerEmail,
-  hasValidEmail: venueOwnerEmail && venueOwnerEmail.includes('@'),
-  venueContactEmail: venue?.contact_email,
-  venueOwnerFromJoin: venue?.venue_owners?.owner_email || venue?.venue_owners?.email,
-  bookingDataVenueOwnerEmail: bookingData?.venueOwnerEmail,
-  dataSourceOwnerEmail: dataSource?.ownerEmail
-});
 
 if (venueOwnerEmail && venueOwnerEmail.includes('@')) {
   const venueOwner = {
@@ -632,29 +544,20 @@ if (venueOwnerEmail && venueOwnerEmail.includes('@')) {
 
   // Send venue owner notification (blocking to ensure it's sent)
   try {
-    console.log('📧 Sending venue owner notification to:', venueOwnerEmail);
     const venueOwnerResult = await sendVenueOwnerNotification(booking, venue, customer, venueOwner);
-    console.log('✅ Venue owner notification sent successfully:', venueOwnerResult);
   } catch (venueOwnerError) {
     console.error('❌ Venue owner notification failed:', venueOwnerError);
     // Don't fail the entire process if venue owner email fails
   }
 } else {
-  console.warn('⚠️ No valid venue owner email found:', {
-    venueOwnerEmail,
-    venueContactEmail: venue?.contact_email,
-    dataSourceOwnerEmail: dataSource?.ownerEmail
-  });
 }
 
-console.log('✅ Email service result:', customerEmailResult);
 return true;
 } catch (error) {
 console.error('❌ Failed to send booking emails:', error);
 
 // If it's the "recipients address is empty" error, run debug function
 if ((error.text === 'The recipients address is empty' || error.message?.includes('recipients address is empty')) && booking && venue && customer) {
-console.log('🔍 Running email debug function...');
 try {
   await debugBookingEmail(booking, venue, customer);
 } catch (debugError) {
@@ -698,11 +601,9 @@ password: userData.password
 
 if (existingUser?.user) {
 // User already exists, just sign them in
-console.log('User already exists, signed in:', existingUser.user.id);
 return existingUser.user;
 }
 
-console.log('Creating new user account for:', userData.email);
 
 // Create new user account
 const { data: newUser, error: signUpError } = await supabase.auth.signUp({
@@ -725,11 +626,9 @@ if (!newUser.user) {
 throw new Error('Failed to create user account - no user returned from signup');
 }
 
-      console.log('Successfully created user:', newUser.user.id);
 
         // CRITICAL: For new users, ensure Supabase session is properly established for RLS
         if (newUser.session) {
-          console.log('✅ New user has session, setting it for RLS...');
           const { error: sessionError } = await supabase.auth.setSession({
             access_token: newUser.session.access_token,
             refresh_token: newUser.session.refresh_token
@@ -750,13 +649,11 @@ throw new Error('Failed to create user account - no user returned from signup');
             throw new Error('Authentication session verification failed');
           }
           
-          console.log('✅ Session established and verified for new user - RLS should now work');
         } else {
           console.error('❌ No session returned from signup - RLS will fail');
           throw new Error('No authentication session available - please try again');
         }
 
-      console.log('New user created successfully, proceeding with profile creation');
 
       // Skip client-side profile upsert here to avoid RLS errors during email-confirmation flow.
       // Profiles are auto-created by DB trigger on auth.users insert.
@@ -816,7 +713,6 @@ if (!venueId) {
   total_amount: parseFloat(calculateTotal())
 };
 
-    console.log('Creating booking for split payment:', bookingDetails);
 
     // Save booking to database
     const { data: pendingBooking, error: bookingError } = await supabase
@@ -908,70 +804,38 @@ toast({
       .single();
 
     if (venueError) {
-      console.warn('Could not fetch venue data for email:', venueError);
     }
 
     // Get venue owner information separately
     let venueOwnerData = null;
-    console.log('🔍 Debug venue data:', {
-      venueId,
-      venueData,
-      hasOwnerId: !!venueData?.owner_id,
-      ownerId: venueData?.owner_id
-    });
     
     if (venueData?.owner_id) {
-      console.log('🔍 Looking for venue owner with user_id:', venueData.owner_id);
       const { data: ownerData, error: ownerError } = await supabase
         .from('venue_owners')
         .select('owner_email, owner_name, email')
         .eq('user_id', venueData.owner_id)
         .single();
       
-      console.log('🔍 Venue owner query result:', {
-        ownerData,
-        ownerError,
-        hasData: !!ownerData
-      });
       
       if (!ownerError && ownerData) {
         venueOwnerData = ownerData;
-        console.log('✅ Found venue owner data:', ownerData);
       } else {
-        console.warn('❌ Could not fetch venue owner data:', ownerError);
         
         // Try alternative query - maybe the venue_owners table has different structure
-        console.log('🔍 Trying alternative venue owner lookup...');
         const { data: altOwnerData, error: altOwnerError } = await supabase
           .from('venue_owners')
           .select('*')
           .eq('user_id', venueData.owner_id);
         
-        console.log('🔍 Alternative venue owner query result:', {
-          altOwnerData,
-          altOwnerError,
-          count: altOwnerData?.length || 0
-        });
         
         // Also try to see what's in the venue_owners table for this venue
-        console.log('🔍 Checking all venue_owners records...');
         const { data: allOwners, error: allOwnersError } = await supabase
           .from('venue_owners')
           .select('*')
           .limit(5);
         
-        console.log('🔍 Sample venue_owners records:', {
-          allOwners,
-          allOwnersError,
-          count: allOwners?.length || 0
-        });
       }
     } else {
-      console.warn('❌ No owner_id found for venue:', {
-        venueId,
-        venueData: venueData ? 'exists' : 'null',
-        ownerId: venueData?.owner_id
-      });
     }
 
     // Send confirmation email with complete data
@@ -993,9 +857,7 @@ toast({
       });
 
       if (emailResult) {
-        console.log('✅ Booking confirmation emails sent successfully');
       } else {
-        console.warn('⚠️ Email sending failed, but booking was successful');
       }
     } catch (emailError) {
       console.error('❌ Email sending error:', emailError);
@@ -1017,15 +879,6 @@ setIsSubmitting(false);
 };
 
 const calculateTotal = () => {
-  console.log('🔍 calculateTotal debugging:', {
-    isDepositFlow,
-    depositAmount,
-    selection,
-    bookingData,
-    'selection?.selectedTable': selection?.selectedTable,
-    'bookingData?.table': bookingData?.table,
-    'bookingData?.table?.price': bookingData?.table?.price
-  });
 
 if (isDepositFlow && depositAmount) {
 return depositAmount.toFixed(2);
@@ -1049,25 +902,12 @@ if (selection?.isFromModal || bookingData?.isFromModal) {
               (bookingData?.table?.price || 0);
 }
 
-  // Add logging to see what price is being used
-  console.log('💰 Price calculation:', {
-    'selection?.selectedTable?.price': selection?.selectedTable?.price,
-    'bookingData?.table?.price': bookingData?.table?.price,
-    'bookingData?.selectedTable?.price': bookingData?.selectedTable?.price,
-    basePrice
-  });
 
 let total = basePrice + 25; // 25 is service fee
 if (vipPerks.includes("10% Discount Applied")) {
 total *= 0.9; // Apply 10% discount
 }
 
-  console.log('💰 Total calculation:', {
-    basePrice,
-    serviceFee: 25,
-    total,
-    vipPerksApplied: vipPerks.includes("10% Discount Applied")
-  });
 
 return total.toFixed(2);
 };
@@ -1109,16 +949,9 @@ setShowShareDialog(true);
 };
 
   // Add debugging for the render conditions
-  console.log('🎭 Render conditions check:', {
-    loading,
-    selection: !!selection,
-    bookingData: !!bookingData,
-    hasData: !!(selection || bookingData)
-  });
 
   // Update the loading check to include bookingData
   if (loading) {
-    console.log('⏳ Showing loading state');
     return (
       <div className="container py-20 text-center">
         <div className="animate-pulse flex flex-col items-center">
@@ -1131,7 +964,6 @@ setShowShareDialog(true);
 
   // Update the selection check to include bookingData
   if (!selection && !bookingData) {
-    console.log('❌ No data available, showing no selection message');
     return (
       <div className="container py-20 text-center">
         <h2 className="text-2xl font-bold mb-4">No Selection Found</h2>
@@ -1149,12 +981,6 @@ setShowShareDialog(true);
     );
   }
 
-  console.log('🎉 Rendering main checkout content');
-  console.log('📊 Final render data:', {
-    selection,
-    bookingData,
-    formData
-  });
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">

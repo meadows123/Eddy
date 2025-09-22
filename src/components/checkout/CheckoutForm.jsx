@@ -16,7 +16,6 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
 
     // Prevent multiple submissions
     if (isProcessingPayment || isSubmitting) {
-      console.log('Payment already in progress, ignoring duplicate submission');
       return;
     }
 

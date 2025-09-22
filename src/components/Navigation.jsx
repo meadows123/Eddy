@@ -41,7 +41,6 @@ const Navigation = () => {
     signOut = auth?.signOut || (() => {});
     loading = auth?.loading || false;
   } catch (error) {
-    console.warn('Auth context not available:', error);
   }
   
   const isOwner = location.pathname.includes('/venue-owner');
@@ -85,7 +84,6 @@ const Navigation = () => {
   };
 
   const toggleMobileMenu = () => {
-    console.log('📱 Mobile menu toggle clicked, current state:', isMobileMenuOpen);
     setIsMobileMenuOpen(prev => !prev);
   };
 
@@ -124,7 +122,6 @@ const Navigation = () => {
                 className="h-6 w-auto"
                 style={{ maxWidth: '100px' }}
                 onError={(e) => {
-                  console.log('❌ Navigation logo failed to load from:', e.target.src);
                   if (e.target.src.includes('Logo1-Trans-new.png')) {
                     e.target.src = '/logos/Logo1-Trans.png';
                   } else if (e.target.src.includes('Logo1-Trans.png')) {

@@ -17,9 +17,7 @@ const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 const UserProfilePage = () => {
   const { toast } = useToast();
-  console.log('🔍 UserProfilePage component is rendering');
   const { user, signIn, signUp, signOut } = useAuth();
-  console.log('👤 Current user:', user);
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -74,7 +72,6 @@ const UserProfilePage = () => {
   const debugTableStructure = async () => {
     if (!user) return;
     
-    console.log('🔍 Debugging venue_credits table structure...');
     
     try {
       // First, let's try a simple select to see if the table exists
@@ -83,7 +80,6 @@ const UserProfilePage = () => {
         .select('*')
         .limit(1);
       
-      console.log('📊 Simple table query result:', { data: simpleData, error: simpleError });
       
       if (simpleError) {
         console.error('❌ Table query failed:', simpleError);
@@ -92,28 +88,22 @@ const UserProfilePage = () => {
         const { data: tableInfo, error: tableError } = await supabase
           .rpc('get_table_info', { table_name: 'venue_credits' });
         
-        console.log('📋 Table info:', { data: tableInfo, error: tableError });
         
         // Try alternative table names
         const alternativeTables = ['venue_credits', 'credits', 'user_credits', 'venue_credit'];
         
         for (const tableName of alternativeTables) {
-          console.log(`🔍 Trying alternative table: ${tableName}`);
           const { data: altData, error: altError } = await supabase
             .from(tableName)
             .select('*')
             .limit(1);
           
           if (!altError) {
-            console.log(`✅ Found working table: ${tableName}`, altData);
             break;
           } else {
-            console.log(`❌ Table ${tableName} not accessible:`, altError);
           }
         }
       } else {
-        console.log('✅ Table exists and is accessible');
-        console.log('📊 Sample data:', simpleData);
       }
       
     } catch (error) {
@@ -164,7 +154,6 @@ const UserProfilePage = () => {
           .eq('recipient_id', user.id)
           .order('created_at', { ascending: false });
           
-        console.log('Split payments data:', { sent, received, sentError, receivedError });
           
         if (sentError || receivedError) throw sentError || receivedError;
         
@@ -198,15 +187,12 @@ const UserProfilePage = () => {
 
   const loadVenueCredits = async () => {
     if (!user) {
-      console.log('❌ No user found, skipping credit load');
       return;
     }
     
-    console.log('🔍 Loading venue credits for user:', user.id);
     setCreditsLoading(true);
     
     try {
-      console.log('📡 Querying venue_credits table...');
       const { data: creditsData, error } = await supabase
         .from('venue_credits')
         .select('*')
@@ -215,7 +201,6 @@ const UserProfilePage = () => {
         .gt('remaining_balance', 0)
         .order('created_at', { ascending: false });
 
-      console.log('📊 Credits query result:', { data: creditsData, error });
 
       if (error) {
         console.error('❌ Error fetching credits:', error);
@@ -228,12 +213,10 @@ const UserProfilePage = () => {
         throw error;
       }
 
-      console.log('✅ Credits fetched successfully, count:', creditsData?.length || 0);
 
       // Get venue data for each credit separately
       const creditsWithVenueData = await Promise.all(
         (creditsData || []).map(async (credit, index) => {
-          console.log(`🏢 Fetching venue data for credit ${index + 1}:`, credit.venue_id);
           
           try {
             const { data: venueData, error: venueError } = await supabase
@@ -243,10 +226,8 @@ const UserProfilePage = () => {
               .single();
 
             if (!venueError && venueData) {
-              console.log(`✅ Venue data fetched for credit ${index + 1}:`, venueData.name);
               credit.venues = venueData;
             } else {
-              console.warn(`⚠️ Could not fetch venue data for credit ${index + 1}:`, venueError);
               // Fallback venue data
               credit.venues = {
                 id: credit.venue_id,
@@ -270,14 +251,12 @@ const UserProfilePage = () => {
         })
       );
 
-      console.log('🎯 Final credits with venue data:', creditsWithVenueData);
       setVenueCredits(creditsWithVenueData);
       
     } catch (error) {
       console.error('❌ Error loading venue credits:', error);
     } finally {
       setCreditsLoading(false);
-      console.log('🏁 Credit loading completed');
     }
   };
 
@@ -292,7 +271,6 @@ const UserProfilePage = () => {
       
       if (profileError && profileError.code === 'PGRST116') {
         // Profile doesn't exist, try to create one or update existing
-        console.log('Profile not found, attempting to create or update...');
         const { data: newProfile, error: createError } = await supabase
           .from('profiles')
           .upsert([{
@@ -353,7 +331,6 @@ const UserProfilePage = () => {
       }
 
       // Load saved venues (check if table exists first)
-      console.log('🔍 Loading saved venues for user:', user.id);
       
       const { data: savedVenuesData, error: savedVenuesError } = await supabase
         .from('saved_venues')
@@ -369,22 +346,18 @@ const UserProfilePage = () => {
         `)
         .eq('user_id', user.id);
       
-      console.log('📊 Saved venues query result:', { data: savedVenuesData, error: savedVenuesError });
       
       if (savedVenuesError) {
         console.error('❌ Saved venues error:', savedVenuesError);
         // If table doesn't exist, set empty array
         setSavedVenues([]);
       } else {
-        console.log('✅ Saved venues loaded successfully:', savedVenuesData?.length || 0);
         setSavedVenues(savedVenuesData || []);
       }
 
       // Load bookings with proper relationships
-      console.log('🔍 Fetching bookings for user:', user.id);
 
       // In loadUserData function
-      console.log('🔍 Starting bookings query...');
 
       // First, test a simple query with created_at
       const { data: testData, error: testError } = await supabase
@@ -393,12 +366,6 @@ const UserProfilePage = () => {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(5);
-
-      console.log('🔍 Recent bookings test:', testData?.map(b => ({
-        id: b.id,
-        booking_date: b.booking_date,
-        created_at: b.created_at
-      })));
 
       // Then the full query with both sorts
       const { data: bookingsData, error: bookingsError } = await supabase
@@ -419,33 +386,15 @@ const UserProfilePage = () => {
         .order('created_at', { ascending: false }) // Sort by creation time first
         .order('booking_date', { ascending: false }); // Then by booking date
 
-      console.log('📊 Full query result:', {
-        data: bookingsData?.slice(0, 5), // Log first 5 bookings
-        error: bookingsError,
-        count: bookingsData?.length || 0
-      });
-
       // Check if we got any data
       if (bookingsError) {
         console.error('❌ Bookings error:', bookingsError);
         setBookings([]);
       } else {
         if (bookingsData && bookingsData.length > 0) {
-          console.log('✅ Found bookings:', bookingsData.map(b => ({
-            id: b.id,
-            venue: b.venues?.name,
-            date: b.booking_date,
-            status: b.status
-          })));
         } else {
-          console.log('⚠️ No bookings found for user');
         }
         if (bookingsData) {
-          console.log('🔄 Setting bookings state with:', {
-            count: bookingsData.length,
-            newest: bookingsData[0],
-            oldest: bookingsData[bookingsData.length - 1]
-          });
           
           // Force a fresh state update
           setBookings([]);
@@ -482,7 +431,6 @@ const UserProfilePage = () => {
 
       setProfile(updatedProfile);
       setEditingProfile(false);
-      console.log('Profile updated successfully');
     } catch (error) {
       console.error('Error updating profile:', error);
     }
@@ -505,13 +453,6 @@ const UserProfilePage = () => {
       return;
     }
     try {
-      console.log('🔍 DEBUG: UserProfilePage signup payload:', {
-        email: signupForm.email,
-        firstName: signupForm.firstName,
-        lastName: signupForm.lastName,
-        city: signupForm.city,
-        country: signupForm.country
-      });
 
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: signupForm.email,
@@ -528,7 +469,6 @@ const UserProfilePage = () => {
         }
       });
 
-      console.log('📥 DEBUG: Auth response:', { signUpData, signUpError });
 
       if (signUpError) {
         console.error('❌ DEBUG: Sign up error:', signUpError);
@@ -536,7 +476,6 @@ const UserProfilePage = () => {
         return;
       }
 
-      console.log('✅ DEBUG: Auth signup successful, user created:', signUpData.user);
 
       const userId = signUpData.user.id;
       // Use upsert to handle the case where trigger already created a profile
@@ -551,13 +490,11 @@ const UserProfilePage = () => {
         email: signupForm.email
       };
 
-      console.log('📤 DEBUG: Profile data for upsert:', profileData);
 
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert([profileData]);
 
-      console.log('📥 DEBUG: Profile upsert result:', { profileError });
 
       if (profileError) {
         console.error('❌ DEBUG: Upsert error:', profileError);
@@ -565,7 +502,6 @@ const UserProfilePage = () => {
         return;
       }
 
-      console.log('✅ DEBUG: Profile created successfully');
       setSignupSuccess('Account created successfully! Please check your email to confirm your account.');
       
     } catch (error) {
@@ -603,33 +539,25 @@ const UserProfilePage = () => {
         }
       )
       .subscribe((status) => {
-        console.log('🔄 Subscription status:', status);
       });
 
     // Debug log to confirm subscription is set up
-    console.log('✅ Bookings subscription initialized');
 
     // Cleanup subscription on unmount
     return () => {
-      console.log('🔄 Cleaning up bookings subscription');
       bookingsSubscription.unsubscribe();
     };
   }, [user]); // Only re-run if user changes
 
   // Add this near your other useEffects
   useEffect(() => {
-    console.log('📊 Bookings state changed:', {
-      count: bookings?.length || 0,
-      newest: bookings?.[0],
-      timestamp: new Date().toISOString()
-    });
+    // Bookings state changed - no logging needed in production
   }, [bookings]);
 
   // Add near the top with other useEffects
   useEffect(() => {
     if (!user) return;
 
-    console.log('🔄 Setting up realtime subscription for bookings');
 
     const channel = supabase
       .channel('bookings_changes')
@@ -642,18 +570,15 @@ const UserProfilePage = () => {
           filter: `user_id=eq.${user.id}`
         },
         (payload) => {
-          console.log('📥 Realtime booking update received:', payload);
           // Reload the bookings data when we get an update
           loadUserData();
         }
       )
       .subscribe((status) => {
-        console.log('📡 Subscription status:', status);
       });
 
     // Cleanup subscription when component unmounts
     return () => {
-      console.log('❌ Cleaning up realtime subscription');
       channel.unsubscribe();
     };
   }, [user]);
@@ -788,6 +713,23 @@ const UserProfilePage = () => {
                 className="w-full border p-2 rounded bg-white"
                 required
               />
+              {/* Email Confirmation Reminder */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-blue-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-blue-800">Important: Check Your Email</h3>
+                    <div className="mt-2 text-sm text-blue-700">
+                      <p>After signing up, you'll receive a confirmation email. <strong>Please check your inbox and click the verification link</strong> to complete your account setup and start booking exclusive venues!</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {signupError && <div className="text-red-500">{signupError}</div>}
               {signupSuccess && <div className="text-green-600">{signupSuccess}</div>}
               <Button type="submit" className="w-full bg-brand-burgundy text-white">Sign Up</Button>
@@ -909,7 +851,6 @@ const UserProfilePage = () => {
           className="space-y-4 sm:space-y-6"
         >
           <TabsList className="bg-white p-1 rounded-lg border border-brand-burgundy/10 grid grid-cols-2 md:grid-cols-7 h-auto">
-            {console.log('🔄 Rendering tabs list, active tab:', activeTab)}
             <TabsTrigger value="profile" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 p-2 md:p-3 text-xs md:text-sm">
               <User className="h-3 w-3 md:h-4 md:w-4" />
               <span className="hidden sm:inline">Profile</span>
@@ -922,7 +863,6 @@ const UserProfilePage = () => {
             </TabsTrigger>
             <TabsTrigger value="bookings" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 p-2 md:p-3 text-xs md:text-sm"
               onClick={() => {
-                console.log('📚 Bookings tab clicked');
                 setActiveTab('bookings');
               }}
             >
@@ -1131,15 +1071,9 @@ const UserProfilePage = () => {
           </TabsContent>
 
           <TabsContent value="bookings">
-            {console.log(`🕒 [${new Date().toISOString()}] Rendering bookings tab:`, {
-              activeTab,
-              bookingsCount: bookings?.length || 0,
-              firstBookingId: bookings?.[0]?.id
-            })}
             <Card className="bg-white border-brand-burgundy/10">
               <div className="p-2 sm:p-4 md:p-6">
                 <h2 className="text-xl font-semibold mb-4">My Bookings</h2>
-                  {console.log('📊 Bookings data in render:', bookings?.length)}
                   {bookings.length > 0 ? (
                   <div className="space-y-4">
                     {bookings.map((booking) => {

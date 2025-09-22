@@ -16,7 +16,6 @@ import { sendBasicEmail } from '../../lib/emailService.js';
 // import emailjs from '@emailjs/browser'; // Replaced with Edge Function
 
 const VenueOwnerRegister = () => {
-  console.log('🎯 VenueOwnerRegister component loaded - this is the CORRECT component');
   
   const navigate = useNavigate();
 
@@ -56,7 +55,6 @@ const VenueOwnerRegister = () => {
         throw emailError;
       }
 
-      console.log('✅ Admin notification email sent via Edge Function:', emailData);
       return emailData;
     } catch (error) {
       console.error('❌ Failed to send admin notification:', error);
@@ -95,7 +93,6 @@ const VenueOwnerRegister = () => {
   // Test function to check Supabase email configuration
   const testSupabaseEmail = async () => {
     try {
-      console.log('🧪 Testing Supabase email configuration...');
       
       const testEmail = 'test@example.com';
       const { data, error } = await supabase.auth.signUp({
@@ -111,11 +108,6 @@ const VenueOwnerRegister = () => {
         return { success: false, error: error.message };
       }
       
-      console.log('✅ Supabase email test successful:', {
-        user: data.user ? 'User created' : 'No user',
-        session: data.session ? 'Session created' : 'No session',
-        email_confirmed: data.user?.email_confirmed_at ? 'Already confirmed' : 'Needs confirmation'
-      });
       
       return { success: true, data };
     } catch (err) {
@@ -151,9 +143,6 @@ const VenueOwnerRegister = () => {
     setSuccess(null);
 
     try {
-      console.log('🚀🚀🚀 COMPLETELY UPDATED CODE - DECEMBER 19TH FIX - NO SESSION VERIFICATION! 🚀🚀🚀');
-      console.log('🔄 Starting venue owner registration process...');
-      console.log('📧 Form email:', formData.email);
 
       // First, check if there's an existing venue owner record for this email
       const { data: existingVenues, error: venueCheckError } = await supabase
@@ -162,7 +151,6 @@ const VenueOwnerRegister = () => {
         .eq('owner_email', formData.email)
         .in('status', ['pending_owner_signup', 'active']); // Check both old and new statuses
 
-      console.log('🔍 Existing venues check:', { existingVenues, venueCheckError });
 
       if (venueCheckError) {
         throw venueCheckError;
@@ -173,7 +161,6 @@ const VenueOwnerRegister = () => {
         
         // If venue owner is already active, redirect to login
         if (existingVenue.status === 'active') {
-          console.log('✅ Venue owner already active, redirecting to login...');
           setError('Account already exists and is active. Please use the login page to access your dashboard.');
           setTimeout(() => {
             navigate('/venue-owner/login');
@@ -181,12 +168,8 @@ const VenueOwnerRegister = () => {
           return;
         }
         
-        console.log('✅ Found existing approved venue owner record, creating user account...');
         
         // Venue owner has been approved, create user account and link it
-        console.log('🔄 Creating user account for approved venue owner...');
-        console.log('📧 Email being used for signup:', formData.email);
-        console.log('🔗 Redirect URL:', `${window.location.origin}/venue-owner/login`);
         
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email: formData.email,
@@ -201,16 +184,6 @@ const VenueOwnerRegister = () => {
           }
         });
 
-        console.log('👤 Sign up result:', { 
-          user: signUpData?.user ? {
-            id: signUpData.user.id,
-            email: signUpData.user.email,
-            email_confirmed_at: signUpData.user.email_confirmed_at,
-            created_at: signUpData.user.created_at
-          } : null,
-          session: signUpData?.session ? 'Session created' : 'No session',
-          error: signUpError
-        });
 
         if (signUpError) {
           console.error('❌ User creation failed:', signUpError);
@@ -222,14 +195,12 @@ const VenueOwnerRegister = () => {
           throw new Error('Failed to create user account');
         }
 
-        console.log('✅ User account created successfully:', signUpData.user.id);
 
         // The database trigger should automatically link the venue owner
         // Let's wait a moment and then verify the link was created
         await new Promise(resolve => setTimeout(resolve, 2000));
 
         // Verify the venue owner was linked automatically
-        console.log('🔍 Verifying automatic venue owner link...');
         const { data: linkedVenueOwner, error: linkCheckError } = await supabase
           .from('venue_owners')
           .select('*')
@@ -239,7 +210,6 @@ const VenueOwnerRegister = () => {
           .single();
 
         if (linkCheckError || !linkedVenueOwner) {
-          console.warn('⚠️ Automatic linking may have failed, attempting manual link...');
           
           // Manual fallback linking
           const { error: manualLinkError } = await supabase
@@ -258,13 +228,10 @@ const VenueOwnerRegister = () => {
             throw manualLinkError;
           }
           
-          console.log('✅ Manual linking successful');
         } else {
-          console.log('✅ Automatic linking successful');
         }
 
         // Link the venue to the user account
-        console.log('🔗 Linking venue to user account...');
         
         // For the new flow, the venue should already exist with owner_id set
         // Try to find the venue linked to this venue owner
@@ -276,7 +243,6 @@ const VenueOwnerRegister = () => {
 
         if (venueFindError && venueFindError.code === 'PGRST116') {
           // No venue found, try alternative approach
-          console.log('⚠️ No venue found by contact_email, trying alternative search...');
           
           // Try to find venue by venue name and owner email in venue_owners
           const { data: venueOwnerRecord } = await supabase
@@ -299,7 +265,6 @@ const VenueOwnerRegister = () => {
             if (!altError && altVenue) {
               venueToLink = altVenue;
               venueFindError = null;
-              console.log('✅ Found venue using alternative search');
             }
           }
         }
@@ -313,13 +278,11 @@ const VenueOwnerRegister = () => {
             .select('id, name, contact_email, owner_id')
             .ilike('contact_email', `%${formData.email.split('@')[0]}%`);
             
-          console.log('🔍 Available venues for debugging:', allVenues);
           
           throw new Error('Venue not found. Please contact support.');
         }
 
         if (venueToLink) {
-          console.log('🏢 Found venue to link:', venueToLink.id);
           
           // Update the venue with the owner_id
           const { error: venueUpdateError } = await supabase
@@ -335,7 +298,6 @@ const VenueOwnerRegister = () => {
             throw venueUpdateError;
           }
 
-          console.log('✅ Venue linked to user account successfully');
 
           // Update the venue_owners record with the venue_id
           const { error: venueOwnerUpdateError } = await supabase
@@ -351,10 +313,8 @@ const VenueOwnerRegister = () => {
             console.error('❌ Failed to update venue_owners with venue_id:', venueOwnerUpdateError);
             // Don't throw here as the main linking is done
           } else {
-            console.log('✅ Venue owner record updated with venue_id');
           }
         } else {
-          console.warn('⚠️ No venue found to link - this should not happen');
           throw new Error('Venue linking failed. Please contact support.');
         }
 
@@ -371,7 +331,6 @@ const VenueOwnerRegister = () => {
           
           // Notify admin of new registration
           await notifyAdminOfVenueOwnerRegistration(venueOwnerData);
-          console.log('✅ Admin notification sent successfully');
         } catch (emailError) {
           console.error('❌ Failed to send admin notification email:', {
             message: emailError.message || 'Unknown error',
@@ -385,13 +344,11 @@ const VenueOwnerRegister = () => {
 
         // Check if email confirmation is required
         if (signUpData.user && !signUpData.user.email_confirmed_at) {
-          console.log('📧 Email confirmation required for venue owner');
           setSuccess('Account created successfully! Please check your email and click the confirmation link before logging in.');
         } else {
           setSuccess('Account created successfully! You can now log in to manage your venue.');
         }
         
-        console.log('🎉 Registration completed successfully');
         
         // Clear form data
         setFormData({
@@ -415,10 +372,8 @@ const VenueOwnerRegister = () => {
         return;
       }
 
-      console.log('📝 No existing approved record found, creating new pending request...');
 
       // First, create the user account immediately
-      console.log('🔄 Creating user account for new venue owner application...');
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -444,7 +399,6 @@ const VenueOwnerRegister = () => {
         return;
       }
 
-      console.log('✅ User account created successfully:', signUpData.user.id);
 
       // Only create the pending request for admin tracking
       const requestData = {
@@ -479,7 +433,6 @@ const VenueOwnerRegister = () => {
       // Send admin notification email via Edge Function
       try {
         await sendAdminNotification(formData);
-        console.log('✅ Admin notification sent successfully via Edge Function');
       } catch (emailError) {
         console.error('❌ Failed to send admin notification email:', {
           message: emailError.message || 'Unknown error',
@@ -847,6 +800,23 @@ const VenueOwnerRegister = () => {
                     <option value="lounge">Lounge</option>
                     <option value="other">Other</option>
                   </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Email Confirmation Reminder */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <div className="flex items-start">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-blue-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-blue-800">Important: Check Your Email</h3>
+                  <div className="mt-2 text-sm text-blue-700">
+                    <p>After registering, you'll receive a confirmation email. <strong>Please check your inbox and click the verification link</strong> to complete your venue account setup and access your dashboard!</p>
+                  </div>
                 </div>
               </div>
             </div>

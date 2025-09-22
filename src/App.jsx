@@ -28,11 +28,6 @@ import SettingsPage from './pages/SettingsPage';
 import ExplorePage from './pages/ExplorePage';
 import VenueCreditPurchase from './pages/VenueCreditPurchase';
 import CreditPurchaseCheckout from './pages/CreditPurchaseCheckout';
-// import SupabaseTest from './components/SupabaseTest';
-import AuthTestPage from './pages/AuthTestPage';
-import EmailTest from './components/EmailTest';
-import EmailTestPage from './pages/EmailTestPage';
-import MapTest from './components/MapTest';
 import SplitPaymentPage from './pages/SplitPaymentPage';
 import SplitPaymentSuccessPage from './pages/SplitPaymentSuccessPage';
 import { AuthProvider } from './contexts/AuthContext';
@@ -44,7 +39,6 @@ import ContactPage from './pages/ContactPage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
 import FAQPage from './pages/FAQPage';
-import EmailTemplateTest from './components/EmailTemplateTest';
 import { supabase } from './lib/supabase.js';
 import OpenRedirect from './pages/OpenRedirect';
 import AppRedirectPage from './pages/AppRedirectPage.jsx';
@@ -69,7 +63,6 @@ const App = () => {
   // Handle deep links from mobile app (oneeddy:// scheme)
   useEffect(() => {
     const handleAppUrlOpen = (data) => {
-      console.log('📱 Deep link received:', data.url);
       try {
         const url = new URL(data.url);
         if (url.protocol === 'oneeddy:') {
@@ -92,11 +85,10 @@ const App = () => {
           }
 
           const finalRoute = `${route}${search}`;
-          console.log('🔗 Navigating to deep link route:', finalRoute);
           navigate(finalRoute, { replace: true });
         }
       } catch (error) {
-        console.error('❌ Error handling deep link:', error);
+        // Handle deep link error silently in production
       }
     };
 
@@ -162,13 +154,6 @@ const App = () => {
             {/* Admin Routes */}
             <Route path="/admin/venue-approvals" element={<VenueApprovalsPage />} />
 
-            {/* Test Routes */}
-            {/* <Route path="/test" element={<SupabaseTest />} /> */}
-            <Route path="/auth-test" element={<AuthTestPage />} />
-            <Route path="/email-test" element={<EmailTest />} />
-            <Route path="/email-debug" element={<EmailTestPage />} />
-            <Route path="/email-templates" element={<EmailTemplateTest />} />
-            <Route path="/map-test" element={<MapTest />} />
 
             {/* Register Route */}
             <Route path="/register" element={<RegisterPage />} />

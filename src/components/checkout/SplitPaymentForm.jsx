@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
+// Simple inline validation - no external file needed
 // Remove EmailJS imports - we'll use Edge Function directly
 import { 
   Plus, 
@@ -198,10 +199,8 @@ const SplitPaymentForm = ({
           if (completionEmailError) {
             console.error('❌ Error sending split payment completion email:', completionEmailError);
           } else {
-            console.log('✅ Split payment completion email sent successfully');
           }
 
-          console.log('✅ All split payments completed - booking confirmed');
         }
       }
     } catch (error) {
@@ -213,20 +212,9 @@ const SplitPaymentForm = ({
   // Add myAmount to the state variables
   const [myAmount, setMyAmount] = useState(0);
 
-  // Add this logging right after the component definition
-  console.log('SplitPaymentForm received props:', {
-    totalAmount,
-    bookingId,
-    user: user?.id
-  });
 
   // Update the useEffect to set myAmount in state
   useEffect(() => {
-    console.log('SplitPaymentForm useEffect triggered:', {
-      totalAmount,
-      splitCount,
-      'totalAmount type': typeof totalAmount
-    });
     
     // Separate table price and service charge
     const serviceCharge = 25; // Service charge is ₦25
@@ -243,16 +231,6 @@ const SplitPaymentForm = ({
     const myTableShare = tablePricePerPerson;
     const calculatedMyAmount = myTableShare + serviceCharge;
     
-    console.log('Split amounts calculation:', {
-      totalAmount,
-      tablePrice,
-      serviceCharge,
-      tablePricePerPerson,
-      amountPerPerson,
-      amounts,
-      myAmount: calculatedMyAmount,
-      'Total to collect': amounts.reduce((sum, amount) => sum + amount, 0)
-    });
     
     setSplitAmounts(amounts);
     setSplitRecipients(Array(splitCount - 1).fill(null));
@@ -270,12 +248,27 @@ const SplitPaymentForm = ({
       return;
     }
 
-    console.log('Searching users with user object:', user);
+    // Simple inline sanitization - remove dangerous characters
+    const sanitizedQuery = query.trim()
+      .replace(/[^a-zA-Z0-9\s@.'-]/g, '')
+      .substring(0, 50)
+      .replace(/\s+/g, ' ');
+    
+    // Validate sanitized query length
+    if (sanitizedQuery.length < 2) {
+      toast({
+        title: "Invalid Search",
+        description: "Please enter at least 2 characters to search.",
+        variant: "destructive"
+      });
+      setSearchResults([]);
+      return;
+    }
+
     setIsSearching(true);
     try {
       // Validate user exists and is authenticated (only check if auth is loaded)
       if (authLoading) {
-        console.log('Auth still loading, skipping search');
         setSearchResults([]);
         return;
       }
@@ -291,10 +284,13 @@ const SplitPaymentForm = ({
         return;
       }
 
+      // Simple rate limiting - you could add this later if needed
+      // For now, the basic sanitization is sufficient for SQL injection protection
+
              const { data, error } = await supabase
          .from('profiles')
          .select('id, first_name, last_name, phone')
-         .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%,phone.ilike.%${query}%`)
+         .or(`first_name.ilike.%${sanitizedQuery}%,last_name.ilike.%${sanitizedQuery}%,phone.ilike.%${sanitizedQuery}%`)
          .neq('id', user.id) // Exclude current user
          .limit(10);
 
@@ -338,7 +334,6 @@ const SplitPaymentForm = ({
   const openSearchDialog = (index) => {
     // Check if user is authenticated before opening search dialog (only if auth is loaded)
     if (authLoading) {
-      console.log('Auth still loading, cannot open search dialog');
       return;
     }
     
@@ -357,12 +352,9 @@ const SplitPaymentForm = ({
   const createSplitPaymentRequests = async () => {
     try {
       let newBookingId = bookingId;
-      console.log('Initial bookingId:', bookingId);
 
       if (!newBookingId && typeof createBookingIfNeeded === 'function') {
-        console.log('Creating new booking...');
         newBookingId = await createBookingIfNeeded();
-        console.log('Created new bookingId:', newBookingId);
       }
 
       if (!newBookingId) {
@@ -372,10 +364,8 @@ const SplitPaymentForm = ({
 
       // Store the bookingId
       setRealBookingId(newBookingId);
-      console.log('Set realBookingId to:', newBookingId);
 
       // CRITICAL: Verify the booking actually exists in the database before proceeding
-      console.log('🔍 Verifying booking exists in database before creating split requests...');
       const { data: bookingVerification, error: verifyError } = await supabase
         .from('bookings')
         .select('id, status')
@@ -391,12 +381,10 @@ const SplitPaymentForm = ({
           .select('id, status, created_at')
           .order('created_at', { ascending: false })
           .limit(5);
-        console.log('🔍 Recent bookings in database:', allBookings);
         
         throw new Error(`Booking ${newBookingId} was not properly saved to database. Please try again.`);
       }
       
-      console.log('✅ Booking verified in database:', bookingVerification);
 
       // Ensure we have recipients before creating requests
       if (!splitRecipients || splitRecipients.length === 0) {
@@ -430,7 +418,6 @@ const SplitPaymentForm = ({
       // Combine all requests
       const allRequests = [initiatorRequest, ...recipientRequests];
 
-      console.log('Split requests to create:', allRequests);
 
       const { data, error } = await supabase
         .from('split_payment_requests')
@@ -480,24 +467,7 @@ const SplitPaymentForm = ({
   };
 
   // Add comprehensive logging to debug the amounts
-  console.log('🔍 Amount Debugging:', {
-    totalAmount,
-    splitCount,
-    splitAmounts,
-    'splitAmounts.reduce': splitAmounts.reduce((sum, amount) => sum + amount, 0),
-    myAmount,
-    'myAmount in kobo': myAmount * 100,
-    'myAmount >= 50': myAmount >= 50,
-    'splitRecipients count': splitRecipients.filter(r => r).length
-  });
 
-  // Add logging to debug the amounts
-  console.log('Amount breakdown:', {
-    totalAmount,
-    splitAmounts,
-    myAmount,
-    fullTablePrice: totalAmount
-  });
 
   const handlePayment = async () => {
     try {
@@ -708,19 +678,11 @@ const SplitPaymentForm = ({
                     try {
                       // Add loading state to prevent double clicks
                       if (isCreating) {
-                        console.log('Payment already in progress...');
                         return;
                       }
 
                       setIsCreating(true);
 
-                      // Log initial state
-                      console.log('Starting payment flow:', {
-                        splitRecipients,
-                        splitAmounts,
-                        myAmount,
-                        bookingId
-                      });
 
                       // Create booking and split requests in one step
                       const { confirmedBookingId, splitRequests } = await (async () => {
@@ -857,7 +819,6 @@ const SplitPaymentForm = ({
                             if (emailError) {
                               console.error('❌ Error sending split payment initiation email:', emailError);
                             } else {
-                              console.log('✅ Split payment initiation email sent successfully');
                             }
 
                             // Send request emails to recipients
@@ -910,7 +871,6 @@ const SplitPaymentForm = ({
                                   if (requestEmailError) {
                                     console.error(`❌ Error sending split payment request email to ${recipientProfile.email}:`, requestEmailError);
                                   } else {
-                                    console.log(`✅ Split payment request email sent to ${recipientProfile.email}`);
                                   }
                                 }
                               } catch (recipientEmailError) {

@@ -68,13 +68,9 @@ const VenueOwnerSettings = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        console.log('❌ No authenticated user');
         return;
       }
 
-      console.log('🔍 VENUE OWNERSHIP DEBUG:');
-      console.log('👤 Current user:', { id: user.id, email: user.email });
-      console.log('🏢 Current venue:', venue ? { id: venue.id, owner_id: venue.owner_id, name: venue.name } : 'No venue');
 
       // Check venue ownership
       const { data: venueCheck, error: venueError } = await supabase
@@ -82,7 +78,6 @@ const VenueOwnerSettings = () => {
         .select('*')
         .eq('owner_id', user.id);
 
-      console.log('🏢 Venues owned by user:', venueCheck);
       if (venueError) console.error('❌ Venue check error:', venueError);
 
       // Check venue_owners record
@@ -91,7 +86,6 @@ const VenueOwnerSettings = () => {
         .select('*')
         .eq('user_id', user.id);
 
-      console.log('👥 Venue owner records:', venueOwnerCheck);
       if (ownerError) console.error('❌ Venue owner check error:', ownerError);
 
       // Test if we can update the venue
@@ -102,7 +96,6 @@ const VenueOwnerSettings = () => {
           .eq('id', venue.id)
           .eq('owner_id', user.id);
 
-        console.log('🧪 Update test result:', updateTest);
         if (updateError) console.error('❌ Update test error:', updateError);
       }
 
@@ -174,7 +167,6 @@ const VenueOwnerSettings = () => {
     try {
       setLoading(true);
 
-      console.log('🔍 Fetching venue data for user:', userId);
 
       // Fetch venue
       const { data: venueData, error: venueError } = await supabase
@@ -189,7 +181,6 @@ const VenueOwnerSettings = () => {
         // Try to find venue by email instead (fallback)
         const { data: { user } } = await supabase.auth.getUser();
         if (user?.email) {
-          console.log('🔄 Trying to fetch venue by email:', user.email);
           const { data: venueByEmail, error: emailError } = await supabase
             .from('venues')
             .select('*')
@@ -197,7 +188,6 @@ const VenueOwnerSettings = () => {
             .single();
           
           if (venueByEmail && !emailError) {
-            console.log('✅ Found venue by email, updating owner_id...');
             // Update the venue's owner_id
             await supabase
               .from('venues')
@@ -205,7 +195,6 @@ const VenueOwnerSettings = () => {
               .eq('id', venueByEmail.id);
             
             setVenue({ ...venueByEmail, owner_id: userId });
-            console.log('✅ Venue owner_id fixed');
           } else {
             console.error('❌ No venue found by email either:', emailError);
             return;
@@ -215,7 +204,6 @@ const VenueOwnerSettings = () => {
         }
       } else {
         setVenue(venueData);
-        console.log('✅ Venue fetched successfully:', venueData.id);
       }
 
       setVenue(venueData);
@@ -267,9 +255,6 @@ const VenueOwnerSettings = () => {
     try {
       setSaving(true);
 
-      console.log('🔄 Attempting to update venue:', venue.id);
-      console.log('👤 Current user ID:', currentUser?.id);
-      console.log('🏢 Venue owner_id:', venue.owner_id);
 
       // Validate that we have proper authentication
       if (!currentUser?.id) {
@@ -306,7 +291,6 @@ const VenueOwnerSettings = () => {
       // Note: Removed ambiance and dress_code as they don't exist in venues table
       // Note: Removed capacity as it's not in the venues table (it's in venue_tables)
 
-      console.log('📝 Update data:', updateData);
 
       const { data, error } = await supabase
         .from('venues')
@@ -324,7 +308,6 @@ const VenueOwnerSettings = () => {
         throw new Error('No venue was updated. Please check that you own this venue.');
       }
 
-      console.log('✅ Venue updated successfully:', data[0]);
 
       toast({
         title: 'Success!',

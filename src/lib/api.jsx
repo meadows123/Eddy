@@ -261,7 +261,6 @@ export async function removeStripePaymentMethod(id) {
 }
 
 export async function notifyAdminOfVenueSubmission(newVenue, venueOwner, user) {
-  console.log("🔔 [ADMIN EMAIL] Starting venue submission notification...");
   
   const ADMIN_EMAIL = "sales@oneeddy.com";
   
@@ -272,11 +271,6 @@ export async function notifyAdminOfVenueSubmission(newVenue, venueOwner, user) {
   };
 
   try {
-    console.log('📧 EmailJS config check:', {
-      serviceId: EMAILJS_CONFIG.serviceId ? 'SET' : 'MISSING',
-      templateId: EMAILJS_CONFIG.templateId ? 'SET' : 'MISSING', 
-      publicKey: EMAILJS_CONFIG.publicKey ? 'SET' : 'MISSING'
-    });
 
     if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.templateId || !EMAILJS_CONFIG.publicKey) {
       throw new Error('EmailJS configuration incomplete');
@@ -286,7 +280,6 @@ export async function notifyAdminOfVenueSubmission(newVenue, venueOwner, user) {
     const emailjs = (await import('@emailjs/browser')).default;
     try {
       emailjs.init(EMAILJS_CONFIG.publicKey);
-      console.log('✅ EmailJS initialized successfully');
     } catch (initError) {
       console.error('❌ EmailJS initialization failed:', initError);
       throw new Error('Failed to initialize EmailJS');
@@ -324,16 +317,8 @@ export async function notifyAdminOfVenueSubmission(newVenue, venueOwner, user) {
       reply_to: venueOwner.email
     };
     
-    console.log('🔥 [VENUE EMAIL] Sending with template data:', {
-      ownerName: templateData.ownerName,
-      venueName: templateData.venueName,
-      ownerEmail: templateData.ownerEmail,
-      viewUrl: templateData.viewUrl,
-      timestamp: new Date().toISOString()
-    });
     
     // Log the complete template data for debugging
-    console.log('📋 Complete template data being sent to EmailJS:', templateData);
     
     // Send email via EmailJS (preferred method)
     const emailPromise = emailjs.send(
@@ -349,7 +334,6 @@ export async function notifyAdminOfVenueSubmission(newVenue, venueOwner, user) {
     
     const result = await Promise.race([emailPromise, timeoutPromise]);
 
-    console.log("✅ Admin notification sent successfully via EmailJS:", result);
     return { success: true, result };
     
   } catch (error) {
@@ -366,7 +350,6 @@ export async function notifyAdminOfVenueSubmission(newVenue, venueOwner, user) {
 // Simple test function for EmailJS connectivity
 export async function testEmailJSConnection() {
   try {
-    console.log('🧪 Testing EmailJS connectivity...');
     
     // Import EmailJS
     const emailjs = (await import('@emailjs/browser')).default;
@@ -378,11 +361,6 @@ export async function testEmailJSConnection() {
       publicKey: import.meta.env.VITE_EMAILJS_PUBLIC_KEY,
     };
     
-    console.log('📋 Config check:', {
-      serviceId: config.serviceId ? 'SET' : 'MISSING',
-      templateId: config.templateId ? 'SET' : 'MISSING',
-      publicKey: config.publicKey ? 'SET' : 'MISSING'
-    });
     
     if (!config.serviceId || !config.templateId || !config.publicKey) {
       throw new Error('EmailJS configuration incomplete');
@@ -441,10 +419,8 @@ export async function testEmailJSConnection() {
     // Try each variation
     for (const variation of commonFieldVariations) {
       try {
-        console.log(`📤 Trying ${variation.name}:`, variation.data);
         
         const result = await emailjs.send(config.serviceId, config.templateId, variation.data);
-        console.log(`✅ SUCCESS with ${variation.name}:`, result);
         
         return { 
           success: true, 
@@ -454,7 +430,6 @@ export async function testEmailJSConnection() {
         };
         
       } catch (error) {
-        console.log(`❌ Failed with ${variation.name}:`, error.message);
         // Continue to next variation
       }
     }
@@ -596,7 +571,6 @@ function VenueOwnersTest() {
   useEffect(() => {
     async function fetchVenueOwners() {
       const { data, error } = await supabase.from("venue_owners").select("*");
-      console.log(data, error);
     }
     fetchVenueOwners();
   }, []);

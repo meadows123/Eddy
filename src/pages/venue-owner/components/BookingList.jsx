@@ -23,9 +23,6 @@ const BookingList = ({ currentUser }) => {
   const subscriptionRef = useRef(null);
 
   // Debug logging
-  console.log('🔍 BookingList received currentUser:', currentUser);
-  console.log('🔍 BookingList currentUser type:', typeof currentUser);
-  console.log('🔍 BookingList currentUser id:', currentUser?.id);
 
   useEffect(() => {
     if (currentUser) {
@@ -40,7 +37,6 @@ const BookingList = ({ currentUser }) => {
 
   const cleanupSubscriptions = () => {
     if (subscriptionRef.current) {
-      console.log('Cleaning up BookingList real-time subscription...');
       subscriptionRef.current.unsubscribe();
       subscriptionRef.current = null;
     }
@@ -51,11 +47,9 @@ const BookingList = ({ currentUser }) => {
     cleanupSubscriptions();
 
     if (!venueIds || venueIds.length === 0) {
-      console.log('No venue IDs provided for BookingList subscription');
       return;
     }
 
-    console.log('Setting up BookingList real-time subscription for venues:', venueIds);
 
     try {
       // Subscribe to bookings changes for this venue owner's venues
@@ -70,7 +64,6 @@ const BookingList = ({ currentUser }) => {
             filter: `venue_id=in.(${venueIds.join(',')})` // Filter by venue IDs
           },
           (payload) => {
-            console.log('Real-time booking change detected in BookingList:', payload);
             
             // Show notification for new bookings
             if (payload.eventType === 'INSERT') {
@@ -88,9 +81,7 @@ const BookingList = ({ currentUser }) => {
           }
         )
         .subscribe((status) => {
-          console.log('BookingList subscription status:', status);
           if (status === 'SUBSCRIBED') {
-            console.log('Successfully subscribed to BookingList real-time updates');
           }
         });
     } catch (error) {
@@ -100,7 +91,6 @@ const BookingList = ({ currentUser }) => {
 
   const fetchBookings = async (silentRefresh = false) => {
     try {
-      console.log('🚀 fetchBookings called with currentUser:', currentUser);
       
       if (!currentUser || !currentUser.id) {
         console.error('❌ No currentUser or currentUser.id found');
@@ -114,7 +104,6 @@ const BookingList = ({ currentUser }) => {
       }
       
       // Get venues owned by current user
-      console.log('🔍 Fetching venues for owner_id:', currentUser.id);
       const { data: venues, error: venuesError } = await supabase
         .from('venues')
         .select('id')
@@ -125,10 +114,8 @@ const BookingList = ({ currentUser }) => {
         throw venuesError;
       }
 
-      console.log('📊 Found venues:', venues);
 
       if (!venues || venues.length === 0) {
-        console.log('⚠️ No venues found for owner_id:', currentUser.id);
         setBookings([]);
         if (!silentRefresh) {
           setLoading(false);
@@ -137,7 +124,6 @@ const BookingList = ({ currentUser }) => {
       }
 
       const venueIds = venues.map(v => v.id);
-      console.log('🔍 Venue IDs to fetch bookings for:', venueIds);
 
       // Set up real-time subscription for these venues (only if not already set up)
       if (!subscriptionRef.current) {
@@ -145,7 +131,6 @@ const BookingList = ({ currentUser }) => {
       }
 
       // Fetch bookings for these venues with related data
-      console.log('🔍 Fetching bookings for venue IDs:', venueIds);
       
       // First try with full relationships
       let { data: bookingsData, error: bookingsError } = await supabase
@@ -173,7 +158,6 @@ const BookingList = ({ currentUser }) => {
 
       // If that fails, try without venue_tables relationship
       if (bookingsError) {
-        console.log('⚠️ Full query failed, trying without venue_tables:', bookingsError);
         const { data: simpleBookings, error: simpleError } = await supabase
           .from('bookings')
           .select(`
@@ -207,17 +191,7 @@ const BookingList = ({ currentUser }) => {
         throw bookingsError;
       }
 
-      console.log('📊 Fetched', bookingsData?.length || 0, 'bookings');
       if (bookingsData && bookingsData.length > 0) {
-        console.log('🔍 First booking sample:', {
-          id: bookingsData[0].id,
-          user_id: bookingsData[0].user_id,
-          venue_id: bookingsData[0].venue_id,
-          table_id: bookingsData[0].table_id,
-          number_of_guests: bookingsData[0].number_of_guests,
-          total_amount: bookingsData[0].total_amount,
-          venue_tables: bookingsData[0].venue_tables
-        });
       }
 
       // Fetch user profiles for bookings in batches
@@ -235,12 +209,9 @@ const BookingList = ({ currentUser }) => {
             profiles.forEach(profile => {
               userProfiles[profile.id] = profile;
             });
-            console.log('✅ Successfully fetched profiles for', profiles.length, 'users');
           } else if (profilesError) {
-            console.warn('⚠️ Could not fetch profiles:', profilesError);
           }
         } catch (error) {
-          console.warn('⚠️ Error fetching profiles:', error);
         }
       }
 
@@ -252,9 +223,6 @@ const BookingList = ({ currentUser }) => {
 
       // Debug: Log the first booking to see the data structure
       if (bookingsWithProfiles.length > 0) {
-        console.log('🔍 Sample booking data structure:', bookingsWithProfiles[0]);
-        console.log('🔍 Available fields:', Object.keys(bookingsWithProfiles[0]));
-        console.log('🔍 Has venue_tables data:', !!bookingsWithProfiles[0].venue_tables);
       }
 
       setBookings(bookingsWithProfiles);
@@ -463,7 +431,6 @@ const BookingList = ({ currentUser }) => {
               className="border-brand-burgundy/20 text-brand-burgundy hover:bg-brand-burgundy/10 w-full sm:w-auto"
               onClick={() => {
                 // Handle view details
-                console.log('View booking details:', booking.id);
               }}
             >
               <Eye className="h-4 w-4 mr-1" />

@@ -82,12 +82,9 @@ const PaymentForm = ({ amount, onSuccess }) => {
 
 // Main component
 const SplitPaymentPage = () => {
-  // Let's add debug logs to trace the flow
-  console.log('🔍 Starting to check SplitPaymentPage.jsx');
 
   // First, let's see what's happening in the component
   const { bookingId, requestId } = useParams();
-  console.log('🔍 Split Payment Params:', { bookingId, requestId });
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
@@ -99,11 +96,6 @@ const SplitPaymentPage = () => {
   const [processing, setProcessing] = useState(false);
 
   // Add debug logs to trace the auth state
-  console.log('🔍 SplitPaymentPage auth check:', {
-    isUserAuthenticated: !!user,
-    userData: user,
-    sessionState: supabase.auth.session
-  });
 
   // Check if user is authenticated (only after loading is complete)
   useEffect(() => {
@@ -111,7 +103,6 @@ const SplitPaymentPage = () => {
     if (authLoading) return;
     
     if (!user) {
-      console.log('❌ User not authenticated, redirecting to login');
       toast({
         title: "Authentication Required",
         description: "Please log in to complete this payment.",
@@ -123,7 +114,6 @@ const SplitPaymentPage = () => {
   }, [user, authLoading, navigate, toast]);
 
   useEffect(() => {
-    console.log('🔍 SplitPaymentPage useEffect triggered with:', { bookingId, requestId, user });
     if (bookingId && requestId && user) {
       fetchPaymentRequest();
     } else if (bookingId && requestId) {
@@ -143,10 +133,8 @@ const SplitPaymentPage = () => {
 
       // Handle special case for initiator
       if (requestId === 'initiator') {
-        console.log('🔍 Handling initiator request for booking:', bookingId);
         
         // For initiator, we need to fetch the booking directly and create a mock payment request
-        console.log('🔍 Attempting to fetch booking with ID:', bookingId);
         
         // Try a simpler query first without joins to see if booking exists
         const { data: simpleBooking, error: simpleError } = await supabase
@@ -155,7 +143,6 @@ const SplitPaymentPage = () => {
           .eq('id', bookingId)
           .single();
           
-        console.log('🔍 Simple booking query result:', { simpleBooking, simpleError });
         
         if (simpleError || !simpleBooking) {
           console.error('❌ Booking not found with simple query:', { simpleError, simpleBooking });
@@ -175,7 +162,6 @@ const SplitPaymentPage = () => {
           .eq('id', simpleBooking.user_id)
           .single();
           
-        console.log('🔍 Additional data queries:', { venueData, venueError, userData, userError });
         
         // Combine the data
         const bookingData = {
@@ -184,7 +170,6 @@ const SplitPaymentPage = () => {
           profiles: userData || { first_name: 'User', last_name: '' }
         };
         
-        console.log('✅ Combined booking data:', bookingData);
 
         // Use the combined booking data
         const finalBookingData = bookingData;
@@ -204,7 +189,6 @@ const SplitPaymentPage = () => {
         setBooking(finalBookingData);
         setVenue(finalBookingData.venues);
         
-        console.log('✅ Set booking and venue data for initiator');
         
         setLoading(false);
         return;
@@ -231,11 +215,7 @@ const SplitPaymentPage = () => {
         if (debugError) {
           console.error('❌ Debug lookup also failed:', debugError);
         } else if (debugData && debugData.length > 0) {
-          console.log('🔍 Found split payment request but booking_id mismatch:', debugData[0]);
-          console.log('🔍 Expected booking_id:', bookingId);
-          console.log('🔍 Actual booking_id:', debugData[0].booking_id);
         } else {
-          console.log('🔍 No split payment request found with ID:', requestId);
         }
         
         // Run comprehensive debug
@@ -249,11 +229,9 @@ const SplitPaymentPage = () => {
         throw new Error('Split payment request not found');
       }
 
-      console.log('✅ Payment request found:', requestData);
 
       // Check if the current user is the intended recipient
       if (requestData.recipient_id && requestData.recipient_id !== user?.id) {
-        console.log('❌ User not authorized for this payment request');
         toast({
           title: "Access Denied",
           description: "This payment request is not intended for you.",
@@ -285,7 +263,6 @@ const SplitPaymentPage = () => {
       }
 
       // First get the split payment request
-      console.log('🔍 Looking for split payment request with ID:', requestId);
       const { data: bookingData, error: bookingError } = await supabase
         .from('split_payment_requests')
         .select('*')
@@ -304,7 +281,6 @@ const SplitPaymentPage = () => {
 
       // Fetch requester profile separately
       if (bookingData.requester_id) {
-        console.log('🔍 Attempting to fetch requester profile for ID:', bookingData.requester_id);
         console.log('�� Current user ID:', user?.id);
         
         const { data: requesterProfile, error: requesterError } = await supabase
@@ -313,11 +289,9 @@ const SplitPaymentPage = () => {
           .eq('id', bookingData.requester_id)
           .single();
 
-        console.log('🔍 Profile fetch result:', { requesterProfile, requesterError });
 
         if (!requesterError && requesterProfile) {
           bookingData.requester_profile = requesterProfile;
-          console.log('✅ Requester profile loaded:', requesterProfile);
         } else {
           console.error('❌ Error fetching requester profile:', requesterError);
           console.error('❌ This might be an RLS policy issue - user cannot access other user profiles');
@@ -329,7 +303,6 @@ const SplitPaymentPage = () => {
       // Then fetch the booking details separately
       let actualBookingData = null;
       if (bookingData?.booking_id) {
-        console.log('🔍 Fetching booking with ID:', bookingData.booking_id);
         const { data: booking, error: bookingFetchError } = await supabase
           .from('bookings')
           .select(`
@@ -345,19 +318,14 @@ const SplitPaymentPage = () => {
           .eq('id', bookingData.booking_id)
           .maybeSingle(); // Use maybeSingle() to handle missing bookings gracefully
 
-        console.log('🔍 Booking query result:', { booking, bookingFetchError });
         
         if (!bookingFetchError && booking) {
           actualBookingData = booking;
-          console.log('✅ Booking data loaded successfully:', booking);
         } else {
           console.error('❌ Error fetching booking details:', bookingFetchError);
           console.error('🔍 Booking ID:', bookingData.booking_id);
           
           // Try to find the booking without any joins to debug
-          console.log('🔍 Trying to fetch booking without joins...');
-          console.log('🔍 Looking for booking ID:', bookingData.booking_id);
-          console.log('🔍 Query: SELECT * FROM bookings WHERE id =', bookingData.booking_id);
           
           const { data: simpleBooking, error: simpleBookingError } = await supabase
             .from('bookings')
@@ -365,7 +333,6 @@ const SplitPaymentPage = () => {
             .eq('id', bookingData.booking_id)
             .maybeSingle();
           
-          console.log('🔍 Simple booking query result:', { simpleBooking, simpleBookingError });
           
           // Test query to see if we can fetch any bookings
           const { data: testBookings, error: testError } = await supabase
@@ -373,10 +340,8 @@ const SplitPaymentPage = () => {
             .select('id, user_id, created_at')
             .limit(3);
           
-          console.log('🔍 Test query - any bookings found:', { testBookings, testError });
           
           if (!simpleBookingError && simpleBooking) {
-            console.log('✅ Booking exists without joins, using simple data');
             actualBookingData = simpleBooking;
           } else if (simpleBookingError) {
             console.error('🔍 Booking query error:', simpleBookingError);
@@ -387,17 +352,6 @@ const SplitPaymentPage = () => {
         }
       }
 
-      console.log('📋 Booking data fetch result:', { 
-        bookingData, 
-        bookingError,
-        hasVenue: !!bookingData?.venues,
-        hasTable: !!bookingData?.venue_tables,
-        booking_date: bookingData?.booking_date,
-        start_time: bookingData?.start_time,
-        venue_id: bookingData?.venue_id,
-        user_id: bookingData?.user_id,
-        allBookingFields: bookingData ? Object.keys(bookingData) : 'no booking data'
-      });
 
       if (bookingError) {
         console.error('❌ Error fetching booking:', bookingError);
@@ -417,10 +371,8 @@ const SplitPaymentPage = () => {
           type: 'Restaurant', // Default type
           description: 'Venue details from booking'
         });
-        console.log('✅ Venue data set from actualBookingData:', venueData);
       } else if (actualBookingData?.venue_id) {
         // If we have booking data but no venue join, fetch venue separately
-        console.log('🔍 Fetching venue data separately for venue_id:', actualBookingData.venue_id);
         await fetchVenueData(actualBookingData.venue_id);
       } else if (bookingData?.bookings?.venues) {
         const venueData = bookingData.bookings.venues;
@@ -434,11 +386,7 @@ const SplitPaymentPage = () => {
           type: 'Restaurant', // Default type
           description: 'Venue details from booking'
         });
-        console.log('✅ Venue data set:', venueData);
       } else {
-        console.log('❌ No venue data found. Booking may not exist.');
-        console.log('🔍 Split payment request data:', bookingData);
-        console.log('🔍 Actual booking data:', actualBookingData);
         
         // Fallback if no venue data - booking doesn't exist
         setVenue({
@@ -453,26 +401,9 @@ const SplitPaymentPage = () => {
       }
 
       // Set the state
-      console.log('🔍 About to set payment request with data:', {
-        requester_id: bookingData.requester_id,
-        requester_profile: bookingData.requester_profile,
-        hasProfile: !!bookingData.requester_profile,
-        profileName: bookingData.requester_profile ? 
-          `${bookingData.requester_profile.first_name} ${bookingData.requester_profile.last_name}` : 
-          'No profile'
-      });
       setPaymentRequest(bookingData);
       setBooking(actualBookingData || {});
 
-      console.log('✅ All data loaded successfully:', {
-        paymentRequest: bookingData,
-        booking: actualBookingData,
-        venue: actualBookingData?.venues,
-        'booking.venue_id': actualBookingData?.venue_id,
-        'booking.table_id': actualBookingData?.table_id,
-        'booking.table_name': actualBookingData?.table_name,
-        'booking.table_number': actualBookingData?.table_number
-      });
 
     } catch (error) {
       console.error('❌ Error in fetchPaymentRequest:', error);
@@ -490,7 +421,6 @@ const SplitPaymentPage = () => {
   // Separate function to fetch venue data
   const fetchVenueData = async (venueId) => {
     try {
-      console.log('🔍 Fetching venue data for venue_id:', venueId);
       
       const { data: venue, error: venueError } = await supabase
         .from('venues')
@@ -500,7 +430,6 @@ const SplitPaymentPage = () => {
 
       if (!venueError && venue) {
         setVenue(venue);
-        console.log('✅ Venue data fetched successfully:', venue);
       } else {
         console.error('❌ Error fetching venue data:', venueError);
         // Set a fallback venue object with basic info
@@ -530,7 +459,6 @@ const SplitPaymentPage = () => {
 
   // Debug function to check database state
   const debugDatabaseState = async () => {
-    console.log('🔍 Debugging database state...');
     
     // Check all split payment requests
     const { data: allRequests, error: allRequestsError } = await supabase
@@ -541,7 +469,6 @@ const SplitPaymentPage = () => {
     if (allRequestsError) {
       console.error('❌ Error fetching all requests:', allRequestsError);
     } else {
-      console.log('🔍 All split payment requests:', allRequests);
     }
     
     // Check specific request ID
@@ -554,7 +481,6 @@ const SplitPaymentPage = () => {
       if (specificError) {
         console.error('❌ Error fetching specific request:', specificError);
       } else {
-        console.log('🔍 Specific request lookup:', specificRequest);
       }
     }
     
@@ -580,7 +506,6 @@ const SplitPaymentPage = () => {
       if (bookingError) {
         console.error('❌ Error fetching booking:', bookingError);
       } else {
-        console.log('🔍 Booking lookup:', booking);
       }
     }
   };
