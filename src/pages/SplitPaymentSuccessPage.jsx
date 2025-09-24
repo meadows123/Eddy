@@ -408,36 +408,42 @@ const SplitPaymentSuccessPage = () => {
             template: 'split-payment-complete'
           });
 
+          // Prepare email data
+          const emailData = {
+            // Recipient info
+            email: bookingData.profiles?.email || 'initiator@example.com',
+            customerName: `${bookingData.profiles?.first_name || ''} ${bookingData.profiles?.last_name || ''}`.trim() || 'Guest',
+            customerPhone: bookingData.profiles?.phone || 'N/A',
+            
+            // Booking details
+            bookingId: bookingData.id,
+            bookingDate: bookingData.booking_date || bookingData.bookingDate,
+            bookingTime: bookingData.start_time || bookingData.booking_time,
+            guestCount: bookingData.number_of_guests || bookingData.guest_count,
+            totalAmount: bookingData.total_amount || bookingData.totalAmount,
+            
+            // Table details
+            tableName: bookingData.table?.table_name || 'Table not specified',
+            tableNumber: bookingData.table?.table_number || 'N/A',
+            
+            // Venue details
+            venueName: bookingData.venues?.name,
+            venueAddress: bookingData.venues?.address,
+            venuePhone: bookingData.venues?.contact_phone,
+            
+            // Special requests
+            specialRequests: bookingData.special_requests || 'None specified'
+          };
+
+          console.log('📧 Email data being sent:', emailData);
+
           // Send completion email to initiator via Edge Function
           const { data: completionEmailResult, error: completionEmailError } = await supabase.functions.invoke('send-email', {
             body: {
               to: bookingData.profiles?.email || 'initiator@example.com',
               subject: `Booking Confirmed! - ${bookingData.venues?.name || 'Your Venue'}`,
               template: 'booking-confirmation',
-              data: {
-                // Recipient info
-                email: bookingData.profiles?.email || 'initiator@example.com',
-                customerName: `${bookingData.profiles?.first_name || ''} ${bookingData.profiles?.last_name || ''}`.trim() || 'Guest',
-                
-                // Booking details
-                bookingId: bookingData.id,
-                bookingDate: bookingData.booking_date || bookingData.bookingDate,
-                bookingTime: bookingData.start_time || bookingData.booking_time,
-                guestCount: bookingData.number_of_guests || bookingData.guest_count,
-                totalAmount: bookingData.total_amount || bookingData.totalAmount,
-                
-                // Table details
-                tableName: bookingData.table?.table_name,
-                tableNumber: bookingData.table?.table_number,
-                
-                // Venue details
-                venueName: bookingData.venues?.name,
-                venueAddress: bookingData.venues?.address,
-                venuePhone: bookingData.venues?.contact_phone,
-                
-                // Special requests
-                specialRequests: bookingData.special_requests || 'None specified'
-              }
+              data: emailData
             }
           });
 
@@ -460,16 +466,22 @@ const SplitPaymentSuccessPage = () => {
           }
 
           // Send email to venue owner when all payments are completed
-          await sendSplitPaymentVenueOwnerNotification(
-            bookingData,
-            bookingData.venues,
-            {
-              email: bookingData.profiles?.email || 'initiator@example.com',
-              full_name: `${bookingData.profiles?.first_name || ''} ${bookingData.profiles?.last_name || ''}`.trim() || 'Guest',
-              customerName: `${bookingData.profiles?.first_name || ''} ${bookingData.profiles?.last_name || ''}`.trim() || 'Guest'
-            },
-            requests
-          );
+          console.log('📧 Sending venue owner notification...');
+          try {
+            await sendSplitPaymentVenueOwnerNotification(
+              bookingData,
+              bookingData.venues,
+              {
+                email: bookingData.profiles?.email || 'initiator@example.com',
+                full_name: `${bookingData.profiles?.first_name || ''} ${bookingData.profiles?.last_name || ''}`.trim() || 'Guest',
+                customerName: `${bookingData.profiles?.first_name || ''} ${bookingData.profiles?.last_name || ''}`.trim() || 'Guest'
+              },
+              requests
+            );
+            console.log('✅ Venue owner notification sent successfully');
+          } catch (venueOwnerError) {
+            console.error('❌ Error sending venue owner notification:', venueOwnerError);
+          }
 
           // Send confirmation email to the last person who paid (if different from initiator)
           const lastPayment = requests.find(req => req.id === requestId);
@@ -492,11 +504,14 @@ const SplitPaymentSuccessPage = () => {
                   data: {
                     email: lastPayerProfile.email,
                     customerName: `${lastPayerProfile.first_name || ''} ${lastPayerProfile.last_name || ''}`.trim() || 'Guest',
+                    customerPhone: lastPayerProfile.phone || 'N/A',
                     bookingId: bookingData.id,
                     bookingDate: bookingData.booking_date || bookingData.bookingDate,
                     bookingTime: bookingData.start_time || bookingData.booking_time,
                     guestCount: bookingData.number_of_guests || bookingData.guest_count,
                     totalAmount: bookingData.total_amount || bookingData.totalAmount,
+                    tableName: bookingData.table?.table_name || 'Table not specified',
+                    tableNumber: bookingData.table?.table_number || 'N/A',
                     venueName: bookingData.venues?.name,
                     venueAddress: bookingData.venues?.address,
                     venuePhone: bookingData.venues?.contact_phone,
