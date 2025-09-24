@@ -95,11 +95,16 @@ const ensureTimeFormat = (time) => {
 // Add this function near the top of the file
 const validateBookingTimes = (startTime, endTime) => {
   
+  // Ensure times are in HH:MM:SS format
+  const timeFormat = /^\d{2}:\d{2}:\d{2}$/;
+
+  if (!timeFormat.test(startTime) || !timeFormat.test(endTime)) {
+    throw new Error('Times must be in HH:MM:SS format');
+  }
+
   // Convert times to comparable format
   const start = new Date(`1970-01-01T${startTime}`);
   let end = new Date(`1970-01-01T${endTime}`);
-  
-
   
   // If end time is before start time, assume it's the next day
   if (end <= start) {
@@ -109,18 +114,9 @@ const validateBookingTimes = (startTime, endTime) => {
   // Venue closing time (01:30)
   const closingTime = new Date(`1970-01-02T01:30:00`);
   
-
   // If booking extends past closing time, adjust it
   if (end > closingTime) {
-    end = closingTime;
     endTime = '01:30:00';
-  }
-  
-  // Ensure times are in HH:MM:SS format
-  const timeFormat = /^\d{2}:\d{2}:\d{2}$/;
-
-  if (!timeFormat.test(startTime) || !timeFormat.test(endTime)) {
-    throw new Error('Times must be in HH:MM:SS format');
   }
   
   return {
@@ -246,13 +242,12 @@ const adjustTimeForMidnight = (startTime, endTime) => {
   endTime = ensureTimeFormat(endTime);
 
   // If end time is less than start time, it means it's the next day
-  // Add 24 hours to the end time
+  // Instead of adding 24 hours (which creates invalid times like 26:00:00),
+  // we'll keep the original end time and handle midnight crossing in the database
   if (endTime < startTime) {
-    // Extract hours from end time
-    const [hours, minutes, seconds] = endTime.split(':').map(Number);
-    // Add 24 to hours
-    const newHours = (hours + 24).toString().padStart(2, '0');
-    endTime = `${newHours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    // Keep the original end time - the database can handle midnight crossing
+    // by storing the time as-is and interpreting it as next day
+    console.log('Booking crosses midnight:', { startTime, endTime });
   }
 
   return { startTime, endTime };
