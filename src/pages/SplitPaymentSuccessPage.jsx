@@ -372,7 +372,7 @@ const SplitPaymentSuccessPage = () => {
               // Try multiple approaches to find venue owner
               const { data: ownerByVenueId, error: venueIdError } = await supabase
                 .from('venue_owners')
-                .select('email, full_name, user_id')
+                .select('owner_email, owner_name, user_id, venue_name')
                 .eq('venue_id', venue.id)
                 .single();
               
@@ -386,7 +386,7 @@ const SplitPaymentSuccessPage = () => {
                 if (venue.owner_id) {
                   const { data: ownerByOwnerId, error: ownerIdError } = await supabase
                     .from('venue_owners')
-                    .select('email, full_name, user_id')
+                    .select('owner_email, owner_name, user_id, venue_name')
                     .eq('user_id', venue.owner_id)
                     .single();
                   
@@ -400,7 +400,7 @@ const SplitPaymentSuccessPage = () => {
                 if (!venueOwner && venue.user_id) {
                   const { data: ownerByUserId, error: userIdError } = await supabase
                     .from('venue_owners')
-                    .select('email, full_name, user_id')
+                    .select('owner_email, owner_name, user_id, venue_name')
                     .eq('user_id', venue.user_id)
                     .single();
                   
@@ -422,7 +422,7 @@ const SplitPaymentSuccessPage = () => {
                   console.log('🔄 Trying fallback lookup by venue name (fallback):', venue.name);
                   const { data: ownerByName, error: nameError } = await supabase
                     .from('venue_owners')
-                    .select('email, full_name, user_id')
+                    .select('owner_email, owner_name, user_id, venue_name')
                     .ilike('venue_name', `%${venue.name}%`)
                     .single();
                   
@@ -483,7 +483,7 @@ const SplitPaymentSuccessPage = () => {
             // Approach 1: Try venue_id in venue_owners table
             const { data: ownerByVenueId, error: venueIdError } = await supabase
               .from('venue_owners')
-              .select('email, full_name, user_id')
+              .select('owner_email, owner_name, user_id, venue_name')
               .eq('venue_id', bookingData.venues.id)
               .single();
             
@@ -497,7 +497,7 @@ const SplitPaymentSuccessPage = () => {
               if (bookingData.venues.owner_id) {
                 const { data: ownerByOwnerId, error: ownerIdError } = await supabase
                   .from('venue_owners')
-                  .select('email, full_name, user_id')
+                  .select('owner_email, owner_name, user_id, venue_name')
                   .eq('user_id', bookingData.venues.owner_id)
                   .single();
                 
@@ -513,7 +513,7 @@ const SplitPaymentSuccessPage = () => {
               if (!venueOwner && bookingData.venues.user_id) {
                 const { data: ownerByUserId, error: userIdError } = await supabase
                   .from('venue_owners')
-                  .select('email, full_name, user_id')
+                  .select('owner_email, owner_name, user_id, venue_name')
                   .eq('user_id', bookingData.venues.user_id)
                   .single();
                 
@@ -537,7 +537,7 @@ const SplitPaymentSuccessPage = () => {
                 console.log('🔄 Trying fallback lookup by venue name:', bookingData.venues.name);
                 const { data: ownerByName, error: nameError } = await supabase
                   .from('venue_owners')
-                  .select('email, full_name, user_id')
+                  .select('owner_email, owner_name, user_id, venue_name')
                   .ilike('venue_name', `%${bookingData.venues.name}%`)
                   .single();
                 
@@ -557,7 +557,7 @@ const SplitPaymentSuccessPage = () => {
               console.log('🔄 Trying fallback lookup by venue name (no venue ID):', bookingData.venues.name);
               const { data: ownerByName, error: nameError } = await supabase
                 .from('venue_owners')
-                .select('email, full_name, user_id')
+                .select('owner_email, owner_name, user_id, venue_name')
                 .ilike('venue_name', `%${bookingData.venues.name}%`)
                 .single();
               
@@ -582,6 +582,39 @@ const SplitPaymentSuccessPage = () => {
           venueUserId: bookingData?.venues?.user_id,
           venueOwnerId: bookingData?.venues?.owner_id
         });
+
+        // DEBUG: Let's check what's actually in the database
+        console.log('🔍 DEBUG: Checking database for venue owner...');
+        
+        // Check all venue owners
+        const { data: allVenueOwners, error: allOwnersError } = await supabase
+          .from('venue_owners')
+          .select('*')
+          .limit(5);
+        
+        console.log('🔍 All venue owners in database:', { allVenueOwners, allOwnersError });
+        
+        // Check if there's a venue with this name
+        if (bookingData?.venues?.name) {
+          const { data: venueByName, error: venueByNameError } = await supabase
+            .from('venues')
+            .select('*')
+            .ilike('name', `%${bookingData.venues.name}%`)
+            .limit(3);
+          
+          console.log('🔍 Venues with similar name:', { venueByName, venueByNameError });
+        }
+        
+        // Check if there's a venue owner with this venue name
+        if (bookingData?.venues?.name) {
+          const { data: ownerByVenueName, error: ownerByVenueNameError } = await supabase
+            .from('venue_owners')
+            .select('*')
+            .ilike('venue_name', `%${bookingData.venues.name}%`)
+            .limit(3);
+          
+          console.log('🔍 Venue owners with similar venue name:', { ownerByVenueName, ownerByVenueNameError });
+        }
 
         if (bookingData) {
           console.log('📧 Preparing to send completion email to initiator:', {
@@ -660,23 +693,23 @@ const SplitPaymentSuccessPage = () => {
             });
           }
 
-          // Send email to venue owner when all payments are completed
-          console.log('📧 Sending venue owner notification...');
-          try {
-            await sendSplitPaymentVenueOwnerNotification(
-              bookingData,
-              bookingData.venues,
-              {
-                email: bookingData.profiles?.email || 'initiator@example.com',
-                full_name: `${bookingData.profiles?.first_name || ''} ${bookingData.profiles?.last_name || ''}`.trim() || 'Guest',
-                customerName: `${bookingData.profiles?.first_name || ''} ${bookingData.profiles?.last_name || ''}`.trim() || 'Guest'
-              },
-              requests
-            );
-            console.log('✅ Venue owner notification sent successfully');
-          } catch (venueOwnerError) {
-            console.error('❌ Error sending venue owner notification:', venueOwnerError);
-          }
+        // Send email to venue owner when all payments are completed
+        console.log('📧 Sending venue owner notification...');
+        try {
+          await sendSplitPaymentVenueOwnerNotification(
+            bookingData,
+            bookingData.venues,
+            {
+              email: bookingData.profiles?.email || 'initiator@example.com',
+              full_name: `${bookingData.profiles?.first_name || ''} ${bookingData.profiles?.last_name || ''}`.trim() || 'Guest',
+              customerName: `${bookingData.profiles?.first_name || ''} ${bookingData.profiles?.last_name || ''}`.trim() || 'Guest'
+            },
+            requests
+          );
+          console.log('✅ Venue owner notification sent successfully');
+        } catch (venueOwnerError) {
+          console.error('❌ Error sending venue owner notification:', venueOwnerError);
+        }
 
           // Send confirmation email to the last person who paid (if different from initiator)
           const lastPayment = requests.find(req => req.id === requestId);

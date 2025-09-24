@@ -459,7 +459,7 @@ export const sendSplitPaymentVenueOwnerNotification = async (booking, venue, ini
       venueData: venue
     });
     
-    const venueOwnerEmail = venue.venue_owners?.email || venue.contact_email || venue.owner_email || 'info@oneeddy.com';
+    const venueOwnerEmail = venue.venue_owners?.owner_email || venue.venue_owners?.email || venue.contact_email || venue.owner_email || 'info@oneeddy.com';
     const totalPaid = allPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
     const participantsCount = allPayments.length;
 
