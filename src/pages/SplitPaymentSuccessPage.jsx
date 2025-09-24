@@ -389,7 +389,7 @@ const SplitPaymentSuccessPage = () => {
           );
 
           // Send confirmation email to the last person who paid (if different from initiator)
-          const lastPayment = requests.find(req => req.id === requestData.id);
+          const lastPayment = requests.find(req => req.id === requestId);
           if (lastPayment && lastPayment.recipient_id !== bookingData.profiles?.id) {
             console.log('📧 [FRONTEND] Sending confirmation email to last payer...');
             
