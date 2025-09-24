@@ -56,14 +56,47 @@ const SplitPaymentSuccessPage = () => {
               contact_phone,
               price_range
             ),
-            venue_tables!inner(id.eq.table_id) (
-              table_number
+            venue_tables (
+              table_number,
+              table_name
             )
           `)
           .eq('id', requestData.booking_id)
           .single();
         
-        bookingData = booking;
+        if (bookingError) {
+          console.error('❌ Error fetching booking data with joins:', bookingError);
+          // Try to fetch booking data without joins as fallback
+          const { data: simpleBooking, error: simpleError } = await supabase
+            .from('bookings')
+            .select('*')
+            .eq('id', requestData.booking_id)
+            .single();
+          
+          if (simpleError) {
+            console.error('❌ Error fetching simple booking data:', simpleError);
+          } else {
+            bookingData = simpleBooking;
+            console.log('✅ Fallback booking data fetched:', simpleBooking);
+            
+            // Try to fetch venue data separately
+            if (simpleBooking?.venue_id) {
+              const { data: venueData } = await supabase
+                .from('venues')
+                .select('name, address, city, contact_email, contact_phone, price_range')
+                .eq('id', simpleBooking.venue_id)
+                .single();
+              
+              if (venueData) {
+                bookingData.venues = venueData;
+                console.log('✅ Venue data fetched separately:', venueData);
+              }
+            }
+          }
+        } else {
+          bookingData = booking;
+        }
+        
         console.log('📋 Booking data fetch result:', { 
           bookingData, 
           bookingError,
@@ -296,7 +329,7 @@ const SplitPaymentSuccessPage = () => {
               contact_email,
               contact_phone
             ),
-            profiles!inner(id.eq.user_id) (
+            profiles (
               first_name,
               last_name,
               email
@@ -307,7 +340,48 @@ const SplitPaymentSuccessPage = () => {
 
         if (bookingError) {
           console.error('❌ Error fetching booking data for completion email:', bookingError);
-          return;
+          // Try to fetch booking data without joins as fallback
+          const { data: simpleBooking, error: simpleError } = await supabase
+            .from('bookings')
+            .select('*')
+            .eq('id', bookingId)
+            .single();
+          
+          if (simpleError) {
+            console.error('❌ Error fetching simple booking data for completion email:', simpleError);
+            return;
+          }
+          
+          // Fetch venue and profile data separately
+          let venueData = null;
+          let profileData = null;
+          
+          if (simpleBooking?.venue_id) {
+            const { data: venue } = await supabase
+              .from('venues')
+              .select('name, address, city, contact_email, contact_phone')
+              .eq('id', simpleBooking.venue_id)
+              .single();
+            venueData = venue;
+          }
+          
+          if (simpleBooking?.user_id) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('first_name, last_name, email')
+              .eq('id', simpleBooking.user_id)
+              .single();
+            profileData = profile;
+          }
+          
+          // Create booking data object with joined data
+          bookingData = {
+            ...simpleBooking,
+            venues: venueData,
+            profiles: profileData
+          };
+          
+          console.log('✅ Fallback booking data for completion email:', bookingData);
         }
 
         console.log('✅ Booking data fetched:', {
