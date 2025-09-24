@@ -212,6 +212,8 @@ export const sendVenueOwnerApplicationApproved = async (venueOwnerData) => {
     // Try Edge Function first
     const { data, error } = await supabase.functions.invoke('send-email', {
       body: {
+        to: venueOwnerData.email,
+        subject: '🎉 Your Venue Application Has Been Approved!',
         template: 'venue-owner-application-approved',
         data: {
           email: venueOwnerData.email,
@@ -273,6 +275,8 @@ export const sendVenueOwnerRegistrationComplete = async (venueOwnerData) => {
     // Try Edge Function first
     const { data, error } = await supabase.functions.invoke('send-email', {
       body: {
+        to: venueOwnerData.email,
+        subject: '✅ Venue Registration Complete - Welcome to One Eddys!',
         template: 'venue-owner-signup-complete',
         data: {
           email: venueOwnerData.email,
@@ -334,6 +338,8 @@ export const sendVenueOwnerPasswordReset = async (venueOwnerData) => {
     
     const { data, error } = await supabase.functions.invoke('send-email', {
       body: {
+        to: venueOwnerData.email,
+        subject: '🔐 Reset Your Venue Owner Password',
         template: 'venue-owner-password-reset',
         data: {
           email: venueOwnerData.email,
@@ -361,6 +367,8 @@ export const sendVenueOwnerEmailConfirmation = async (venueOwnerData) => {
     
     const { data, error } = await supabase.functions.invoke('send-email', {
       body: {
+        to: venueOwnerData.email,
+        subject: '📧 Confirm Your Venue Owner Email Address',
         template: 'venue-owner-email-confirmation',
         data: {
           email: venueOwnerData.email,
@@ -462,6 +470,8 @@ export const sendApprovalEmailWithFallback = async (venueOwnerData) => {
     // Try Edge Function first
     const { data, error } = await supabase.functions.invoke('send-email', {
       body: {
+        to: venueOwnerData.email,
+        subject: '🎉 Your Venue Application Has Been Approved!',
         template: 'venue-owner-invitation',
         data: {
           email: venueOwnerData.email,
@@ -583,6 +593,8 @@ export const testEmailConfiguration = async () => {
     console.log('🔄 Testing Edge Function...');
     const { data, error } = await supabase.functions.invoke('send-email', {
       body: {
+        to: 'test@example.com',
+        subject: 'Test Email',
         template: 'test',
         data: {
           email: 'test@example.com',

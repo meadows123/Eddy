@@ -208,50 +208,6 @@ const VenueOwnerLogin = () => {
     }
   };
 
-  const debugVenueOwnerStatus = async () => {
-    try {
-      
-      // Check if user exists
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
-      if (user) {
-        // Check venue owner records
-        const { data: venueOwners, error: venueOwnerError } = await supabase
-          .from('venue_owners')
-          .select('*')
-          .eq('user_id', user.id);
-        
-        // Check by email
-        const { data: venueOwnersByEmail, error: emailError } = await supabase
-          .from('venue_owners')
-          .select('*')
-          .eq('owner_email', formData.email);
-      }
-      
-      // Check venue_owners table by email (safe query)
-      const { data: venueOwnersByEmail, error: venueOwnerEmailError } = await supabase
-        .from('venue_owners')
-        .select('*')
-        .eq('owner_email', formData.email);
-      
-      // Check if there are any pending venue owner requests
-      const { data: pendingRequests, error: pendingError } = await supabase
-        .from('pending_venue_owner_requests')
-        .select('*')
-        .eq('email', formData.email);
-      
-      // Check venues by email
-      const { data: venues, error: venueError } = await supabase
-        .from('venues')
-        .select('*')
-        .eq('contact_email', formData.email);
-      
-      // Summary of findings
-      
-    } catch (error) {
-      console.error('❌ Debug error:', error);
-    }
-  };
 
   const checkAuth = async () => {
     try {
@@ -481,14 +437,6 @@ const VenueOwnerLogin = () => {
                 Resend confirmation email
               </button>
               
-              <button
-                type="button"
-                onClick={debugVenueOwnerStatus}
-                className="text-xs text-brand-burgundy/70 hover:text-brand-gold underline block"
-                disabled={loading}
-              >
-                Debug Account Status
-              </button>
             </div>
           </div>
         </div>
