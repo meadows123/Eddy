@@ -450,14 +450,15 @@ export const sendSplitPaymentVenueOwnerNotification = async (booking, venue, ini
   try {
     console.log('🔄 Sending split payment venue owner notification email');
     console.log('📧 Venue owner notification data:', {
-      venueOwnerEmail: venue.contact_email || venue.owner_email || 'info@oneeddy.com',
+      venueOwnerEmail: venue.venue_owners?.email || venue.contact_email || venue.owner_email || 'info@oneeddy.com',
       venueName: venue.name,
       bookingId: booking.id,
       initiatorName: initiator.full_name || initiator.customerName,
-      totalPayments: allPayments.length
+      totalPayments: allPayments.length,
+      venueOwnerData: venue.venue_owners
     });
     
-    const venueOwnerEmail = venue.contact_email || venue.owner_email || 'info@oneeddy.com';
+    const venueOwnerEmail = venue.venue_owners?.email || venue.contact_email || venue.owner_email || 'info@oneeddy.com';
     const totalPaid = allPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
     const participantsCount = allPayments.length;
 

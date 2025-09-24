@@ -329,7 +329,11 @@ const SplitPaymentSuccessPage = () => {
               address,
               city,
               contact_email,
-              contact_phone
+              contact_phone,
+              venue_owners (
+                email,
+                full_name
+              )
             )
           `)
           .eq('id', bookingId)
@@ -360,6 +364,20 @@ const SplitPaymentSuccessPage = () => {
               .eq('id', simpleBooking.venue_id)
               .single();
             venueData = venue;
+            
+            // Fetch venue owner data separately
+            if (venue?.user_id) {
+              const { data: venueOwner } = await supabase
+                .from('venue_owners')
+                .select('email, full_name')
+                .eq('user_id', venue.user_id)
+                .single();
+              
+              if (venueOwner) {
+                venueData.venue_owners = venueOwner;
+                console.log('✅ Venue owner data fetched separately:', venueOwner);
+              }
+            }
           }
           
           if (simpleBooking?.user_id) {
@@ -391,6 +409,20 @@ const SplitPaymentSuccessPage = () => {
               .single();
             bookingData.profiles = profile;
           }
+          
+          // Always fetch venue owner data separately
+          if (bookingData?.venues?.user_id) {
+            const { data: venueOwner } = await supabase
+              .from('venue_owners')
+              .select('email, full_name')
+              .eq('user_id', bookingData.venues.user_id)
+              .single();
+            
+            if (venueOwner) {
+              bookingData.venues.venue_owners = venueOwner;
+              console.log('✅ Venue owner data fetched separately:', venueOwner);
+            }
+          }
         }
 
         console.log('✅ Booking data fetched:', {
@@ -408,6 +440,19 @@ const SplitPaymentSuccessPage = () => {
             template: 'split-payment-complete'
           });
 
+          // Get table information for the initiator
+          let tableInfo = { table_name: 'Table not specified', table_number: 'N/A' };
+          if (bookingData.table_id) {
+            const { data: tableData } = await supabase
+              .from('venue_tables')
+              .select('table_name, table_number')
+              .eq('id', bookingData.table_id)
+              .single();
+            if (tableData) {
+              tableInfo = tableData;
+            }
+          }
+
           // Prepare email data
           const emailData = {
             // Recipient info
@@ -423,8 +468,8 @@ const SplitPaymentSuccessPage = () => {
             totalAmount: bookingData.total_amount || bookingData.totalAmount,
             
             // Table details
-            tableName: bookingData.table?.table_name || 'Table not specified',
-            tableNumber: bookingData.table?.table_number || 'N/A',
+            tableName: tableInfo.table_name,
+            tableNumber: tableInfo.table_number,
             
             // Venue details
             venueName: bookingData.venues?.name,
@@ -496,6 +541,27 @@ const SplitPaymentSuccessPage = () => {
               .single();
 
             if (lastPayerProfile) {
+              // Get table information for the last payer
+              let tableInfo = { table_name: 'Table not specified', table_number: 'N/A' };
+              if (bookingData.table_id) {
+                const { data: tableData } = await supabase
+                  .from('venue_tables')
+                  .select('table_name, table_number')
+                  .eq('id', bookingData.table_id)
+                  .single();
+                if (tableData) {
+                  tableInfo = tableData;
+                }
+              }
+
+              console.log('📧 Last payer email data:', {
+                to: lastPayerProfile.email,
+                customerName: `${lastPayerProfile.first_name || ''} ${lastPayerProfile.last_name || ''}`.trim() || 'Guest',
+                bookingId: bookingData.id,
+                venueName: bookingData.venues?.name,
+                tableInfo
+              });
+
               const { data: lastPayerEmailResult, error: lastPayerEmailError } = await supabase.functions.invoke('send-email', {
                 body: {
                   to: lastPayerProfile.email,
@@ -510,8 +576,8 @@ const SplitPaymentSuccessPage = () => {
                     bookingTime: bookingData.start_time || bookingData.booking_time,
                     guestCount: bookingData.number_of_guests || bookingData.guest_count,
                     totalAmount: bookingData.total_amount || bookingData.totalAmount,
-                    tableName: bookingData.table?.table_name || 'Table not specified',
-                    tableNumber: bookingData.table?.table_number || 'N/A',
+                    tableName: tableInfo.table_name,
+                    tableNumber: tableInfo.table_number,
                     venueName: bookingData.venues?.name,
                     venueAddress: bookingData.venues?.address,
                     venuePhone: bookingData.venues?.contact_phone,
