@@ -71,6 +71,7 @@ const SplitPaymentSuccessPage = () => {
           hasTable: !!bookingData?.venue_tables,
           booking_date: bookingData?.booking_date,
           start_time: bookingData?.start_time,
+          end_time: bookingData?.end_time,
           venue_id: bookingData?.venue_id,
           user_id: bookingData?.user_id,
           allBookingFields: bookingData ? Object.keys(bookingData) : 'no booking data'
@@ -118,9 +119,9 @@ const SplitPaymentSuccessPage = () => {
         // Don't throw error, just log it
       }
 
-      // Send email notifications
+      // Send email notification to the recipient who just paid
       try {
-        console.log('📧 About to send email notifications:', {
+        console.log('📧 About to send email notification to recipient:', {
           hasRequestData: !!requestData,
           hasBookings: !!bookingData,
           recipientId: requestData?.recipient_id
@@ -143,21 +144,14 @@ const SplitPaymentSuccessPage = () => {
             });
 
             // Send confirmation email via Edge Function
-            console.log('🚀 About to call Edge Function with data:', {
-              to: recipientData.email,
-              subject: `Split Payment Confirmed - ${bookingData.venues?.name || 'Your Venue'}`,
-              template: 'split-payment-confirmation',
-              bookingId: bookingData.id
-            });
-
             const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-email', {
               body: {
-                to: recipientData.email || 'recipient@example.com',
+                to: recipientData.email,
                 subject: `Split Payment Confirmed - ${bookingData.venues?.name || 'Your Venue'}`,
                 template: 'split-payment-confirmation',
                 data: {
                   // Recipient info
-                  email: recipientData.email || 'recipient@example.com',
+                  email: recipientData.email,
                   customerName: `${recipientData.first_name || ''} ${recipientData.last_name || ''}`.trim() || 'Guest',
                   
                   // Booking details
@@ -192,7 +186,11 @@ const SplitPaymentSuccessPage = () => {
                 bookingId: bookingData.id
               });
             }
+          } else {
+            console.error('❌ No recipient data found for ID:', requestData.recipient_id);
           }
+        } else {
+          console.error('❌ Missing request data or booking data for email sending');
         }
       } catch (emailError) {
         console.error('❌ Error sending split payment recipient email:', emailError);
@@ -209,7 +207,7 @@ const SplitPaymentSuccessPage = () => {
         status: 'paid',
         paymentIntentId,
         booking_date: bookingData?.booking_date || new Date().toISOString().split('T')[0],
-        booking_time: bookingData?.start_time || '19:00:00',
+        booking_time: bookingData?.start_time || bookingData?.booking_time || '19:00:00',
         venue_name: bookingData?.venues?.name,
         venue_price_range: bookingData?.venues?.price_range,
         table_name: bookingData?.venue_tables?.[0]?.table_name,
@@ -222,7 +220,9 @@ const SplitPaymentSuccessPage = () => {
       console.log('🔍 Payment details being set:', {
         original_booking_date: bookingData?.booking_date,
         final_booking_date: bookingData?.booking_date || new Date().toISOString().split('T')[0],
-        booking_time: bookingData?.start_time || '19:00:00',
+        original_start_time: bookingData?.start_time,
+        original_booking_time: bookingData?.booking_time,
+        final_booking_time: bookingData?.start_time || bookingData?.booking_time || '19:00:00',
         venue_name: bookingData?.venues?.name
       });
 

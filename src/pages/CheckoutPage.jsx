@@ -276,10 +276,20 @@ const createBooking = async () => {
       total_amount: parseFloat(calculateTotal())
     };
 
-    // Handle the times
-    const rawStartTime = selection?.time || bookingData?.time || '19:00';
-    const rawEndTime = selection?.endTime || bookingData?.endTime || '23:00';
+    // Handle the times - check multiple possible sources
+    const rawStartTime = selection?.time || bookingData?.time || formData?.startTime || '19:00';
+    const rawEndTime = selection?.endTime || bookingData?.endTime || formData?.endTime || '23:00';
 
+    console.log('🕐 Time sources for booking:', {
+      selectionTime: selection?.time,
+      bookingDataTime: bookingData?.time,
+      formDataStartTime: formData?.startTime,
+      rawStartTime,
+      selectionEndTime: selection?.endTime,
+      bookingDataEndTime: bookingData?.endTime,
+      formDataEndTime: formData?.endTime,
+      rawEndTime
+    });
 
     const { startTime, endTime } = adjustTimeForMidnight(rawStartTime, rawEndTime);
 
