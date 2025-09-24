@@ -416,6 +416,23 @@ const SplitPaymentSuccessPage = () => {
                 console.log('✅ Final venue owner data set (fallback):', venueOwner);
               } else {
                 console.log('❌ No venue owner found with any approach (fallback)');
+                
+                // Fallback: Try to find venue owner by venue name
+                if (venue?.name) {
+                  console.log('🔄 Trying fallback lookup by venue name (fallback):', venue.name);
+                  const { data: ownerByName, error: nameError } = await supabase
+                    .from('venue_owners')
+                    .select('email, full_name, user_id')
+                    .ilike('venue_name', `%${venue.name}%`)
+                    .single();
+                  
+                  if (ownerByName && !nameError) {
+                    venueData.venue_owners = ownerByName;
+                    console.log('✅ Venue owner found by name (fallback):', ownerByName);
+                  } else {
+                    console.log('❌ No venue owner found by name (fallback):', nameError);
+                  }
+                }
               }
             }
           }
@@ -514,9 +531,43 @@ const SplitPaymentSuccessPage = () => {
               console.log('✅ Final venue owner data set:', venueOwner);
             } else {
               console.log('❌ No venue owner found with any approach');
+              
+              // Fallback: Try to find venue owner by venue name
+              if (bookingData.venues?.name) {
+                console.log('🔄 Trying fallback lookup by venue name:', bookingData.venues.name);
+                const { data: ownerByName, error: nameError } = await supabase
+                  .from('venue_owners')
+                  .select('email, full_name, user_id')
+                  .ilike('venue_name', `%${bookingData.venues.name}%`)
+                  .single();
+                
+                if (ownerByName && !nameError) {
+                  bookingData.venues.venue_owners = ownerByName;
+                  console.log('✅ Venue owner found by name (fallback):', ownerByName);
+                } else {
+                  console.log('❌ No venue owner found by name either:', nameError);
+                }
+              }
             }
           } else {
             console.log('❌ No venue ID available for owner lookup');
+            
+            // Fallback: Try to find venue owner by venue name even without venue ID
+            if (bookingData.venues?.name) {
+              console.log('🔄 Trying fallback lookup by venue name (no venue ID):', bookingData.venues.name);
+              const { data: ownerByName, error: nameError } = await supabase
+                .from('venue_owners')
+                .select('email, full_name, user_id')
+                .ilike('venue_name', `%${bookingData.venues.name}%`)
+                .single();
+              
+              if (ownerByName && !nameError) {
+                bookingData.venues.venue_owners = ownerByName;
+                console.log('✅ Venue owner found by name (no venue ID):', ownerByName);
+              } else {
+                console.log('❌ No venue owner found by name (no venue ID):', nameError);
+              }
+            }
           }
         }
 
@@ -525,7 +576,11 @@ const SplitPaymentSuccessPage = () => {
           venueName: bookingData?.venues?.name,
           initiatorEmail: bookingData?.profiles?.email,
           hasVenue: !!bookingData?.venues,
-          hasProfile: !!bookingData?.profiles
+          hasProfile: !!bookingData?.profiles,
+          venueData: bookingData?.venues,
+          venueId: bookingData?.venues?.id,
+          venueUserId: bookingData?.venues?.user_id,
+          venueOwnerId: bookingData?.venues?.owner_id
         });
 
         if (bookingData) {
