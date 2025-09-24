@@ -366,16 +366,18 @@ const SplitPaymentSuccessPage = () => {
             venueData = venue;
             
             // Fetch venue owner data separately
-            if (venue?.user_id) {
+            if (venue?.id) {
               const { data: venueOwner } = await supabase
                 .from('venue_owners')
-                .select('email, full_name')
-                .eq('user_id', venue.user_id)
+                .select('email, full_name, user_id')
+                .eq('venue_id', venue.id)
                 .single();
               
               if (venueOwner) {
                 venueData.venue_owners = venueOwner;
-                console.log('✅ Venue owner data fetched separately:', venueOwner);
+                console.log('✅ Venue owner data fetched by venue_id (fallback):', venueOwner);
+              } else {
+                console.log('❌ No venue owner found for venue_id (fallback):', venue.id);
               }
             }
           }
@@ -411,17 +413,28 @@ const SplitPaymentSuccessPage = () => {
           }
           
           // Always fetch venue owner data separately
-          if (bookingData?.venues?.user_id) {
+          console.log('🔍 Venue data for owner lookup:', {
+            venueId: bookingData?.venues?.id,
+            venueUserId: bookingData?.venues?.user_id,
+            venueName: bookingData?.venues?.name
+          });
+          
+          if (bookingData?.venues?.id) {
+            // Try to find venue owner by venue_id instead of user_id
             const { data: venueOwner } = await supabase
               .from('venue_owners')
-              .select('email, full_name')
-              .eq('user_id', bookingData.venues.user_id)
+              .select('email, full_name, user_id')
+              .eq('venue_id', bookingData.venues.id)
               .single();
             
             if (venueOwner) {
               bookingData.venues.venue_owners = venueOwner;
-              console.log('✅ Venue owner data fetched separately:', venueOwner);
+              console.log('✅ Venue owner data fetched by venue_id:', venueOwner);
+            } else {
+              console.log('❌ No venue owner found for venue_id:', bookingData.venues.id);
             }
+          } else {
+            console.log('❌ No venue ID available for owner lookup');
           }
         }
 
@@ -532,6 +545,21 @@ const SplitPaymentSuccessPage = () => {
           const lastPayment = requests.find(req => req.id === requestId);
           if (lastPayment && lastPayment.recipient_id !== bookingData.profiles?.id) {
             console.log('📧 [FRONTEND] Sending confirmation email to last payer...');
+            console.log('🔍 Last payment details:', {
+              lastPayment,
+              requestId,
+              recipientId: lastPayment.recipient_id,
+              initiatorId: bookingData.profiles?.id
+            });
+            console.log('🔍 Booking data for last payer:', {
+              bookingId: bookingData.id,
+              venueName: bookingData.venues?.name,
+              tableId: bookingData.table_id,
+              bookingDate: bookingData.booking_date,
+              startTime: bookingData.start_time,
+              guestCount: bookingData.number_of_guests,
+              totalAmount: bookingData.total_amount
+            });
             
             // Get the last payer's profile
             const { data: lastPayerProfile } = await supabase
@@ -554,35 +582,45 @@ const SplitPaymentSuccessPage = () => {
                 }
               }
 
+              // Prepare comprehensive email data for last payer
+              const lastPayerEmailData = {
+                // Recipient info
+                email: lastPayerProfile.email,
+                customerName: `${lastPayerProfile.first_name || ''} ${lastPayerProfile.last_name || ''}`.trim() || 'Guest',
+                customerPhone: lastPayerProfile.phone || 'N/A',
+                
+                // Booking details
+                bookingId: bookingData.id,
+                bookingDate: bookingData.booking_date || bookingData.bookingDate,
+                bookingTime: bookingData.start_time || bookingData.booking_time,
+                guestCount: bookingData.number_of_guests || bookingData.guest_count,
+                totalAmount: bookingData.total_amount || bookingData.totalAmount,
+                
+                // Table details
+                tableName: tableInfo.table_name,
+                tableNumber: tableInfo.table_number,
+                
+                // Venue details
+                venueName: bookingData.venues?.name,
+                venueAddress: bookingData.venues?.address,
+                venuePhone: bookingData.venues?.contact_phone,
+                
+                // Special requests
+                specialRequests: bookingData.special_requests || 'None specified'
+              };
+
               console.log('📧 Last payer email data:', {
                 to: lastPayerProfile.email,
-                customerName: `${lastPayerProfile.first_name || ''} ${lastPayerProfile.last_name || ''}`.trim() || 'Guest',
-                bookingId: bookingData.id,
-                venueName: bookingData.venues?.name,
-                tableInfo
+                template: 'split-payment-complete',
+                data: lastPayerEmailData
               });
 
               const { data: lastPayerEmailResult, error: lastPayerEmailError } = await supabase.functions.invoke('send-email', {
                 body: {
                   to: lastPayerProfile.email,
                   subject: `Payment Confirmed! - ${bookingData.venues?.name || 'Your Venue'}`,
-                  template: 'booking-confirmation',
-                  data: {
-                    email: lastPayerProfile.email,
-                    customerName: `${lastPayerProfile.first_name || ''} ${lastPayerProfile.last_name || ''}`.trim() || 'Guest',
-                    customerPhone: lastPayerProfile.phone || 'N/A',
-                    bookingId: bookingData.id,
-                    bookingDate: bookingData.booking_date || bookingData.bookingDate,
-                    bookingTime: bookingData.start_time || bookingData.booking_time,
-                    guestCount: bookingData.number_of_guests || bookingData.guest_count,
-                    totalAmount: bookingData.total_amount || bookingData.totalAmount,
-                    tableName: tableInfo.table_name,
-                    tableNumber: tableInfo.table_number,
-                    venueName: bookingData.venues?.name,
-                    venueAddress: bookingData.venues?.address,
-                    venuePhone: bookingData.venues?.contact_phone,
-                    specialRequests: bookingData.special_requests || 'None specified'
-                  }
+                  template: 'split-payment-complete',
+                  data: lastPayerEmailData
                 }
               });
 

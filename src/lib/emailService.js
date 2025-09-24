@@ -455,7 +455,8 @@ export const sendSplitPaymentVenueOwnerNotification = async (booking, venue, ini
       bookingId: booking.id,
       initiatorName: initiator.full_name || initiator.customerName,
       totalPayments: allPayments.length,
-      venueOwnerData: venue.venue_owners
+      venueOwnerData: venue.venue_owners,
+      venueData: venue
     });
     
     const venueOwnerEmail = venue.venue_owners?.email || venue.contact_email || venue.owner_email || 'info@oneeddy.com';
