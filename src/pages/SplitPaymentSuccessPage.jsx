@@ -318,7 +318,9 @@ const SplitPaymentSuccessPage = () => {
 
         // Get booking and venue data for emails
         console.log('📚 Fetching booking data for completion email...');
-        const { data: bookingData, error: bookingError } = await supabase
+        let bookingData = null;
+        
+        const { data: initialBookingData, error: bookingError } = await supabase
           .from('bookings')
           .select(`
             *,
@@ -328,11 +330,6 @@ const SplitPaymentSuccessPage = () => {
               city,
               contact_email,
               contact_phone
-            ),
-            profiles (
-              first_name,
-              last_name,
-              email
             )
           `)
           .eq('id', bookingId)
@@ -382,6 +379,18 @@ const SplitPaymentSuccessPage = () => {
           };
           
           console.log('✅ Fallback booking data for completion email:', bookingData);
+        } else {
+          bookingData = initialBookingData;
+          
+          // Always fetch profile data separately since the join might not work
+          if (bookingData?.user_id) {
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('first_name, last_name, email')
+              .eq('id', bookingData.user_id)
+              .single();
+            bookingData.profiles = profile;
+          }
         }
 
         console.log('✅ Booking data fetched:', {
