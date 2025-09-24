@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabase';
-import { sendSplitPaymentVenueOwnerNotification } from '@/lib/emailService';
+import { sendSplitPaymentVenueOwnerNotification, sendSplitPaymentCompletionEmails } from '@/lib/emailService';
 
 const SplitPaymentSuccessPage = () => {
   const [searchParams] = useSearchParams();

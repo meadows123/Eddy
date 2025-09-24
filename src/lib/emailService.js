@@ -125,6 +125,60 @@ export const sendBookingConfirmation = async (booking, venue, customer) => {
   }
 };
 
+// Function to handle split payment completion emails
+export const sendSplitPaymentCompletionEmails = async (bookingId) => {
+  try {
+    console.log('🔄 Sending split payment completion emails for booking:', bookingId);
+    
+    // Get booking details with venue and customer info
+    const { data: booking, error: bookingError } = await supabase
+      .from('bookings')
+      .select(`
+        *,
+        venues:venue_id (
+          *,
+          venue_owners:user_id (
+            *
+          )
+        ),
+        profiles:user_id (
+          *
+        )
+      `)
+      .eq('id', bookingId)
+      .single();
+
+    if (bookingError || !booking) {
+      console.error('❌ Error fetching booking details:', bookingError);
+      throw new Error('Failed to fetch booking details');
+    }
+
+    const venue = booking.venues;
+    const customer = booking.profiles;
+    const venueOwner = venue?.venue_owners;
+
+    if (!venue || !customer) {
+      console.error('❌ Missing venue or customer data');
+      throw new Error('Missing venue or customer data');
+    }
+
+    // Send customer confirmation email
+    console.log('📧 Sending customer confirmation email...');
+    await sendBookingConfirmation(booking, venue, customer);
+
+    // Send venue owner notification email
+    console.log('📧 Sending venue owner notification email...');
+    await sendVenueOwnerNotification(booking, venue, customer, venueOwner);
+
+    console.log('✅ Split payment completion emails sent successfully');
+    return { success: true };
+
+  } catch (error) {
+    console.error('❌ Error sending split payment completion emails:', error);
+    throw error;
+  }
+};
+
 // Keep the existing venue owner notification function (already using Supabase)
 export const sendVenueOwnerNotification = async (booking, venue, customer, venueOwner) => {
   try {

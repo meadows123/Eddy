@@ -222,7 +222,7 @@ export const sendVenueOwnerApplicationApproved = async (venueOwnerData) => {
           venueType: venueOwnerData.venue_type || 'Restaurant', // Keep fallback but prefer actual type
           venueAddress: venueOwnerData.venue_address,
           venueCity: venueOwnerData.venue_city,
-          registrationUrl: `${window.location.origin}/venue-owner/register?approved=true&email=${encodeURIComponent(venueOwnerData.email)}`
+          registrationUrl: `${window.location.origin}/venue-owner/login?approved=true&email=${encodeURIComponent(venueOwnerData.email)}`
         }
       }
     });

@@ -139,5 +139,108 @@ async function checkAllPaymentsComplete(bookingId: string) {
       .from('bookings')
       .update({ status: 'confirmed' })
       .eq('id', bookingId)
+
+    // Send completion emails
+    try {
+      console.log('📧 Sending split payment completion emails for booking:', bookingId);
+      
+      // Get booking details with venue and customer info
+      const { data: booking, error: bookingError } = await supabase
+        .from('bookings')
+        .select(`
+          *,
+          venues:venue_id (
+            *,
+            venue_owners:user_id (
+              *
+            )
+          ),
+          profiles:user_id (
+            *
+          )
+        `)
+        .eq('id', bookingId)
+        .single();
+
+      if (bookingError || !booking) {
+        console.error('❌ Error fetching booking details:', bookingError);
+        return;
+      }
+
+      const venue = booking.venues;
+      const customer = booking.profiles;
+      const venueOwner = venue?.venue_owners;
+
+      if (!venue || !customer) {
+        console.error('❌ Missing venue or customer data');
+        return;
+      }
+
+      // Send customer confirmation email
+      console.log('📧 Sending customer confirmation email...');
+      const { data: customerEmailResult, error: customerEmailError } = await supabase.functions.invoke('send-email', {
+        body: {
+          to: customer.email,
+          subject: `Booking Confirmed! - ${venue.name || 'Your Venue'}`,
+          template: 'booking-confirmation',
+          data: {
+            email: customer.email,
+            customerName: `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Guest',
+            bookingId: booking.id,
+            bookingDate: booking.booking_date,
+            bookingTime: booking.start_time,
+            guestCount: booking.number_of_guests,
+            totalAmount: booking.total_amount,
+            venueName: venue.name,
+            venueAddress: venue.address,
+            venuePhone: venue.contact_phone,
+            specialRequests: booking.special_requests || 'None specified'
+          }
+        }
+      });
+
+      if (customerEmailError) {
+        console.error('❌ Error sending customer confirmation email:', customerEmailError);
+      } else {
+        console.log('✅ Customer confirmation email sent successfully');
+      }
+
+      // Send venue owner notification email
+      console.log('📧 Sending venue owner notification email...');
+      const venueOwnerEmail = venueOwner?.email || venue.contact_email || 'info@oneeddy.com';
+      const { data: venueEmailResult, error: venueEmailError } = await supabase.functions.invoke('send-email', {
+        body: {
+          to: venueOwnerEmail,
+          subject: `New Booking Confirmation - ${venue.name || 'Your Venue'}`,
+          template: 'venue-owner-booking-notification',
+          data: {
+            email: venueOwnerEmail,
+            ownerName: venueOwner?.full_name || 'Venue Manager',
+            bookingId: booking.id,
+            customerName: `${customer.first_name || ''} ${customer.last_name || ''}`.trim() || 'Guest',
+            customerEmail: customer.email,
+            customerPhone: customer.phone || 'N/A',
+            guestCount: booking.number_of_guests,
+            bookingDate: booking.booking_date,
+            bookingTime: booking.start_time,
+            totalAmount: booking.total_amount,
+            venueName: venue.name,
+            venueAddress: venue.address,
+            specialRequests: booking.special_requests || 'None specified'
+          }
+        }
+      });
+
+      if (venueEmailError) {
+        console.error('❌ Error sending venue owner notification email:', venueEmailError);
+      } else {
+        console.log('✅ Venue owner notification email sent successfully');
+      }
+
+      console.log('✅ Split payment completion emails sent successfully');
+    } catch (emailError) {
+      console.error('❌ Error sending split payment completion emails:', emailError);
+      // Don't fail the webhook if emails fail
+    }
   }
 } 
