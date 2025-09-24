@@ -330,7 +330,7 @@ const SplitPaymentSuccessPage = () => {
             body: {
               to: bookingData.profiles?.email || 'initiator@example.com',
               subject: `Booking Confirmed! - ${bookingData.venues?.name || 'Your Venue'}`,
-              template: 'split-payment-complete',
+              template: 'booking-confirmation',
               data: {
                 // Recipient info
                 email: bookingData.profiles?.email || 'initiator@example.com',
@@ -342,7 +342,6 @@ const SplitPaymentSuccessPage = () => {
                 bookingTime: bookingData.start_time || bookingData.booking_time,
                 guestCount: bookingData.number_of_guests || bookingData.guest_count,
                 totalAmount: bookingData.total_amount || bookingData.totalAmount,
-                initiatorAmount: requests.find(req => req.requester_id === req.recipient_id)?.amount || 0,
                 
                 // Table details
                 tableName: bookingData.table?.table_name,
@@ -353,8 +352,8 @@ const SplitPaymentSuccessPage = () => {
                 venueAddress: bookingData.venues?.address,
                 venuePhone: bookingData.venues?.contact_phone,
                 
-                // Dashboard URL
-                dashboardUrl: `${window.location.origin}/profile`
+                // Special requests
+                specialRequests: bookingData.special_requests || 'None specified'
               }
             }
           });
@@ -388,6 +387,48 @@ const SplitPaymentSuccessPage = () => {
             },
             requests
           );
+
+          // Send confirmation email to the last person who paid (if different from initiator)
+          const lastPayment = requests.find(req => req.id === requestData.id);
+          if (lastPayment && lastPayment.recipient_id !== bookingData.profiles?.id) {
+            console.log('📧 [FRONTEND] Sending confirmation email to last payer...');
+            
+            // Get the last payer's profile
+            const { data: lastPayerProfile } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', lastPayment.recipient_id)
+              .single();
+
+            if (lastPayerProfile) {
+              const { data: lastPayerEmailResult, error: lastPayerEmailError } = await supabase.functions.invoke('send-email', {
+                body: {
+                  to: lastPayerProfile.email,
+                  subject: `Payment Confirmed! - ${bookingData.venues?.name || 'Your Venue'}`,
+                  template: 'booking-confirmation',
+                  data: {
+                    email: lastPayerProfile.email,
+                    customerName: `${lastPayerProfile.first_name || ''} ${lastPayerProfile.last_name || ''}`.trim() || 'Guest',
+                    bookingId: bookingData.id,
+                    bookingDate: bookingData.booking_date || bookingData.bookingDate,
+                    bookingTime: bookingData.start_time || bookingData.booking_time,
+                    guestCount: bookingData.number_of_guests || bookingData.guest_count,
+                    totalAmount: bookingData.total_amount || bookingData.totalAmount,
+                    venueName: bookingData.venues?.name,
+                    venueAddress: bookingData.venues?.address,
+                    venuePhone: bookingData.venues?.contact_phone,
+                    specialRequests: bookingData.special_requests || 'None specified'
+                  }
+                }
+              });
+
+              if (lastPayerEmailError) {
+                console.error('❌ Error sending last payer confirmation email:', lastPayerEmailError);
+              } else {
+                console.log('✅ Last payer confirmation email sent successfully');
+              }
+            }
+          }
 
           console.log('✅ Split payment completion emails sent successfully');
         }

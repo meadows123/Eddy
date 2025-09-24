@@ -450,42 +450,43 @@ export const sendSplitPaymentVenueOwnerNotification = async (booking, venue, ini
   try {
     console.log('🔄 Sending split payment venue owner notification email');
     
-    if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.templateId || !EMAILJS_CONFIG.publicKey) {
-      throw new Error('EmailJS configuration incomplete');
-    }
-
     const venueOwnerEmail = venue.contact_email || venue.owner_email || 'info@oneeddy.com';
     const totalPaid = allPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
     const participantsCount = allPayments.length;
 
-    const templateParams = {
-      to_email: venueOwnerEmail,
-      to_name: 'Venue Manager',
-      subject: `Split Payment Booking Confirmed - ${venue.name || 'Venue'}`,
-      customerName: initiator.full_name || initiator.customerName || 'Guest',
-      customerEmail: initiator.email || initiator.customerEmail || 'N/A',
-      customerPhone: initiator.phone || initiator.customerPhone || 'N/A',
-      bookingReference: booking.id || booking.bookingId || 'N/A',
-      venueName: venue.name || venue.venueName || 'Venue',
-      bookingDate: booking.booking_date || booking.bookingDate || new Date().toISOString(),
-      bookingTime: booking.start_time || booking.booking_time || '19:00',
-      guestCount: booking.number_of_guests || booking.guest_count || 2,
-      totalAmount: totalPaid,
-      participantsCount: participantsCount,
-      paymentType: 'Split Payment',
-      message: `A new split payment booking has been confirmed. Total amount: ₦${totalPaid.toLocaleString()} collected from ${participantsCount} participants.`,
-      from_name: 'Eddys Members',
-      reply_to: 'info@oneeddy.com'
-    };
+    // Use Edge Function to send venue owner notification
+    const { data, error } = await supabase.functions.invoke('send-email', {
+      body: {
+        to: venueOwnerEmail,
+        subject: `New Split Payment Booking Confirmed - ${venue.name || 'Your Venue'}`,
+        template: 'venue-owner-booking-notification',
+        data: {
+          email: venueOwnerEmail,
+          ownerName: 'Venue Manager',
+          bookingId: booking.id || booking.bookingId || 'N/A',
+          customerName: initiator.full_name || initiator.customerName || 'Guest',
+          customerEmail: initiator.email || initiator.customerEmail || 'N/A',
+          customerPhone: initiator.phone || initiator.customerPhone || 'N/A',
+          guestCount: booking.number_of_guests || booking.guest_count || 2,
+          bookingDate: booking.booking_date || booking.bookingDate || new Date().toISOString().split('T')[0],
+          bookingTime: booking.start_time || booking.booking_time || '19:00',
+          totalAmount: totalPaid,
+          venueName: venue.name || venue.venueName || 'Venue',
+          venueAddress: venue.address || venue.location || 'Lagos, Nigeria',
+          specialRequests: booking.special_requests || 'None specified',
+          paymentType: 'Split Payment',
+          participantsCount: participantsCount
+        }
+      }
+    });
 
-    const result = await emailjs.send(
-      EMAILJS_CONFIG.serviceId,
-      EMAILJS_CONFIG.templateId,
-      templateParams
-    );
+    if (error) {
+      console.error('❌ Failed to send split payment venue owner notification:', error);
+      throw error;
+    }
 
     console.log('✅ Split payment venue owner notification email sent successfully');
-    return result;
+    return data;
   } catch (error) {
     console.error('❌ Failed to send split payment venue owner notification:', error);
     throw error;
