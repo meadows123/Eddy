@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabase';
 import { sendSplitPaymentVenueOwnerNotification, sendSplitPaymentCompletionEmails } from '@/lib/emailService';
+import { generateVenueEntryQR } from '@/lib/qrCodeService';
 
 const SplitPaymentSuccessPage = () => {
   const [searchParams] = useSearchParams();
@@ -636,6 +637,11 @@ const SplitPaymentSuccessPage = () => {
             }
           }
 
+          // Generate QR code for the booking
+          console.log('📱 Generating QR code for split payment booking:', bookingData.id);
+          const qrCodeImage = await generateVenueEntryQR(bookingData);
+          console.log('📱 QR code generated successfully:', qrCodeImage ? 'Yes' : 'No');
+
           // Prepare email data
           const emailData = {
             // Recipient info
@@ -660,10 +666,18 @@ const SplitPaymentSuccessPage = () => {
             venuePhone: bookingData.venues?.contact_phone,
             
             // Special requests
-            specialRequests: bookingData.special_requests || 'None specified'
+            specialRequests: bookingData.special_requests || 'None specified',
+            
+            // QR Code for venue entry
+            qrCodeImage: qrCodeImage
           };
 
           console.log('📧 Email data being sent:', emailData);
+          console.log('📱 QR Code in email data:', {
+            hasQrCodeImage: !!(emailData.qrCodeImage),
+            qrCodeImageLength: emailData.qrCodeImage?.length || 0,
+            qrCodeImageStart: emailData.qrCodeImage?.substring(0, 50) || 'N/A'
+          });
 
           // Send completion email to initiator via Edge Function
           const { data: completionEmailResult, error: completionEmailError } = await supabase.functions.invoke('send-email', {
@@ -752,6 +766,11 @@ const SplitPaymentSuccessPage = () => {
                 }
               }
 
+              // Generate QR code for the last payer (same booking, same QR code)
+              console.log('📱 Generating QR code for last payer split payment booking:', bookingData.id);
+              const lastPayerQrCodeImage = await generateVenueEntryQR(bookingData);
+              console.log('📱 Last payer QR code generated successfully:', lastPayerQrCodeImage ? 'Yes' : 'No');
+
               // Prepare comprehensive email data for last payer
               const lastPayerEmailData = {
                 // Recipient info
@@ -776,13 +795,21 @@ const SplitPaymentSuccessPage = () => {
                 venuePhone: bookingData.venues?.contact_phone,
                 
                 // Special requests
-                specialRequests: bookingData.special_requests || 'None specified'
+                specialRequests: bookingData.special_requests || 'None specified',
+                
+                // QR Code for venue entry
+                qrCodeImage: lastPayerQrCodeImage
               };
 
               console.log('📧 Last payer email data:', {
                 to: lastPayerProfile.email,
                 template: 'split-payment-complete',
                 data: lastPayerEmailData
+              });
+              console.log('📱 QR Code in last payer email data:', {
+                hasQrCodeImage: !!(lastPayerEmailData.qrCodeImage),
+                qrCodeImageLength: lastPayerEmailData.qrCodeImage?.length || 0,
+                qrCodeImageStart: lastPayerEmailData.qrCodeImage?.substring(0, 50) || 'N/A'
               });
 
               const { data: lastPayerEmailResult, error: lastPayerEmailError } = await supabase.functions.invoke('send-email', {

@@ -484,9 +484,12 @@ const VenueOwnerDashboard = () => {
                 <span className="hidden sm:inline">Receipts</span>
                 <span className="sm:hidden">Receipts</span>
               </Button>
-              <Button className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90 text-xs sm:text-sm py-2 px-2 sm:px-3">
+              <Button 
+                className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90 text-xs sm:text-sm py-2 px-2 sm:px-3"
+                onClick={() => navigate('/venue-owner/qr-scanner')}
+              >
                 <QrCode className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
-                <span className="hidden sm:inline">QR Code</span>
+                <span className="hidden sm:inline">QR Scanner</span>
                 <span className="sm:hidden">QR</span>
               </Button>
               <Button 

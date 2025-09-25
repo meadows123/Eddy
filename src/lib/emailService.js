@@ -45,6 +45,12 @@ export const sendBookingConfirmation = async (booking, venue, customer) => {
       throw new Error('Invalid customer email address');
     }
 
+    // Generate QR code for venue entry
+    console.log('📱 [EMAILJS] Generating QR code for booking:', booking.id);
+    const { generateVenueEntryQR } = await import('./qrCodeService.js');
+    const qrCodeImage = await generateVenueEntryQR(booking);
+    console.log('📱 [EMAILJS] QR code generated successfully:', qrCodeImage ? 'Yes' : 'No');
+
     // Use exact parameter names that match the EmailJS template
     const templateParams = {
       // EmailJS required fields - these MUST match your template exactly
@@ -94,7 +100,10 @@ export const sendBookingConfirmation = async (booking, venue, customer) => {
       cancelBookingUrl: `${window.location.origin}/profile`,
       websiteUrl: window.location.origin,
       supportUrl: 'mailto:info@oneeddy.com',
-      unsubscribeUrl: `${window.location.origin}/settings`
+      unsubscribeUrl: `${window.location.origin}/settings`,
+      
+      // QR Code for venue entry
+      qrCodeImage: qrCodeImage
     };
 
     // Optimize email delivery to reduce spam filtering
@@ -263,6 +272,9 @@ export const sendBookingConfirmationEmail = async (bookingData) => {
   try {
     console.log('🔄 sendBookingConfirmationEmail called with:', bookingData);
     
+    // Import QR code service
+    const { generateVenueEntryQR } = await import('./qrCodeService.js');
+    
     // Extract data from bookingData
     const booking = {
       id: bookingData.id || bookingData.bookingId,
@@ -270,7 +282,11 @@ export const sendBookingConfirmationEmail = async (bookingData) => {
       start_time: bookingData.start_time || bookingData.booking_time || '19:00:00',
       number_of_guests: bookingData.number_of_guests || bookingData.guest_count || 2,
       total_amount: bookingData.total_amount || bookingData.totalAmount || 0,
-      status: bookingData.status || 'confirmed'
+      status: bookingData.status || 'confirmed',
+      venue_id: bookingData.venue_id || bookingData.venueId,
+      table: {
+        table_number: bookingData.tableNumber || bookingData.table?.table_number || 'N/A'
+      }
     };
 
     const venue = {
@@ -288,8 +304,50 @@ export const sendBookingConfirmationEmail = async (bookingData) => {
       phone: bookingData.customerPhone || 'N/A'
     };
 
-    // Send customer confirmation email using Supabase
-    const customerResult = await sendBookingConfirmation(booking, venue, customer);
+    // Generate QR code for venue entry
+    console.log('📱 Generating QR code for booking:', booking.id);
+    console.log('📱 Booking data for QR generation:', booking);
+    const qrCodeImage = await generateVenueEntryQR(booking);
+    console.log('📱 QR code generated successfully:', qrCodeImage ? 'Yes' : 'No');
+
+    // Send customer confirmation email using Supabase Edge Function with QR code
+    console.log('📧 Sending customer confirmation email with QR code...');
+    const customerEmailData = {
+      to: customer.email,
+      subject: `Booking Confirmed! - ${venue.name}`,
+      template: 'booking-confirmation',
+      data: {
+        customerName: customer.full_name,
+        customerEmail: customer.email,
+        customerPhone: customer.phone,
+        bookingId: booking.id,
+        bookingDate: booking.booking_date,
+        bookingTime: booking.start_time,
+        partySize: booking.number_of_guests,
+        totalAmount: booking.total_amount,
+        venueName: venue.name,
+        venueAddress: venue.address,
+        venuePhone: venue.contact_phone,
+        venueEmail: venue.contact_email,
+        venueDescription: venue.description,
+        venueDressCode: venue.dress_code,
+        tableNumber: booking.table.table_number,
+        qrCodeImage: qrCodeImage
+      }
+    };
+
+    console.log('📧 Email data being sent:', customerEmailData);
+    
+    const customerResult = await supabase.functions.invoke('send-email', {
+      body: customerEmailData
+    });
+
+    if (customerResult.error) {
+      console.error('❌ Email sending failed:', customerResult.error);
+      throw new Error(`Customer email failed: ${customerResult.error.message}`);
+    } else {
+      console.log('✅ Email sent successfully');
+    }
     
     // Send venue owner notification using Supabase
     const venueOwner = {
