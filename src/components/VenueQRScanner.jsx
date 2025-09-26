@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase.js';
 import { parseQRCodeData } from '@/lib/qrCodeService.js';
 import { BrowserMultiFormatReader } from '@zxing/library';
 
-const VenueQRScanner = () => {
+const VenueQRScanner = ({ onMemberScanned }) => {
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState(null);
   const [error, setError] = useState(null);
@@ -110,6 +110,136 @@ const VenueQRScanner = () => {
 
       console.log('📱 Parsed QR data:', qrData);
 
+      // Check QR code type and handle accordingly
+      if (qrData.type === 'eddys_member') {
+        await handleEddysMemberScan(qrData);
+      } else if (qrData.type === 'venue-entry') {
+        await handleBookingScan(qrData);
+      } else {
+        throw new Error('Unknown QR code type');
+      }
+
+    } catch (err) {
+      console.error('❌ Error processing QR code:', err);
+      setError(err.message);
+      setSuccess(null);
+    }
+  };
+
+  const handleEddysMemberScan = async (qrData) => {
+    try {
+      console.log('🔍 Processing Eddys Member QR code:', qrData);
+
+      if (!qrData.memberId || !qrData.securityCode) {
+        throw new Error('Invalid Eddys Member QR code format');
+      }
+
+      // Get member profile and credit information
+      const { data: member, error: memberError } = await supabase
+        .from('profiles')
+        .select(`
+          *,
+          venue_credits!inner (
+            amount,
+            used_amount,
+            status,
+            created_at
+          )
+        `)
+        .eq('id', qrData.memberId)
+        .eq('venue_credits.venue_id', qrData.venueId)
+        .eq('venue_credits.status', 'active')
+        .single();
+
+      if (memberError || !member) {
+        throw new Error('Eddys Member not found or no active credits for this venue');
+      }
+
+      // Verify security code
+      if (member.qr_security_code !== qrData.securityCode) {
+        throw new Error('Invalid QR code - security code mismatch');
+      }
+
+      // Calculate credit balance
+      const totalCredits = member.venue_credits.reduce((sum, credit) => sum + (credit.amount || 0), 0);
+      const usedCredits = member.venue_credits.reduce((sum, credit) => sum + (credit.used_amount || 0), 0);
+      const availableBalance = totalCredits - usedCredits;
+
+      if (availableBalance <= 0) {
+        throw new Error('No available credits for this venue');
+      }
+
+      // Get venue information
+      const { data: venue, error: venueError } = await supabase
+        .from('venues')
+        .select('name, address, contact_phone')
+        .eq('id', qrData.venueId)
+        .single();
+
+      if (venueError || !venue) {
+        throw new Error('Venue not found');
+      }
+
+      // Update member's last visit
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({
+          last_visit: new Date().toISOString(),
+          last_venue_visited: qrData.venueId
+        })
+        .eq('id', qrData.memberId);
+
+      if (updateError) {
+        console.warn('⚠️ Failed to update member visit record:', updateError);
+        // Continue anyway - not critical
+      }
+
+      setScanResult({
+        type: 'eddys_member',
+        memberId: member.id,
+        customerName: member.full_name || 'Unknown',
+        customerEmail: member.email || 'Unknown',
+        venueName: venue.name,
+        memberTier: qrData.memberTier || 'VIP',
+        creditBalance: availableBalance,
+        memberSince: member.created_at,
+        scanTime: new Date().toLocaleString(),
+        status: 'verified'
+      });
+
+      setSuccess('✅ Eddys Member verified! Welcome to the venue.');
+      setError(null);
+
+      // Call the callback if provided
+      if (onMemberScanned) {
+        onMemberScanned({
+          memberId: member.id,
+          customerName: member.full_name || 'Unknown',
+          customerEmail: member.email || 'Unknown',
+          venueName: venue.name,
+          memberTier: qrData.memberTier || 'VIP',
+          creditBalance: availableBalance,
+          memberSince: member.created_at,
+          scanTime: new Date().toLocaleString(),
+          status: 'verified'
+        });
+      }
+
+      // Stop scanning after successful scan
+      setTimeout(() => {
+        stopScanning();
+      }, 3000);
+
+    } catch (err) {
+      console.error('❌ Error processing Eddys Member QR code:', err);
+      throw err;
+    }
+  };
+
+  const handleBookingScan = async (qrData) => {
+    try {
+      console.log('🔍 Processing booking QR code:', qrData);
+
       // Validate booking exists and is confirmed
       const { data: booking, error: bookingError } = await supabase
         .from('bookings')
@@ -169,6 +299,9 @@ const VenueQRScanner = () => {
         startTime: booking.start_time,
         partySize: booking.number_of_guests,
         tableNumber: booking.table_number || 'N/A',
+        tableType: booking.venue_tables?.[0]?.table_type || 'VIP Table',
+        totalAmount: booking.total_amount,
+        paymentMethod: booking.payment_method || 'Eddys Credits',
         scanTime: new Date().toLocaleString()
       });
 
@@ -286,17 +419,60 @@ const VenueQRScanner = () => {
 
       {scanResult && (
         <div className="scan-result">
-          <h4>✅ Entry Verified</h4>
-          <div className="result-details">
-            <p><strong>Customer:</strong> {scanResult.customerName}</p>
-            <p><strong>Email:</strong> {scanResult.customerEmail}</p>
-            <p><strong>Venue:</strong> {scanResult.venueName}</p>
-            <p><strong>Date:</strong> {scanResult.bookingDate}</p>
-            <p><strong>Time:</strong> {scanResult.startTime}</p>
-            <p><strong>Party Size:</strong> {scanResult.partySize}</p>
-            <p><strong>Table:</strong> {scanResult.tableNumber}</p>
-            <p><strong>Scanned at:</strong> {scanResult.scanTime}</p>
-          </div>
+          {scanResult.type === 'eddys_member' ? (
+            <>
+              <h4>✅ Eddys Member Verified</h4>
+              <div className="result-details">
+                <div className="member-info">
+                  <h5>👑 Member Information</h5>
+                  <p><strong>Name:</strong> {scanResult.customerName}</p>
+                  <p><strong>Email:</strong> {scanResult.customerEmail}</p>
+                  <p><strong>Member Tier:</strong> {scanResult.memberTier}</p>
+                  <p><strong>Member Since:</strong> {new Date(scanResult.memberSince).toLocaleDateString()}</p>
+                </div>
+                
+                <div className="venue-info">
+                  <h5>🏢 Venue Information</h5>
+                  <p><strong>Venue:</strong> {scanResult.venueName}</p>
+                  <p><strong>Available Credits:</strong> ₦{scanResult.creditBalance?.toLocaleString()}</p>
+                </div>
+                
+                <div className="scan-info">
+                  <h5>🔍 Scan Information</h5>
+                  <p><strong>Scanned at:</strong> {scanResult.scanTime}</p>
+                  <p><strong>Status:</strong> ✅ Verified & Ready to Order</p>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <h4>✅ Booking Verified</h4>
+              <div className="result-details">
+                <div className="booking-info">
+                  <h5>📋 Booking Details</h5>
+                  <p><strong>Booking ID:</strong> {scanResult.bookingId}</p>
+                  <p><strong>Customer:</strong> {scanResult.customerName}</p>
+                  <p><strong>Email:</strong> {scanResult.customerEmail}</p>
+                  <p><strong>Date:</strong> {scanResult.bookingDate}</p>
+                  <p><strong>Time:</strong> {scanResult.startTime}</p>
+                  <p><strong>Party Size:</strong> {scanResult.partySize} guests</p>
+                </div>
+                
+                <div className="venue-info">
+                  <h5>🏢 Venue Information</h5>
+                  <p><strong>Venue:</strong> {scanResult.venueName}</p>
+                  <p><strong>Table:</strong> {scanResult.tableType} #{scanResult.tableNumber}</p>
+                  <p><strong>Payment Method:</strong> {scanResult.paymentMethod}</p>
+                </div>
+                
+                <div className="scan-info">
+                  <h5>🔍 Scan Information</h5>
+                  <p><strong>Scanned at:</strong> {scanResult.scanTime}</p>
+                  <p><strong>Status:</strong> ✅ Checked In</p>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
 

@@ -114,7 +114,10 @@ serve(async (req) => {
       to, 
       subject, 
       template,
-      data,
+      dataKeys: Object.keys(data || {}),
+      hasQrCodeImage: !!(data?.qrCodeImage),
+      qrCodeImageLength: data?.qrCodeImage?.length || 0,
+      qrCodeImageStart: data?.qrCodeImage?.substring(0, 100) || 'N/A',
       hasApiKey: !!SENDGRID_API_KEY,
       fromEmail: FROM_EMAIL
     });
@@ -161,9 +164,97 @@ serve(async (req) => {
         `
         break
 
+      case 'venue-owner-application-approved':
+        html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Venue Application Approved - Eddys Members</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Arial', sans-serif; background-color: #f5f5f5; color: #333; line-height: 1.6; }
+        .email-container { max-width: 600px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 10px 30px rgba(128, 0, 32, 0.1); }
+        .header { background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); padding: 40px 30px; text-align: center; position: relative; }
+        .logo { position: relative; z-index: 2; }
+        .logo-image { width: 120px; height: 120px; border-radius: 50%; margin-bottom: 15px; box-shadow: 0 8px 20px rgba(255, 215, 0, 0.3); border: 3px solid #FFD700; }
+        .brand-name { color: #FFF5E6; font-size: 32px; font-weight: bold; letter-spacing: 2px; margin: 0; text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        .tagline { color: #FFF5E6; font-size: 14px; opacity: 0.9; margin-top: 8px; font-weight: 300; letter-spacing: 1px; }
+        .content { padding: 50px 40px; background-color: #ffffff; }
+        .welcome-title { color: #800020; font-size: 28px; font-weight: bold; margin-bottom: 20px; text-align: center; }
+        .welcome-text { color: #555; font-size: 16px; line-height: 1.8; margin-bottom: 30px; text-align: center; }
+        .cta-button { display: inline-block; background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); color: white; padding: 18px 40px; text-decoration: none; border-radius: 50px; font-weight: bold; font-size: 18px; box-shadow: 0 8px 25px rgba(128, 0, 32, 0.3); transition: all 0.3s ease; }
+        .cta-button:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(128, 0, 32, 0.4); }
+        .venue-details { background: #e8f5e8; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .venue-details h3 { color: #2e7d32; margin-top: 0; }
+        .venue-details p { color: #333; margin-bottom: 10px; }
+        .next-steps { background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .next-steps h3 { color: #8B1538; margin-top: 0; }
+        .next-steps ol { color: #333; margin: 0; padding-left: 20px; }
+        .footer { background: #f8f9fa; padding: 20px; text-align: center; border-radius: 0 0 10px 10px; border: 1px solid #ddd; border-top: none; }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <div class="logo">
+                <img src="https://oneeddy.com/logo.png" alt="Eddys Members Logo" class="logo-image">
+                <h1 class="brand-name">Eddys Members</h1>
+                <p class="tagline">Exclusive Venue Bookings</p>
+            </div>
+        </div>
+        
+        <div class="content">
+            <h2 class="welcome-title">🎉 Venue Application Approved!</h2>
+            <p class="welcome-text">
+                Dear ${data.contactName || data.ownerName},<br><br>
+                Congratulations! Your venue application for <strong>${data.venueName}</strong> has been approved by our team.
+            </p>
+            
+            <div class="venue-details">
+                <h3>🏢 Venue Details</h3>
+                <p><strong>Venue Name:</strong> ${data.venueName}</p>
+                <p><strong>Venue Type:</strong> ${data.venueType || 'Restaurant'}</p>
+                <p><strong>Address:</strong> ${data.venueAddress}</p>
+                <p><strong>City:</strong> ${data.venueCity}</p>
+            </div>
+            
+            <div class="next-steps">
+                <h3>🚀 Next Steps</h3>
+                <p>To access your venue dashboard and start managing your bookings:</p>
+                <ol>
+                    <li>Click the "Access Your Dashboard" button below</li>
+                    <li>Log in with your email and password</li>
+                    <li>Complete your venue profile setup</li>
+                    <li>Start managing your bookings and reservations!</li>
+                </ol>
+            </div>
+            
+            <div style="text-align: center; margin: 30px 0;">
+                <a href="${data.registrationUrl || `${Deno.env.get('APP_URL')}/venue-owner/login?approved=true&email=${encodeURIComponent(data.email)}`}" class="cta-button">
+                    Access Your Dashboard
+                </a>
+            </div>
+            
+            <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #D4AF37;">
+                <p style="margin: 0; color: #856404;"><strong>Important:</strong> This link will take you directly to your venue dashboard. If you haven't set up your password yet, you'll be prompted to do so on first login.</p>
+            </div>
+            
+            <p style="color: #333;">If you have any questions, please contact our support team.</p>
+            <p style="color: #666; font-size: 14px;">Best regards,<br>The Eddys Members Team</p>
+        </div>
+        
+        <div class="footer">
+            <p style="color: #666; font-size: 12px; margin: 0;">&copy; 2025 Eddys Members. All rights reserved. Built in memory of Eddy.</p>
+        </div>
+    </div>
+</body>
+</html>`
+        break
+
       case 'welcome':
         html = `
-          <h1>Welcome to VIPClub!</h1>
+          <h1>Welcome to Eddy!</h1>
           <p>Hi${data?.email ? `, ${data.email}` : ''}!</p>
           <p>Thank you for signing up. We're excited to have you join our community.</p>
           <p>Start exploring and booking your favorite venues today!</p>
@@ -175,22 +266,22 @@ serve(async (req) => {
         html = `
           <!DOCTYPE html>
           <html lang="en">
-          <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Join VIPClub - Special Invitation</title></head>
+          <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Join Eddy - Special Invitation</title></head>
           <body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;color:#333">
             <div style="max-width:600px;margin:0 auto;background:#fff;box-shadow:0 10px 30px rgba(128,0,32,0.08)">
               <div style="background:linear-gradient(135deg,#800020 0%,#A71D2A 100%);padding:36px 28px;text-align:center;position:relative">
-                <img src="https://res.cloudinary.com/dq1l3wltu/image/upload/v1753338476/Eddy_Logo-07_vagzzy.jpg" alt="VIPClub" style="width:110px;height:110px;border-radius:50%;border:3px solid #FFD700;box-shadow:0 8px 20px rgba(255,215,0,.28);margin-bottom:12px">
+                <img src="https://res.cloudinary.com/dq1l3wltu/image/upload/v1753338476/Eddy_Logo-07_vagzzy.jpg" alt="Eddy" style="width:110px;height:110px;border-radius:50%;border:3px solid #FFD700;box-shadow:0 8px 20px rgba(255,215,0,.28);margin-bottom:12px">
                 <div style="color:#FFF5E6;font-size:26px;font-weight:700;letter-spacing:1.5px">SPECIAL INVITATION</div>
               </div>
 
               <div style="padding:40px 32px">
-                <h2 style="color:#800020;text-align:center;margin:0 0 14px 0">You're Invited to Join VIPClub!</h2>
-                <p style="text-align:center;color:#555;margin:0 0 24px 0">Hi there! ${data.senderName} thinks you'd love being part of VIPClub.</p>
+                <h2 style="color:#800020;text-align:center;margin:0 0 14px 0">You're Invited to Join Eddy!</h2>
+                <p style="text-align:center;color:#555;margin:0 0 24px 0">Hi there! ${data.senderName} thinks you'd love being part of Eddy.</p>
 
                 <div style="background:linear-gradient(135deg,#FFF5E6 0%,#ffffff 100%);border:2px solid #FFD700;border-radius:14px;padding:24px;margin:18px 0">
                   <div style="color:#800020;font-weight:700;font-size:14px;margin-bottom:12px;text-transform:uppercase">Personal Message</div>
                   <div style="color:#666;font-style:italic;font-size:16px;line-height:1.5">
-                    "${data.personalMessage || 'Join me on VIPClub and discover the best venues in town!'}"
+                    "${data.personalMessage || 'Join me on Eddy and discover the best venues in town!'}"
                   </div>
                 </div>
 
@@ -206,12 +297,12 @@ serve(async (req) => {
 
                 <div style="text-align:center;margin-top:32px">
                   <a href="${data.signupUrl}" style="display:inline-block;background:#800020;color:#fff;text-decoration:none;padding:14px 28px;border-radius:6px;font-weight:600;font-size:16px">
-                    Join VIPClub Now
+                    Join Eddy Now
                   </a>
                 </div>
 
                 <div style="margin-top:32px;text-align:center;color:#666;font-size:14px">
-                  <p>As a VIPClub member, you'll enjoy:</p>
+                  <p>As an Eddy member, you'll enjoy:</p>
                   <ul style="list-style:none;padding:0;margin:12px 0;text-align:left">
                     <li style="margin:8px 0;padding-left:24px;position:relative">
                       <span style="position:absolute;left:0;color:#800020">✓</span>
@@ -231,7 +322,7 @@ serve(async (req) => {
 
               <div style="background:#f8f9fa;padding:24px;text-align:center;border-top:1px solid #eee">
                 <p style="color:#666;font-size:12px;margin:0">
-                  This invitation was sent to you by ${data.senderName} via VIPClub.
+                  This invitation was sent to you by ${data.senderName} via Eddy.
                   <br>If you don't want to receive these emails, you can ignore this message.
                 </p>
               </div>
@@ -249,7 +340,7 @@ serve(async (req) => {
           <body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;color:#333">
             <div style="max-width:600px;margin:0 auto;background:#fff;box-shadow:0 10px 30px rgba(128,0,32,0.08)">
               <div style="background:linear-gradient(135deg,#800020 0%,#A71D2A 100%);padding:36px 28px;text-align:center;position:relative">
-                <img src="https://res.cloudinary.com/dq1l3wltu/image/upload/v1753338476/Eddy_Logo-07_vagzzy.jpg" alt="VIPClub" style="width:110px;height:110px;border-radius:50%;border:3px solid #FFD700;box-shadow:0 8px 20px rgba(255,215,0,.28);margin-bottom:12px">
+                <img src="https://res.cloudinary.com/dq1l3wltu/image/upload/v1753338476/Eddy_Logo-07_vagzzy.jpg" alt="Eddy" style="width:110px;height:110px;border-radius:50%;border:3px solid #FFD700;box-shadow:0 8px 20px rgba(255,215,0,.28);margin-bottom:12px">
                 <div style="color:#FFF5E6;font-size:26px;font-weight:700;letter-spacing:1.5px">CREDIT PURCHASE CONFIRMATION</div>
               </div>
 
@@ -280,7 +371,7 @@ serve(async (req) => {
                 </div>
 
                 <p style="text-align:center;color:#666;margin-top:32px;font-size:13px">
-                  Thank you for choosing VIPClub. Your credits are now available in your account.
+                  Thank you for choosing Eddy. Your credits are now available in your account.
                 </p>
               </div>
 
@@ -296,6 +387,12 @@ serve(async (req) => {
         break
 
       case 'booking-confirmation':
+        console.log('📱 Processing booking-confirmation template');
+        console.log('📱 QR Code data:', {
+          hasQrCodeImage: !!(data?.qrCodeImage),
+          qrCodeImageLength: data?.qrCodeImage?.length || 0,
+          qrCodeImageStart: data?.qrCodeImage?.substring(0, 50) || 'N/A'
+        });
         html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -587,6 +684,59 @@ serve(async (req) => {
             font-size: 14px;
             font-weight: bold;
         }
+        .qr-section {
+            background: linear-gradient(135deg, #FFF5E6 0%, #ffffff 100%);
+            border: 2px solid #FFD700;
+            border-radius: 15px;
+            padding: 30px;
+            margin: 30px 0;
+            text-align: center;
+        }
+        .qr-title {
+            color: #800020;
+            font-size: 20px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .qr-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        .qr-code {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(128, 0, 32, 0.1);
+            border: 2px solid #FFD700;
+        }
+        .qr-image {
+            width: 200px;
+            height: 200px;
+            display: block;
+        }
+        .qr-instructions {
+            max-width: 400px;
+        }
+        .qr-text {
+            color: #333;
+            font-size: 14px;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+        .qr-security-note {
+            background: rgba(128, 0, 32, 0.1);
+            border: 1px solid #800020;
+            border-radius: 8px;
+            padding: 12px;
+            color: #800020;
+            font-size: 12px;
+            font-weight: bold;
+        }
         .footer {
             background: linear-gradient(135deg, #800020 0%, #A71D2A 100%);
             color: #FFF5E6;
@@ -770,6 +920,28 @@ serve(async (req) => {
                     ⏰ Please arrive 15 minutes before your reservation time. Late arrivals may result in table reassignment.
                 </p>
             </div>
+            
+            <!-- QR Code Section -->
+            <div class="qr-section">
+                <h4 class="qr-title">
+                    📱 Your Entry QR Code
+                </h4>
+                <div class="qr-container">
+                    <div class="qr-code">
+                        <img src="${data.qrCodeImage || ''}" alt="Venue Entry QR Code" class="qr-image">
+                    </div>
+                    <div class="qr-instructions">
+                        <p class="qr-text">
+                            <strong>Present this QR code at the venue for entry verification.</strong><br>
+                            The venue staff will scan this code to confirm your booking.
+                        </p>
+                        <div class="qr-security-note">
+                            🔒 <strong>Security:</strong> This QR code is unique to your booking and will be validated upon entry.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <p style="text-align: center; color: #666; font-size: 14px; margin-top: 30px;">
                 Need to make changes to your booking? Contact us at 
                 <a href="mailto:sales@oneeddy.com" style="color: #800020; text-decoration: none; font-weight: bold;">sales@oneeddy.com</a>
@@ -815,7 +987,7 @@ serve(async (req) => {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>VIPClub – New Booking Notification</title>
+  <title>Eddy – New Booking Notification</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: Arial, sans-serif; background: #f5f5f5; color: #333; line-height: 1.6; }
@@ -1166,6 +1338,12 @@ serve(async (req) => {
         break
 
       case 'split-payment-complete':
+        console.log('📱 Processing split-payment-complete template');
+        console.log('📱 QR Code data for split-payment-complete:', {
+          hasQrCodeImage: !!(data?.qrCodeImage),
+          qrCodeImageLength: data?.qrCodeImage?.length || 0,
+          qrCodeImageStart: data?.qrCodeImage?.substring(0, 50) || 'N/A'
+        });
         html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1280,6 +1458,27 @@ serve(async (req) => {
           </div>
           <div class="venue-item">
             <span class="venue-label">Contact:</span> ${data.venuePhone || 'N/A'}
+          </div>
+        </div>
+      </div>
+
+      <!-- QR Code Section -->
+      <div class="qr-section" style="background: linear-gradient(135deg, #FFF5E6 0%, #ffffff 100%); border: 2px solid #FFD700; border-radius: 15px; padding: 30px; margin: 30px 0; text-align: center;">
+        <h4 class="qr-title" style="color: #800020; font-size: 20px; font-weight: bold; margin-bottom: 20px; display: flex; align-items: center; justify-content: center;">
+          📱 Your Entry QR Code
+        </h4>
+        <div class="qr-container" style="display: flex; flex-direction: column; align-items: center; gap: 20px;">
+          <div class="qr-code" style="background: #ffffff; padding: 20px; border-radius: 10px; box-shadow: 0 4px 15px rgba(128, 0, 32, 0.1); border: 2px solid #FFD700;">
+            <img src="${data.qrCodeImage || ''}" alt="Venue Entry QR Code" class="qr-image" style="width: 200px; height: 200px; display: block;">
+          </div>
+          <div class="qr-instructions" style="max-width: 400px;">
+            <p class="qr-text" style="color: #333; font-size: 14px; line-height: 1.6; margin-bottom: 15px;">
+              <strong>Present this QR code at the venue for entry verification.</strong><br>
+              The venue staff will scan this code to confirm your booking.
+            </p>
+            <div class="qr-security-note" style="background: rgba(128, 0, 32, 0.1); border: 1px solid #800020; border-radius: 8px; padding: 12px; color: #800020; font-size: 12px; font-weight: bold;">
+              🔒 <strong>Security:</strong> This QR code is unique to your booking and will be validated upon entry.
+            </div>
           </div>
         </div>
       </div>
@@ -1660,7 +1859,7 @@ serve(async (req) => {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>VIPClub – New Venue Owner Registration</title>
+  <title>Eddy – New Venue Owner Registration</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: Arial, sans-serif; background: #f5f5f5; color: #333; line-height: 1.6; }
@@ -1694,7 +1893,7 @@ serve(async (req) => {
   <div class="email-container">
     <div class="header">
       <div class="logo">
-        <img class="logo-image" src="https://res.cloudinary.com/dq1l3wltu/image/upload/v1753338476/Eddy_Logo-07_vagzzy.jpg" alt="VIPClub" />
+        <img class="logo-image" src="https://res.cloudinary.com/dq1l3wltu/image/upload/v1753338476/Eddy_Logo-07_vagzzy.jpg" alt="Eddy" />
         <div class="brand">EDDYS MEMBERS</div>
       </div>
     </div>
@@ -1730,7 +1929,7 @@ serve(async (req) => {
       <div class="notice">Please review and approve or reject this venue owner account.</div>
     </div>
     <div class="footer">
-      <div>Thank you for keeping the VIPClub community high-quality.</div>
+      <div>Thank you for keeping the Eddy community high-quality.</div>
       <div class="foot-note">© 2025 Eddys Members. All rights reserved.</div>
     </div>
   </div>
@@ -1744,7 +1943,7 @@ serve(async (req) => {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome to VIPClub - Confirm Your Account</title>
+    <title>Welcome to Eddy - Confirm Your Account</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Arial', sans-serif; background-color: #f5f5f5; color: #333; line-height: 1.6; }
@@ -1776,9 +1975,9 @@ serve(async (req) => {
         </div>
         
         <div class="content">
-            <h2 class="welcome-title">Welcome to Eddys Members!</h2>
+            <h2 class="welcome-title">Welcome to Eddy!</h2>
             <p class="welcome-text">
-                Hi ${data.email}! Thank you for joining VIPClub - your premier destination for exclusive venue bookings in Lagos, Nigeria.
+                Hi ${data.email}! Thank you for joining Eddy - your premier destination for exclusive venue bookings in Lagos, Nigeria.
             </p>
             
             <!-- Primary CTA - Web-based for universal access -->
@@ -1798,7 +1997,7 @@ serve(async (req) => {
             
             <!-- App Download Section -->
             <div class="app-links">
-                <h3 style="color: #800020; margin-bottom: 20px;">Get the VIPClub Mobile App</h3>
+                <h3 style="color: #800020; margin-bottom: 20px;">Get the Eddy Mobile App</h3>
                 <p style="color: #666; margin-bottom: 20px; font-size: 14px;">
                     For the best mobile experience, download our app
                 </p>
@@ -1821,7 +2020,7 @@ serve(async (req) => {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Welcome to VIPClub - Venue Owner Registration</title>
+    <title>Welcome to Eddy - Venue Owner Registration</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Arial', sans-serif; background-color: #f5f5f5; color: #333; line-height: 1.6; }
@@ -1844,16 +2043,16 @@ serve(async (req) => {
     <div class="email-container">
         <div class="header">
             <div class="logo">
-                <img src="https://vipclub.com/logo.png" alt="VIPClub Logo" class="logo-image">
-                <h1 class="brand-name">VIPClub</h1>
+                <img src="https://vipclub.com/logo.png" alt="Eddy Logo" class="logo-image">
+                <h1 class="brand-name">Eddy</h1>
                 <p class="tagline">Exclusive Venue Bookings</p>
             </div>
         </div>
         
         <div class="content">
-            <h2 class="welcome-title">Welcome to VIPClub!</h2>
+            <h2 class="welcome-title">Welcome to Eddy!</h2>
             <p class="welcome-text">
-                Hi ${data.ownerName || data.email}! Thank you for registering your venue "${data.venueName}" with VIPClub.
+                Hi ${data.ownerName || data.email}! Thank you for registering your venue "${data.venueName}" with Eddy.
             </p>
             
             <!-- Primary CTA - Web-based for universal access -->
@@ -1876,7 +2075,7 @@ serve(async (req) => {
             
             <!-- App Download Section -->
             <div class="app-links">
-                <h3 style="color: #800020; margin-bottom: 20px;">Get the VIPClub Mobile App</h3>
+                <h3 style="color: #800020; margin-bottom: 20px;">Get the Eddy Mobile App</h3>
                 <p style="color: #666; margin-bottom: 20px; font-size: 14px;">
                     For the best mobile experience, download our app
                 </p>
@@ -2166,6 +2365,396 @@ serve(async (req) => {
 </html>`
         break;
 
+      case 'booking-cancellation-customer':
+        html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eddys Members - Booking Cancelled</title>
+    <style>
+        /* Use the same styles as booking-confirmation */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            box-shadow: 0 10px 30px rgba(128, 0, 32, 0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #800020 0%, #A71D2A 100%);
+            padding: 40px 30px;
+            text-align: center;
+            position: relative;
+        }
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="grain" width="100" height="100" patternUnits="userSpaceOnUse"><circle cx="25" cy="25" r="1" fill="%23FFD700" opacity="0.1"/><circle cx="75" cy="75" r="1" fill="%23FFD700" opacity="0.1"/><circle cx="50" cy="10" r="0.5" fill="%23FFD700" opacity="0.15"/><circle cx="10" cy="60" r="0.5" fill="%23FFD700" opacity="0.15"/><circle cx="90" cy="40" r="0.5" fill="%23FFD700" opacity="0.15"/></pattern></defs><rect width="100" height="100" fill="url(%23grain)"/></svg>') repeat;
+            opacity: 0.3;
+        }
+        .logo {
+            position: relative;
+            z-index: 2;
+        }
+        .logo-image {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            margin-bottom: 15px;
+            box-shadow: 0 8px 20px rgba(255, 215, 0, 0.3);
+            border: 3px solid #FFD700;
+        }
+        .brand-name {
+            color: #FFF5E6;
+            font-size: 32px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            margin: 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .tagline {
+            color: #FFF5E6;
+            font-size: 14px;
+            opacity: 0.9;
+            margin-top: 8px;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+        .content {
+            padding: 50px 40px;
+            background-color: #ffffff;
+        }
+        .title {
+            color: #800020;
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .subtitle {
+            color: #555;
+            font-size: 16px;
+            margin-bottom: 30px;
+            text-align: center;
+            line-height: 1.7;
+        }
+        .cancellation-section {
+            background: linear-gradient(135deg, #FFF5E6 0%, #ffffff 100%);
+            border: 2px solid #FFD700;
+            border-radius: 15px;
+            padding: 35px;
+            margin: 35px 0;
+            position: relative;
+        }
+        .cancellation-section::before {
+            content: '❌';
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #FFD700;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+        .refund-notice {
+            background: rgba(34, 197, 94, 0.1);
+            border: 2px solid #22c55e;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 25px 0;
+            text-align: center;
+        }
+        .refund-amount {
+            color: #22c55e;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .refund-details {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        /* Include other styles from booking-confirmation */
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header Section -->
+        <div class="header">
+            <div class="logo">
+                <img src="https://res.cloudinary.com/dq1l3wltu/image/upload/v1753338476/Eddy_Logo-07_vagzzy.jpg" alt="Eddys Members Logo" class="logo-image">
+                <h1 class="brand-name">EDDYS MEMBERS</h1>
+                <p class="tagline">Your Gateway to Exclusive Experiences</p>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="content">
+            <h2 class="title">Booking Cancelled</h2>
+            <p class="subtitle">
+                Hi ${data.customerName || 'Valued Customer'}, your booking at ${data.venueName || 'the venue'} has been successfully cancelled.
+            </p>
+            
+            <!-- Cancellation Details Section -->
+            <div class="cancellation-section">
+                <h3 class="booking-title">Cancelled Booking Details</h3>
+                <div class="booking-reference">
+                    Booking Reference: ${data.bookingId || 'N/A'}
+                </div>
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <div class="detail-label">Venue</div>
+                        <div class="detail-value">${data.venueName || 'N/A'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Date</div>
+                        <div class="detail-value">${data.bookingDate ? new Date(data.bookingDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Time</div>
+                        <div class="detail-value">${data.bookingTime || 'N/A'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Guests</div>
+                        <div class="detail-value">${data.guestCount || 0} guests</div>
+                    </div>
+                </div>
+            </div>
+            
+            ${data.isRefunded ? `
+            <!-- Refund Information -->
+            <div class="refund-notice">
+                <div class="refund-amount">₦${(data.refundAmount || 0).toLocaleString()} Refund Processed</div>
+                <div class="refund-details">
+                    Your refund has been processed and will appear in your account within 5-10 business days.
+                    The refund will be credited to the same payment method used for the original booking.
+                </div>
+            </div>
+            ` : `
+            <div class="important-notice">
+                <div class="important-notice-text">
+                    No payment was processed for this booking, so no refund is needed.
+                </div>
+            </div>
+            `}
+            
+            <!-- Action Buttons -->
+            <div class="action-buttons">
+                <a href="${data.dashboardUrl || 'https://oneeddy.com/profile'}" class="action-button primary-button">
+                    View My Bookings
+                </a>
+                <a href="https://oneeddy.com/venues" class="action-button secondary-button">
+                    Book Another Venue
+                </a>
+            </div>
+        </div>
+        
+        <!-- Footer Section -->
+        <div class="footer">
+            <div class="footer-content">
+                <div class="footer-title">Need Help?</div>
+                <div class="footer-text">
+                    If you have any questions about your cancellation or refund, our support team is here to help.
+                    Contact us at <a href="mailto:support@oneeddy.com" class="footer-link">support@oneeddy.com</a>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 Eddys Members. All rights reserved.</p>
+                <p>Lagos, Nigeria | <a href="https://oneeddy.com" class="footer-link">oneeddy.com</a></p>
+            </div>
+        </div>
+    </div>
+</body>
+</html>`
+        break
+
+      case 'booking-cancellation-venue':
+        html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eddys Members - Booking Cancellation Notice</title>
+    <style>
+        /* Same styles as above */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            box-shadow: 0 10px 30px rgba(128, 0, 32, 0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #800020 0%, #A71D2A 100%);
+            padding: 40px 30px;
+            text-align: center;
+            position: relative;
+        }
+        .logo-image {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            margin-bottom: 15px;
+            box-shadow: 0 8px 20px rgba(255, 215, 0, 0.3);
+            border: 3px solid #FFD700;
+        }
+        .brand-name {
+            color: #FFF5E6;
+            font-size: 32px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            margin: 0;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .content {
+            padding: 50px 40px;
+            background-color: #ffffff;
+        }
+        .title {
+            color: #800020;
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .subtitle {
+            color: #555;
+            font-size: 16px;
+            margin-bottom: 30px;
+            text-align: center;
+            line-height: 1.7;
+        }
+        .cancellation-section {
+            background: linear-gradient(135deg, #FFF5E6 0%, #ffffff 100%);
+            border: 2px solid #FFD700;
+            border-radius: 15px;
+            padding: 35px;
+            margin: 35px 0;
+        }
+        .details-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        .detail-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #FFD700;
+        }
+        .detail-label {
+            color: #800020;
+            font-weight: bold;
+            font-size: 12px;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+        .detail-value {
+            color: #666;
+            font-size: 14px;
+        }
+        .footer {
+            background: linear-gradient(135deg, #800020 0%, #A71D2A 100%);
+            color: #FFF5E6;
+            padding: 40px 30px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <!-- Header Section -->
+        <div class="header">
+            <div class="logo">
+                <img src="https://res.cloudinary.com/dq1l3wltu/image/upload/v1753338476/Eddy_Logo-07_vagzzy.jpg" alt="Eddys Members Logo" class="logo-image">
+                <h1 class="brand-name">EDDYS MEMBERS</h1>
+                <p class="tagline">Your Gateway to Exclusive Experiences</p>
+            </div>
+        </div>
+        
+        <!-- Main Content -->
+        <div class="content">
+            <h2 class="title">Booking Cancellation Notice</h2>
+            <p class="subtitle">
+                A booking at ${data.venueName || 'your venue'} has been cancelled by the customer.
+            </p>
+            
+            <!-- Cancellation Details -->
+            <div class="cancellation-section">
+                <h3 class="booking-title">Cancelled Booking Details</h3>
+                <div class="details-grid">
+                    <div class="detail-item">
+                        <div class="detail-label">Customer</div>
+                        <div class="detail-value">${data.customerName || 'N/A'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Booking ID</div>
+                        <div class="detail-value">${data.bookingId || 'N/A'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Date</div>
+                        <div class="detail-value">${data.bookingDate ? new Date(data.bookingDate).toLocaleDateString() : 'N/A'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Time</div>
+                        <div class="detail-value">${data.bookingTime || 'N/A'}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Guests</div>
+                        <div class="detail-value">${data.guestCount || 0} guests</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Amount</div>
+                        <div class="detail-value">₦${(data.totalAmount || 0).toLocaleString()}</div>
+                    </div>
+                </div>
+                
+                ${data.isRefunded ? `
+                <div class="refund-notice">
+                    <div class="refund-amount">₦${(data.refundAmount || 0).toLocaleString()} Refunded</div>
+                    <div class="refund-details">
+                        The customer's payment has been automatically refunded through Stripe.
+                    </div>
+                </div>
+                ` : ''}
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <div class="footer-content">
+                <div class="footer-title">Eddys Members</div>
+                <div class="footer-text">
+                    Managing premium venue bookings across Lagos
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>`
+        break
+
       default:
         throw new Error('Invalid template')
     }
@@ -2180,7 +2769,7 @@ serve(async (req) => {
         ],
         from: {
           email: Deno.env.get('SMTP_FROM') || 'info@oneeddy.com',
-          name: 'VIPClub'
+          name: 'Eddy'
         },
         subject,
         content: [

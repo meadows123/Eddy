@@ -59,7 +59,7 @@ const SplitPaymentSuccessPage = () => {
             ),
             venue_tables (
               table_number,
-              table_name
+              table_type
             )
           `)
           .eq('id', requestData.booking_id)
@@ -197,7 +197,7 @@ const SplitPaymentSuccessPage = () => {
                   paymentAmount: requestData.amount || 0,
                   
                   // Table details
-                  tableName: bookingData.table?.table_name,
+                  tableName: bookingData.table?.table_type,
                   tableNumber: bookingData.table?.table_number,
                   
                   // Venue details
@@ -244,7 +244,7 @@ const SplitPaymentSuccessPage = () => {
         booking_time: bookingData?.start_time || bookingData?.booking_time || '19:00:00',
         venue_name: bookingData?.venues?.name,
         venue_price_range: bookingData?.venues?.price_range,
-        table_name: bookingData?.venue_tables?.[0]?.table_name,
+        table_name: bookingData?.venue_tables?.[0]?.table_type,
         table_number: bookingData?.venue_tables?.[0]?.table_number,
         number_of_guests: bookingData?.number_of_guests,
         requester_profile: userProfile // Add this line
@@ -325,6 +325,12 @@ const SplitPaymentSuccessPage = () => {
           .from('bookings')
           .select(`
             *,
+            profiles (
+              email,
+              first_name,
+              last_name,
+              phone
+            ),
             venues (
               name,
               address,
@@ -357,6 +363,7 @@ const SplitPaymentSuccessPage = () => {
           // Fetch venue and profile data separately
           let venueData = null;
           let profileData = null;
+          
           
           if (simpleBooking?.venue_id) {
             const { data: venue } = await supabase
@@ -441,7 +448,7 @@ const SplitPaymentSuccessPage = () => {
           if (simpleBooking?.user_id) {
             const { data: profile } = await supabase
               .from('profiles')
-              .select('first_name, last_name, email')
+              .select('first_name, last_name, email, phone')
               .eq('id', simpleBooking.user_id)
               .single();
             profileData = profile;
@@ -462,7 +469,7 @@ const SplitPaymentSuccessPage = () => {
           if (bookingData?.user_id) {
             const { data: profile } = await supabase
               .from('profiles')
-              .select('first_name, last_name, email')
+              .select('first_name, last_name, email, phone')
               .eq('id', bookingData.user_id)
               .single();
             bookingData.profiles = profile;
@@ -621,7 +628,7 @@ const SplitPaymentSuccessPage = () => {
           console.log('📧 Preparing to send completion email to initiator:', {
             to: bookingData.profiles?.email,
             subject: `Booking Confirmed! - ${bookingData.venues?.name || 'Your Venue'}`,
-            template: 'split-payment-complete'
+            template: 'booking-confirmation'
           });
 
           // Get table information for the initiator
@@ -629,11 +636,11 @@ const SplitPaymentSuccessPage = () => {
           if (bookingData.table_id) {
             const { data: tableData } = await supabase
               .from('venue_tables')
-              .select('table_name, table_number')
+              .select('table_type, table_number')
               .eq('id', bookingData.table_id)
               .single();
             if (tableData) {
-              tableInfo = tableData;
+              tableInfo = { table_name: tableData.table_type, table_number: tableData.table_number };
             }
           }
 
@@ -647,18 +654,26 @@ const SplitPaymentSuccessPage = () => {
             // Recipient info
             email: bookingData.profiles?.email || 'initiator@example.com',
             customerName: `${bookingData.profiles?.first_name || ''} ${bookingData.profiles?.last_name || ''}`.trim() || 'Guest',
+            customerEmail: bookingData.profiles?.email || 'Not provided',
             customerPhone: bookingData.profiles?.phone || 'N/A',
             
             // Booking details
             bookingId: bookingData.id,
+            bookingReference: bookingData.id, // Template expects bookingReference
             bookingDate: bookingData.booking_date || bookingData.bookingDate,
             bookingTime: bookingData.start_time || bookingData.booking_time,
+            partySize: bookingData.number_of_guests || bookingData.guest_count || 1, // Template expects partySize
             guestCount: bookingData.number_of_guests || bookingData.guest_count,
             totalAmount: bookingData.total_amount || bookingData.totalAmount,
+            initiatorAmount: bookingData.total_amount || bookingData.totalAmount, // For split-payment-complete template
             
             // Table details
             tableName: tableInfo.table_name,
             tableNumber: tableInfo.table_number,
+            tableType: tableInfo.table_name || 'VIP Table',
+            tableCapacity: bookingData.number_of_guests || 4,
+            tableLocation: 'Prime location',
+            tableFeatures: 'Premium features',
             
             // Venue details
             venueName: bookingData.venues?.name,
@@ -684,7 +699,7 @@ const SplitPaymentSuccessPage = () => {
             body: {
               to: bookingData.profiles?.email || 'initiator@example.com',
               subject: `Booking Confirmed! - ${bookingData.venues?.name || 'Your Venue'}`,
-              template: 'booking-confirmation',
+              template: 'split-payment-complete',
               data: emailData
             }
           });
@@ -696,14 +711,14 @@ const SplitPaymentSuccessPage = () => {
               emailData: {
                 to: bookingData.profiles?.email,
                 subject: `Booking Confirmed! - ${bookingData.venues?.name || 'Your Venue'}`,
-                template: 'split-payment-complete'
+                template: 'booking-confirmation'
               }
             });
           } else {
             console.log('✅ Split payment completion email sent successfully:', {
               result: completionEmailResult,
               recipient: bookingData.profiles?.email,
-              template: 'split-payment-complete'
+              template: 'booking-confirmation'
             });
           }
 
@@ -758,11 +773,11 @@ const SplitPaymentSuccessPage = () => {
               if (bookingData.table_id) {
                 const { data: tableData } = await supabase
                   .from('venue_tables')
-                  .select('table_name, table_number')
+                  .select('table_type, table_number')
                   .eq('id', bookingData.table_id)
                   .single();
                 if (tableData) {
-                  tableInfo = tableData;
+                  tableInfo = { table_name: tableData.table_type, table_number: tableData.table_number };
                 }
               }
 
@@ -776,18 +791,26 @@ const SplitPaymentSuccessPage = () => {
                 // Recipient info
                 email: lastPayerProfile.email,
                 customerName: `${lastPayerProfile.first_name || ''} ${lastPayerProfile.last_name || ''}`.trim() || 'Guest',
+                customerEmail: lastPayerProfile.email || 'Not provided',
                 customerPhone: lastPayerProfile.phone || 'N/A',
                 
                 // Booking details
                 bookingId: bookingData.id,
+                bookingReference: bookingData.id, // Template expects bookingReference
                 bookingDate: bookingData.booking_date || bookingData.bookingDate,
                 bookingTime: bookingData.start_time || bookingData.booking_time,
+                partySize: bookingData.number_of_guests || bookingData.guest_count || 1, // Template expects partySize
                 guestCount: bookingData.number_of_guests || bookingData.guest_count,
                 totalAmount: bookingData.total_amount || bookingData.totalAmount,
+                initiatorAmount: lastPayerAmount, // For split-payment-complete template
                 
                 // Table details
                 tableName: tableInfo.table_name,
                 tableNumber: tableInfo.table_number,
+                tableType: tableInfo.table_name || 'VIP Table',
+                tableCapacity: bookingData.number_of_guests || 4,
+                tableLocation: 'Prime location',
+                tableFeatures: 'Premium features',
                 
                 // Venue details
                 venueName: bookingData.venues?.name,

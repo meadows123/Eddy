@@ -442,7 +442,18 @@ const UserProfilePage = () => {
       const { error } = await signIn(form);
       if (error) throw error;
     } catch (error) {
-      setError(error.message);
+      // Provide more specific and helpful error messages
+      if (error.message === 'Invalid login credentials' || error.message.includes('Invalid login credentials')) {
+        setError('The email or password you entered is incorrect. Please check your credentials and try again. If you\'ve forgotten your password, click "Forgot Password?" below to reset it.');
+      } else if (error.message.includes('Email not confirmed')) {
+        setError('Please check your email and click the confirmation link before logging in. If you didn\'t receive the email, try signing up again.');
+      } else if (error.message.includes('Too many requests')) {
+        setError('Too many login attempts. Please wait a few minutes before trying again. If you\'ve forgotten your password, use the "Forgot Password?" option below.');
+      } else if (error.message.includes('User not found')) {
+        setError('No account found with this email address. Please check your email or create a new account.');
+      } else {
+        setError(error.message || 'Login failed. Please try again or contact support if the problem persists.');
+      }
     }
   };
 
@@ -799,10 +810,17 @@ const UserProfilePage = () => {
                         redirectTo: `${window.location.origin}/reset-password`
                       });
                       if (error) throw error;
-                      setSuccess('Password reset email sent! Check your inbox.');
+                      setSuccess('Password reset email sent! Check your inbox and spam folder. Click the link in the email to reset your password.');
                       setError(''); // Clear any previous errors
                     } catch (err) {
-                      setError(err.message || 'Failed to send password reset email');
+                      // Provide more helpful error messages for password reset
+                      if (err.message.includes('User not found')) {
+                        setError('No account found with this email address. Please check your email or create a new account.');
+                      } else if (err.message.includes('Too many requests')) {
+                        setError('Too many password reset requests. Please wait a few minutes before trying again.');
+                      } else {
+                        setError(err.message || 'Failed to send password reset email. Please try again or contact support.');
+                      }
                     }
                   }}
                   className="text-sm text-brand-burgundy hover:text-brand-gold transition-colors"

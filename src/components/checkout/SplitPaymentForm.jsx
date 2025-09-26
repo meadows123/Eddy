@@ -126,6 +126,7 @@ const SplitPaymentForm = ({
   // Add this state for tracking split payment creation
   const [splitRequestsCreated, setSplitRequestsCreated] = useState(false);
   const [createdSplitRequests, setCreatedSplitRequests] = useState([]);
+  const [searchTimeout, setSearchTimeout] = useState(null);
 
   // Function to check if all payments are complete and send completion emails
   const checkAllPaymentsComplete = async (bookingId) => {
@@ -237,9 +238,32 @@ const SplitPaymentForm = ({
     setMyAmount(calculatedMyAmount); // Set myAmount in state
   }, [splitCount, totalAmount]);
 
+  // Cleanup search timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+    };
+  }, [searchTimeout]);
+
   const handleSplitCountChange = (newCount) => {
     if (newCount < 2) return;
     setSplitCount(newCount);
+  };
+
+  const debouncedSearch = (query) => {
+    // Clear existing timeout
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+    
+    // Set new timeout
+    const timeout = setTimeout(() => {
+      searchUsers(query);
+    }, 300); // 300ms delay
+    
+    setSearchTimeout(timeout);
   };
 
   const searchUsers = async (query) => {
@@ -256,19 +280,20 @@ const SplitPaymentForm = ({
     
     // Validate sanitized query length
     if (sanitizedQuery.length < 2) {
-      toast({
-        title: "Invalid Search",
-        description: "Please enter at least 2 characters to search.",
-        variant: "destructive"
-      });
+      console.log('🔍 Query too short, clearing results');
       setSearchResults([]);
       return;
     }
 
+    console.log('🔍 Starting user search with query:', sanitizedQuery);
+    console.log('🔍 User object:', user);
+    console.log('🔍 Auth loading:', authLoading);
+    
     setIsSearching(true);
     try {
       // Validate user exists and is authenticated (only check if auth is loaded)
       if (authLoading) {
+        console.log('🔍 Auth still loading, skipping search');
         setSearchResults([]);
         return;
       }
@@ -287,22 +312,29 @@ const SplitPaymentForm = ({
       // Simple rate limiting - you could add this later if needed
       // For now, the basic sanitization is sufficient for SQL injection protection
 
-             const { data, error } = await supabase
-         .from('profiles')
-         .select('id, first_name, last_name, phone')
-         .or(`first_name.ilike.%${sanitizedQuery}%,last_name.ilike.%${sanitizedQuery}%,phone.ilike.%${sanitizedQuery}%`)
-         .neq('id', user.id) // Exclude current user
-         .limit(10);
+      console.log('🔍 Executing database query for profiles...');
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, first_name, last_name, phone')
+        .or(`first_name.ilike.%${sanitizedQuery}%,last_name.ilike.%${sanitizedQuery}%,phone.ilike.%${sanitizedQuery}%`)
+        .neq('id', user.id) // Exclude current user
+        .limit(10);
 
-      if (error) throw error;
+      console.log('🔍 Database query result:', { data, error });
 
-             // Transform results
-       const results = (data || []).map(profile => ({
-         ...profile,
-         displayName: `${profile.first_name} ${profile.last_name}`.trim(),
-         type: 'profile'
-       }));
+      if (error) {
+        console.error('🔍 Database query error:', error);
+        throw error;
+      }
 
+      // Transform results
+      const results = (data || []).map(profile => ({
+        ...profile,
+        displayName: `${profile.first_name} ${profile.last_name}`.trim(),
+        type: 'profile'
+      }));
+
+      console.log('🔍 Transformed results:', results);
       setSearchResults(results);
     } catch (error) {
       console.error('Error searching users:', error);
@@ -1086,7 +1118,7 @@ const SplitPaymentForm = ({
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
                     // Simple search without debouncing for now
-                    searchUsers(e.target.value);
+                    debouncedSearch(e.target.value);
                   }}
                   className="pl-10"
                 />

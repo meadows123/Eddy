@@ -1,18 +1,119 @@
 import QRCode from 'qrcode';
 
 /**
- * Generate a secure QR code for venue entry
- * @param {Object} bookingData - The booking data
+ * Generate a QR code for Eddys Member walk-in verification
+ * @param {Object} memberData - Member data with credits and status
  * @returns {Promise<string>} - Base64 QR code image
  */
-export const generateVenueEntryQR = async (bookingData) => {
+export const generateEddysMemberQR = async (memberData) => {
   try {
+    console.log('🔍 Eddys Member QR Generator - Received member data:', {
+      userId: memberData.userId,
+      venueId: memberData.venueId,
+      memberTier: memberData.memberTier,
+      creditBalance: memberData.creditBalance,
+      memberSince: memberData.memberSince
+    });
+    
     // Import supabase client
     const { supabase } = await import('./supabase.js');
     
     // Generate a unique security code
     const securityCode = generateSecurityCode();
     
+    // Create QR code data for walk-in member
+    const qrData = {
+      type: 'eddys_member',
+      memberId: memberData.userId,
+      venueId: memberData.venueId,
+      securityCode: securityCode,
+      memberTier: memberData.memberTier || 'VIP',
+      memberSince: memberData.memberSince,
+      timestamp: new Date().toISOString()
+    };
+
+    console.log('🔍 Eddys Member QR Generator - Generated QR data:', qrData);
+
+    // Store security code in database (only for real members, not test ones)
+    if (memberData.userId && !memberData.userId.startsWith('test-')) {
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ 
+          qr_security_code: securityCode,
+          last_qr_generated: new Date().toISOString()
+        })
+        .eq('id', memberData.userId);
+
+      if (updateError) {
+        console.error('❌ Error storing member QR security code:', updateError);
+        // Continue anyway - QR code will still work
+      } else {
+        console.log('✅ Member QR security code stored in database');
+      }
+    } else {
+      console.log('🧪 Test member - skipping database update');
+    }
+
+    // Generate QR code image
+    const qrCodeImage = await QRCode.toDataURL(JSON.stringify(qrData), {
+      width: 200, // Reduced size for better email display
+      margin: 1,
+      color: {
+        dark: '#800020', // Brand burgundy
+        light: '#FFFFFF'
+      }
+    });
+
+    console.log('🔍 QR Code Image details:', {
+      length: qrCodeImage?.length || 0,
+      start: qrCodeImage?.substring(0, 100) || 'N/A',
+      isBase64: qrCodeImage?.startsWith('data:image/') || false
+    });
+
+    console.log('✅ Eddys Member QR code generated for member:', memberData.userId);
+    return qrCodeImage;
+
+  } catch (error) {
+    console.error('❌ Error generating Eddys Member QR code:', error);
+    throw error;
+  }
+};
+
+/**
+ * Generate a secure QR code for venue entry
+ * @param {Object} bookingData - The booking data
+ * @returns {Promise<string>} - Base64 QR code image
+ */
+export const generateVenueEntryQR = async (bookingData) => {
+  try {
+    console.log('🔍 QR Code Generator - Received booking data:', {
+      id: bookingData.id,
+      venue_id: bookingData.venue_id,
+      booking_date: bookingData.booking_date,
+      start_time: bookingData.start_time,
+      number_of_guests: bookingData.number_of_guests,
+      status: bookingData.status,
+      table: bookingData.table,
+      venue_tables: bookingData.venue_tables,
+      table_number: bookingData.table_number
+    });
+    
+    // Import supabase client
+    const { supabase } = await import('./supabase.js');
+    
+    // Generate a unique security code
+    const securityCode = generateSecurityCode();
+    
+    // Handle different table data structures
+    let tableNumber = 'N/A';
+    if (bookingData.table?.table_number) {
+      tableNumber = bookingData.table.table_number;
+    } else if (bookingData.venue_tables?.table_number) {
+      tableNumber = bookingData.venue_tables.table_number;
+    } else if (bookingData.table_number) {
+      tableNumber = bookingData.table_number;
+    }
+
     const qrData = {
       type: 'venue-entry',
       bookingId: bookingData.id,
@@ -20,11 +121,13 @@ export const generateVenueEntryQR = async (bookingData) => {
       securityCode: securityCode,
       bookingDate: bookingData.booking_date,
       startTime: bookingData.start_time,
-      tableNumber: bookingData.table?.table_number || 'N/A',
+      tableNumber: tableNumber,
       guestCount: bookingData.number_of_guests || 2,
       status: bookingData.status || 'confirmed',
       timestamp: new Date().toISOString()
     };
+
+    console.log('🔍 QR Code Generator - Generated QR data:', qrData);
 
     // Store security code in database (only for real bookings, not test ones)
     if (bookingData.id && !bookingData.id.startsWith('test-')) {
@@ -45,8 +148,8 @@ export const generateVenueEntryQR = async (bookingData) => {
 
     // Generate QR code as base64 image
     const qrCodeImage = await QRCode.toDataURL(JSON.stringify(qrData), {
-      width: 300,
-      margin: 2,
+      width: 200,
+      margin: 1,
       color: {
         dark: '#800020', // Brand burgundy
         light: '#FFFFFF'
@@ -54,6 +157,12 @@ export const generateVenueEntryQR = async (bookingData) => {
     });
 
     console.log('✅ QR code generated for booking:', bookingData.id);
+    console.log('🔍 QR Code Image details:', {
+      length: qrCodeImage?.length || 0,
+      start: qrCodeImage?.substring(0, 100) || 'N/A',
+      isBase64: qrCodeImage?.startsWith('data:image/') || false
+    });
+    
     return qrCodeImage;
   } catch (error) {
     console.error('❌ Error generating QR code:', error);

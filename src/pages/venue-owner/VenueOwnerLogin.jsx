@@ -72,21 +72,23 @@ const VenueOwnerLogin = () => {
     } catch (error) {
       console.error('❌ Login error:', error);
       
-      // Provide more specific error messages
-      if (error.message === 'Invalid login credentials') {
-        setError('Invalid email or password. If you recently registered, please check your email for a confirmation link and click it before logging in. You can also use the "Resend confirmation email" button below.');
+      // Provide more specific and helpful error messages
+      if (error.message === 'Invalid login credentials' || error.message.includes('Invalid login credentials')) {
+        setError('The email or password you entered is incorrect. Please check your credentials and try again. If you\'ve forgotten your password, click "Forgot Password?" below to reset it.');
       } else if (error.message.includes('Email not confirmed')) {
         setError('Please check your email and click the confirmation link before logging in. If you didn\'t receive the email, use the "Resend confirmation email" button below.');
-      } else if (error.message.includes('Invalid login credentials')) {
-        setError('Invalid email or password. If you recently registered, please check your email for a confirmation link and click it before logging in.');
+      } else if (error.message.includes('Too many requests')) {
+        setError('Too many login attempts. Please wait a few minutes before trying again. If you\'ve forgotten your password, use the "Forgot Password?" option below.');
+      } else if (error.message.includes('User not found')) {
+        setError('No account found with this email address. Please check your email or create a new account.');
       } else {
-        setError(error.message || 'Login failed');
+        setError(error.message || 'Login failed. Please try again or contact support if the problem persists.');
       }
       
-      // Show toast with additional guidance
+      // Show toast with helpful guidance
       toast({
         title: 'Login Failed',
-        description: 'If you recently registered, please check your email for a confirmation link. Use the "Debug Account Status" button to check your account status.',
+        description: 'Please check your credentials or use "Forgot Password?" to reset your password.',
         variant: 'destructive',
       });
     } finally {
@@ -153,11 +155,21 @@ const VenueOwnerLogin = () => {
       
     } catch (error) {
       console.error('❌ Password reset error:', error);
-      setError(error.message || 'Failed to send password reset email');
+      
+      // Provide more helpful error messages for password reset
+      if (error.message.includes('User not found')) {
+        setError('No venue owner account found with this email address. Please check your email or contact support.');
+      } else if (error.message.includes('Too many requests')) {
+        setError('Too many password reset requests. Please wait a few minutes before trying again.');
+      } else if (error.message.includes('Invalid email')) {
+        setError('Please enter a valid email address.');
+      } else {
+        setError(error.message || 'Failed to send password reset email. Please try again or contact support.');
+      }
       
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to send password reset email. Please try again.',
+        title: 'Password Reset Failed',
+        description: 'Please check your email address and try again, or contact support if the problem persists.',
         variant: 'destructive',
       });
     } finally {
