@@ -211,6 +211,7 @@ const SplitPaymentSuccessPage = () => {
               
               // QR Code for venue entry
               qrCodeImage: individualQrCodeImage?.externalUrl || individualQrCodeImage,
+              qrCodeUrl: individualQrCodeImage?.externalUrl || '',
               
               // Dashboard URL
               dashboardUrl: `${window.location.origin}/profile`
@@ -718,7 +719,8 @@ const SplitPaymentSuccessPage = () => {
             specialRequests: bookingData.special_requests || 'None specified',
             
             // QR Code for venue entry
-            qrCodeImage: qrCodeImage
+            qrCodeImage: qrCodeImage,
+            qrCodeUrl: qrCodeImage?.externalUrl || ''
           };
 
           console.log('📧 Email data being sent:', emailData);
@@ -855,7 +857,8 @@ const SplitPaymentSuccessPage = () => {
                 specialRequests: bookingData.special_requests || 'None specified',
                 
                 // QR Code for venue entry
-                qrCodeImage: lastPayerQrCodeImage
+                qrCodeImage: lastPayerQrCodeImage,
+                qrCodeUrl: lastPayerQrCodeImage?.externalUrl || ''
               };
 
               console.log('📧 Last payer email data:', {

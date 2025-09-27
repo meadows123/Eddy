@@ -422,6 +422,7 @@ const CreditPurchaseCheckout = () => {
               venueName: creditData.venue.name,
               dashboardUrl: `${window.location.origin}/profile?tab=wallet`,
               qrCodeImage: qrCodeImage?.externalUrl || qrCodeImage,
+              qrCodeUrl: qrCodeImage?.externalUrl || '',
               memberTier: 'VIP'
             }
           }
