@@ -86,7 +86,12 @@ export const generateEddysMemberQR = async (memberData) => {
     });
 
     console.log('✅ Eddys Member QR code generated for member:', memberData.userId);
-    return qrCodeImage;
+    
+    // For email compatibility, return both base64 and external URL
+    return {
+      base64: qrCodeImage,
+      externalUrl: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(JSON.stringify(qrData))}&color=800020&bgcolor=FFFFFF&margin=1`
+    };
 
   } catch (error) {
     console.error('❌ Error generating Eddys Member QR code:', error);
@@ -178,7 +183,11 @@ export const generateVenueEntryQR = async (bookingData) => {
       isBase64: qrCodeImage?.startsWith('data:image/') || false
     });
     
-    return qrCodeImage;
+    // For email compatibility, return both base64 and external URL
+    return {
+      base64: qrCodeImage,
+      externalUrl: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(JSON.stringify(qrData))}&color=800020&bgcolor=FFFFFF&margin=1`
+    };
   } catch (error) {
     console.error('❌ Error generating QR code:', error);
     throw error;
