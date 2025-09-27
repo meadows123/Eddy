@@ -36,6 +36,7 @@ export const generateEddysMemberQR = async (memberData) => {
 
     // Store security code in database (only for real members, not test ones)
     if (memberData.userId && !memberData.userId.startsWith('test-')) {
+      // Try to update with all fields first
       const { error: updateError } = await supabase
         .from('profiles')
         .update({ 
@@ -45,8 +46,22 @@ export const generateEddysMemberQR = async (memberData) => {
         .eq('id', memberData.userId);
 
       if (updateError) {
-        console.error('❌ Error storing member QR security code:', updateError);
-        // Continue anyway - QR code will still work
+        console.log('⚠️ Full update failed, trying with just qr_security_code:', updateError.message);
+        
+        // If that fails, try with just the qr_security_code field
+        const { error: fallbackError } = await supabase
+          .from('profiles')
+          .update({ 
+            qr_security_code: securityCode
+          })
+          .eq('id', memberData.userId);
+
+        if (fallbackError) {
+          console.error('❌ Error storing member QR security code:', fallbackError);
+          // Continue anyway - QR code will still work
+        } else {
+          console.log('✅ Member QR security code stored in database (fallback)');
+        }
       } else {
         console.log('✅ Member QR security code stored in database');
       }

@@ -384,11 +384,15 @@ const CreditPurchaseCheckout = () => {
         const { generateEddysMemberQR } = await import('@/lib/qrCodeService.js');
         
         // Get user profile data for QR code
-        const { data: profileData } = await supabase
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('member_tier, created_at')
           .eq('id', currentUser.id)
           .single();
+
+        if (profileError) {
+          console.log('⚠️ Error fetching profile data for QR code:', profileError.message);
+        }
 
         const memberData = {
           userId: currentUser.id,
