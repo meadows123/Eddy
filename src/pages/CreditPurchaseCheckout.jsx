@@ -377,6 +377,33 @@ const CreditPurchaseCheckout = () => {
 
       console.log('✅ Venue credit created successfully:', creditRecord);
 
+      // Generate QR code for Eddys Member
+      let qrCodeImage = null;
+      try {
+        console.log('📱 Generating Eddys Member QR code...');
+        const { generateEddysMemberQR } = await import('@/lib/qrCodeService.js');
+        
+        // Get user profile data for QR code
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('member_tier, created_at')
+          .eq('id', currentUser.id)
+          .single();
+
+        const memberData = {
+          userId: currentUser.id,
+          venueId: creditData.venue.id,
+          memberTier: profileData?.member_tier || 'VIP',
+          memberSince: profileData?.created_at || new Date().toISOString()
+        };
+
+        qrCodeImage = await generateEddysMemberQR(memberData);
+        console.log('✅ Eddys Member QR code generated successfully');
+      } catch (qrError) {
+        console.error('❌ Error generating QR code:', qrError);
+        // Continue without QR code
+      }
+
       // Send confirmation email
       try {
         console.log('📧 Sending credit purchase confirmation email...');
@@ -389,7 +416,9 @@ const CreditPurchaseCheckout = () => {
               customerName: formData.fullName,
               amount: creditData.amount,
               venueName: creditData.venue.name,
-              dashboardUrl: `${window.location.origin}/profile?tab=wallet`
+              dashboardUrl: `${window.location.origin}/profile?tab=wallet`,
+              qrCodeImage: qrCodeImage,
+              memberTier: 'VIP'
             }
           }
         });
