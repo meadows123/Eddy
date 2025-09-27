@@ -153,15 +153,19 @@ const SplitPaymentSuccessPage = () => {
         // Don't throw error, just log it
       }
 
-      // Send email notification to the recipient who just paid
+      // Send email notification to the recipient who just paid (ALWAYS send individual confirmation)
+      console.log('📧 STARTING INDIVIDUAL CONFIRMATION EMAIL PROCESS');
       try {
         console.log('📧 About to send email notification to recipient:', {
           hasRequestData: !!requestData,
           hasBookings: !!bookingData,
-          recipientId: requestData?.recipient_id
+          recipientId: requestData?.recipient_id,
+          requestData: requestData,
+          bookingData: bookingData
         });
 
         if (requestData && bookingData) {
+          console.log('📧 Processing individual confirmation email for recipient:', requestData.recipient_id);
           // Get recipient data
           const { data: recipientData } = await supabase
             .from('profiles')
@@ -182,40 +186,56 @@ const SplitPaymentSuccessPage = () => {
             const individualQrCodeImage = await generateVenueEntryQR(bookingData);
             console.log('📱 Individual QR code generated successfully:', individualQrCodeImage ? 'Yes' : 'No');
 
+            // Debug: Log the email data being sent
+            const emailData = {
+              // Recipient info
+              email: recipientData.email,
+              customerName: `${recipientData.first_name || ''} ${recipientData.last_name || ''}`.trim() || 'Guest',
+              
+              // Booking details
+              bookingId: bookingData.id,
+              bookingDate: bookingData.booking_date || bookingData.bookingDate,
+              bookingTime: bookingData.start_time || bookingData.booking_time,
+              guestCount: bookingData.number_of_guests || bookingData.guest_count,
+              totalAmount: bookingData.total_amount || bookingData.totalAmount,
+              paymentAmount: requestData.amount || 0,
+              
+              // Table details
+              tableName: bookingData.table?.table_type,
+              tableNumber: bookingData.table?.table_number,
+              
+              // Venue details
+              venueName: bookingData.venues?.name,
+              venueAddress: bookingData.venues?.address,
+              venuePhone: bookingData.venues?.contact_phone,
+              
+              // QR Code for venue entry
+              qrCodeImage: individualQrCodeImage,
+              
+              // Dashboard URL
+              dashboardUrl: `${window.location.origin}/profile`
+            };
+            
+            console.log('📧 Individual split payment email data being sent:', emailData);
+            console.log('📱 Individual QR Code in email data:', {
+              hasQrCodeImage: !!individualQrCodeImage,
+              qrCodeImageLength: individualQrCodeImage?.length || 0,
+              qrCodeImageStart: individualQrCodeImage?.substring(0, 50) || 'N/A'
+            });
+
+            console.log('📧 SENDING INDIVIDUAL CONFIRMATION EMAIL NOW:', {
+              to: recipientData.email,
+              template: 'split-payment-confirmation',
+              hasQrCode: !!individualQrCodeImage
+            });
+
             // Send confirmation email via Edge Function
             const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-email', {
               body: {
                 to: recipientData.email,
                 subject: `Split Payment Confirmed - ${bookingData.venues?.name || 'Your Venue'}`,
                 template: 'split-payment-confirmation',
-                data: {
-                  // Recipient info
-                  email: recipientData.email,
-                  customerName: `${recipientData.first_name || ''} ${recipientData.last_name || ''}`.trim() || 'Guest',
-                  
-                  // Booking details
-                  bookingId: bookingData.id,
-                  bookingDate: bookingData.booking_date || bookingData.bookingDate,
-                  bookingTime: bookingData.start_time || bookingData.booking_time,
-                  guestCount: bookingData.number_of_guests || bookingData.guest_count,
-                  totalAmount: bookingData.total_amount || bookingData.totalAmount,
-                  paymentAmount: requestData.amount || 0,
-                  
-                  // Table details
-                  tableName: bookingData.table?.table_type,
-                  tableNumber: bookingData.table?.table_number,
-                  
-                  // Venue details
-                  venueName: bookingData.venues?.name,
-                  venueAddress: bookingData.venues?.address,
-                  venuePhone: bookingData.venues?.contact_phone,
-                  
-                  // QR Code for venue entry
-                  qrCodeImage: individualQrCodeImage,
-                  
-                  // Dashboard URL
-                  dashboardUrl: `${window.location.origin}/profile`
-                }
+                data: emailData
               }
             });
 
@@ -236,6 +256,12 @@ const SplitPaymentSuccessPage = () => {
         }
       } catch (emailError) {
         console.error('❌ Error sending split payment recipient email:', emailError);
+        console.error('❌ Email error details:', {
+          message: emailError.message,
+          stack: emailError.stack,
+          requestData: requestData,
+          bookingData: bookingData
+        });
         // Don't fail the process if email fails
       }
 
@@ -810,7 +836,7 @@ const SplitPaymentSuccessPage = () => {
                 partySize: bookingData.number_of_guests || bookingData.guest_count || 1, // Template expects partySize
                 guestCount: bookingData.number_of_guests || bookingData.guest_count,
                 totalAmount: bookingData.total_amount || bookingData.totalAmount,
-                initiatorAmount: lastPayerAmount, // For split-payment-complete template
+                initiatorAmount: lastPayment.amount || 0, // For split-payment-complete template
                 
                 // Table details
                 tableName: tableInfo.table_name,
