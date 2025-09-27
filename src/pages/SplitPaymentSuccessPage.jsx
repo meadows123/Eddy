@@ -177,6 +177,11 @@ const SplitPaymentSuccessPage = () => {
               amount: requestData.amount
             });
 
+            // Generate QR code for this individual payment confirmation
+            console.log('📱 Generating QR code for individual split payment confirmation:', bookingData.id);
+            const individualQrCodeImage = await generateVenueEntryQR(bookingData);
+            console.log('📱 Individual QR code generated successfully:', individualQrCodeImage ? 'Yes' : 'No');
+
             // Send confirmation email via Edge Function
             const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-email', {
               body: {
@@ -204,6 +209,9 @@ const SplitPaymentSuccessPage = () => {
                   venueName: bookingData.venues?.name,
                   venueAddress: bookingData.venues?.address,
                   venuePhone: bookingData.venues?.contact_phone,
+                  
+                  // QR Code for venue entry
+                  qrCodeImage: individualQrCodeImage,
                   
                   // Dashboard URL
                   dashboardUrl: `${window.location.origin}/profile`
