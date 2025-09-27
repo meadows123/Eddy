@@ -379,6 +379,7 @@ const CreditPurchaseCheckout = () => {
 
       // Generate QR code for Eddys Member
       let qrCodeImage = null;
+      let qrData = null;
       try {
         console.log('📱 Generating Eddys Member QR code...');
         const { generateEddysMemberQR } = await import('@/lib/qrCodeService.js');
@@ -403,6 +404,21 @@ const CreditPurchaseCheckout = () => {
 
         qrCodeImage = await generateEddysMemberQR(memberData);
         console.log('✅ Eddys Member QR code generated successfully');
+        console.log('📱 Generated QR data:', {
+          externalUrl: qrCodeImage?.externalUrl,
+          hasBase64: !!qrCodeImage?.base64,
+          memberData: memberData
+        });
+        
+        // Store the QR data for email
+        qrData = {
+          type: 'eddys_member',
+          memberId: memberData.userId,
+          venueId: memberData.venueId,
+          securityCode: 'GENERATED',
+          memberTier: memberData.memberTier,
+          timestamp: new Date().toISOString()
+        };
       } catch (qrError) {
         console.error('❌ Error generating QR code:', qrError);
         // Continue without QR code
@@ -411,6 +427,14 @@ const CreditPurchaseCheckout = () => {
       // Send confirmation email
       try {
         console.log('📧 Sending credit purchase confirmation email...');
+        console.log('📱 QR code structure being sent:', {
+          hasExternalUrl: !!(qrCodeImage?.externalUrl),
+          externalUrl: qrCodeImage?.externalUrl,
+          hasBase64: !!(qrCodeImage?.base64),
+          hasQrData: !!qrData,
+          qrData: qrData,
+          qrCodeUrl: qrCodeImage?.externalUrl || (qrData ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(JSON.stringify(qrData))}&color=800020&bgcolor=FFFFFF` : '')
+        });
         const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-email', {
           body: {
             to: formData.email,
@@ -422,7 +446,7 @@ const CreditPurchaseCheckout = () => {
               venueName: creditData.venue.name,
               dashboardUrl: `${window.location.origin}/profile?tab=wallet`,
               qrCodeImage: qrCodeImage?.externalUrl || qrCodeImage,
-              qrCodeUrl: qrCodeImage?.externalUrl || '',
+              qrCodeUrl: qrCodeImage?.externalUrl || (qrData ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(JSON.stringify(qrData))}&color=800020&bgcolor=FFFFFF&format=png` : 'https://www.google.com'),
               memberTier: 'VIP'
             }
           }
