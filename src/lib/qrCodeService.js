@@ -79,14 +79,6 @@ export const generateEddysMemberQR = async (memberData) => {
       }
     });
 
-    // For Gmail compatibility, we'll use a placeholder approach
-    // Gmail blocks base64 images, so we'll provide a fallback URL
-    const qrCodeForEmail = {
-      base64: qrCodeImage,
-      fallbackUrl: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(JSON.stringify(qrData))}&color=800020&bgcolor=FFFFFF&margin=1`,
-      altText: 'Eddys Member QR Code - Please scan with your device'
-    };
-
     console.log('🔍 QR Code Image details:', {
       length: qrCodeImage?.length || 0,
       start: qrCodeImage?.substring(0, 100) || 'N/A',
@@ -94,12 +86,7 @@ export const generateEddysMemberQR = async (memberData) => {
     });
 
     console.log('✅ Eddys Member QR code generated for member:', memberData.userId);
-    console.log('🔍 QR Code for email:', {
-      hasBase64: !!qrCodeForEmail.base64,
-      hasFallbackUrl: !!qrCodeForEmail.fallbackUrl,
-      fallbackUrl: qrCodeForEmail.fallbackUrl
-    });
-    return qrCodeForEmail;
+    return qrCodeImage;
 
   } catch (error) {
     console.error('❌ Error generating Eddys Member QR code:', error);
@@ -190,15 +177,8 @@ export const generateVenueEntryQR = async (bookingData) => {
       start: qrCodeImage?.substring(0, 100) || 'N/A',
       isBase64: qrCodeImage?.startsWith('data:image/') || false
     });
-
-    // For Gmail compatibility, return both base64 and external URL
-    const qrCodeForEmail = {
-      base64: qrCodeImage,
-      fallbackUrl: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(JSON.stringify(qrData))}&color=800020&bgcolor=FFFFFF&margin=1`,
-      altText: 'Venue Entry QR Code - Please scan with your device'
-    };
     
-    return qrCodeForEmail;
+    return qrCodeImage;
   } catch (error) {
     console.error('❌ Error generating QR code:', error);
     throw error;
