@@ -210,7 +210,7 @@ const SplitPaymentSuccessPage = () => {
               venuePhone: bookingData.venues?.contact_phone,
               
               // QR Code for venue entry
-              qrCodeImage: individualQrCodeImage,
+              qrCodeImage: individualQrCodeImage?.externalUrl || individualQrCodeImage,
               
               // Dashboard URL
               dashboardUrl: `${window.location.origin}/profile`
