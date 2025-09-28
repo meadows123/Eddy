@@ -42,6 +42,7 @@
     "framer-motion": "^10.16.4",
     "lucide-react": "^0.285.0",
     "mapbox-gl": "^2.15.0",
+    "qr-scanner": "^1.4.2",
     "qrcode": "^1.5.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

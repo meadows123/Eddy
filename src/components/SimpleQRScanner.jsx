@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/lib/supabase.js';
 import { parseQRCodeData } from '@/lib/qrCodeService.js';
+import { BrowserMultiFormatReader } from '@zxing/library';
 
 const SimpleQRScanner = ({ onMemberScanned }) => {
   const [isScanning, setIsScanning] = useState(false);
@@ -14,6 +15,17 @@ const SimpleQRScanner = ({ onMemberScanned }) => {
   const [cameraPermissionDenied, setCameraPermissionDenied] = useState(false);
   const videoRef = useRef(null);
   const streamRef = useRef(null);
+  const codeReader = useRef(null);
+
+  // Initialize code reader
+  useEffect(() => {
+    codeReader.current = new BrowserMultiFormatReader();
+    return () => {
+      if (codeReader.current) {
+        codeReader.current.reset();
+      }
+    };
+  }, []);
 
   // Check camera support on component mount
   useEffect(() => {
@@ -69,19 +81,18 @@ const SimpleQRScanner = ({ onMemberScanned }) => {
       }
 
       // Get available video devices
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoDevices = devices.filter(device => device.kind === 'videoinput');
-      console.log('📷 Available cameras:', videoDevices.map(d => d.label));
+      const videoInputDevices = await codeReader.current.listVideoInputDevices();
+      console.log('📷 Available cameras:', videoInputDevices.map(d => d.label));
       
-      if (videoDevices.length === 0) {
+      if (videoInputDevices.length === 0) {
         throw new Error('No cameras found');
       }
       
       // Use the first available camera (or back camera if available)
-      let selectedDeviceId = videoDevices[0]?.deviceId;
+      let selectedDeviceId = videoInputDevices[0]?.deviceId;
       
       // Prefer back camera on mobile devices
-      const backCamera = videoDevices.find(device => 
+      const backCamera = videoInputDevices.find(device => 
         device.label.toLowerCase().includes('back') || 
         device.label.toLowerCase().includes('rear')
       );
@@ -90,42 +101,56 @@ const SimpleQRScanner = ({ onMemberScanned }) => {
         selectedDeviceId = backCamera.deviceId;
         console.log('📷 Using back camera:', backCamera.label);
       } else {
-        console.log('📷 Using default camera:', videoDevices[0].label);
+        console.log('📷 Using default camera:', videoInputDevices[0].label);
       }
 
       console.log('📷 Selected camera ID:', selectedDeviceId);
 
-      // Get user media with constraints
-      const constraints = {
-        video: {
-          deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined,
-          width: { ideal: 1280, max: 1920 },
-          height: { ideal: 720, max: 1080 },
-          facingMode: 'environment', // Use back camera on mobile
-          frameRate: { ideal: 30, max: 60 }
-        }
-      };
-
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-      streamRef.current = stream;
-
-      // Set up video element
+      // Configure video element for mobile
       if (videoRef.current) {
-        videoRef.current.srcObject = stream;
         videoRef.current.setAttribute('playsinline', 'true');
         videoRef.current.setAttribute('webkit-playsinline', 'true');
-        
-        // Wait for video to be ready
-        videoRef.current.onloadedmetadata = () => {
-          videoRef.current.play().catch(err => {
-            console.warn('Video play failed:', err);
-          });
-        };
+      }
+
+      // Start continuous scanning with proper error handling
+      console.log('📷 Starting QR code detection...');
+      
+      try {
+        await codeReader.current.decodeFromVideoDevice(
+          selectedDeviceId,
+          videoRef.current,
+          {
+            // Mobile-optimized constraints
+            video: {
+              width: { ideal: 1280, max: 1920 },
+              height: { ideal: 720, max: 1080 },
+              facingMode: 'environment', // Use back camera on mobile
+              frameRate: { ideal: 30, max: 60 }
+            }
+          },
+          (result, err) => {
+            if (result) {
+              console.log('🔍 QR Code detected by camera:', result.getText());
+              console.log('🔍 QR Code format:', result.getBarcodeFormat());
+              handleScan(result.getText());
+            }
+            if (err && !(err instanceof Error)) {
+              // This is normal - just means no QR code detected yet
+              // Only log every 100th attempt to avoid spam
+              if (Math.random() < 0.01) {
+                console.log('🔍 Scanning... (no QR code detected yet)');
+              }
+            }
+          }
+        );
+      } catch (decodeError) {
+        console.error('❌ Decode error:', decodeError);
+        throw new Error('Failed to start QR code detection');
       }
 
       setIsScanning(true);
       setError(null);
-      console.log('✅ Camera started successfully');
+      console.log('✅ QR Scanner started successfully');
       
       // Show instruction to user
       setSuccess('Camera activated! Point at QR code to scan.');
@@ -148,8 +173,15 @@ const SimpleQRScanner = ({ onMemberScanned }) => {
     }
   };
 
+
   const stopCamera = () => {
     try {
+      // Stop the QR code reader
+      if (codeReader.current) {
+        codeReader.current.reset();
+      }
+
+
       // Stop the video stream
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
@@ -408,7 +440,7 @@ const SimpleQRScanner = ({ onMemberScanned }) => {
             <li>1. Click "Start Camera Scanning" below</li>
             <li>2. Allow camera permissions when prompted</li>
             <li>3. Point camera at customer's QR code</li>
-            <li>4. Use manual input if camera scanning doesn't work</li>
+            <li>4. QR code will be automatically detected and verified</li>
           </ol>
         </div>
       </div>
@@ -500,8 +532,9 @@ const SimpleQRScanner = ({ onMemberScanned }) => {
           <textarea
             value={manualQRInput}
             onChange={(e) => setManualQRInput(e.target.value)}
-            placeholder="Paste QR code data here (JSON format)..."
-            className="w-full h-24 p-3 border border-gray-300 rounded-md font-mono text-sm"
+            placeholder='Paste QR code data here (JSON format)...
+Example: {"type":"eddys_member","memberId":"123","venueId":"456","securityCode":"ABC123",...}'
+            className="w-full h-32 p-3 border border-gray-300 rounded-md font-mono text-sm"
           />
           
           <div className="flex gap-2 mt-3">

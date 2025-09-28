@@ -122,8 +122,7 @@ const QRCodeTestGenerator = () => {
                       alt="QR Code" 
                       className="w-full h-full object-contain"
                       style={{
-                        imageRendering: 'crisp-edges',
-                        imageRendering: '-webkit-optimize-contrast'
+                        imageRendering: 'crisp-edges'
                       }}
                     />
                   ) : (
