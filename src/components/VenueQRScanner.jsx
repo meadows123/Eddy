@@ -43,15 +43,6 @@ const VenueQRScanner = ({ onMemberScanned }) => {
         return;
       }
 
-      // Check permissions without requesting them
-      const permissionStatus = await navigator.permissions.query({ name: 'camera' });
-      
-      if (permissionStatus.state === 'denied') {
-        setCameraPermissionDenied(true);
-        setCameraSupported(false);
-        return;
-      }
-
       // Check if we can enumerate devices
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices.filter(device => device.kind === 'videoinput');
@@ -61,6 +52,7 @@ const VenueQRScanner = ({ onMemberScanned }) => {
         return;
       }
 
+      // Camera is available, but we'll request permission when user clicks start
       setCameraSupported(true);
     } catch (err) {
       console.log('Camera support check failed:', err);
@@ -71,6 +63,7 @@ const VenueQRScanner = ({ onMemberScanned }) => {
   const initializeCamera = async () => {
     try {
       console.log('📷 Initializing camera...');
+      setError(null);
       
       // Check if camera is supported
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -145,7 +138,19 @@ const VenueQRScanner = ({ onMemberScanned }) => {
       console.log('✅ QR Scanner started successfully');
     } catch (err) {
       console.error('❌ Error accessing camera:', err);
-      setError('Unable to access camera. Please check permissions.');
+      
+      if (err.name === 'NotAllowedError' || err.message.includes('permission')) {
+        setError('Camera access denied. Please allow camera permissions and try again.');
+        setCameraPermissionDenied(true);
+      } else if (err.name === 'NotFoundError') {
+        setError('No camera found. Please connect a camera and try again.');
+      } else if (err.name === 'NotReadableError') {
+        setError('Camera is already in use by another application.');
+      } else {
+        setError(`Camera error: ${err.message}`);
+      }
+      
+      setScannerActive(false);
     }
   };
 
@@ -450,44 +455,52 @@ const VenueQRScanner = ({ onMemberScanned }) => {
       <div className="scanner-header">
         <h2>📱 Venue Entry Scanner</h2>
         <p>Scan customer QR codes to verify bookings and check them in</p>
+        
+        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <h4 className="font-semibold text-blue-800 mb-2">📋 How to use:</h4>
+          <ol className="text-sm text-blue-700 space-y-1">
+            <li>1. Click "Start Camera Scanning" below</li>
+            <li>2. Allow camera permissions when prompted</li>
+            <li>3. Point camera at customer's QR code</li>
+            <li>4. QR code will be automatically detected and verified</li>
+          </ol>
+        </div>
       </div>
 
       {!scannerActive ? (
         <div className="scanner-start">
-          {cameraSupported ? (
-            <button 
-              onClick={startScanning}
-              className="start-scan-btn"
-            >
-              📷 Start Camera Scanning
-            </button>
-          ) : cameraPermissionDenied ? (
-            <div className="text-center">
-              <p className="text-red-600 mb-4">
-                ❌ Camera access denied. Please enable camera permissions in your browser settings.
-              </p>
-              <button 
-                onClick={() => setShowManualInput(true)}
-                className="manual-input-btn"
-                style={{ backgroundColor: '#FFD700', color: '#800020' }}
-              >
-                🔧 Use Manual Input Instead
-              </button>
-            </div>
-          ) : (
-            <div className="text-center">
-              <p className="text-gray-600 mb-4">
-                📱 Camera not available on this device. Use manual input to test QR codes.
-              </p>
-              <button 
-                onClick={() => setShowManualInput(true)}
-                className="manual-input-btn"
-                style={{ backgroundColor: '#FFD700', color: '#800020' }}
-              >
-                🔧 Manual QR Input
-              </button>
-            </div>
-          )}
+          <div className="text-center">
+            <h3 className="text-lg font-semibold mb-4">📱 QR Code Scanner</h3>
+            <p className="text-gray-600 mb-6">
+              Scan customer QR codes to verify bookings and check in members
+            </p>
+            
+            {cameraSupported ? (
+              <div>
+                <button 
+                  onClick={startScanning}
+                  className="start-scan-btn bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg text-lg font-semibold"
+                >
+                  📷 Start Camera Scanning
+                </button>
+                <p className="text-sm text-gray-500 mt-2">
+                  Camera will be activated when you click start
+                </p>
+              </div>
+            ) : (
+              <div>
+                <p className="text-red-600 mb-4">
+                  ❌ Camera not available on this device
+                </p>
+                <button 
+                  onClick={() => setShowManualInput(true)}
+                  className="manual-input-btn bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-3 rounded-lg text-lg font-semibold"
+                >
+                  🔧 Use Manual Input
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       ) : (
         <div className="scanner-active">
@@ -614,6 +627,20 @@ const VenueQRScanner = ({ onMemberScanned }) => {
         <div className="error-message">
           <h4>❌ Error</h4>
           <p>{error}</p>
+          {cameraPermissionDenied && (
+            <div className="mt-3">
+              <button 
+                onClick={() => {
+                  setCameraPermissionDenied(false);
+                  setError(null);
+                  setScannerActive(false);
+                }}
+                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+              >
+                🔄 Try Again
+              </button>
+            </div>
+          )}
         </div>
       )}
 
