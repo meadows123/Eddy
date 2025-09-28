@@ -66,9 +66,10 @@ const QRCodeTestGenerator = () => {
 
   return (
     <div className="p-6 bg-white rounded-lg shadow-lg">
-      <h3 className="text-xl font-bold mb-4">QR Code Test Generator</h3>
+      <h3 className="text-xl font-bold mb-4">📱 Mobile QR Code Test Generator</h3>
       <p className="text-gray-600 mb-4">
-        Generate test QR codes to verify scanning functionality in the venue owner dashboard.
+        Generate test QR codes to verify scanning functionality on mobile devices.
+        <strong className="block mt-1 text-sm">Optimized for mobile testing!</strong>
       </p>
       
       <div className="flex gap-4 mb-6">
@@ -109,12 +110,21 @@ const QRCodeTestGenerator = () => {
               </div>
               
               <div className="flex items-center gap-4">
-                <div className="w-32 h-32 bg-white border rounded flex items-center justify-center">
+                <div className="w-32 h-32 bg-white border rounded flex items-center justify-center" style={{
+                  minWidth: '128px',
+                  minHeight: '128px',
+                  maxWidth: '200px',
+                  maxHeight: '200px'
+                }}>
                   {qr.qrCode?.base64 ? (
                     <img 
                       src={qr.qrCode.base64} 
                       alt="QR Code" 
                       className="w-full h-full object-contain"
+                      style={{
+                        imageRendering: 'crisp-edges',
+                        imageRendering: '-webkit-optimize-contrast'
+                      }}
                     />
                   ) : (
                     <span className="text-gray-400">No Image</span>

@@ -456,6 +456,7 @@ const CreditPurchaseCheckout = () => {
           console.error('❌ Error sending credit purchase confirmation email:', emailError);
         } else {
           console.log('✅ Credit purchase confirmation email sent successfully');
+          console.log('📧 Email result:', emailResult);
         }
       } catch (emailError) {
         console.error('❌ Error sending email:', emailError);

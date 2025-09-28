@@ -27,8 +27,20 @@ const VenueQRScanner = ({ onMemberScanned }) => {
 
   const initializeCamera = async () => {
     try {
+      console.log('📷 Initializing camera...');
+      
+      // Check if camera is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('Camera not supported in this browser');
+      }
+
       // Get available video devices
       const videoInputDevices = await codeReader.current.listVideoInputDevices();
+      console.log('📷 Available cameras:', videoInputDevices.map(d => d.label));
+      
+      if (videoInputDevices.length === 0) {
+        throw new Error('No cameras found');
+      }
       
       // Use the first available camera (or back camera if available)
       let selectedDeviceId = videoInputDevices[0]?.deviceId;
@@ -41,22 +53,46 @@ const VenueQRScanner = ({ onMemberScanned }) => {
       
       if (backCamera) {
         selectedDeviceId = backCamera.deviceId;
+        console.log('📷 Using back camera:', backCamera.label);
+      } else {
+        console.log('📷 Using default camera:', videoInputDevices[0].label);
       }
 
-      console.log('📷 Available cameras:', videoInputDevices.map(d => d.label));
-      console.log('📷 Selected camera:', selectedDeviceId);
+      console.log('📷 Selected camera ID:', selectedDeviceId);
 
-      // Start continuous scanning
+      // Start continuous scanning with mobile-optimized settings
+      console.log('📷 Starting QR code detection...');
+      
+      // Configure video element for mobile
+      if (videoRef.current) {
+        videoRef.current.setAttribute('playsinline', 'true');
+        videoRef.current.setAttribute('webkit-playsinline', 'true');
+      }
+      
       await codeReader.current.decodeFromVideoDevice(
         selectedDeviceId,
         videoRef.current,
+        {
+          // Mobile-optimized constraints
+          video: {
+            width: { ideal: 1280, max: 1920 },
+            height: { ideal: 720, max: 1080 },
+            facingMode: 'environment', // Use back camera on mobile
+            frameRate: { ideal: 30, max: 60 }
+          }
+        },
         (result, err) => {
           if (result) {
-            console.log('🔍 QR Code detected:', result.getText());
+            console.log('🔍 QR Code detected by camera:', result.getText());
+            console.log('🔍 QR Code format:', result.getBarcodeFormat());
             handleScan(result.getText());
           }
           if (err && !(err instanceof Error)) {
-            console.log('🔍 No QR code detected yet...');
+            // This is normal - just means no QR code detected yet
+            // Only log every 100th attempt to avoid spam
+            if (Math.random() < 0.01) {
+              console.log('🔍 Scanning... (no QR code detected yet)');
+            }
           }
         }
       );
@@ -197,17 +233,32 @@ const VenueQRScanner = ({ onMemberScanned }) => {
         throw new Error('Venue not found');
       }
 
-      // Update member's last visit
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({
-          last_visit: new Date().toISOString(),
-          last_venue_visited: qrData.venueId
-        })
-        .eq('id', qrData.memberId);
+      // Update member's last visit (with graceful error handling)
+      try {
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({
+            last_visit: new Date().toISOString(),
+            last_venue_visited: qrData.venueId
+          })
+          .eq('id', qrData.memberId);
 
-      if (updateError) {
-        console.warn('⚠️ Failed to update member visit record:', updateError);
+        if (updateError) {
+          console.warn('⚠️ Failed to update member visit record:', updateError);
+          // Try with just last_visit if last_venue_visited column doesn't exist
+          const { error: fallbackError } = await supabase
+            .from('profiles')
+            .update({
+              last_visit: new Date().toISOString()
+            })
+            .eq('id', qrData.memberId);
+          
+          if (fallbackError) {
+            console.warn('⚠️ Failed to update last_visit as well:', fallbackError);
+          }
+        }
+      } catch (err) {
+        console.warn('⚠️ Error updating member visit record:', err);
         // Continue anyway - not critical
       }
 
@@ -376,12 +427,58 @@ const VenueQRScanner = ({ onMemberScanned }) => {
               playsInline
               muted
               className="camera-feed"
+              style={{
+                width: '100%',
+                height: 'auto',
+                maxHeight: '400px',
+                objectFit: 'cover',
+                borderRadius: '8px'
+              }}
             />
-            <div className="scan-overlay">
-              <div className="scan-frame"></div>
-              <p className="scan-instructions">
-                Position QR code within the frame<br/>
-                <small>Scanner will automatically detect QR codes</small>
+            <div className="scan-overlay" style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              pointerEvents: 'none'
+            }}>
+              <div className="scan-frame" style={{
+                width: '250px',
+                height: '250px',
+                border: '3px solid #FFD700',
+                borderRadius: '12px',
+                position: 'relative',
+                backgroundColor: 'rgba(0,0,0,0.1)'
+              }}>
+                <div style={{
+                  position: 'absolute',
+                  top: '50%',
+                  left: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  width: '200px',
+                  height: '200px',
+                  border: '2px solid #800020',
+                  borderRadius: '8px',
+                  backgroundColor: 'rgba(128,0,32,0.1)'
+                }}></div>
+              </div>
+              <p className="scan-instructions" style={{
+                color: 'white',
+                textAlign: 'center',
+                marginTop: '20px',
+                textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
+                fontSize: '14px',
+                fontWeight: '500'
+              }}>
+                📱 Position QR code within the frame<br/>
+                <small style={{ fontSize: '12px', opacity: 0.9 }}>
+                  Hold steady • Good lighting • 6-12 inches away
+                </small>
               </p>
             </div>
           </div>

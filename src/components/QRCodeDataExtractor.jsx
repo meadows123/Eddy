@@ -46,9 +46,10 @@ const QRCodeDataExtractor = () => {
 
   return (
     <div className="p-6 bg-white rounded-lg shadow-lg">
-      <h3 className="text-xl font-bold mb-4">QR Code Data Extractor</h3>
+      <h3 className="text-xl font-bold mb-4">📱 Mobile QR Code Data Extractor</h3>
       <p className="text-gray-600 mb-4">
-        Extract QR code data from the external URL to test manually in the scanner.
+        Extract QR code data from the external URL to test manually in the scanner. 
+        <strong className="block mt-1 text-sm">Perfect for mobile testing!</strong>
       </p>
       
       <div className="space-y-4">
