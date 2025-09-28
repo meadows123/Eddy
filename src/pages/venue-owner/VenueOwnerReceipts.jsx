@@ -30,7 +30,7 @@ import {
 import { supabase } from '../../lib/supabase';
 import { motion } from 'framer-motion';
 import BackToDashboardButton from '../../components/BackToDashboardButton';
-import VenueQRScanner from '../../components/VenueQRScanner';
+import SimpleQRScanner from '../../components/SimpleQRScanner';
 import QRCodeTestGenerator from '../../components/QRCodeTestGenerator';
 import QRCodeDataExtractor from '../../components/QRCodeDataExtractor';
 
@@ -1041,7 +1041,7 @@ const VenueOwnerReceipts = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <VenueQRScanner onMemberScanned={handleMemberScanned} />
+                  <SimpleQRScanner onMemberScanned={handleMemberScanned} />
                 </CardContent>
               </Card>
 
