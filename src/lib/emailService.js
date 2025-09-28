@@ -103,7 +103,19 @@ export const sendBookingConfirmation = async (booking, venue, customer) => {
       unsubscribeUrl: `${window.location.origin}/settings`,
       
       // QR Code for venue entry
-      qrCodeImage: qrCodeImage
+      qrCodeImage: qrCodeImage?.externalUrl || qrCodeImage,
+      qrCodeUrl: qrCodeImage?.externalUrl || (qrCodeImage?.base64 ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(JSON.stringify({
+        type: 'venue-entry',
+        bookingId: booking.id,
+        venueId: booking.venue_id,
+        securityCode: 'GENERATED',
+        bookingDate: booking.booking_date,
+        startTime: booking.start_time,
+        tableNumber: booking.table?.table_number || 'N/A',
+        guestCount: booking.number_of_guests,
+        status: 'confirmed',
+        timestamp: new Date().toISOString()
+      }))}&color=800020&bgcolor=FFFFFF&format=png` : '')
     };
 
     // Optimize email delivery to reduce spam filtering
@@ -332,7 +344,19 @@ export const sendBookingConfirmationEmail = async (bookingData) => {
         venueDescription: venue.description,
         venueDressCode: venue.dress_code,
         tableNumber: booking.table.table_number,
-        qrCodeImage: qrCodeImage
+        qrCodeImage: qrCodeImage?.externalUrl || qrCodeImage,
+        qrCodeUrl: qrCodeImage?.externalUrl || (qrCodeImage?.base64 ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(JSON.stringify({
+          type: 'venue-entry',
+          bookingId: booking.id,
+          venueId: booking.venue_id,
+          securityCode: 'GENERATED',
+          bookingDate: booking.booking_date,
+          startTime: booking.start_time,
+          tableNumber: booking.table?.table_number || 'N/A',
+          guestCount: booking.number_of_guests,
+          status: 'confirmed',
+          timestamp: new Date().toISOString()
+        }))}&color=800020&bgcolor=FFFFFF&format=png` : '')
       }
     };
 

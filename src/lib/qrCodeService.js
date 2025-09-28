@@ -216,13 +216,21 @@ export const parseQRCodeData = (qrDataString) => {
   try {
     const qrData = JSON.parse(qrDataString);
     
-    // Validate required fields
-    if (!qrData.type || qrData.type !== 'venue-entry') {
-      throw new Error('Invalid QR code type');
+    // Validate required fields based on QR code type
+    if (!qrData.type) {
+      throw new Error('Missing QR code type');
     }
     
-    if (!qrData.bookingId || !qrData.securityCode) {
-      throw new Error('Missing required QR code data');
+    if (qrData.type === 'venue-entry') {
+      if (!qrData.bookingId || !qrData.securityCode) {
+        throw new Error('Missing required venue-entry QR code data');
+      }
+    } else if (qrData.type === 'eddys_member') {
+      if (!qrData.memberId || !qrData.venueId || !qrData.securityCode) {
+        throw new Error('Missing required eddys_member QR code data');
+      }
+    } else {
+      throw new Error('Invalid QR code type: ' + qrData.type);
     }
     
     return qrData;

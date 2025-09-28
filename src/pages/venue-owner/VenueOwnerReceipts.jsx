@@ -22,11 +22,16 @@ import {
   Eye,
   RefreshCw,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  QrCode,
+  ShoppingCart,
+  Users
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { motion } from 'framer-motion';
 import BackToDashboardButton from '../../components/BackToDashboardButton';
+import VenueQRScanner from '../../components/VenueQRScanner';
+import QRCodeTestGenerator from '../../components/QRCodeTestGenerator';
 
 const VenueOwnerReceipts = () => {
   const { toast } = useToast();
@@ -41,6 +46,16 @@ const VenueOwnerReceipts = () => {
   const [selectedMember, setSelectedMember] = useState(null);
   const [memberSearchResults, setMemberSearchResults] = useState([]);
   const [memberSearchTerm, setMemberSearchTerm] = useState('');
+  
+  // Live order management state
+  const [activeTab, setActiveTab] = useState('receipts');
+  const [scannedMember, setScannedMember] = useState(null);
+  const [currentOrder, setCurrentOrder] = useState([]);
+  const [orderItem, setOrderItem] = useState({ name: '', price: 0, quantity: 1 });
+  const [orderSubtotal, setOrderSubtotal] = useState(0);
+  const [orderServiceCharge, setOrderServiceCharge] = useState(0);
+  const [orderTotal, setOrderTotal] = useState(0);
+  const [isProcessingOrder, setIsProcessingOrder] = useState(false);
   
   // Receipt form state
   const [receiptForm, setReceiptForm] = useState({
@@ -420,6 +435,145 @@ const VenueOwnerReceipts = () => {
     }
   };
 
+  // Live order management functions
+  const handleMemberScanned = (memberData) => {
+    setScannedMember(memberData);
+    setCurrentOrder([]);
+    setOrderItem({ name: '', price: 0, quantity: 1 });
+    setOrderSubtotal(0);
+    setOrderServiceCharge(0);
+    setOrderTotal(0);
+    toast({
+      title: 'Member Scanned! 👑',
+      description: `${memberData.customerName} is ready to order`,
+      className: 'bg-green-500 text-white',
+    });
+  };
+
+  const addOrderItem = () => {
+    if (!orderItem.name || orderItem.price <= 0) {
+      toast({
+        title: 'Invalid Item',
+        description: 'Please enter item name and price',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const newItem = {
+      id: Date.now(),
+      name: orderItem.name,
+      price: parseFloat(orderItem.price),
+      quantity: parseInt(orderItem.quantity),
+      total: parseFloat(orderItem.price) * parseInt(orderItem.quantity)
+    };
+
+    setCurrentOrder([...currentOrder, newItem]);
+    setOrderItem({ name: '', price: 0, quantity: 1 });
+    
+    // Recalculate totals
+    const subtotal = [...currentOrder, newItem].reduce((sum, item) => sum + item.total, 0);
+    const serviceCharge = subtotal * 0.1; // 10% service charge
+    const total = subtotal + serviceCharge;
+    
+    setOrderSubtotal(subtotal);
+    setOrderServiceCharge(serviceCharge);
+    setOrderTotal(total);
+  };
+
+  const removeOrderItem = (itemId) => {
+    const updatedOrder = currentOrder.filter(item => item.id !== itemId);
+    setCurrentOrder(updatedOrder);
+    
+    // Recalculate totals
+    const subtotal = updatedOrder.reduce((sum, item) => sum + item.total, 0);
+    const serviceCharge = subtotal * 0.1;
+    const total = subtotal + serviceCharge;
+    
+    setOrderSubtotal(subtotal);
+    setOrderServiceCharge(serviceCharge);
+    setOrderTotal(total);
+  };
+
+  const processOrder = async () => {
+    if (!scannedMember || currentOrder.length === 0) {
+      toast({
+        title: 'Invalid Order',
+        description: 'Please scan a member and add items to the order',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsProcessingOrder(true);
+
+    try {
+      // Prepare receipt items for the existing venue_receipts table
+      const receiptItems = currentOrder.map(item => ({
+        item_name: item.name,
+        quantity: item.quantity,
+        unit_price: item.price,
+        total_price: item.total,
+        category: 'food' // Default category
+      }));
+
+      // Process the credit redemption using existing RPC
+      const { data: result, error } = await supabase
+        .rpc('process_credit_redemption', {
+          p_venue_id: venue.id,
+          p_member_user_id: scannedMember.memberId,
+          p_processed_by_user_id: currentUser.id,
+          p_receipt_number: `QR-${Date.now()}`,
+          p_receipt_image_url: '', // No image for QR orders
+          p_total_amount: Math.round(orderTotal),
+          p_credit_amount_used: Math.round(orderTotal),
+          p_cash_amount_paid: 0, // Full credit payment
+          p_receipt_date: new Date().toISOString().split('T')[0],
+          p_notes: `QR Code Order - ${scannedMember.memberTier} Member`,
+          p_receipt_items: receiptItems
+        });
+
+      if (error) throw error;
+
+      if (!result.success) {
+        toast({
+          title: 'Order Failed',
+          description: result.error || 'Failed to process order',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // Success!
+      toast({
+        title: 'Order Processed! 🎉',
+        description: `₦${orderTotal.toLocaleString()} deducted from ${scannedMember.customerName}'s credits`,
+        className: 'bg-green-500 text-white',
+      });
+
+      // Reset order
+      setScannedMember(null);
+      setCurrentOrder([]);
+      setOrderItem({ name: '', price: 0, quantity: 1 });
+      setOrderSubtotal(0);
+      setOrderServiceCharge(0);
+      setOrderTotal(0);
+
+      // Refresh receipts
+      await fetchVenueAndReceipts(currentUser.id);
+
+    } catch (error) {
+      console.error('Error processing order:', error);
+      toast({
+        title: 'Order Failed',
+        description: error.message || 'Failed to process order',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsProcessingOrder(false);
+    }
+  };
+
   const filteredReceipts = receipts.filter(receipt => {
     if (!searchTerm) return true;
     const memberName = receipt.profiles?.full_name || 'Unknown Member';
@@ -467,21 +621,38 @@ const VenueOwnerReceipts = () => {
               Process member purchases and manage credit redemptions for <span className="font-semibold">{venue.name}</span>
             </p>
           </div>
-          <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
-            <DialogTrigger asChild>
-              <Button className="bg-brand-burgundy text-white hover:bg-brand-burgundy/90 w-full sm:w-auto text-xs sm:text-sm py-1.5 sm:py-2 px-3 sm:px-4">
-                <Receipt className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
-                Process Receipt
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto mx-2 sm:mx-0">
-              <DialogHeader>
-                <DialogTitle>Process Member Receipt</DialogTitle>
-              </DialogHeader>
-              
-              <div className="space-y-4 sm:space-y-6">
-                {/* Member Selection */}
-                <div className="space-y-1.5 sm:space-y-2">
+        </div>
+
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsTrigger value="receipts" className="flex items-center gap-2">
+              <Receipt className="h-4 w-4" />
+              Receipt History
+            </TabsTrigger>
+            <TabsTrigger value="live-orders" className="flex items-center gap-2">
+              <QrCode className="h-4 w-4" />
+              Live Orders
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Receipt History Tab */}
+          <TabsContent value="receipts" className="space-y-6">
+            <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
+              <DialogTrigger asChild>
+                <Button className="bg-brand-burgundy text-white hover:bg-brand-burgundy/90 w-full sm:w-auto text-xs sm:text-sm py-1.5 sm:py-2 px-3 sm:px-4">
+                  <Receipt className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                  Process Receipt
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto mx-2 sm:mx-0">
+                <DialogHeader>
+                  <DialogTitle>Process Member Receipt</DialogTitle>
+                </DialogHeader>
+                
+                <div className="space-y-4 sm:space-y-6">
+                  {/* Member Selection */}
+                  <div className="space-y-1.5 sm:space-y-2">
                   <Label className="text-xs sm:text-sm">Select Member</Label>
                   <div className="relative">
                     <Input
@@ -722,41 +893,40 @@ const VenueOwnerReceipts = () => {
                   )}
                 </Button>
               </div>
-            </DialogContent>
-          </Dialog>
-        </div>
+                </DialogContent>
+              </Dialog>
 
-        {/* Search and Filter */}
-        <div className="mb-4 sm:mb-6">
-          <div className="relative max-w-md">
-            <Search className="absolute left-2 sm:left-3 top-2.5 sm:top-3 h-3 w-3 sm:h-4 sm:w-4 text-brand-burgundy/40" />
-            <Input
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search receipts by member name or receipt number..."
-              className="pl-8 sm:pl-10 border-brand-burgundy/20 text-xs sm:text-sm"
-            />
-          </div>
-        </div>
+            {/* Search and Filter */}
+            <div className="mb-4 sm:mb-6">
+              <div className="relative max-w-md">
+                <Search className="absolute left-2 sm:left-3 top-2.5 sm:top-3 h-3 w-3 sm:h-4 sm:w-4 text-brand-burgundy/40" />
+                <Input
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search receipts by member name or receipt number..."
+                  className="pl-8 sm:pl-10 border-brand-burgundy/20 text-xs sm:text-sm"
+                />
+              </div>
+            </div>
 
-        {/* Receipts List */}
-        <Card className="bg-white border-brand-burgundy/10">
-          <CardHeader className="px-2 sm:px-4 md:px-6 py-3 sm:py-4 md:py-6">
-            <CardTitle className="flex items-center text-sm sm:text-lg md:text-xl">
-              <Receipt className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" />
-              Recent Receipts ({filteredReceipts.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-2 sm:px-4 md:px-6 pb-3 sm:pb-4 md:pb-6">
-            {filteredReceipts.length > 0 ? (
-              <div className="space-y-3 sm:space-y-4">
-                {filteredReceipts.map((receipt) => (
-                  <motion.div
-                    key={receipt.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="border border-brand-burgundy/10 rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow"
-                  >
+            {/* Receipts List */}
+            <Card className="bg-white border-brand-burgundy/10">
+              <CardHeader className="px-2 sm:px-4 md:px-6 py-3 sm:py-4 md:py-6">
+                <CardTitle className="flex items-center text-sm sm:text-lg md:text-xl">
+                  <Receipt className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" />
+                  Recent Receipts ({filteredReceipts.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-2 sm:px-4 md:px-6 pb-3 sm:pb-4 md:pb-6">
+                {filteredReceipts.length > 0 ? (
+                  <div className="space-y-3 sm:space-y-4">
+                    {filteredReceipts.map((receipt) => (
+                      <motion.div
+                        key={receipt.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="border border-brand-burgundy/10 rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow"
+                      >
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
                       <div className="flex items-start space-x-3 sm:space-x-4">
                         <div className="p-1.5 sm:p-2 bg-brand-burgundy/10 rounded-full">
@@ -850,6 +1020,169 @@ const VenueOwnerReceipts = () => {
             )}
           </CardContent>
         </Card>
+            </TabsContent>
+
+          {/* Live Orders Tab */}
+          <TabsContent value="live-orders" className="space-y-6">
+            {/* QR Code Test Generator */}
+            <QRCodeTestGenerator />
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* QR Scanner Section */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <QrCode className="h-5 w-5" />
+                    Scan Member QR Code
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <VenueQRScanner onMemberScanned={handleMemberScanned} />
+                </CardContent>
+              </Card>
+
+              {/* Order Management Section */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <ShoppingCart className="h-5 w-5" />
+                    Order Management
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {scannedMember ? (
+                    <>
+                      {/* Member Info */}
+                      <div className="p-4 bg-brand-cream/30 rounded-lg">
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-semibold text-brand-burgundy">{scannedMember.customerName}</h4>
+                          <Badge className="bg-brand-gold text-brand-burgundy">
+                            {scannedMember.memberTier}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-brand-burgundy/70">{scannedMember.customerEmail}</p>
+                        <p className="text-sm font-semibold text-brand-gold">
+                          Available Credits: ₦{scannedMember.creditBalance?.toLocaleString()}
+                        </p>
+                      </div>
+
+                      {/* Add Item Form */}
+                      <div className="space-y-3">
+                        <h5 className="font-medium text-brand-burgundy">Add Item to Order</h5>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                          <Input
+                            placeholder="Item name"
+                            value={orderItem.name}
+                            onChange={(e) => setOrderItem({ ...orderItem, name: e.target.value })}
+                            className="text-sm"
+                          />
+                          <Input
+                            type="number"
+                            placeholder="Price"
+                            value={orderItem.price}
+                            onChange={(e) => setOrderItem({ ...orderItem, price: parseFloat(e.target.value) || 0 })}
+                            className="text-sm"
+                          />
+                          <Input
+                            type="number"
+                            placeholder="Qty"
+                            value={orderItem.quantity}
+                            onChange={(e) => setOrderItem({ ...orderItem, quantity: parseInt(e.target.value) || 1 })}
+                            min="1"
+                            className="text-sm"
+                          />
+                        </div>
+                        <Button onClick={addOrderItem} className="w-full" size="sm">
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Item
+                        </Button>
+                      </div>
+
+                      {/* Current Order */}
+                      {currentOrder.length > 0 && (
+                        <div className="space-y-2">
+                          <h5 className="font-medium text-brand-burgundy">Current Order</h5>
+                          <div className="space-y-2 max-h-40 overflow-y-auto">
+                            {currentOrder.map((item) => (
+                              <div key={item.id} className="flex items-center justify-between p-2 bg-brand-cream/20 rounded">
+                                <div className="flex-1">
+                                  <p className="text-sm font-medium">{item.name}</p>
+                                  <p className="text-xs text-brand-burgundy/70">
+                                    ₦{item.price.toLocaleString()} × {item.quantity}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm font-semibold">₦{item.total.toLocaleString()}</span>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => removeOrderItem(item.id)}
+                                    className="h-6 w-6 p-0 text-red-500 hover:bg-red-50"
+                                  >
+                                    <Minus className="h-3 w-3" />
+                                  </Button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Order Summary */}
+                          <div className="border-t pt-3 space-y-1">
+                            <div className="flex justify-between text-sm">
+                              <span>Subtotal:</span>
+                              <span>₦{orderSubtotal.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between text-sm">
+                              <span>Service Charge (10%):</span>
+                              <span>₦{orderServiceCharge.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between font-semibold text-brand-burgundy border-t pt-1">
+                              <span>Total:</span>
+                              <span>₦{orderTotal.toLocaleString()}</span>
+                            </div>
+                          </div>
+
+                          {/* Process Order Button */}
+                          <Button
+                            onClick={processOrder}
+                            disabled={isProcessingOrder || orderTotal > scannedMember.creditBalance}
+                            className="w-full bg-brand-gold text-brand-burgundy hover:bg-yellow-600"
+                          >
+                            {isProcessingOrder ? (
+                              <>
+                                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                                Processing...
+                              </>
+                            ) : (
+                              <>
+                                <CheckCircle className="h-4 w-4 mr-2" />
+                                Process Order
+                              </>
+                            )}
+                          </Button>
+
+                          {orderTotal > scannedMember.creditBalance && (
+                            <p className="text-xs text-red-500 text-center">
+                              Insufficient credits. Available: ₦{scannedMember.creditBalance?.toLocaleString()}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Users className="h-12 w-12 text-brand-burgundy/30 mx-auto mb-4" />
+                      <h3 className="font-semibold text-brand-burgundy mb-2">No Member Scanned</h3>
+                      <p className="text-sm text-brand-burgundy/70">
+                        Scan a member's QR code to start processing their order
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );

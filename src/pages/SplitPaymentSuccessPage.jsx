@@ -211,7 +211,18 @@ const SplitPaymentSuccessPage = () => {
               
               // QR Code for venue entry
               qrCodeImage: individualQrCodeImage?.externalUrl || individualQrCodeImage,
-              qrCodeUrl: individualQrCodeImage?.externalUrl || '',
+              qrCodeUrl: individualQrCodeImage?.externalUrl || (individualQrCodeImage?.base64 ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(JSON.stringify({
+                type: 'venue-entry',
+                bookingId: bookingData.id,
+                venueId: bookingData.venue_id,
+                securityCode: 'GENERATED',
+                bookingDate: bookingData.booking_date,
+                startTime: bookingData.start_time,
+                tableNumber: bookingData.venue_tables?.table_type || bookingData.table?.table_number || 'N/A',
+                guestCount: bookingData.number_of_guests,
+                status: 'confirmed',
+                timestamp: new Date().toISOString()
+              }))}&color=800020&bgcolor=FFFFFF&format=png` : ''),
               
               // Dashboard URL
               dashboardUrl: `${window.location.origin}/profile`
@@ -719,8 +730,19 @@ const SplitPaymentSuccessPage = () => {
             specialRequests: bookingData.special_requests || 'None specified',
             
             // QR Code for venue entry
-            qrCodeImage: qrCodeImage,
-            qrCodeUrl: qrCodeImage?.externalUrl || ''
+            qrCodeImage: qrCodeImage?.externalUrl || qrCodeImage,
+            qrCodeUrl: qrCodeImage?.externalUrl || (qrCodeImage?.base64 ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(JSON.stringify({
+              type: 'venue-entry',
+              bookingId: bookingData.id,
+              venueId: bookingData.venue_id,
+              securityCode: 'GENERATED',
+              bookingDate: bookingData.booking_date,
+              startTime: bookingData.start_time,
+              tableNumber: bookingData.venue_tables?.table_type || bookingData.table?.table_number || 'N/A',
+              guestCount: bookingData.number_of_guests,
+              status: 'confirmed',
+              timestamp: new Date().toISOString()
+            }))}&color=800020&bgcolor=FFFFFF&format=png` : '')
           };
 
           console.log('📧 Email data being sent:', emailData);
@@ -857,8 +879,19 @@ const SplitPaymentSuccessPage = () => {
                 specialRequests: bookingData.special_requests || 'None specified',
                 
                 // QR Code for venue entry
-                qrCodeImage: lastPayerQrCodeImage,
-                qrCodeUrl: lastPayerQrCodeImage?.externalUrl || ''
+                qrCodeImage: lastPayerQrCodeImage?.externalUrl || lastPayerQrCodeImage,
+                qrCodeUrl: lastPayerQrCodeImage?.externalUrl || (lastPayerQrCodeImage?.base64 ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(JSON.stringify({
+                  type: 'venue-entry',
+                  bookingId: bookingData.id,
+                  venueId: bookingData.venue_id,
+                  securityCode: 'GENERATED',
+                  bookingDate: bookingData.booking_date,
+                  startTime: bookingData.start_time,
+                  tableNumber: bookingData.venue_tables?.table_type || bookingData.table?.table_number || 'N/A',
+                  guestCount: bookingData.number_of_guests,
+                  status: 'confirmed',
+                  timestamp: new Date().toISOString()
+                }))}&color=800020&bgcolor=FFFFFF&format=png` : '')
               };
 
               console.log('📧 Last payer email data:', {
