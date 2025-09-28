@@ -11,19 +11,62 @@ const VenueQRScanner = ({ onMemberScanned }) => {
   const [scannerActive, setScannerActive] = useState(false);
   const [manualQRInput, setManualQRInput] = useState('');
   const [showManualInput, setShowManualInput] = useState(false);
+  const [cameraSupported, setCameraSupported] = useState(false);
+  const [cameraPermissionDenied, setCameraPermissionDenied] = useState(false);
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const codeReader = useRef(new BrowserMultiFormatReader());
 
-  // Initialize camera when component mounts
+  // Check camera support on component mount
   useEffect(() => {
-    if (scannerActive) {
+    checkCameraSupport();
+    return () => {
+      stopCamera();
+    };
+  }, []);
+
+  // Initialize camera when scanner becomes active
+  useEffect(() => {
+    if (scannerActive && cameraSupported) {
       initializeCamera();
     }
     return () => {
       stopCamera();
     };
-  }, [scannerActive]);
+  }, [scannerActive, cameraSupported]);
+
+  const checkCameraSupport = async () => {
+    try {
+      // Check if camera is supported
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setCameraSupported(false);
+        return;
+      }
+
+      // Check permissions without requesting them
+      const permissionStatus = await navigator.permissions.query({ name: 'camera' });
+      
+      if (permissionStatus.state === 'denied') {
+        setCameraPermissionDenied(true);
+        setCameraSupported(false);
+        return;
+      }
+
+      // Check if we can enumerate devices
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(device => device.kind === 'videoinput');
+      
+      if (videoDevices.length === 0) {
+        setCameraSupported(false);
+        return;
+      }
+
+      setCameraSupported(true);
+    } catch (err) {
+      console.log('Camera support check failed:', err);
+      setCameraSupported(false);
+    }
+  };
 
   const initializeCamera = async () => {
     try {
@@ -411,12 +454,40 @@ const VenueQRScanner = ({ onMemberScanned }) => {
 
       {!scannerActive ? (
         <div className="scanner-start">
-          <button 
-            onClick={startScanning}
-            className="start-scan-btn"
-          >
-            🎯 Start Scanning
-          </button>
+          {cameraSupported ? (
+            <button 
+              onClick={startScanning}
+              className="start-scan-btn"
+            >
+              📷 Start Camera Scanning
+            </button>
+          ) : cameraPermissionDenied ? (
+            <div className="text-center">
+              <p className="text-red-600 mb-4">
+                ❌ Camera access denied. Please enable camera permissions in your browser settings.
+              </p>
+              <button 
+                onClick={() => setShowManualInput(true)}
+                className="manual-input-btn"
+                style={{ backgroundColor: '#FFD700', color: '#800020' }}
+              >
+                🔧 Use Manual Input Instead
+              </button>
+            </div>
+          ) : (
+            <div className="text-center">
+              <p className="text-gray-600 mb-4">
+                📱 Camera not available on this device. Use manual input to test QR codes.
+              </p>
+              <button 
+                onClick={() => setShowManualInput(true)}
+                className="manual-input-btn"
+                style={{ backgroundColor: '#FFD700', color: '#800020' }}
+              >
+                🔧 Manual QR Input
+              </button>
+            </div>
+          )}
         </div>
       ) : (
         <div className="scanner-active">
@@ -551,6 +622,20 @@ const VenueQRScanner = ({ onMemberScanned }) => {
           <h4>{success}</h4>
         </div>
       )}
+
+      {/* Always show manual input option */}
+      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+        <h3 className="text-lg font-semibold mb-2">🔧 Alternative: Manual QR Input</h3>
+        <p className="text-sm text-gray-600 mb-3">
+          If camera scanning isn't working, you can manually enter QR code data here.
+        </p>
+        <button 
+          onClick={() => setShowManualInput(!showManualInput)}
+          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+        >
+          {showManualInput ? 'Hide Manual Input' : 'Show Manual Input'}
+        </button>
+      </div>
 
       {scanResult && (
         <div className="scan-result">

@@ -31,6 +31,7 @@ import { supabase } from '../../lib/supabase';
 import { motion } from 'framer-motion';
 import BackToDashboardButton from '../../components/BackToDashboardButton';
 import VenueQRScanner from '../../components/VenueQRScanner';
+import ProductionQRScanner from '../../components/ProductionQRScanner';
 import QRCodeTestGenerator from '../../components/QRCodeTestGenerator';
 import QRCodeDataExtractor from '../../components/QRCodeDataExtractor';
 
@@ -1037,11 +1038,11 @@ const VenueOwnerReceipts = () => {
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <QrCode className="h-5 w-5" />
-                    Scan Member QR Code
+                    QR Code Verification
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <VenueQRScanner onMemberScanned={handleMemberScanned} />
+                  <ProductionQRScanner onMemberScanned={handleMemberScanned} />
                 </CardContent>
               </Card>
 
