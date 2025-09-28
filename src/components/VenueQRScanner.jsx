@@ -9,6 +9,8 @@ const VenueQRScanner = ({ onMemberScanned }) => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [scannerActive, setScannerActive] = useState(false);
+  const [manualQRInput, setManualQRInput] = useState('');
+  const [showManualInput, setShowManualInput] = useState(false);
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const codeReader = useRef(new BrowserMultiFormatReader());
@@ -98,13 +100,28 @@ const VenueQRScanner = ({ onMemberScanned }) => {
     stopCamera();
   };
 
+  const handleManualScan = () => {
+    if (!manualQRInput.trim()) {
+      setError('Please enter QR code data');
+      return;
+    }
+    
+    console.log('🔍 Manual QR scan triggered with data:', manualQRInput);
+    handleScan(manualQRInput.trim());
+  };
+
   const handleScan = async (qrDataString) => {
     try {
       console.log('🔍 QR Code detected:', qrDataString);
+      console.log('🔍 QR Code type:', typeof qrDataString);
+      console.log('🔍 QR Code length:', qrDataString?.length);
       
       // Parse QR code data
       const qrData = parseQRCodeData(qrDataString);
+      console.log('🔍 Parsed QR data result:', qrData);
+      
       if (!qrData) {
+        console.error('❌ Failed to parse QR code data');
         throw new Error('Invalid QR code format');
       }
 
@@ -394,13 +411,51 @@ const VenueQRScanner = ({ onMemberScanned }) => {
               ⏹️ Stop Scanning
             </button>
             <button 
-              onClick={handleManualScan}
+              onClick={() => setShowManualInput(!showManualInput)}
               className="test-scan-btn"
               style={{ marginLeft: '10px', backgroundColor: '#FFD700', color: '#800020' }}
             >
-              🧪 Test Scan
+              🔧 Manual Input
             </button>
           </div>
+
+          {showManualInput && (
+            <div className="manual-input-section" style={{ marginTop: '20px', padding: '20px', backgroundColor: '#f5f5f5', borderRadius: '8px' }}>
+              <h4 style={{ marginBottom: '10px' }}>Manual QR Code Input (Debug)</h4>
+              <p style={{ fontSize: '14px', color: '#666', marginBottom: '15px' }}>
+                If the camera scanner isn't working, you can manually enter the QR code data here for testing.
+              </p>
+              <textarea
+                value={manualQRInput}
+                onChange={(e) => setManualQRInput(e.target.value)}
+                placeholder="Paste QR code data here (JSON format)..."
+                style={{ 
+                  width: '100%', 
+                  height: '100px', 
+                  padding: '10px', 
+                  border: '1px solid #ccc', 
+                  borderRadius: '4px',
+                  fontFamily: 'monospace',
+                  fontSize: '12px'
+                }}
+              />
+              <div style={{ marginTop: '10px' }}>
+                <button 
+                  onClick={handleManualScan}
+                  className="test-scan-btn"
+                  style={{ backgroundColor: '#28a745', color: 'white' }}
+                >
+                  🔍 Test This QR Data
+                </button>
+                <button 
+                  onClick={() => setManualQRInput('')}
+                  style={{ marginLeft: '10px', backgroundColor: '#6c757d', color: 'white', padding: '8px 16px', border: 'none', borderRadius: '4px' }}
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

@@ -32,6 +32,7 @@ import { motion } from 'framer-motion';
 import BackToDashboardButton from '../../components/BackToDashboardButton';
 import VenueQRScanner from '../../components/VenueQRScanner';
 import QRCodeTestGenerator from '../../components/QRCodeTestGenerator';
+import QRCodeDataExtractor from '../../components/QRCodeDataExtractor';
 
 const VenueOwnerReceipts = () => {
   const { toast } = useToast();
@@ -1026,6 +1027,9 @@ const VenueOwnerReceipts = () => {
           <TabsContent value="live-orders" className="space-y-6">
             {/* QR Code Test Generator */}
             <QRCodeTestGenerator />
+            
+            {/* QR Code Data Extractor */}
+            <QRCodeDataExtractor />
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* QR Scanner Section */}
