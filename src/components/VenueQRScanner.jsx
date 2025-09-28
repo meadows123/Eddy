@@ -350,23 +350,6 @@ const VenueQRScanner = ({ onMemberScanned }) => {
     }
   };
 
-  // Manual scan button for testing
-  const handleManualScan = () => {
-    const testQRData = JSON.stringify({
-      type: 'venue-entry',
-      bookingId: 'test-booking-123',
-      venueId: 'test-venue-456',
-      securityCode: 'TEST1234',
-      bookingDate: '2025-01-21',
-      startTime: '19:00:00',
-      tableNumber: '5',
-      guestCount: 2,
-      status: 'confirmed',
-      timestamp: new Date().toISOString()
-    });
-    
-    handleScan(testQRData);
-  };
 
   return (
     <div className="venue-qr-scanner">
