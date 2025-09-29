@@ -108,7 +108,7 @@ export const sendBookingConfirmation = async (booking, venue, customer) => {
         type: 'venue-entry',
         bookingId: booking.id,
         venueId: booking.venue_id,
-        securityCode: 'GENERATED',
+        securityCode: booking.qr_security_code,
         bookingDate: booking.booking_date,
         startTime: booking.start_time,
         tableNumber: booking.table?.table_number || 'N/A',

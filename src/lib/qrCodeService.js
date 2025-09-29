@@ -121,8 +121,8 @@ export const generateVenueEntryQR = async (bookingData) => {
     // Import supabase client
     const { supabase } = await import('./supabase.js');
     
-    // Generate a unique security code
-    const securityCode = generateSecurityCode();
+    // Use existing security code or generate a new one
+    const securityCode = bookingData.qr_security_code || generateSecurityCode();
     
     // Handle different table data structures
     let tableNumber = 'N/A';
