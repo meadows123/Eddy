@@ -404,6 +404,26 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       }
 
       // Get booking details
+      console.log('🔍 Looking up booking:', qrData.bookingId);
+      
+      // First check if booking exists at all
+      const { data: bookingCheck, error: checkError } = await supabase
+        .from('bookings')
+        .select('id, status')
+        .eq('id', qrData.bookingId)
+        .single();
+        
+      if (checkError) {
+        console.error('❌ Booking lookup failed:', checkError);
+        throw new Error(`Booking not found. ID: ${qrData.bookingId}`);
+      }
+      
+      if (bookingCheck.status !== 'confirmed') {
+        console.error('❌ Booking not confirmed:', { status: bookingCheck.status });
+        throw new Error(`Booking is not confirmed (status: ${bookingCheck.status})`);
+      }
+      
+      // Get full booking details
       const { data: booking, error: bookingError } = await supabase
         .from('bookings')
         .select(`
@@ -417,8 +437,16 @@ const CameraQRScanner = ({ onMemberScanned }) => {
         .single();
 
       if (bookingError || !booking) {
-        throw new Error('Booking not found or not confirmed');
+        console.error('❌ Booking lookup failed:', { bookingError, bookingId: qrData.bookingId });
+        throw new Error(`Booking not found or not confirmed. ID: ${qrData.bookingId}`);
       }
+      
+      console.log('📋 Found booking:', {
+        id: booking.id,
+        status: booking.status,
+        date: booking.booking_date,
+        today: today
+      });
 
       // Verify security code (optional for production)
       if (booking.qr_security_code && booking.qr_security_code !== qrData.securityCode) {

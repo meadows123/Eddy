@@ -714,7 +714,7 @@ if (!venueId) {
   start_time: selection?.time || bookingData?.time || '19:00:00',
   end_time: selection?.endTime || bookingData?.endTime || '23:00:00',
   number_of_guests: parseInt(selection?.guests) || parseInt(bookingData?.guestCount) || 2,
-      status: 'pending',
+      status: 'confirmed',
   total_amount: parseFloat(calculateTotal())
 };
 
@@ -773,33 +773,62 @@ if (!venueId) {
     const { clientSecret } = await response.json();
 
     // Confirm the payment
-    const { error: confirmError } = await stripe.confirmCardPayment(clientSecret);
+    console.log('💳 Confirming payment with Stripe...');
+    const { paymentIntent, error: confirmError } = await stripe.confirmCardPayment(clientSecret);
+    
     if (confirmError) {
-      // If payment fails, delete the pending booking
+      console.error('❌ Payment confirmation failed:', confirmError);
+      // If payment fails, send admin notification and mark payment as failed
+      console.error('❌ Payment failed for booking:', pendingBooking.id);
+      
+      // Update booking with payment failure
       await supabase
         .from('bookings')
-        .delete()
+        .update({ 
+          payment_status: 'failed',
+          payment_error: confirmError.message
+        })
         .eq('id', pendingBooking.id);
+
+      // Send admin notification email
+      await sendAdminNotificationEmail({
+        type: 'payment_failed',
+        bookingId: pendingBooking.id,
+        error: confirmError.message,
+        amount: calculateTotal(),
+        customerEmail: formData.email,
+        customerName: formData.fullName
+      });
 
       throw new Error(`Payment failed: ${confirmError.message}`);
     }
 
     // Update booking status to confirmed
-    const { error: updateError } = await supabase
+    console.log('📝 Updating booking status to confirmed:', pendingBooking.id);
+    
+    const { data: updatedBooking, error: updateError } = await supabase
       .from('bookings')
-      .update({ status: 'confirmed' })
-      .eq('id', pendingBooking.id);
+      .update({ 
+        status: 'confirmed',
+        confirmed_at: new Date().toISOString()
+      })
+      .eq('id', pendingBooking.id)
+      .select()
+      .single();
 
     if (updateError) {
+      console.error('❌ Failed to update booking status:', updateError);
       throw new Error(`Failed to update booking status: ${updateError.message}`);
     }
+    
+    console.log('✅ Booking status updated:', updatedBooking);
 
     // Show success message
-toast({ 
+    toast({ 
       title: "Booking Confirmed!",
       description: "Your booking has been confirmed. Check your email for details.",
-  className: "bg-green-500 text-white"
-});
+      className: "bg-green-500 text-white"
+    });
 
     // Get venue data for email
     const { data: venueData, error: venueError } = await supabase
@@ -869,9 +898,8 @@ toast({
       // Don't fail the booking if email fails
 }
 
-setShowConfirmation(true);
-
-} catch (error) {
+      setShowConfirmation(true);
+    } catch (error) {
 console.error('Error processing booking:', error);
 toast({
   title: "Booking Error",
