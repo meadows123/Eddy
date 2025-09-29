@@ -142,9 +142,10 @@ export const generateVenueEntryQR = async (bookingData) => {
       securityCode: securityCode,
       bookingDate: bookingData.booking_date,
       startTime: bookingData.start_time,
+      endTime: bookingData.end_time,
       tableNumber: tableNumber,
       guestCount: bookingData.number_of_guests || 2,
-      status: bookingData.status || 'confirmed',
+      status: 'confirmed',  // Always confirmed for QR codes
       timestamp: new Date().toISOString()
     };
 

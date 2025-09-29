@@ -448,9 +448,19 @@ const CameraQRScanner = ({ onMemberScanned }) => {
         today: today
       });
 
-      // Verify security code (optional for production)
-      if (booking.qr_security_code && booking.qr_security_code !== qrData.securityCode) {
-        console.warn('⚠️ Security code mismatch, but continuing for production');
+      // Verify security code
+      if (booking.qr_security_code) {
+        // For bookings with security codes, verify they match
+        if (booking.qr_security_code !== qrData.securityCode) {
+          console.error('❌ Security code mismatch:', {
+            expected: booking.qr_security_code,
+            received: qrData.securityCode
+          });
+          throw new Error('Invalid security code');
+        }
+      } else {
+        // For legacy bookings without security codes, log but allow
+        console.log('⚠️ Legacy booking without security code:', booking.id);
       }
 
       // Check if booking is for today

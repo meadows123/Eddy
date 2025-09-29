@@ -290,12 +290,13 @@ export const sendBookingConfirmationEmail = async (bookingData) => {
     // Extract data from bookingData
     const booking = {
       id: bookingData.id || bookingData.bookingId,
-      booking_date: bookingData.booking_date || bookingData.bookingDate || bookingData.bookingDate,
+      venue_id: bookingData.venue_id || bookingData.venueId,  // Move this up for clarity
+      booking_date: bookingData.booking_date || bookingData.bookingDate || new Date().toISOString().split('T')[0],
       start_time: bookingData.start_time || bookingData.booking_time || '19:00:00',
+      end_time: bookingData.end_time || bookingData.endTime || '23:00:00',
       number_of_guests: bookingData.number_of_guests || bookingData.guest_count || 2,
       total_amount: bookingData.total_amount || bookingData.totalAmount || 0,
       status: bookingData.status || 'confirmed',
-      venue_id: bookingData.venue_id || bookingData.venueId,
       table: {
         table_number: bookingData.tableNumber || bookingData.table?.table_number || 'N/A'
       }
@@ -318,8 +319,23 @@ export const sendBookingConfirmationEmail = async (bookingData) => {
 
     // Generate QR code for venue entry
     console.log('📱 Generating QR code for booking:', booking.id);
-    console.log('📱 Booking data for QR generation:', booking);
-    const qrCodeImage = await generateVenueEntryQR(booking);
+    console.log('📱 Booking data for QR generation:', {
+      id: booking.id,
+      venue_id: booking.venue_id,
+      booking_date: booking.booking_date,
+      start_time: booking.start_time,
+      end_time: booking.end_time,
+      number_of_guests: booking.number_of_guests,
+      status: booking.status
+    });
+    const qrCodeImage = await generateVenueEntryQR({
+      ...booking,
+      venue_id: booking.venue_id,  // Ensure this is passed
+      booking_date: booking.booking_date,  // Ensure this is passed
+      start_time: booking.start_time,  // Ensure this is passed
+      end_time: booking.end_time,  // Ensure this is passed
+      number_of_guests: booking.number_of_guests  // Ensure this is passed
+    });
     console.log('📱 QR code generated successfully:', qrCodeImage ? 'Yes' : 'No');
 
     // Send customer confirmation email using Supabase Edge Function with QR code
@@ -555,17 +571,17 @@ export const sendSplitPaymentVenueOwnerNotification = async (booking, venue, ini
           email: venueOwnerEmail,
           ownerName: 'Venue Manager',
           bookingId: booking.id || booking.bookingId || 'N/A',
-          customerName: initiator.full_name || initiator.customerName || 'Guest',
-          customerEmail: initiator.email || initiator.customerEmail || 'N/A',
-          customerPhone: initiator.phone || initiator.customerPhone || 'N/A',
-          guestCount: booking.number_of_guests || booking.guest_count || 2,
+      customerName: initiator.full_name || initiator.customerName || 'Guest',
+      customerEmail: initiator.email || initiator.customerEmail || 'N/A',
+      customerPhone: initiator.phone || initiator.customerPhone || 'N/A',
+      guestCount: booking.number_of_guests || booking.guest_count || 2,
           bookingDate: booking.booking_date || booking.bookingDate || new Date().toISOString().split('T')[0],
           bookingTime: booking.start_time || booking.booking_time || '19:00',
-          totalAmount: totalPaid,
+      totalAmount: totalPaid,
           venueName: venue.name || venue.venueName || 'Venue',
           venueAddress: venue.address || venue.location || 'Lagos, Nigeria',
           specialRequests: booking.special_requests || 'None specified',
-          paymentType: 'Split Payment',
+      paymentType: 'Split Payment',
           participantsCount: participantsCount
         }
       }
