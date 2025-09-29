@@ -705,17 +705,21 @@ if (!venueId) {
       throw new Error('Venue ID is required');
     }
 
-    // Create pending booking first
+    // Generate security code for QR
+    const securityCode = generateSecurityCode();
+
+    // Create booking with confirmed status
     const bookingDetails = {
       user_id: currentUser.id,
-  venue_id: venueId,
-  table_id: tableId,
-  booking_date: selection?.date || bookingData?.date || new Date().toISOString().split('T')[0],
-  start_time: selection?.time || bookingData?.time || '19:00:00',
-  end_time: selection?.endTime || bookingData?.endTime || '23:00:00',
-  number_of_guests: parseInt(selection?.guests) || parseInt(bookingData?.guestCount) || 2,
+      venue_id: venueId,
+      table_id: tableId,
+      booking_date: selection?.date || bookingData?.date || new Date().toISOString().split('T')[0],
+      start_time: selection?.time || bookingData?.time || '19:00:00',
+      end_time: selection?.endTime || bookingData?.endTime || '23:00:00',
+      number_of_guests: parseInt(selection?.guests) || parseInt(bookingData?.guestCount) || 2,
       status: 'confirmed',
-  total_amount: parseFloat(calculateTotal())
+      qr_security_code: securityCode,
+      total_amount: parseFloat(calculateTotal())
 };
 
 
@@ -809,7 +813,8 @@ if (!venueId) {
     const { data: updatedBooking, error: updateError } = await supabase
       .from('bookings')
       .update({ 
-        status: 'confirmed'
+        status: 'confirmed',
+        qr_security_code: securityCode
       })
       .eq('id', pendingBooking.id)
       .select()

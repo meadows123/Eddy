@@ -407,11 +407,14 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       console.log('🔍 Looking up booking:', qrData.bookingId);
       
       // First check if booking exists at all
+      console.log('🔍 Initial booking check:', qrData.bookingId);
       const { data: bookingCheck, error: checkError } = await supabase
         .from('bookings')
-        .select('id, status')
+        .select('id, status, qr_security_code')
         .eq('id', qrData.bookingId)
         .single();
+      
+      console.log('📋 Initial booking check result:', { bookingCheck, checkError });
         
       if (checkError) {
         console.error('❌ Booking lookup failed:', checkError);
