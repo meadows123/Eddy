@@ -452,50 +452,51 @@ const SimpleQRScanner = ({ onMemberScanned }) => {
         <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
           <h4 className="font-semibold text-blue-800 mb-2">📋 How to use:</h4>
           <ol className="text-sm text-blue-700 space-y-1">
-            <li>1. Click "Start Camera Scanning" below</li>
-            <li>2. Allow camera permissions when prompted</li>
-            <li>3. Use the manual input field to enter QR code data</li>
-            <li>4. Copy QR data from customer's email or scan with phone camera</li>
+            <li>1. Use your phone's camera to scan the QR code</li>
+            <li>2. Copy the data that appears</li>
+            <li>3. Paste it below and click "Verify QR Code"</li>
           </ol>
+          <div className="mt-3 p-2 bg-gray-100 rounded">
+            <p className="text-sm text-gray-700">
+              <strong>Note:</strong> Direct app opening will be available when the app is published.
+            </p>
+          </div>
         </div>
       </div>
 
-      {!scannerActive ? (
-        <div className="scanner-start">
-          <div className="text-center">
-            <h3 className="text-lg font-semibold mb-4">📱 QR Code Scanner</h3>
-            <p className="text-gray-600 mb-6">
-              Scan customer QR codes to verify bookings and check in members
-            </p>
-            
-            {cameraSupported ? (
-              <div>
-                <button 
-                  onClick={startScanning}
-                  className="start-scan-btn bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg text-lg font-semibold"
-                >
-                  📷 Start Camera Scanning
-                </button>
-                <p className="text-sm text-gray-500 mt-2">
-                  Camera will be activated when you click start
-                </p>
-              </div>
-            ) : (
-              <div>
-                <p className="text-red-600 mb-4">
-                  ❌ Camera not available on this device
-                </p>
-                <button 
-                  onClick={() => setShowManualInput(true)}
-                  className="manual-input-btn bg-yellow-500 hover:bg-yellow-600 text-white px-6 py-3 rounded-lg text-lg font-semibold"
-                >
-                  🔧 Use Manual Input
-                </button>
-              </div>
-            )}
-          </div>
+      <div className="manual-input-section mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+        <h3 className="text-lg font-semibold mb-2 text-green-800">📱 QR Code Input</h3>
+        <p className="text-sm text-green-700 mb-3">
+          Scan the QR code with your phone's camera, then paste the data here:
+        </p>
+        
+        <textarea
+          value={manualQRInput}
+          onChange={(e) => setManualQRInput(e.target.value)}
+          placeholder='Paste QR code data here (JSON format)...
+Example: {"type":"eddys_member","memberId":"123",...}'
+          className="w-full h-32 p-3 border border-green-200 rounded-md font-mono text-sm"
+        />
+        
+        <div className="flex gap-2 mt-3">
+          <button 
+            onClick={handleManualScan}
+            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-semibold"
+          >
+            🔍 Verify QR Code
+          </button>
+          
+          <button 
+            onClick={() => setManualQRInput('')}
+            className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
+          >
+            Clear
+          </button>
         </div>
-      ) : (
+      </div>
+      
+      {/* Legacy camera support - hidden by default */}
+      {false && !scannerActive && (
         <div className="scanner-active">
           <div className="camera-container">
             <video

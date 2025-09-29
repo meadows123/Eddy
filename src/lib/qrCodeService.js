@@ -21,7 +21,7 @@ export const generateEddysMemberQR = async (memberData) => {
     // Generate a unique security code
     const securityCode = generateSecurityCode();
     
-    // Create QR code data for walk-in member
+    // For development, just use the direct data
     const qrData = {
       type: 'eddys_member',
       memberId: memberData.userId,
@@ -134,6 +134,7 @@ export const generateVenueEntryQR = async (bookingData) => {
       tableNumber = bookingData.table_number;
     }
 
+    // For development, just use the direct data
     const qrData = {
       type: 'venue-entry',
       bookingId: bookingData.id,
@@ -214,8 +215,16 @@ const generateSecurityCode = () => {
  */
 export const parseQRCodeData = (qrDataString) => {
   try {
+    // Try to parse as JSON
     const qrData = JSON.parse(qrDataString);
-    
+
+    // Check if this is a new format with app link and fallback
+    if (qrData.url && qrData.url.startsWith('vipclub://scan')) {
+      // Return the fallback data for web app processing
+      return qrData.fallback;
+    }
+
+    // If it's not the new format, treat it as legacy data
     // Validate required fields based on QR code type
     if (!qrData.type) {
       throw new Error('Missing QR code type');
@@ -235,6 +244,35 @@ export const parseQRCodeData = (qrDataString) => {
     
     return qrData;
   } catch (error) {
+    // Try to parse as URL
+    try {
+      if (qrDataString.startsWith('oneeddy://scan')) {
+        // Parse URL parameters
+        const url = new URL(qrDataString);
+        const params = new URLSearchParams(url.search);
+        
+        // Extract data from URL parameters
+        const type = params.get('type');
+        if (type === 'venue-entry') {
+          return {
+            type: 'venue-entry',
+            bookingId: params.get('bookingId'),
+            venueId: params.get('venueId'),
+            securityCode: params.get('securityCode')
+          };
+        } else if (type === 'eddys_member') {
+          return {
+            type: 'eddys_member',
+            memberId: params.get('memberId'),
+            venueId: params.get('venueId'),
+            securityCode: params.get('securityCode')
+          };
+        }
+      }
+    } catch (urlError) {
+      console.error('❌ Error parsing QR code URL:', urlError);
+    }
+    
     console.error('❌ Error parsing QR code data:', error);
     return null;
   }
