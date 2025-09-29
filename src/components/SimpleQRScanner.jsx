@@ -97,31 +97,72 @@ const SimpleQRScanner = ({ onMemberScanned }) => {
 
       console.log('📷 Selected camera ID:', selectedDeviceId);
 
-      // Get user media with constraints
+      // Get user media with constraints optimized for mobile
       const constraints = {
         video: {
-          deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined,
-          width: { ideal: 1280, max: 1920 },
-          height: { ideal: 720, max: 1080 },
-          facingMode: 'environment', // Use back camera on mobile
-          frameRate: { ideal: 30, max: 60 }
+          facingMode: { exact: 'environment' }, // Force back camera on mobile
+          width: { min: 640, ideal: 1280, max: 1920 },
+          height: { min: 480, ideal: 720, max: 1080 },
+          frameRate: { min: 15, ideal: 30, max: 60 },
+          aspectRatio: { ideal: 1.777777778 }
         }
       };
 
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      let stream;
+      try {
+        // Try with exact environment mode first
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (err) {
+        console.log('📷 Exact environment mode failed, trying fallback...', err);
+        
+        // Fallback to preferred environment mode
+        const fallbackConstraints = {
+          video: {
+            facingMode: 'environment', // Prefer back camera but don't require it
+            width: { min: 640, ideal: 1280, max: 1920 },
+            height: { min: 480, ideal: 720, max: 1080 },
+            frameRate: { min: 15, ideal: 30, max: 60 },
+            aspectRatio: { ideal: 1.777777778 }
+          }
+        };
+        
+        stream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
+      }
+      
       streamRef.current = stream;
 
-      // Set up video element
+      // Set up video element with mobile optimizations
       if (videoRef.current) {
-        videoRef.current.srcObject = stream;
+        // Set important attributes for mobile
         videoRef.current.setAttribute('playsinline', 'true');
         videoRef.current.setAttribute('webkit-playsinline', 'true');
+        videoRef.current.setAttribute('autoplay', 'true');
+        videoRef.current.setAttribute('muted', 'true');
         
-        // Wait for video to be ready
-        videoRef.current.onloadedmetadata = () => {
-          videoRef.current.play().catch(err => {
-            console.warn('Video play failed:', err);
-          });
+        // Set source and wait for metadata
+        videoRef.current.srcObject = stream;
+        
+        // Handle video ready state
+        videoRef.current.onloadedmetadata = async () => {
+          try {
+            // Try to play immediately
+            await videoRef.current.play();
+            console.log('📷 Video playback started successfully');
+          } catch (playError) {
+            console.warn('❌ Video play failed:', playError);
+            
+            // Try alternative play approach
+            try {
+              const playPromise = videoRef.current.play();
+              if (playPromise !== undefined) {
+                await playPromise;
+                console.log('📷 Video playback started with promise');
+              }
+            } catch (retryError) {
+              console.error('❌ Video play retry failed:', retryError);
+              throw new Error('Failed to start video playback');
+            }
+          }
         };
       }
 
@@ -461,13 +502,16 @@ const SimpleQRScanner = ({ onMemberScanned }) => {
               ref={videoRef}
               autoPlay
               playsInline
-              webkit-playsinline="true"
+              muted
               style={{
                 width: '100%',
-                maxWidth: '500px',
+                maxWidth: '100vw',
                 height: 'auto',
+                maxHeight: '80vh',
                 borderRadius: '8px',
-                objectFit: 'cover'
+                objectFit: 'cover',
+                backgroundColor: '#000',
+                margin: '0 auto'
               }}
             />
             {/* Hidden canvas for potential future QR detection */}
