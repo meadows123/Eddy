@@ -216,8 +216,11 @@ export const generateSecurityCode = () => {
  */
 export const parseQRCodeData = (qrDataString) => {
   try {
+    console.log('🔍 Parsing QR data string:', qrDataString);
+    
     // Try to parse as JSON
     const qrData = JSON.parse(qrDataString);
+    console.log('📋 Parsed QR data:', qrData);
 
     // Check if this is a new format with app link and fallback
     if (qrData.url && qrData.url.startsWith('vipclub://scan')) {

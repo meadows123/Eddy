@@ -451,11 +451,17 @@ const CameraQRScanner = ({ onMemberScanned }) => {
         throw new Error(`Booking not found or not confirmed. ID: ${qrData.bookingId}`);
       }
       
+      // Check if booking is for today
+      const today = new Date().toISOString().split('T')[0];
+      const bookingDate = qrData.bookingDate || booking.booking_date;
       console.log('📋 Found booking:', {
         id: booking.id,
         status: booking.status,
         date: booking.booking_date,
-        today: today
+        today: today,
+        qrDate: qrData.bookingDate,
+        qrSecurityCode: qrData.securityCode,
+        bookingSecurityCode: booking.qr_security_code
       });
 
       // Verify security code
@@ -474,9 +480,13 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       }
 
       // Check if booking is for today
-      const today = new Date().toISOString().split('T')[0];
-      const bookingDate = qrData.bookingDate || booking.booking_date;
-      console.log('📅 Checking dates:', { bookingDate, today });
+      console.log('📅 Checking dates:', { 
+        bookingDate, 
+        today,
+        qrDate: qrData.bookingDate,
+        dbDate: booking.booking_date,
+        matches: bookingDate === today
+      });
       if (bookingDate !== today) {
         throw new Error('This booking is not for today');
       }
