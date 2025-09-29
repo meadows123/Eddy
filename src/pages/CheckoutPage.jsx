@@ -809,8 +809,7 @@ if (!venueId) {
     const { data: updatedBooking, error: updateError } = await supabase
       .from('bookings')
       .update({ 
-        status: 'confirmed',
-        confirmed_at: new Date().toISOString()
+        status: 'confirmed'
       })
       .eq('id', pendingBooking.id)
       .select()
