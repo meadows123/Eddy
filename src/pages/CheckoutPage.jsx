@@ -20,6 +20,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { sendBookingConfirmation, sendVenueOwnerNotification, debugBookingEmail, sendBookingConfirmationEmail } from '../lib/emailService.js';
 import { Elements, CardElement } from '@stripe/react-stripe-js';
 import { stripePromise } from '@/lib/stripe';
+import { generateSecurityCode } from '@/lib/qrCodeService';
 
 const CheckoutPage = () => {
 const { id } = useParams();

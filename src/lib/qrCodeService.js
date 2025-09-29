@@ -200,7 +200,7 @@ export const generateVenueEntryQR = async (bookingData) => {
  * Generate a security code for QR code validation
  * @returns {string} - 8-character security code
  */
-const generateSecurityCode = () => {
+export const generateSecurityCode = () => {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
   let result = '';
   for (let i = 0; i < 8; i++) {
