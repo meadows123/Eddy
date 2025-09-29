@@ -9,6 +9,7 @@ const CameraQRScanner = ({ onMemberScanned }) => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [scannerActive, setScannerActive] = useState(false);
+  const [showPermissionPrompt, setShowPermissionPrompt] = useState(false);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -32,6 +33,18 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       // Check if camera is supported
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error('Camera not supported in this browser');
+      }
+
+      // Request camera permission explicitly
+      try {
+        await navigator.mediaDevices.getUserMedia({ video: true });
+        console.log('📷 Camera permission granted');
+      } catch (permissionError) {
+        console.error('❌ Camera permission error:', permissionError);
+        if (permissionError.name === 'NotAllowedError') {
+          throw new Error('Please allow camera access to scan QR codes. You may need to enable it in your browser settings.');
+        }
+        throw permissionError;
       }
 
       // Get available video devices
@@ -261,9 +274,18 @@ const CameraQRScanner = ({ onMemberScanned }) => {
   };
 
   const startScanning = () => {
-    setScannerActive(true);
+    setShowPermissionPrompt(true);
     setError(null);
     setSuccess(null);
+  };
+
+  const handlePermissionResponse = (granted) => {
+    setShowPermissionPrompt(false);
+    if (granted) {
+      setScannerActive(true);
+    } else {
+      setError('Camera access is required to scan QR codes.');
+    }
   };
 
   const stopScanning = () => {
@@ -549,7 +571,32 @@ const CameraQRScanner = ({ onMemberScanned }) => {
         </div>
       </div>
 
-      {!scannerActive ? (
+      {showPermissionPrompt && (
+        <div className="permission-prompt fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-4">
+            <h3 className="text-xl font-semibold mb-4">📷 Camera Permission Required</h3>
+            <p className="text-gray-600 mb-6">
+              To scan QR codes, we need access to your camera. This will only be used while scanning QR codes.
+            </p>
+            <div className="flex justify-end space-x-4">
+              <button
+                onClick={() => handlePermissionResponse(false)}
+                className="px-4 py-2 text-gray-600 hover:text-gray-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handlePermissionResponse(true)}
+                className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700"
+              >
+                Allow Camera
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!scannerActive && !showPermissionPrompt ? (
         <div className="scanner-start">
           <div className="text-center">
             <button 
