@@ -107,32 +107,34 @@ const VenueQRScanner = ({ onMemberScanned }) => {
       
       // Use a simpler approach with proper error handling
       const startScanning = () => {
+        const constraints = {
+          video: {
+            width: { ideal: 1280, max: 1920 },
+            height: { ideal: 720, max: 1080 },
+            facingMode: 'environment', // Use back camera on mobile
+            frameRate: { ideal: 30, max: 60 }
+          }
+        };
+
+        const scanCallback = function(result, err) {
+          if (result) {
+            console.log('🔍 QR Code detected by camera:', result.getText());
+            console.log('🔍 QR Code format:', result.getBarcodeFormat());
+            handleScan(result.getText());
+          }
+          if (err && !(err instanceof Error)) {
+            // This is normal - just means no QR code detected yet
+            // Only log every 100th attempt to avoid spam
+            if (Math.random() < 0.01) {
+              console.log('🔍 Scanning... (no QR code detected yet)');
+            }
+          }
+        };
+
         codeReader.current.decodeFromVideoDevice(
           selectedDeviceId,
           videoRef.current,
-          {
-            // Mobile-optimized constraints
-            video: {
-              width: { ideal: 1280, max: 1920 },
-              height: { ideal: 720, max: 1080 },
-              facingMode: 'environment', // Use back camera on mobile
-              frameRate: { ideal: 30, max: 60 }
-            }
-          },
-          (result, err) => {
-            if (result) {
-              console.log('🔍 QR Code detected by camera:', result.getText());
-              console.log('🔍 QR Code format:', result.getBarcodeFormat());
-              handleScan(result.getText());
-            }
-            if (err && !(err instanceof Error)) {
-              // This is normal - just means no QR code detected yet
-              // Only log every 100th attempt to avoid spam
-              if (Math.random() < 0.01) {
-                console.log('🔍 Scanning... (no QR code detected yet)');
-              }
-            }
-          }
+          scanCallback
         ).catch(scanError => {
           console.error('❌ Scan error:', scanError);
           setError('Failed to start QR scanning. Please try again.');
