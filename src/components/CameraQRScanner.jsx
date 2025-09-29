@@ -1,64 +1,28 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/lib/supabase.js';
 import { parseQRCodeData } from '@/lib/qrCodeService.js';
+import jsQR from 'jsqr';
 
-const SimpleQRScanner = ({ onMemberScanned }) => {
+const CameraQRScanner = ({ onMemberScanned }) => {
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState(null);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [scannerActive, setScannerActive] = useState(false);
-  const [manualQRInput, setManualQRInput] = useState('');
-  const [showManualInput, setShowManualInput] = useState(false);
-  const [cameraSupported, setCameraSupported] = useState(false);
-  const [cameraPermissionDenied, setCameraPermissionDenied] = useState(false);
   const videoRef = useRef(null);
-  const streamRef = useRef(null);
   const canvasRef = useRef(null);
+  const streamRef = useRef(null);
   const scanIntervalRef = useRef(null);
-
-  // Check camera support on component mount
-  useEffect(() => {
-    checkCameraSupport();
-    return () => {
-      stopCamera();
-    };
-  }, []);
 
   // Initialize camera when scanner becomes active
   useEffect(() => {
-    if (scannerActive && cameraSupported) {
+    if (scannerActive) {
       initializeCamera();
     }
     return () => {
       stopCamera();
     };
-  }, [scannerActive, cameraSupported]);
-
-  const checkCameraSupport = async () => {
-    try {
-      // Check if camera is supported
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setCameraSupported(false);
-        return;
-      }
-
-      // Check if we can enumerate devices
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoDevices = devices.filter(device => device.kind === 'videoinput');
-      
-      if (videoDevices.length === 0) {
-        setCameraSupported(false);
-        return;
-      }
-
-      // Camera is available, but we'll request permission when user clicks start
-      setCameraSupported(true);
-    } catch (err) {
-      console.log('Camera support check failed:', err);
-      setCameraSupported(false);
-    }
-  };
+  }, [scannerActive]);
 
   const initializeCamera = async () => {
     try {
@@ -97,14 +61,18 @@ const SimpleQRScanner = ({ onMemberScanned }) => {
 
       console.log('📷 Selected camera ID:', selectedDeviceId);
 
-      // Get user media with constraints optimized for mobile
+      // Enhanced mobile-optimized constraints
       const constraints = {
         video: {
-          facingMode: { exact: 'environment' }, // Force back camera on mobile
+          facingMode: { exact: 'environment' }, // Force back camera
           width: { min: 640, ideal: 1280, max: 1920 },
           height: { min: 480, ideal: 720, max: 1080 },
           frameRate: { min: 15, ideal: 30, max: 60 },
-          aspectRatio: { ideal: 1.777777778 }
+          aspectRatio: { ideal: 1.777777778 },
+          focusMode: 'continuous', // Enable continuous autofocus
+          exposureMode: 'continuous', // Enable continuous exposure
+          whiteBalanceMode: 'continuous', // Enable continuous white balance
+          zoom: 1.0 // No digital zoom
         }
       };
 
@@ -148,6 +116,9 @@ const SimpleQRScanner = ({ onMemberScanned }) => {
             // Try to play immediately
             await videoRef.current.play();
             console.log('📷 Video playback started successfully');
+            
+            // Start QR code detection
+            startQRDetection();
           } catch (playError) {
             console.warn('❌ Video play failed:', playError);
             
@@ -157,6 +128,9 @@ const SimpleQRScanner = ({ onMemberScanned }) => {
               if (playPromise !== undefined) {
                 await playPromise;
                 console.log('📷 Video playback started with promise');
+                
+                // Start QR code detection
+                startQRDetection();
               }
             } catch (retryError) {
               console.error('❌ Video play retry failed:', retryError);
@@ -171,17 +145,13 @@ const SimpleQRScanner = ({ onMemberScanned }) => {
       console.log('✅ Camera started successfully');
       
       // Show instruction to user
-      setSuccess('Camera activated! Use manual input below to enter QR code data.');
-      
-      // Show manual input by default since QR detection is complex
-      setShowManualInput(true);
+      setSuccess('Camera activated! Point at QR code to scan.');
 
     } catch (err) {
       console.error('❌ Error accessing camera:', err);
       
       if (err.name === 'NotAllowedError' || err.message.includes('permission')) {
         setError('Camera access denied. Please allow camera permissions and try again.');
-        setCameraPermissionDenied(true);
       } else if (err.name === 'NotFoundError') {
         setError('No camera found. Please connect a camera and try again.');
       } else if (err.name === 'NotReadableError') {
@@ -194,9 +164,84 @@ const SimpleQRScanner = ({ onMemberScanned }) => {
     }
   };
 
+  const startQRDetection = () => {
+    // Create canvas for QR detection
+    const canvas = canvasRef.current;
+    const video = videoRef.current;
+    const context = canvas.getContext('2d');
+
+    // Set canvas size to match video
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    // Start scanning loop
+    scanIntervalRef.current = setInterval(() => {
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        // Draw current video frame
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Get image data
+        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        
+        // Try to find QR code with enhanced settings
+        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: "attemptBoth",
+          canOverwriteImage: true,
+          greyScaleWeights: {
+            red: 0.2126,
+            green: 0.7152,
+            blue: 0.0722
+          },
+          tryHarder: true
+        });
+        
+        if (code) {
+          console.log('🔍 QR Code found:', code.data);
+          
+          // Play success sound
+          try {
+            const beep = new Audio("data:audio/wav;base64,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");
+            beep.play();
+          } catch (e) {
+            console.log('Audio feedback not supported');
+          }
+
+          // Highlight QR code location with animation
+          context.beginPath();
+          context.moveTo(code.location.topLeftCorner.x, code.location.topLeftCorner.y);
+          context.lineTo(code.location.topRightCorner.x, code.location.topRightCorner.y);
+          context.lineTo(code.location.bottomRightCorner.x, code.location.bottomRightCorner.y);
+          context.lineTo(code.location.bottomLeftCorner.x, code.location.bottomLeftCorner.y);
+          context.lineTo(code.location.topLeftCorner.x, code.location.topLeftCorner.y);
+          context.lineWidth = 4;
+          context.strokeStyle = '#00FF00';
+          context.stroke();
+
+          // Add success overlay
+          context.fillStyle = 'rgba(0, 255, 0, 0.2)';
+          context.fill();
+
+          // Add success message
+          context.font = '20px Arial';
+          context.fillStyle = '#00FF00';
+          context.textAlign = 'center';
+          context.fillText('QR Code Detected!', canvas.width / 2, canvas.height - 20);
+
+          // Process the scan
+          handleScan(code.data);
+        }
+      }
+    }, 100); // Scan every 100ms
+  };
 
   const stopCamera = () => {
     try {
+      // Stop QR detection
+      if (scanIntervalRef.current) {
+        clearInterval(scanIntervalRef.current);
+        scanIntervalRef.current = null;
+      }
+
       // Stop the video stream
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
@@ -422,21 +467,6 @@ const SimpleQRScanner = ({ onMemberScanned }) => {
     }
   };
 
-  const handleManualScan = async () => {
-    if (!manualQRInput.trim()) {
-      setError('Please enter QR code data');
-      return;
-    }
-    
-    try {
-      console.log('🔍 Manual QR scan triggered with data:', manualQRInput);
-      await handleScan(manualQRInput.trim());
-    } catch (err) {
-      console.error('❌ Manual scan error:', err);
-      setError(err.message);
-    }
-  };
-
   const clearResults = () => {
     setError(null);
     setSuccess(null);
@@ -459,9 +489,18 @@ const SimpleQRScanner = ({ onMemberScanned }) => {
         </div>
       </div>
 
-      
-      {/* Legacy camera support - hidden by default */}
-      {false && !scannerActive && (
+      {!scannerActive ? (
+        <div className="scanner-start">
+          <div className="text-center">
+            <button 
+              onClick={startScanning}
+              className="start-scan-btn bg-green-600 hover:bg-green-700 text-white px-8 py-4 rounded-lg text-xl font-semibold shadow-lg transition-all"
+            >
+              📷 Start Camera
+            </button>
+          </div>
+        </div>
+      ) : (
         <div className="scanner-active">
           <div className="camera-container">
             <video
@@ -480,7 +519,6 @@ const SimpleQRScanner = ({ onMemberScanned }) => {
                 margin: '0 auto'
               }}
             />
-            {/* Hidden canvas for potential future QR detection */}
             <canvas
               ref={canvasRef}
               style={{ display: 'none' }}
@@ -500,46 +538,6 @@ const SimpleQRScanner = ({ onMemberScanned }) => {
             >
               ⏹️ Stop Scanning
             </button>
-            <button 
-              onClick={() => setShowManualInput(!showManualInput)}
-              className="test-scan-btn bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded ml-2"
-            >
-              🔧 Manual Input
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Manual Input Section */}
-      {showManualInput && (
-        <div className="manual-input-section mt-4 p-4 bg-gray-50 rounded-lg">
-          <h3 className="text-lg font-semibold mb-2">🔧 Manual QR Input</h3>
-          <p className="text-sm text-gray-600 mb-3">
-            Paste the QR code data here to verify bookings or member access.
-          </p>
-          
-          <textarea
-            value={manualQRInput}
-            onChange={(e) => setManualQRInput(e.target.value)}
-            placeholder='Paste QR code data here (JSON format)...
-Example: {"type":"eddys_member","memberId":"123","venueId":"456","securityCode":"ABC123",...}'
-            className="w-full h-32 p-3 border border-gray-300 rounded-md font-mono text-sm"
-          />
-          
-          <div className="flex gap-2 mt-3">
-            <button 
-              onClick={handleManualScan}
-              className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
-            >
-              🔍 Verify QR Code
-            </button>
-            
-            <button 
-              onClick={() => setManualQRInput('')}
-              className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600"
-            >
-              Clear
-            </button>
           </div>
         </div>
       )}
@@ -549,20 +547,6 @@ Example: {"type":"eddys_member","memberId":"123","venueId":"456","securityCode":
         <div className="error-message mt-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
           <h4 className="font-semibold">❌ Error</h4>
           <p>{error}</p>
-          {cameraPermissionDenied && (
-            <div className="mt-3">
-              <button 
-                onClick={() => {
-                  setCameraPermissionDenied(false);
-                  setError(null);
-                  setScannerActive(false);
-                }}
-                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-              >
-                🔄 Try Again
-              </button>
-            </div>
-          )}
         </div>
       )}
 
@@ -666,38 +650,67 @@ Example: {"type":"eddys_member","memberId":"123","venueId":"456","securityCode":
         }
         
         .scan-frame {
-          width: 200px;
-          height: 200px;
-          border: 3px solid #3b82f6;
-          border-radius: 8px;
+          width: 280px;
+          height: 280px;
+          border: 3px solid #FFD700;
+          border-radius: 12px;
           background: transparent;
           position: relative;
+          box-shadow: 0 0 0 4px rgba(255, 215, 0, 0.3);
+          animation: pulse 2s infinite;
         }
         
         .scan-frame::before {
           content: '';
           position: absolute;
-          top: -3px;
-          left: -3px;
-          right: -3px;
-          bottom: -3px;
-          border: 2px solid #60a5fa;
-          border-radius: 8px;
-          animation: pulse 2s infinite;
+          top: 0;
+          left: 0;
+          right: 0;
+          height: 3px;
+          background: #FFD700;
+          animation: scan 2s infinite;
+        }
+        
+        .scan-frame::after {
+          content: '';
+          position: absolute;
+          top: -10px;
+          left: -10px;
+          right: -10px;
+          bottom: -10px;
+          border: 2px solid rgba(255, 215, 0, 0.5);
+          border-radius: 16px;
+          animation: expand 3s infinite;
         }
         
         .scan-instructions {
           color: white;
-          background: rgba(0, 0, 0, 0.7);
-          padding: 0.5rem 1rem;
-          border-radius: 4px;
-          margin-top: 1rem;
-          font-size: 0.9rem;
+          background: rgba(0, 0, 0, 0.8);
+          padding: 0.75rem 1.5rem;
+          border-radius: 8px;
+          margin-top: 1.5rem;
+          font-size: 1rem;
+          font-weight: 500;
+          text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
         
         @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
+          0% { border-color: #FFD700; box-shadow: 0 0 0 4px rgba(255, 215, 0, 0.3); }
+          50% { border-color: #800020; box-shadow: 0 0 0 8px rgba(128, 0, 32, 0.3); }
+          100% { border-color: #FFD700; box-shadow: 0 0 0 4px rgba(255, 215, 0, 0.3); }
+        }
+        
+        @keyframes scan {
+          0% { top: 0; }
+          50% { top: calc(100% - 3px); }
+          100% { top: 0; }
+        }
+        
+        @keyframes expand {
+          0% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.1); opacity: 0.5; }
+          100% { transform: scale(1); opacity: 1; }
         }
         
         .scanner-controls {
@@ -720,4 +733,4 @@ Example: {"type":"eddys_member","memberId":"123","venueId":"456","securityCode":
   );
 };
 
-export default SimpleQRScanner;
+export default CameraQRScanner;
