@@ -580,10 +580,11 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       const scanResultData = {
         type: 'venue-entry',
         bookingId: booking.id,
-        customerName: booking.profiles?.full_name || 'Unknown',
-        customerEmail: booking.profiles?.email || 'Unknown',
+        customerName: '***', // Hide personal details
+        customerEmail: '***', // Hide personal details
         venueName: booking.venues?.name || 'Unknown',
         tableType: booking.venue_tables?.table_type || 'N/A',
+        tableNumber: qrData.tableNumber || 'N/A', // Add table number from QR code
         guestCount: booking.number_of_guests,
         bookingDate: booking.booking_date,
         startTime: booking.start_time,
@@ -787,17 +788,17 @@ const CameraQRScanner = ({ onMemberScanned }) => {
                 <div className="booking-info">
                   <h5 className="font-semibold text-gray-700">📋 Booking Details</h5>
                   <p><strong>Booking ID:</strong> {scanResult.bookingId}</p>
-                  <p><strong>Customer:</strong> {scanResult.customerName}</p>
-                  <p><strong>Email:</strong> {scanResult.customerEmail}</p>
                   <p><strong>Date:</strong> {scanResult.bookingDate}</p>
+                  <p><strong>Time:</strong> {scanResult.startTime}</p>
+                  <p><strong>Guests:</strong> {scanResult.guestCount}</p>
                 </div>
                 
                 <div className="venue-info">
                   <h5 className="font-semibold text-gray-700">🏢 Venue Details</h5>
                   <p><strong>Venue:</strong> {scanResult.venueName}</p>
-                  <p><strong>Table:</strong> {scanResult.tableType}</p>
-                  <p><strong>Guests:</strong> {scanResult.guestCount}</p>
-                  <p><strong>Time:</strong> {scanResult.startTime}</p>
+                  <p><strong>Table Type:</strong> {scanResult.tableType}</p>
+                  <p><strong>Table Number:</strong> {scanResult.tableNumber}</p>
+                  <p><strong>Scanned:</strong> {scanResult.scanTime}</p>
                 </div>
               </div>
             </>
