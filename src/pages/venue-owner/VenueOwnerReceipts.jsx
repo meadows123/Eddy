@@ -14,7 +14,9 @@ import {
   Clock,
   Eye,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  Plus,
+  Minus
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { motion } from 'framer-motion';

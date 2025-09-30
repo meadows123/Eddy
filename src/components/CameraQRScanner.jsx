@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/lib/supabase.js';
 import { parseQRCodeData } from '@/lib/qrCodeService.js';
 import { sendQRScanNotification } from '@/lib/emailService.js';
+import emailRateLimiter from '@/lib/emailRateLimiter.js';
 import jsQR from 'jsqr';
 
 const CameraQRScanner = ({ onMemberScanned }) => {
@@ -10,10 +11,17 @@ const CameraQRScanner = ({ onMemberScanned }) => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [scannerActive, setScannerActive] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [emailRateLimited, setEmailRateLimited] = useState(false);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
   const scanIntervalRef = useRef(null);
+  
+  // Track recently scanned QR codes to prevent duplicates
+  const [recentlyScanned, setRecentlyScanned] = useState(new Set());
+  const [lastScanTime, setLastScanTime] = useState(0);
+  const SCAN_COOLDOWN = 30000; // 30 seconds cooldown between scans (increased from 5s)
 
   // Initialize camera when scanner becomes active
   useEffect(() => {
@@ -24,6 +32,13 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       stopCamera();
     };
   }, [scannerActive]);
+  
+  // Cleanup recently scanned set when component unmounts
+  useEffect(() => {
+    return () => {
+      setRecentlyScanned(new Set());
+    };
+  }, []);
 
   const initializeCamera = async () => {
     try {
@@ -282,6 +297,22 @@ const CameraQRScanner = ({ onMemberScanned }) => {
     try {
       console.log('🔍 Processing scanned QR code:', qrDataString);
       
+      // Prevent multiple simultaneous scans
+      if (isProcessing) {
+        console.log('⏳ Already processing a scan, ignoring duplicate');
+        return;
+      }
+      
+      // Check cooldown period to prevent rapid duplicate scans
+      const now = Date.now();
+      if (now - lastScanTime < SCAN_COOLDOWN) {
+        console.log('⏳ Scan too soon, ignoring duplicate scan');
+        return;
+      }
+      
+      setIsProcessing(true);
+      setEmailRateLimited(false);
+      
       // Parse the QR code data
       const qrData = parseQRCodeData(qrDataString);
       console.log('📋 Parsed QR data:', qrData);
@@ -290,6 +321,30 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       if (!qrData) {
         throw new Error('Failed to parse QR code data');
       }
+      
+      // Create a unique identifier for this scan
+      const scanId = qrData.type === 'venue-entry' 
+        ? `booking-${qrData.bookingId}-${qrData.securityCode}`
+        : `member-${qrData.memberId}`;
+      
+      // Check if we've already scanned this QR code recently
+      if (recentlyScanned.has(scanId)) {
+        console.log('🔄 QR code already scanned recently, ignoring duplicate');
+        return;
+      }
+      
+      // Update scan tracking
+      setLastScanTime(now);
+      setRecentlyScanned(prev => {
+        const newSet = new Set(prev);
+        newSet.add(scanId);
+        // Keep only the last 10 scans to prevent memory buildup
+        if (newSet.size > 10) {
+          const firstItem = newSet.values().next().value;
+          newSet.delete(firstItem);
+        }
+        return newSet;
+      });
       
       if (!qrData.type) {
         throw new Error('QR code data missing type field');
@@ -312,6 +367,8 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       console.error('❌ Error processing QR scan:', err);
       setError(err.message);
       setSuccess(null);
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -610,23 +667,42 @@ const CameraQRScanner = ({ onMemberScanned }) => {
         console.log('Audio feedback not supported');
       }
 
-      // Send email notification to customer
+      // Send email notification to customer (with rate limiting)
       try {
-        console.log('📧 Sending QR scan notification email...');
-        const notificationData = {
-          customerName: booking.profiles?.full_name || 'Valued Customer',
-          customerEmail: booking.profiles?.email || 'unknown@example.com',
-          venueName: booking.venues?.name || 'Unknown Venue',
-          bookingId: booking.id,
-          bookingDate: booking.booking_date,
-          startTime: booking.start_time,
-          guestCount: booking.number_of_guests,
-          tableNumber: qrData.tableNumber || 'N/A',
-          scanTime: new Date().toLocaleString()
-        };
+        const customerEmail = booking.profiles?.email || 'unknown@example.com';
+        const bookingId = booking.id;
         
-        await sendQRScanNotification(notificationData);
-        console.log('✅ QR scan notification email sent successfully');
+        // Check if we can send an email
+        const rateLimitCheck = emailRateLimiter.canSendEmail(bookingId, customerEmail);
+        
+        if (!rateLimitCheck.canSend) {
+          console.log('🚫 Email rate limited:', rateLimitCheck.reason);
+          console.log('📊 Rate limiter stats:', emailRateLimiter.getStats());
+          setEmailRateLimited(true);
+          // Don't send email, but don't show error to user
+        } else {
+          setEmailRateLimited(false);
+          console.log('📧 Sending QR scan notification email...');
+          const notificationData = {
+            customerName: booking.profiles?.full_name || 'Valued Customer',
+            customerEmail: customerEmail,
+            venueName: booking.venues?.name || 'Unknown Venue',
+            bookingId: bookingId,
+            bookingDate: booking.booking_date,
+            startTime: booking.start_time,
+            guestCount: booking.number_of_guests,
+            tableNumber: qrData.tableNumber || 'N/A',
+            scanTime: new Date().toLocaleString()
+          };
+          
+          await sendQRScanNotification(notificationData);
+          
+          // Record that we sent an email
+          emailRateLimiter.recordEmailSent(bookingId, customerEmail);
+          
+          console.log('✅ QR scan notification email sent successfully');
+          console.log('📊 Updated rate limiter stats:', emailRateLimiter.getStats());
+        }
       } catch (emailError) {
         console.error('❌ Failed to send QR scan notification email:', emailError);
         // Don't throw error - email failure shouldn't break the scan process
@@ -753,6 +829,26 @@ const CameraQRScanner = ({ onMemberScanned }) => {
               </p>
             </div>
           </div>
+          
+          {/* Processing indicator */}
+          {isProcessing && (
+            <div className="processing-indicator mb-4">
+              <div className="flex items-center justify-center p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-yellow-600 mr-3"></div>
+                <span className="text-yellow-800 font-medium">Processing scan...</span>
+              </div>
+            </div>
+          )}
+          
+          {/* Email rate limit indicator */}
+          {emailRateLimited && (
+            <div className="rate-limit-indicator mb-4">
+              <div className="flex items-center justify-center p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                <span className="text-orange-600 mr-2">⚠️</span>
+                <span className="text-orange-800 font-medium">Email already sent for this booking</span>
+              </div>
+            </div>
+          )}
           
           <div className="scanner-controls">
             <button 
