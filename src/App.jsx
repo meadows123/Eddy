@@ -21,8 +21,7 @@ import VenueOwnerAnalytics from './pages/venue-owner/VenueOwnerAnalytics';
 import VenueOwnerSettings from './pages/venue-owner/VenueOwnerSettings';
 import VenueOwnerCredits from './pages/venue-owner/VenueOwnerCredits';
 import VenueOwnerReceipts from './pages/venue-owner/VenueOwnerReceipts';
-import VenueQRScanner from './components/VenueQRScanner';
-import QRTestPage from './components/QRTestPage';
+import QRScannerPage from './pages/venue-owner/QRScannerPage';
 // import QRCodeTest from './components/QRCodeTest';
 import VenueApprovalsPage from './pages/admin/VenueApprovalsPage';
 import ProfilePage from './pages/ProfilePage';
@@ -152,9 +151,7 @@ const App = () => {
             <Route path="/venue-owner/settings" element={<VenueOwnerSettings />} />
             <Route path="/venue-owner/credits" element={<VenueOwnerCredits />} />
             <Route path="/venue-owner/receipts" element={<VenueOwnerReceipts />} />
-            <Route path="/venue-owner/qr-scanner" element={<VenueQRScanner />} />
-            <Route path="/venue-owner/qr-test" element={<QRTestPage />} />
-            {/* <Route path="/venue-owner/qr-code-test" element={<QRCodeTest />} /> */}
+            <Route path="/venue-owner/qr-scanner" element={<QRScannerPage />} />
             <Route path="/venue-owner/credits/purchase" element={<VenueCreditPurchase />} />
 
             {/* Admin Routes */}
