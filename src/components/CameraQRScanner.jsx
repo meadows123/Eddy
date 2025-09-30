@@ -413,7 +413,7 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       
       // First check if booking exists at all
       console.log('🔍 Initial booking check:', qrData.bookingId);
-      const { data: bookingCheck, error: checkError } = await supabase
+      let { data: bookingCheck, error: checkError } = await supabase
         .from('bookings')
         .select('id, status, qr_security_code, booking_date, created_at')
         .eq('id', qrData.bookingId)
@@ -464,7 +464,7 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       
       // Get full booking details
       console.log('🔍 Looking up full booking details:', qrData.bookingId);
-      const { data: booking, error: bookingError } = await supabase
+      let { data: booking, error: bookingError } = await supabase
         .from('bookings')
         .select(`
           id,
@@ -514,12 +514,13 @@ const CameraQRScanner = ({ onMemberScanned }) => {
         // Since we already found the booking in the first check, use that data
         if (bookingCheck) {
           console.log('✅ Using initial booking data:', bookingCheck);
-          booking = {
+          const fallbackBooking = {
             ...bookingCheck,
             profiles: { full_name: 'Unknown', email: 'Unknown', phone: 'Unknown' },
             venues: { name: 'Unknown', address: 'Unknown' },
             venue_tables: { table_type: 'Unknown', capacity: 0 }
           };
+          booking = fallbackBooking;
         } else {
           throw new Error(`Booking not found or not confirmed. ID: ${qrData.bookingId}`);
         }
