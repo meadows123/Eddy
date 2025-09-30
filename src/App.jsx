@@ -151,7 +151,7 @@ const App = () => {
             <Route path="/venue-owner/settings" element={<VenueOwnerSettings />} />
             <Route path="/venue-owner/credits" element={<VenueOwnerCredits />} />
             <Route path="/venue-owner/receipts" element={<VenueOwnerReceipts />} />
-            <Route path="/venue-owner/qr-scanner" element={<QRScannerPage />} />
+            <Route path="/venue-owner/qr-scanner" element={<CameraQRScanner onMemberScanned={(data) => console.log('Member scanned:', data)} />} />
             <Route path="/venue-owner/credits/purchase" element={<VenueCreditPurchase />} />
 
             {/* Admin Routes */}
