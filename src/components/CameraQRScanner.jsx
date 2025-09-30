@@ -279,7 +279,12 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       
       // Parse QR code data
       const qrData = parseQRCodeData(qrDataString);
-      console.log('🔍 Parsed QR data result:', qrData);
+      console.log('🔍 Parsed QR data result:', {
+        qrData,
+        rawString: qrDataString,
+        isJson: qrDataString.startsWith('{'),
+        isUrl: qrDataString.startsWith('oneeddy://') || qrDataString.startsWith('vipclub://')
+      });
       
       if (!qrData) {
         console.error('❌ Failed to parse QR code data');
@@ -410,21 +415,52 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       console.log('🔍 Initial booking check:', qrData.bookingId);
       const { data: bookingCheck, error: checkError } = await supabase
         .from('bookings')
-        .select('id, status, qr_security_code')
+        .select('id, status, qr_security_code, booking_date, created_at')
         .eq('id', qrData.bookingId)
         .single();
       
-      console.log('📋 Initial booking check result:', { bookingCheck, checkError });
+      console.log('📋 Initial booking check result:', { 
+        bookingCheck, 
+        checkError,
+        errorMessage: checkError?.message,
+        errorDetails: checkError?.details,
+        bookingId: qrData.bookingId,
+        bookingDate: qrData.bookingDate,
+        securityCode: qrData.securityCode
+      });
         
       if (checkError) {
-        console.error('❌ Booking lookup failed:', checkError);
-        throw new Error(`Booking not found. ID: ${qrData.bookingId}`);
+        console.error('❌ Booking lookup failed:', {
+          error: checkError,
+          message: checkError.message,
+          details: checkError.details,
+          hint: checkError.hint,
+          code: checkError.code
+        });
+        throw new Error(`Booking lookup failed: ${checkError.message}`);
+      }
+      
+      if (!bookingCheck) {
+        console.error('❌ No booking found:', { bookingId: qrData.bookingId });
+        throw new Error(`No booking found with ID: ${qrData.bookingId}`);
       }
       
       if (bookingCheck.status !== 'confirmed') {
-        console.error('❌ Booking not confirmed:', { status: bookingCheck.status });
+        console.error('❌ Booking not confirmed:', { 
+          status: bookingCheck.status,
+          bookingId: qrData.bookingId,
+          date: bookingCheck.booking_date
+        });
         throw new Error(`Booking is not confirmed (status: ${bookingCheck.status})`);
       }
+      
+      console.log('✅ Booking found:', {
+        id: bookingCheck.id,
+        status: bookingCheck.status,
+        date: bookingCheck.booking_date,
+        securityCode: bookingCheck.qr_security_code,
+        qrSecurityCode: qrData.securityCode
+      });
       
       // Get full booking details
       console.log('🔍 Looking up full booking details:', qrData.bookingId);

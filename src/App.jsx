@@ -21,7 +21,7 @@ import VenueOwnerAnalytics from './pages/venue-owner/VenueOwnerAnalytics';
 import VenueOwnerSettings from './pages/venue-owner/VenueOwnerSettings';
 import VenueOwnerCredits from './pages/venue-owner/VenueOwnerCredits';
 import VenueOwnerReceipts from './pages/venue-owner/VenueOwnerReceipts';
-import QRScannerPage from './pages/venue-owner/QRScannerPage';
+import CameraQRScanner from './components/CameraQRScanner';
 // import QRCodeTest from './components/QRCodeTest';
 import VenueApprovalsPage from './pages/admin/VenueApprovalsPage';
 import ProfilePage from './pages/ProfilePage';

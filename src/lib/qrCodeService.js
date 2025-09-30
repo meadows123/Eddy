@@ -220,7 +220,16 @@ export const parseQRCodeData = (qrDataString) => {
     
     // Try to parse as JSON
     const qrData = JSON.parse(qrDataString);
-    console.log('📋 Parsed QR data:', qrData);
+    console.log('📋 Parsed QR data:', {
+      qrData,
+      type: qrData.type,
+      bookingId: qrData.bookingId,
+      venueId: qrData.venueId,
+      securityCode: qrData.securityCode,
+      bookingDate: qrData.bookingDate,
+      startTime: qrData.startTime,
+      endTime: qrData.endTime
+    });
 
     // Check if this is a new format with app link and fallback
     if (qrData.url && qrData.url.startsWith('vipclub://scan')) {
