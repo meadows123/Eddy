@@ -4,6 +4,7 @@ import {
   bookingConfirmationTemplate, 
   venueOwnerNotificationTemplate, 
   cancellationTemplate,
+  qrScanNotificationTemplate,
   generateEmailData 
 } from './emailTemplates';
 import { supabase } from '@/lib/supabase.js';
@@ -1346,6 +1347,104 @@ Website: ${window.location.origin}
     console.error('❌ Failed to send contact form email:', error);
     console.error('Error details:', {
       message: error.message,
+      status: error.status,
+      text: error.text
+    });
+    
+    throw error;
+  }
+};
+
+/**
+ * Send QR scan notification email to customer
+ * @param {Object} scanData - QR scan data including booking and customer info
+ * @returns {Promise<Object>} - EmailJS response
+ */
+export const sendQRScanNotification = async (scanData) => {
+  try {
+    // Check if EmailJS is configured
+    if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.templateId || !EMAILJS_CONFIG.publicKey) {
+      throw new Error('EmailJS configuration incomplete');
+    }
+
+    // Validate customer email
+    const customerEmail = scanData.customerEmail || scanData.customer?.email;
+    if (!customerEmail || !customerEmail.includes('@')) {
+      console.error('❌ Invalid or missing customer email for QR scan notification:', customerEmail);
+      throw new Error('Invalid customer email address');
+    }
+
+    console.log('📧 [QR SCAN] Sending notification email to:', customerEmail);
+
+    // Generate email content using the template
+    const emailContent = qrScanNotificationTemplate(scanData);
+
+    // Prepare template parameters for EmailJS
+    const templateParams = {
+      // EmailJS required fields
+      customerEmail: customerEmail,
+      to_name: scanData.customerName || 'Valued Customer',
+      
+      // QR Scan Information
+      customerName: scanData.customerName || 'Valued Customer',
+      venueName: scanData.venueName || 'Unknown Venue',
+      bookingId: scanData.bookingId || 'Unknown',
+      bookingDate: scanData.bookingDate || 'Unknown',
+      startTime: scanData.startTime || 'Unknown',
+      guestCount: scanData.guestCount || 'Unknown',
+      tableNumber: scanData.tableNumber || 'Unknown',
+      scanTime: scanData.scanTime || new Date().toLocaleString(),
+      
+      // Email content
+      message: emailContent,
+      subject: `QR Code Scanned - ${scanData.venueName}`,
+      
+      // Action URLs
+      viewBookingsUrl: `${window.location.origin}/profile`,
+      websiteUrl: window.location.origin,
+      supportUrl: 'mailto:info@oneeddy.com',
+      securityUrl: 'mailto:security@oneeddy.com'
+    };
+
+    console.log('📧 [QR SCAN] Template parameters prepared:', {
+      customerEmail: templateParams.customerEmail,
+      venueName: templateParams.venueName,
+      bookingId: templateParams.bookingId,
+      scanTime: templateParams.scanTime
+    });
+
+    // Optimize email delivery
+    const optimizedParams = optimizeEmailDelivery(templateParams);
+
+    // Send email using EmailJS
+    const response = await emailjs.send(
+      EMAILJS_CONFIG.serviceId,
+      EMAILJS_CONFIG.templateId,
+      optimizedParams
+    );
+
+    console.log('✅ [QR SCAN] Notification email sent successfully:', {
+      status: response.status,
+      text: response.text,
+      customerEmail: customerEmail,
+      venueName: scanData.venueName,
+      bookingId: scanData.bookingId
+    });
+
+    return {
+      success: true,
+      messageId: response.text,
+      customerEmail: customerEmail,
+      venueName: scanData.venueName,
+      bookingId: scanData.bookingId
+    };
+
+  } catch (error) {
+    console.error('❌ [QR SCAN] Failed to send notification email:', {
+      error: error.message,
+      customerEmail: scanData.customerEmail,
+      venueName: scanData.venueName,
+      bookingId: scanData.bookingId,
       status: error.status,
       text: error.text
     });

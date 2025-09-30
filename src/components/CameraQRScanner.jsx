@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/lib/supabase.js';
 import { parseQRCodeData } from '@/lib/qrCodeService.js';
+import { sendQRScanNotification } from '@/lib/emailService.js';
 import jsQR from 'jsqr';
 
 const CameraQRScanner = ({ onMemberScanned }) => {
@@ -607,6 +608,28 @@ const CameraQRScanner = ({ onMemberScanned }) => {
         successSound.play();
       } catch (e) {
         console.log('Audio feedback not supported');
+      }
+
+      // Send email notification to customer
+      try {
+        console.log('📧 Sending QR scan notification email...');
+        const notificationData = {
+          customerName: booking.profiles?.full_name || 'Valued Customer',
+          customerEmail: booking.profiles?.email || 'unknown@example.com',
+          venueName: booking.venues?.name || 'Unknown Venue',
+          bookingId: booking.id,
+          bookingDate: booking.booking_date,
+          startTime: booking.start_time,
+          guestCount: booking.number_of_guests,
+          tableNumber: qrData.tableNumber || 'N/A',
+          scanTime: new Date().toLocaleString()
+        };
+        
+        await sendQRScanNotification(notificationData);
+        console.log('✅ QR scan notification email sent successfully');
+      } catch (emailError) {
+        console.error('❌ Failed to send QR scan notification email:', emailError);
+        // Don't throw error - email failure shouldn't break the scan process
       }
 
       setSuccess('✅ Booking verified! Customer can be seated.');

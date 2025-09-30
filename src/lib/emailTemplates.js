@@ -398,6 +398,134 @@ export const signupConfirmationTemplate = (userData) => {
   `;
 };
 
+// QR Code Scan Notification Template
+export const qrScanNotificationTemplate = (scanData) => {
+  return `
+<div
+  style="
+    font-family: system-ui, sans-serif, Arial;
+    font-size: 14px;
+    color: #333;
+    padding: 14px 8px;
+    background-color: #f5f5f5;
+  "
+>
+  <style>
+    @media only screen and (max-width: 600px) {
+      .mobile-padding { padding: 8px !important; }
+      .mobile-text { font-size: 12px !important; }
+      .mobile-title { font-size: 14px !important; }
+      .mobile-stack { display: block !important; width: 100% !important; }
+      .mobile-center { text-align: center !important; }
+      .mobile-hide { display: none !important; }
+      .mobile-full-width { width: 100% !important; }
+    }
+  </style>
+  <div style="max-width: 600px; margin: auto; background-color: #fff">
+    <div style="border-top: 6px solid #5B0202; padding: 16px;" class="mobile-padding">
+      <a
+        style="text-decoration: none; outline: none; margin-right: 8px; vertical-align: middle"
+        href="${emailDeepLinks.openApp()}"
+        target="_blank"
+      >
+        <img
+          style="height: 32px; vertical-align: middle"
+          height="32px"
+          src="cid:logo.png"
+          alt="Eddys Members"
+        />
+      </a>
+      <span
+        style="
+          font-size: 16px;
+          vertical-align: middle;
+          border-left: 1px solid #333;
+          padding-left: 8px;
+        "
+        class="mobile-title"
+      >
+        <strong>QR Code Scanned</strong>
+      </span>
+    </div>
+    
+    <div style="padding: 20px;" class="mobile-padding">
+      <h2 style="color: #5B0202; margin: 0 0 16px 0; font-size: 18px;" class="mobile-title">
+        ✅ Your QR Code Has Been Scanned
+      </h2>
+      
+      <p style="margin: 0 0 16px 0; line-height: 1.5;" class="mobile-text">
+        Hello ${scanData.customerName || 'Valued Customer'},
+      </p>
+      
+      <p style="margin: 0 0 16px 0; line-height: 1.5;" class="mobile-text">
+        Your QR code was successfully scanned at <strong>${scanData.venueName}</strong> on ${scanData.scanTime}. 
+        You have been verified and can now enjoy your booking experience!
+      </p>
+      
+      <div style="background-color: #f8f9fa; border: 1px solid #e9ecef; border-radius: 8px; padding: 16px; margin: 16px 0;" class="mobile-padding">
+        <h3 style="color: #5B0202; margin: 0 0 12px 0; font-size: 16px;" class="mobile-title">
+          📋 Booking Details
+        </h3>
+        <div style="display: flex; flex-wrap: wrap; gap: 16px;" class="mobile-stack">
+          <div style="flex: 1; min-width: 200px;" class="mobile-full-width">
+            <p style="margin: 0 0 8px 0; font-weight: 600; color: #333;" class="mobile-text">
+              📅 Date: ${scanData.bookingDate}
+            </p>
+            <p style="margin: 0 0 8px 0; font-weight: 600; color: #333;" class="mobile-text">
+              🕐 Time: ${scanData.startTime}
+            </p>
+            <p style="margin: 0 0 8px 0; font-weight: 600; color: #333;" class="mobile-text">
+              👥 Guests: ${scanData.guestCount}
+            </p>
+          </div>
+          <div style="flex: 1; min-width: 200px;" class="mobile-full-width">
+            <p style="margin: 0 0 8px 0; font-weight: 600; color: #333;" class="mobile-text">
+              🏢 Venue: ${scanData.venueName}
+            </p>
+            <p style="margin: 0 0 8px 0; font-weight: 600; color: #333;" class="mobile-text">
+              🪑 Table: ${scanData.tableNumber}
+            </p>
+            <p style="margin: 0 0 8px 0; font-weight: 600; color: #333;" class="mobile-text">
+              ⏰ Scanned: ${scanData.scanTime}
+            </p>
+          </div>
+        </div>
+      </div>
+      
+      <div style="background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 8px; padding: 16px; margin: 16px 0;" class="mobile-padding">
+        <h3 style="color: #155724; margin: 0 0 8px 0; font-size: 16px;" class="mobile-title">
+          🎉 Welcome to ${scanData.venueName}!
+        </h3>
+        <p style="margin: 0; color: #155724; line-height: 1.5;" class="mobile-text">
+          Your booking has been verified and you're all set to enjoy your experience. 
+          Please proceed to your assigned table and have a wonderful time!
+        </p>
+      </div>
+      
+      <div style="text-align: center; margin: 24px 0;" class="mobile-center">
+        ${generateEmailButton(
+          'View My Bookings',
+          emailDeepLinks.openApp('/profile'),
+          '#5B0202'
+        )}
+      </div>
+      
+      <div style="border-top: 1px solid #e9ecef; padding-top: 16px; margin-top: 24px;">
+        <p style="margin: 0 0 8px 0; font-size: 12px; color: #6c757d;" class="mobile-text">
+          <strong>Security Note:</strong> If you did not scan your QR code at this venue, 
+          please contact us immediately at <a href="mailto:security@oneeddy.com" style="color: #5B0202;">security@oneeddy.com</a>
+        </p>
+        <p style="margin: 0; font-size: 12px; color: #6c757d;" class="mobile-text">
+          This notification was sent to ${scanData.customerEmail} for your booking ${scanData.bookingId}
+        </p>
+      </div>
+    </div>
+    
+    ${generateEmailFooter()}
+  </div>
+</div>`;
+};
+
 // Helper function to generate email data
 export const generateEmailData = (booking, venue, customer) => {
   return {
@@ -431,5 +559,7 @@ export default {
   bookingConfirmationTemplate,
   cancellationTemplate,
   signupConfirmationTemplate,
+  venueOwnerNotificationTemplate,
+  qrScanNotificationTemplate,
   generateEmailData
 }; 

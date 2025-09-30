@@ -132,6 +132,21 @@ export const generateVenueEntryQR = async (bookingData) => {
       tableNumber = bookingData.venue_tables.table_number;
     } else if (bookingData.table_number) {
       tableNumber = bookingData.table_number;
+    } else if (bookingData.table_id) {
+      // Fetch table details from database if we only have table_id
+      try {
+        const { data: tableData, error: tableError } = await supabase
+          .from('venue_tables')
+          .select('table_number')
+          .eq('id', bookingData.table_id)
+          .single();
+        
+        if (!tableError && tableData) {
+          tableNumber = tableData.table_number;
+        }
+      } catch (error) {
+        console.log('⚠️ Could not fetch table number:', error.message);
+      }
     }
 
     // For development, just use the direct data
@@ -228,7 +243,8 @@ export const parseQRCodeData = (qrDataString) => {
       securityCode: qrData.securityCode,
       bookingDate: qrData.bookingDate,
       startTime: qrData.startTime,
-      endTime: qrData.endTime
+      endTime: qrData.endTime,
+      tableNumber: qrData.tableNumber
     });
 
     // Check if this is a new format with app link and fallback
