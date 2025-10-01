@@ -9,6 +9,18 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
   const stripe = useStripe();
   const elements = useElements();
   const [isProcessingPayment, setIsProcessingPayment] = React.useState(false);
+  const [stripeReady, setStripeReady] = React.useState(false);
+
+  // Check if Stripe is ready
+  React.useEffect(() => {
+    if (stripe && elements) {
+      console.log('✅ Stripe Elements ready');
+      setStripeReady(true);
+    } else {
+      console.log('⏳ Waiting for Stripe Elements...');
+      setStripeReady(false);
+    }
+  }, [stripe, elements]);
 
   const handlePaymentSubmit = async (e) => {
     e.preventDefault();
@@ -162,40 +174,47 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
                 alignItems: 'center',
               }}
             >
-              <CardElement 
-                options={{
-                  style: {
-                    base: {
-                      fontSize: '16px',
-                      color: '#800020',
-                      fontFamily: 'system-ui, -apple-system, sans-serif',
-                      lineHeight: '1.5',
-                      '::placeholder': {
+              {!stripeReady ? (
+                <div className="w-full text-center text-gray-500">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-burgundy mx-auto mb-2"></div>
+                  <p className="text-sm">Loading payment form...</p>
+                </div>
+              ) : (
+                <CardElement 
+                  options={{
+                    style: {
+                      base: {
+                        fontSize: '16px',
                         color: '#800020',
+                        fontFamily: 'system-ui, -apple-system, sans-serif',
+                        lineHeight: '1.5',
+                        '::placeholder': {
+                          color: '#800020',
+                        },
+                      },
+                      invalid: {
+                        color: '#e53e3e',
                       },
                     },
-                    invalid: {
-                      color: '#e53e3e',
+                    hidePostalCode: true,
+                    // Mobile-specific options
+                    supportedNetworks: ['visa', 'mastercard', 'amex', 'discover'],
+                    // Ensure proper mobile input handling
+                    placeholder: {
+                      number: '1234 5678 9012 3456',
+                      expiry: 'MM/YY',
+                      cvc: 'CVC',
                     },
-                  },
-                  hidePostalCode: true,
-                  // Mobile-specific options
-                  supportedNetworks: ['visa', 'mastercard', 'amex', 'discover'],
-                  // Ensure proper mobile input handling
-                  placeholder: {
-                    number: '1234 5678 9012 3456',
-                    expiry: 'MM/YY',
-                    cvc: 'CVC',
-                  },
-                  // Disable autofill for better mobile compatibility
-                  disableLink: false,
-                  // Ensure proper focus handling on mobile
-                  classes: {
-                    focus: 'is-focused',
-                    invalid: 'is-invalid',
-                  }
-                }}
-              />
+                    // Disable autofill for better mobile compatibility
+                    disableLink: false,
+                    // Ensure proper focus handling on mobile
+                    classes: {
+                      focus: 'is-focused',
+                      invalid: 'is-invalid',
+                    }
+                  }}
+                />
+              )}
             </div>
             {errors.stripe && (
               <p className="text-destructive text-sm mt-1">{errors.stripe}</p>
@@ -226,7 +245,7 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
         {/* Add the submit button back */}
         <Button 
           type="submit" 
-          disabled={isSubmitting || isProcessingPayment || !stripe} 
+          disabled={isSubmitting || isProcessingPayment || !stripe || !stripeReady} 
           className="w-full bg-brand-burgundy text-brand-cream hover:bg-brand-burgundy/90 py-3.5 text-lg rounded-md mt-6"
         >
           {isSubmitting || isProcessingPayment ? (

@@ -36,6 +36,18 @@ const PaymentForm = ({ amount, onSuccess }) => {
   const elements = useElements();
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(null);
+  const [stripeReady, setStripeReady] = useState(false);
+
+  // Check if Stripe is ready
+  useEffect(() => {
+    if (stripe && elements) {
+      console.log('✅ Stripe Elements ready (Split Payment)');
+      setStripeReady(true);
+    } else {
+      console.log('⏳ Waiting for Stripe Elements... (Split Payment)');
+      setStripeReady(false);
+    }
+  }, [stripe, elements]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -72,25 +84,70 @@ const PaymentForm = ({ amount, onSuccess }) => {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="p-4 border rounded-lg bg-white">
-        <CardElement 
-          options={{
-            style: {
-              base: {
-                fontSize: '16px',
-                color: '#800020',
-                '::placeholder': {
+      <div 
+        className="p-4 border rounded-lg bg-white mobile-payment-container"
+        style={{
+          // Ensure proper mobile input handling
+          WebkitAppearance: 'none',
+          appearance: 'none',
+          // Prevent zoom on focus for iOS
+          fontSize: '16px',
+          // Ensure proper touch handling
+          touchAction: 'manipulation',
+          // Prevent text selection issues
+          userSelect: 'text',
+          WebkitUserSelect: 'text',
+          // Additional mobile fixes
+          minHeight: '60px',
+          display: 'flex',
+          alignItems: 'center',
+        }}
+      >
+        {!stripeReady ? (
+          <div className="w-full text-center text-gray-500">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-burgundy mx-auto mb-2"></div>
+            <p className="text-sm">Loading payment form...</p>
+          </div>
+        ) : (
+          <CardElement 
+            options={{
+              style: {
+                base: {
+                  fontSize: '16px',
                   color: '#800020',
+                  fontFamily: 'system-ui, -apple-system, sans-serif',
+                  lineHeight: '1.5',
+                  '::placeholder': {
+                    color: '#800020',
+                  },
+                },
+                invalid: {
+                  color: '#e53e3e',
                 },
               },
-            },
-            hidePostalCode: true
-          }}
-        />
+              hidePostalCode: true,
+              // Mobile-specific options
+              supportedNetworks: ['visa', 'mastercard', 'amex', 'discover'],
+              // Ensure proper mobile input handling
+              placeholder: {
+                number: '1234 5678 9012 3456',
+                expiry: 'MM/YY',
+                cvc: 'CVC',
+              },
+              // Disable autofill for better mobile compatibility
+              disableLink: false,
+              // Ensure proper focus handling on mobile
+              classes: {
+                focus: 'is-focused',
+                invalid: 'is-invalid',
+              }
+            }}
+          />
+        )}
       </div>
       <Button 
         type="submit" 
-        disabled={!stripe || processing}
+        disabled={!stripe || !stripeReady || processing}
         className="w-full bg-brand-burgundy text-white"
       >
         {processing ? 'Processing...' : `Pay ₦${amount.toLocaleString()}`}
