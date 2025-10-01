@@ -644,3 +644,67 @@ body {
   color: #155724;
   font-size: 14px;
 }
+
+/* Mobile payment form fixes */
+.mobile-payment-container {
+  /* Ensure proper mobile input handling */
+  -webkit-appearance: none;
+  appearance: none;
+  /* Prevent zoom on focus for iOS */
+  font-size: 16px !important;
+  /* Ensure proper touch handling */
+  touch-action: manipulation;
+  /* Prevent text selection issues */
+  user-select: text;
+  -webkit-user-select: text;
+  /* Additional mobile fixes */
+  min-height: 60px;
+  display: flex;
+  align-items: center;
+}
+
+/* Stripe CardElement mobile fixes */
+.mobile-payment-container .StripeElement {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background-color: white;
+  font-size: 16px !important;
+  line-height: 1.5;
+  color: #800020;
+  /* Prevent zoom on focus for iOS */
+  -webkit-appearance: none;
+  appearance: none;
+  /* Ensure proper touch handling */
+  touch-action: manipulation;
+}
+
+/* Focus states for mobile */
+.mobile-payment-container .StripeElement--focus {
+  border-color: #800020;
+  box-shadow: 0 0 0 1px #800020;
+  outline: none;
+}
+
+/* Invalid states for mobile */
+.mobile-payment-container .StripeElement--invalid {
+  border-color: #e53e3e;
+  box-shadow: 0 0 0 1px #e53e3e;
+}
+
+/* Android-specific fixes */
+@supports (-webkit-touch-callout: none) {
+  .mobile-payment-container .StripeElement {
+    -webkit-text-size-adjust: 100%;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* Ensure proper input handling on Android */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+  .mobile-payment-container .StripeElement {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+}
