@@ -13,7 +13,7 @@ const CameraQRScanner = ({ onMemberScanned }) => {
   const [scannerActive, setScannerActive] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [emailRateLimited, setEmailRateLimited] = useState(false);
-  const [emailEnabled, setEmailEnabled] = useState(false); // Disabled by default for safety
+  const [emailEnabled, setEmailEnabled] = useState(true); // Enabled by default
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -750,11 +750,11 @@ const CameraQRScanner = ({ onMemberScanned }) => {
 
       setScanResult({
         type: 'eddys_member',
-        customerName: member.full_name,
-        customerEmail: member.email,
+        customerName: '***', // Hide personal details from bouncer
+        customerEmail: '***', // Hide personal details from bouncer
         memberTier: member.member_tier || 'Standard',
         memberSince: member.created_at,
-        creditBalance: 0, // Default value since column doesn't exist
+        creditBalance: '***', // Hide credit balance from bouncer
         venueName: 'Eddys VIP Club',
         scanTime: new Date().toLocaleString(),
         status: 'verified'
