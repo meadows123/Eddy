@@ -13,6 +13,7 @@ const CameraQRScanner = ({ onMemberScanned }) => {
   const [scannerActive, setScannerActive] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [emailRateLimited, setEmailRateLimited] = useState(false);
+  const [emailEnabled, setEmailEnabled] = useState(false); // Disabled by default for safety
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -668,44 +669,48 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       }
 
       // Send email notification to customer (with rate limiting)
-      try {
-        const customerEmail = booking.profiles?.email || 'unknown@example.com';
-        const bookingId = booking.id;
-        
-        // Check if we can send an email
-        const rateLimitCheck = emailRateLimiter.canSendEmail(bookingId, customerEmail);
-        
-        if (!rateLimitCheck.canSend) {
-          console.log('🚫 Email rate limited:', rateLimitCheck.reason);
-          console.log('📊 Rate limiter stats:', emailRateLimiter.getStats());
-          setEmailRateLimited(true);
-          // Don't send email, but don't show error to user
-        } else {
-          setEmailRateLimited(false);
-          console.log('📧 Sending QR scan notification email...');
-          const notificationData = {
-            customerName: booking.profiles?.full_name || 'Valued Customer',
-            customerEmail: customerEmail,
-            venueName: booking.venues?.name || 'Unknown Venue',
-            bookingId: bookingId,
-            bookingDate: booking.booking_date,
-            startTime: booking.start_time,
-            guestCount: booking.number_of_guests,
-            tableNumber: qrData.tableNumber || 'N/A',
-            scanTime: new Date().toLocaleString()
-          };
+      if (emailEnabled) {
+        try {
+          const customerEmail = booking.profiles?.email || 'unknown@example.com';
+          const bookingId = booking.id;
           
-          await sendQRScanNotification(notificationData);
+          // Check if we can send an email
+          const rateLimitCheck = emailRateLimiter.canSendEmail(bookingId, customerEmail);
           
-          // Record that we sent an email
-          emailRateLimiter.recordEmailSent(bookingId, customerEmail);
-          
-          console.log('✅ QR scan notification email sent successfully');
-          console.log('📊 Updated rate limiter stats:', emailRateLimiter.getStats());
+          if (!rateLimitCheck.canSend) {
+            console.log('🚫 Email rate limited:', rateLimitCheck.reason);
+            console.log('📊 Rate limiter stats:', emailRateLimiter.getStats());
+            setEmailRateLimited(true);
+            // Don't send email, but don't show error to user
+          } else {
+            setEmailRateLimited(false);
+            console.log('📧 Sending QR scan notification email...');
+            const notificationData = {
+              customerName: booking.profiles?.full_name || 'Valued Customer',
+              customerEmail: customerEmail,
+              venueName: booking.venues?.name || 'Unknown Venue',
+              bookingId: bookingId,
+              bookingDate: booking.booking_date,
+              startTime: booking.start_time,
+              guestCount: booking.number_of_guests,
+              tableNumber: qrData.tableNumber || 'N/A',
+              scanTime: new Date().toLocaleString()
+            };
+            
+            await sendQRScanNotification(notificationData);
+            
+            // Record that we sent an email
+            emailRateLimiter.recordEmailSent(bookingId, customerEmail);
+            
+            console.log('✅ QR scan notification email sent successfully');
+            console.log('📊 Updated rate limiter stats:', emailRateLimiter.getStats());
+          }
+        } catch (emailError) {
+          console.error('❌ Failed to send QR scan notification email:', emailError);
+          // Don't throw error - email failure shouldn't break the scan process
         }
-      } catch (emailError) {
-        console.error('❌ Failed to send QR scan notification email:', emailError);
-        // Don't throw error - email failure shouldn't break the scan process
+      } else {
+        console.log('📧 Email sending disabled - scan processed without sending email');
       }
 
       setSuccess('✅ Booking verified! Customer can be seated.');
@@ -840,6 +845,18 @@ const CameraQRScanner = ({ onMemberScanned }) => {
             </div>
           )}
           
+          {/* Email status indicator */}
+          <div className="email-status-indicator mb-4">
+            <div className={`flex items-center justify-center p-3 rounded-lg ${emailEnabled ? 'bg-green-50 border border-green-200' : 'bg-gray-50 border border-gray-200'}`}>
+              <span className={`mr-2 ${emailEnabled ? 'text-green-600' : 'text-gray-600'}`}>
+                {emailEnabled ? '📧' : '🚫'}
+              </span>
+              <span className={`font-medium ${emailEnabled ? 'text-green-800' : 'text-gray-800'}`}>
+                Email notifications: {emailEnabled ? 'ENABLED' : 'DISABLED'}
+              </span>
+            </div>
+          </div>
+          
           {/* Email rate limit indicator */}
           {emailRateLimited && (
             <div className="rate-limit-indicator mb-4">
@@ -853,9 +870,36 @@ const CameraQRScanner = ({ onMemberScanned }) => {
           <div className="scanner-controls">
             <button 
               onClick={stopScanning}
-              className="stop-scan-btn bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded"
+              className="stop-scan-btn bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded mr-2"
             >
               ⏹️ Stop Scanning
+            </button>
+            <button 
+              onClick={() => {
+                console.log('📊 Rate limiter stats:', emailRateLimiter.getStats());
+                alert('Check console for rate limiter stats');
+              }}
+              className="debug-btn bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded mr-2"
+            >
+              📊 Debug Stats
+            </button>
+            <button 
+              onClick={() => {
+                emailRateLimiter.clearAll();
+                alert('Rate limiter data cleared');
+              }}
+              className="clear-btn bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded mr-2"
+            >
+              🧹 Clear Data
+            </button>
+            <button 
+              onClick={() => {
+                setEmailEnabled(!emailEnabled);
+                console.log('📧 Email sending', emailEnabled ? 'disabled' : 'enabled');
+              }}
+              className={`email-toggle-btn ${emailEnabled ? 'bg-green-500 hover:bg-green-600' : 'bg-gray-500 hover:bg-gray-600'} text-white px-4 py-2 rounded`}
+            >
+              {emailEnabled ? '📧 Emails ON' : '📧 Emails OFF'}
             </button>
           </div>
         </div>
