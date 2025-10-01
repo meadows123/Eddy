@@ -212,8 +212,18 @@ const CameraQRScanner = ({ onMemberScanned }) => {
           tryHarder: true
         });
         
-        if (code) {
+        if (code && code.data && code.data.trim() !== '') {
           console.log('🔍 QR Code found:', code.data);
+          
+          // Validate QR data format before processing
+          const isValidFormat = code.data.startsWith('{') || 
+                               code.data.startsWith('vipclub://') || 
+                               code.data.startsWith('oneeddy://');
+          
+          if (!isValidFormat) {
+            console.log('⚠️ Invalid QR code format, skipping...');
+            return;
+          }
           
           // Play success sound (simple ding)
           try {
@@ -315,12 +325,23 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       setEmailRateLimited(false);
       
       // Parse the QR code data
-      const qrData = parseQRCodeData(qrDataString);
-      console.log('📋 Parsed QR data:', qrData);
+      let qrData;
+      try {
+        qrData = parseQRCodeData(qrDataString);
+        console.log('📋 Parsed QR data:', qrData);
+      } catch (parseError) {
+        console.log('⚠️ QR code parsing error:', parseError.message);
+        // Silently ignore parsing errors
+        setIsProcessing(false);
+        return;
+      }
       
       // Check if qrData is valid
       if (!qrData) {
-        throw new Error('Failed to parse QR code data');
+        console.log('⚠️ Failed to parse QR code data - invalid format');
+        // Don't throw error for parse failures - just silently ignore
+        setIsProcessing(false);
+        return;
       }
       
       // Create a unique identifier for this scan
@@ -845,18 +866,6 @@ const CameraQRScanner = ({ onMemberScanned }) => {
             </div>
           )}
           
-          {/* Email status indicator */}
-          <div className="email-status-indicator mb-4">
-            <div className={`flex items-center justify-center p-3 rounded-lg ${emailEnabled ? 'bg-green-50 border border-green-200' : 'bg-gray-50 border border-gray-200'}`}>
-              <span className={`mr-2 ${emailEnabled ? 'text-green-600' : 'text-gray-600'}`}>
-                {emailEnabled ? '📧' : '🚫'}
-              </span>
-              <span className={`font-medium ${emailEnabled ? 'text-green-800' : 'text-gray-800'}`}>
-                Email notifications: {emailEnabled ? 'ENABLED' : 'DISABLED'}
-              </span>
-            </div>
-          </div>
-          
           {/* Email rate limit indicator */}
           {emailRateLimited && (
             <div className="rate-limit-indicator mb-4">
@@ -870,36 +879,9 @@ const CameraQRScanner = ({ onMemberScanned }) => {
           <div className="scanner-controls">
             <button 
               onClick={stopScanning}
-              className="stop-scan-btn bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded mr-2"
+              className="stop-scan-btn bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded"
             >
               ⏹️ Stop Scanning
-            </button>
-            <button 
-              onClick={() => {
-                console.log('📊 Rate limiter stats:', emailRateLimiter.getStats());
-                alert('Check console for rate limiter stats');
-              }}
-              className="debug-btn bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded mr-2"
-            >
-              📊 Debug Stats
-            </button>
-            <button 
-              onClick={() => {
-                emailRateLimiter.clearAll();
-                alert('Rate limiter data cleared');
-              }}
-              className="clear-btn bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded mr-2"
-            >
-              🧹 Clear Data
-            </button>
-            <button 
-              onClick={() => {
-                setEmailEnabled(!emailEnabled);
-                console.log('📧 Email sending', emailEnabled ? 'disabled' : 'enabled');
-              }}
-              className={`email-toggle-btn ${emailEnabled ? 'bg-green-500 hover:bg-green-600' : 'bg-gray-500 hover:bg-gray-600'} text-white px-4 py-2 rounded`}
-            >
-              {emailEnabled ? '📧 Emails ON' : '📧 Emails OFF'}
             </button>
           </div>
         </div>

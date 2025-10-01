@@ -1397,7 +1397,7 @@ export const sendQRScanNotification = async (scanData) => {
       
       // Email content
       message: emailContent,
-      subject: `QR Code Scanned - ${scanData.venueName}`,
+      subject: `Welcome to ${scanData.venueName} - Your Table is Ready`,
       
       // Action URLs
       viewBookingsUrl: `${window.location.origin}/profile`,
