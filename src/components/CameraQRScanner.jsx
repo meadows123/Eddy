@@ -5,6 +5,18 @@ import { sendQRScanNotification } from '@/lib/emailService.js';
 import emailRateLimiter from '@/lib/emailRateLimiter.js';
 import jsQR from 'jsqr';
 
+// Short pleasant blip sound for QR scan success
+const playSuccessBlip = () => {
+  try {
+    // Short, pleasant beep sound (0.1 seconds)
+    const successSound = new Audio("data:audio/wav;base64,UklGRhwAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQIAAAD//w==");
+    successSound.volume = 0.4;
+    successSound.play();
+  } catch (e) {
+    console.log('Audio feedback not supported');
+  }
+};
+
 const CameraQRScanner = ({ onMemberScanned }) => {
   const [isScanning, setIsScanning] = useState(false);
   const [scanResult, setScanResult] = useState(null);
@@ -21,7 +33,8 @@ const CameraQRScanner = ({ onMemberScanned }) => {
   
   // Track recently scanned QR codes to prevent duplicates
   const [recentlyScanned, setRecentlyScanned] = useState(new Set());
-  const [lastScanTime, setLastScanTime] = useState(0);
+  const lastScanTimeRef = useRef(0); // Use ref for immediate updates
+  const isProcessingRef = useRef(false); // Use ref for immediate updates
   const SCAN_COOLDOWN = 30000; // 30 seconds cooldown between scans (increased from 5s)
 
   // Initialize camera when scanner becomes active
@@ -225,13 +238,15 @@ const CameraQRScanner = ({ onMemberScanned }) => {
             return;
           }
           
-          // Play success sound (simple ding)
-          try {
+          // Play success sound (short pleasant blip)
+          playSuccessBlip();
+          
+          /*try {
             const successSound = new Audio("data:audio/wav;base64,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");
             successSound.play();
           } catch (e) {
             console.log('Audio feedback not supported');
-          }
+          }*/
 
           // Highlight QR code location with animation
           context.beginPath();
@@ -308,21 +323,29 @@ const CameraQRScanner = ({ onMemberScanned }) => {
     try {
       console.log('🔍 Processing scanned QR code:', qrDataString);
       
-      // Prevent multiple simultaneous scans
-      if (isProcessing) {
-        console.log('⏳ Already processing a scan, ignoring duplicate');
+      // Prevent multiple simultaneous scans using ref (immediate check)
+      if (isProcessingRef.current) {
+        console.log('⏳ [REF CHECK] Already processing a scan, ignoring duplicate');
         return;
       }
       
-      // Check cooldown period to prevent rapid duplicate scans
+      // Check cooldown period to prevent rapid duplicate scans using ref
       const now = Date.now();
-      if (now - lastScanTime < SCAN_COOLDOWN) {
-        console.log('⏳ Scan too soon, ignoring duplicate scan');
+      if (now - lastScanTimeRef.current < SCAN_COOLDOWN) {
+        const remaining = Math.round((SCAN_COOLDOWN - (now - lastScanTimeRef.current)) / 1000);
+        console.log(`⏳ [REF CHECK] Scan cooldown active. Please wait ${remaining} more seconds.`);
         return;
       }
       
+      // Update refs IMMEDIATELY (synchronous) to prevent race conditions
+      lastScanTimeRef.current = now;
+      isProcessingRef.current = true;
+      
+      // Update state for UI
       setIsProcessing(true);
       setEmailRateLimited(false);
+      
+      console.log('🔒 [LOCKED] Processing locked at', new Date().toISOString());
       
       // Parse the QR code data
       let qrData;
@@ -332,6 +355,7 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       } catch (parseError) {
         console.log('⚠️ QR code parsing error:', parseError.message);
         // Silently ignore parsing errors
+        isProcessingRef.current = false;
         setIsProcessing(false);
         return;
       }
@@ -340,6 +364,7 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       if (!qrData) {
         console.log('⚠️ Failed to parse QR code data - invalid format');
         // Don't throw error for parse failures - just silently ignore
+        isProcessingRef.current = false;
         setIsProcessing(false);
         return;
       }
@@ -355,8 +380,7 @@ const CameraQRScanner = ({ onMemberScanned }) => {
         return;
       }
       
-      // Update scan tracking
-      setLastScanTime(now);
+      // Update scan tracking (no need to update lastScanTime as it's now a ref)
       setRecentlyScanned(prev => {
         const newSet = new Set(prev);
         newSet.add(scanId);
@@ -390,7 +414,9 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       setError(err.message);
       setSuccess(null);
     } finally {
+      isProcessingRef.current = false;
       setIsProcessing(false);
+      console.log('🔓 [UNLOCKED] Processing unlocked at', new Date().toISOString());
     }
   };
 
@@ -682,30 +708,36 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       setScanResult(scanResultData);
 
       // Play success sound for successful verification
-      try {
+      playSuccessBlip();
+      
+      /*try{
         const successSound = new Audio("data:audio/wav;base64,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");
         successSound.play();
       } catch (e) {
         console.log('Audio feedback not supported');
-      }
+      }*/
 
       // Send email notification to customer (with rate limiting)
       if (emailEnabled) {
+        console.log('📧 [EMAIL CHECK] Starting email check process for booking:', booking.id);
         try {
           const customerEmail = booking.profiles?.email || 'unknown@example.com';
           const bookingId = booking.id;
           
+          console.log('📧 [EMAIL CHECK] Customer email:', customerEmail, 'Booking ID:', bookingId);
+          
           // Check if we can send an email
           const rateLimitCheck = emailRateLimiter.canSendEmail(bookingId, customerEmail);
+          console.log('📧 [EMAIL CHECK] Rate limit check result:', rateLimitCheck);
           
           if (!rateLimitCheck.canSend) {
-            console.log('🚫 Email rate limited:', rateLimitCheck.reason);
+            console.log('🚫 [CLIENT] Email rate limited:', rateLimitCheck.reason);
             console.log('📊 Rate limiter stats:', emailRateLimiter.getStats());
             setEmailRateLimited(true);
             // Don't send email, but don't show error to user
           } else {
             setEmailRateLimited(false);
-            console.log('📧 Sending QR scan notification email...');
+            console.log('📧 [SENDING] Attempting to send QR scan notification email...');
             const notificationData = {
               customerName: booking.profiles?.full_name || 'Valued Customer',
               customerEmail: customerEmail,
@@ -718,24 +750,36 @@ const CameraQRScanner = ({ onMemberScanned }) => {
               scanTime: new Date().toLocaleString()
             };
             
-            await sendQRScanNotification(notificationData);
+            console.log('📧 [SENDING] Calling sendQRScanNotification with data:', notificationData);
+            
+            const emailResult = await sendQRScanNotification(notificationData);
+            
+            console.log('📧 [RESULT] Email send result:', emailResult);
             
             // Record that we sent an email
             emailRateLimiter.recordEmailSent(bookingId, customerEmail);
             
-            console.log('✅ QR scan notification email sent successfully');
+            console.log('✅ [SUCCESS] QR scan notification email sent successfully');
             console.log('📊 Updated rate limiter stats:', emailRateLimiter.getStats());
           }
         } catch (emailError) {
-          console.error('❌ Failed to send QR scan notification email:', emailError);
+          console.error('❌ [ERROR] Failed to send QR scan notification email:', {
+            error: emailError,
+            message: emailError.message,
+            stack: emailError.stack
+          });
           // Don't throw error - email failure shouldn't break the scan process
         }
       } else {
-        console.log('📧 Email sending disabled - scan processed without sending email');
+        console.log('📧 [DISABLED] Email sending disabled - scan processed without sending email');
       }
 
       setSuccess('✅ Booking verified! Customer can be seated.');
       setError(null);
+      
+      // Stop scanning after successful scan to prevent duplicates
+      console.log('🛑 Stopping scanner after successful scan');
+      stopScanning();
 
     } catch (err) {
       console.error('❌ Error processing booking scan:', err);
@@ -782,15 +826,21 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       });
 
       // Play success sound for successful member verification
-      try {
+      playSuccessBlip();
+      
+      /*try{
         const successSound = new Audio("data:audio/wav;base64,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");
         successSound.play();
       } catch (e) {
         console.log('Audio feedback not supported');
-      }
+      }*/
 
       setSuccess('✅ Eddys Member verified! Welcome to the club.');
       setError(null);
+      
+      // Stop scanning after successful scan to prevent duplicates
+      console.log('🛑 Stopping scanner after successful member scan');
+      stopScanning();
 
     } catch (err) {
       console.error('❌ Error processing member scan:', err);

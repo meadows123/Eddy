@@ -1356,17 +1356,12 @@ Website: ${window.location.origin}
 };
 
 /**
- * Send QR scan notification email to customer
+ * Send QR scan notification email to customer via Supabase Edge Function
  * @param {Object} scanData - QR scan data including booking and customer info
- * @returns {Promise<Object>} - EmailJS response
+ * @returns {Promise<Object>} - Supabase response
  */
 export const sendQRScanNotification = async (scanData) => {
   try {
-    // Check if EmailJS is configured
-    if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.templateId || !EMAILJS_CONFIG.publicKey) {
-      throw new Error('EmailJS configuration incomplete');
-    }
-
     // Validate customer email
     const customerEmail = scanData.customerEmail || scanData.customer?.email;
     if (!customerEmail || !customerEmail.includes('@')) {
@@ -1374,69 +1369,45 @@ export const sendQRScanNotification = async (scanData) => {
       throw new Error('Invalid customer email address');
     }
 
-    console.log('📧 [QR SCAN] Sending notification email to:', customerEmail);
+    console.log('📧 [QR SCAN] Sending notification email via Supabase Edge Function to:', customerEmail);
 
-    // Generate email content using the template
-    const emailContent = qrScanNotificationTemplate(scanData);
-
-    // Prepare template parameters for EmailJS
-    const templateParams = {
-      // EmailJS required fields
-      customerEmail: customerEmail,
-      to_name: scanData.customerName || 'Valued Customer',
-      
-      // QR Scan Information
-      customerName: scanData.customerName || 'Valued Customer',
-      venueName: scanData.venueName || 'Unknown Venue',
-      bookingId: scanData.bookingId || 'Unknown',
-      bookingDate: scanData.bookingDate || 'Unknown',
-      startTime: scanData.startTime || 'Unknown',
-      guestCount: scanData.guestCount || 'Unknown',
-      tableNumber: scanData.tableNumber || 'Unknown',
-      scanTime: scanData.scanTime || new Date().toLocaleString(),
-      
-      // Email content
-      message: emailContent,
+    // Prepare data for Supabase edge function
+    const emailData = {
+      to: customerEmail,
       subject: `Welcome to ${scanData.venueName} - Your Table is Ready`,
-      
-      // Action URLs
-      viewBookingsUrl: `${window.location.origin}/profile`,
-      websiteUrl: window.location.origin,
-      supportUrl: 'mailto:info@oneeddy.com',
-      securityUrl: 'mailto:security@oneeddy.com'
+      template: 'qr-scan-notification',
+      data: {
+        venueName: scanData.venueName || 'Unknown Venue',
+        tableNumber: scanData.tableNumber || 'N/A',
+        scanTime: scanData.scanTime || new Date().toLocaleString(),
+        bookingId: scanData.bookingId || undefined, // For rate limiting
+      }
     };
 
-    console.log('📧 [QR SCAN] Template parameters prepared:', {
-      customerEmail: templateParams.customerEmail,
-      venueName: templateParams.venueName,
-      bookingId: templateParams.bookingId,
-      scanTime: templateParams.scanTime
+    console.log('📧 [QR SCAN] Calling Supabase edge function with data:', emailData);
+
+    // Call Supabase edge function
+    const { data, error } = await supabase.functions.invoke('send-email', {
+      body: emailData
     });
 
-    // Optimize email delivery
-    const optimizedParams = optimizeEmailDelivery(templateParams);
+    if (error) {
+      console.error('❌ [QR SCAN] Supabase edge function error:', error);
+      throw error;
+    }
 
-    // Send email using EmailJS
-    const response = await emailjs.send(
-      EMAILJS_CONFIG.serviceId,
-      EMAILJS_CONFIG.templateId,
-      optimizedParams
-    );
-
-    console.log('✅ [QR SCAN] Notification email sent successfully:', {
-      status: response.status,
-      text: response.text,
+    console.log('✅ [QR SCAN] Notification email sent successfully via Supabase:', {
       customerEmail: customerEmail,
       venueName: scanData.venueName,
-      bookingId: scanData.bookingId
+      tableNumber: scanData.tableNumber,
+      response: data
     });
 
     return {
       success: true,
-      messageId: response.text,
       customerEmail: customerEmail,
       venueName: scanData.venueName,
-      bookingId: scanData.bookingId
+      tableNumber: scanData.tableNumber
     };
 
   } catch (error) {
@@ -1444,9 +1415,7 @@ export const sendQRScanNotification = async (scanData) => {
       error: error.message,
       customerEmail: scanData.customerEmail,
       venueName: scanData.venueName,
-      bookingId: scanData.bookingId,
-      status: error.status,
-      text: error.text
+      tableNumber: scanData.tableNumber
     });
     
     throw error;

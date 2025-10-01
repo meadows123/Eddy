@@ -1,6 +1,6 @@
 // VenueOwnerLogin.jsx - Updated to fix auth.users query issue
 // Cache bust: 2024-01-15 - Removed direct auth.users queries
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Store, Mail, Lock, ArrowRight, Eye, EyeOff } from 'lucide-react';
@@ -15,12 +15,59 @@ const VenueOwnerLogin = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
   const [error, setError] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Check if user is already logged in and redirect automatically
+  useEffect(() => {
+    const checkExistingSession = async () => {
+      try {
+        console.log('🔍 Checking for existing session...');
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          console.error('Session check error:', sessionError);
+          setCheckingAuth(false);
+          return;
+        }
+
+        if (session && session.user) {
+          console.log('✅ Found existing session for user:', session.user.email);
+          
+          // Check if user is a venue owner
+          const { data: venueOwners, error: venueOwnerError } = await supabase
+            .from('venue_owners')
+            .select('*')
+            .eq('user_id', session.user.id)
+            .eq('status', 'active');
+
+          if (!venueOwnerError && venueOwners && venueOwners.length > 0) {
+            console.log('✅ User is a venue owner, redirecting to dashboard...');
+            toast({
+              title: 'Welcome back!',
+              description: 'Redirecting to your dashboard...',
+            });
+            navigate('/venue-owner/dashboard', { replace: true });
+            return;
+          }
+          
+          console.log('ℹ️ User is not a venue owner');
+        }
+        
+        setCheckingAuth(false);
+      } catch (error) {
+        console.error('Error checking session:', error);
+        setCheckingAuth(false);
+      }
+    };
+
+    checkExistingSession();
+  }, [navigate, toast]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -308,6 +355,18 @@ const VenueOwnerLogin = () => {
       setLoading(false);
     }
   };
+
+  // Show loading screen while checking for existing session
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-burgundy mx-auto mb-4"></div>
+          <p className="text-brand-burgundy/70">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center py-4 px-4 sm:py-12 sm:px-6 lg:px-8">
