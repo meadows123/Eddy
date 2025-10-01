@@ -118,7 +118,7 @@ export function generateEmailButton(text, deepLinkPath, params = {}, fallbackPat
   const { appDeepLink, webUrl } = generateSimpleDeepLink(deepLinkPath, params);
   
   return `
-    <a href="${appDeepLink}" class="confirm-button" id="deepLinkButton" style="
+    <a href="${appDeepLink}" class="confirm-button" onclick="handleDeepLink(event, '${appDeepLink}', '${webUrl}')" style="
       display: inline-block;
       background: linear-gradient(135deg, #800020 0%, #A71D2A 100%);
       color: #FFF5E6;
@@ -136,43 +136,54 @@ export function generateEmailButton(text, deepLinkPath, params = {}, fallbackPat
     </a>
     
     <script>
-    // Deep linking logic for email templates
-    (function() {
-      const button = document.getElementById('deepLinkButton');
-      const webFallbackUrl = '${webUrl}';
+    // Enhanced deep linking logic with better mobile app detection
+    function handleDeepLink(event, appUrl, webUrl) {
+      event.preventDefault();
       
-      function tryOpenMobileApp() {
-        // Check if we're on mobile
-        if (/Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
-          console.log('📱 Mobile detected, trying mobile app...');
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+      const isAndroid = /Android/i.test(navigator.userAgent);
+      
+      console.log('🔍 Device detection:', { isMobile, isIOS, isAndroid });
+      
+      if (isMobile) {
+        console.log('📱 Mobile device detected');
+        console.log('🚀 Attempting to open mobile app:', appUrl);
+        
+        // Track if app opened
+        let appOpened = false;
+        let startTime = Date.now();
+        
+        // Try to open the app
+        window.location.href = appUrl;
+        
+        // Check if we left the page (app opened)
+        const checkInterval = setInterval(function() {
+          if (document.hidden || document.webkitHidden) {
+            console.log('✅ App opened successfully!');
+            appOpened = true;
+            clearInterval(checkInterval);
+          }
+        }, 100);
+        
+        // Fallback to web after timeout
+        setTimeout(function() {
+          clearInterval(checkInterval);
           
-          // Try to open mobile app
-          const mobileAppUrl = '${appDeepLink}';
-          console.log(' Attempting to open:', mobileAppUrl);
-          
-          // Use window.open to try the deep link
-          const appWindow = window.open(mobileAppUrl, '_self');
-          
-          // Set timeout to redirect to web app if mobile app doesn't open
-          setTimeout(function() {
-            console.log('⏰ Mobile app didn\'t open, redirecting to web app');
-            window.location.href = webFallbackUrl;
-          }, 2000);
-          
-        } else {
-          // On desktop, go directly to web app
-          console.log('💻 Desktop detected, going to web app');
-          window.location.href = webFallbackUrl;
-        }
+          // If page is still visible, app didn't open
+          if (!appOpened && !document.hidden) {
+            console.log('⏰ App not installed or failed to open');
+            console.log('🌐 Redirecting to web app:', webUrl);
+            window.location.href = webUrl;
+          }
+        }, 2500);
+        
+      } else {
+        // Desktop - go directly to web
+        console.log('💻 Desktop detected, opening web app');
+        window.location.href = webUrl;
       }
-      
-      // Add click event
-      button.addEventListener('click', function(e) {
-        e.preventDefault();
-        console.log('🖱️ Button clicked, starting deep link process...');
-        tryOpenMobileApp();
-      });
-    })();
+    }
     </script>
   `;
 }

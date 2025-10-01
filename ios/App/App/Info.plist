@@ -47,5 +47,16 @@
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>We need access to your camera to scan QR codes for venue entry.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>oneeddy</string>
+			</array>
+			<key>CFBundleURLName</key>
+			<string>com.oneeddy.members</string>
+		</dict>
+	</array>
 </dict>
 </plist>
