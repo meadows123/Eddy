@@ -127,13 +127,6 @@ export const sendBookingConfirmation = async (booking, venue, customer, qrCodeIm
 
 export const sendVenueOwnerNotification = async (booking, venue, customer, venueOwnerData = null) => {
   try {
-    // Check if EmailJS is configured
-    if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.templateId || !EMAILJS_CONFIG.publicKey) {
-      throw new Error('EmailJS configuration incomplete');
-    }
-
-    const emailData = generateEmailData(booking, venue, customer);
-    
     // Create venue owner data with fallbacks
     const ownerData = {
       name: venueOwnerData?.owner_name || venueOwnerData?.name || 'Venue Manager',
@@ -149,23 +142,38 @@ export const sendVenueOwnerNotification = async (booking, venue, customer, venue
       emailIsValid: ownerData.email && ownerData.email.includes('@')
     });
     
-    const ownerTemplate = venueOwnerNotificationTemplate(emailData, ownerData);
-    
-    // Send to venue owner
-    const result = await emailjs.send(
-      EMAILJS_CONFIG.serviceId,
-      EMAILJS_CONFIG.templateId,
-      {
-        to_email: ownerData.email,
-        to_name: ownerData.name,
+    // Use Supabase Edge Function for venue owner notifications
+    const { data, error } = await supabase.functions.invoke('send-email', {
+      body: {
+        to: ownerData.email,
         subject: `New Booking - ${venue.name}`,
-        html_content: ownerTemplate,
-        from_name: 'Eddys Members',
-        reply_to: 'info@oneeddy.com'
+        template: 'venue-owner-notification',
+        data: {
+          venueName: venue.name || 'Venue',
+          venueAddress: venue.address || 'Lagos, Nigeria',
+          venuePhone: venue.contact_phone || '+234 XXX XXX XXXX',
+          venueEmail: venue.contact_email || 'info@oneeddy.com',
+          venueOwnerName: ownerData.name,
+          venueOwnerEmail: ownerData.email,
+          customerName: customer.full_name || customer.name || 'Guest',
+          customerEmail: customer.email || 'guest@example.com',
+          customerPhone: customer.phone || 'N/A',
+          bookingId: booking.id,
+          bookingDate: booking.booking_date,
+          bookingTime: `${booking.start_time} - ${booking.end_time}`,
+          numberOfGuests: booking.number_of_guests || 1,
+          tableNumber: booking.table_number || 'N/A',
+          totalAmount: booking.total_amount || 'N/A',
+          bookingStatus: booking.status || 'confirmed'
+        }
       }
-    );
+    });
 
-    return result;
+    if (error) {
+      throw error;
+    }
+
+    return data;
   } catch (error) {
     throw error;
   }
