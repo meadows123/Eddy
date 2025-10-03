@@ -300,10 +300,8 @@ const SplitPaymentForm = ({
           console.error('❌ Error fetching main booker profile:', mainBookerError);
         } else if (mainBookerProfile?.email) {
           console.log('📧 Sending confirmation to main booker:', mainBookerProfile.email);
-          await sendBookingConfirmation({
-            userEmail: mainBookerProfile.email,
-            userName: `${mainBookerProfile.first_name} ${mainBookerProfile.last_name}`.trim() || currentUser.email,
-            bookingDetails: {
+          await sendBookingConfirmation(
+            {
               ...bookingData,
               isSplitPayment: true,
               splitAmount: myAmount,
@@ -313,8 +311,13 @@ const SplitPaymentForm = ({
               booking_date: bookingData.booking_date,
               start_time: bookingData.start_time,
               end_time: bookingData.end_time
+            },
+            bookingData.venue,
+            {
+              email: mainBookerProfile.email,
+              full_name: `${mainBookerProfile.first_name} ${mainBookerProfile.last_name}`.trim() || currentUser.email
             }
-          });
+          );
         } else {
           console.warn('⚠️ No email found for main booker');
         }
@@ -335,10 +338,8 @@ const SplitPaymentForm = ({
 
           if (recipientProfile?.email) {
             console.log('📧 Sending confirmation to split recipient:', recipientProfile.email);
-            await sendBookingConfirmation({
-              userEmail: recipientProfile.email,
-              userName: recipient.displayName || `${recipientProfile.first_name} ${recipientProfile.last_name}`.trim(),
-              bookingDetails: {
+            await sendBookingConfirmation(
+              {
                 ...bookingData,
                 isSplitPayment: true,
                 splitAmount: splitAmounts[splitRecipients.indexOf(recipient)],
@@ -349,8 +350,13 @@ const SplitPaymentForm = ({
                 booking_date: bookingData.booking_date,
                 start_time: bookingData.start_time,
                 end_time: bookingData.end_time
+              },
+              bookingData.venue,
+              {
+                email: recipientProfile.email,
+                full_name: recipient.displayName || `${recipientProfile.first_name} ${recipientProfile.last_name}`.trim()
               }
-            });
+            );
           } else {
             console.warn('⚠️ No email found for recipient:', recipient.displayName);
           }
@@ -360,9 +366,8 @@ const SplitPaymentForm = ({
         const venueEmail = bookingData.venue?.owner?.email || bookingData.venue?.contact_email;
         if (venueEmail) {
           console.log('📧 Sending notification to venue owner:', venueEmail);
-          await sendVenueOwnerNotification({
-            venueEmail: venueEmail,
-            bookingDetails: {
+          await sendVenueOwnerNotification(
+            {
               ...bookingData,
               isSplitPayment: true,
               splitCount: splitCount,
@@ -371,8 +376,16 @@ const SplitPaymentForm = ({
               booking_date: bookingData.booking_date,
               start_time: bookingData.start_time,
               end_time: bookingData.end_time
+            },
+            {
+              ...bookingData.venue,
+              contact_email: venueEmail
+            },
+            {
+              email: currentUser.email,
+              full_name: currentUser.user_metadata?.full_name || currentUser.email
             }
-          });
+          );
         } else {
           console.warn('⚠️ No venue owner email found');
         }
