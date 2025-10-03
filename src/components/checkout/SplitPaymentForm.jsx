@@ -7,9 +7,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabase';
-import { useAuth } from '@/contexts/AuthContext';
-// Simple inline validation - no external file needed
-// Remove EmailJS imports - we'll use Edge Function directly
 import { 
   Plus, 
   Minus, 
@@ -23,154 +20,15 @@ import {
   Check,
   Clock
 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-
-// First, add Stripe imports at the top
-import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { loadStripe } from '@stripe/stripe-js';
-import { stripePromise } from '@/lib/stripe';
-
-// Add PaymentForm component
-const PaymentForm = ({ amount, onSuccess }) => {
-  const stripe = useStripe();
-  const elements = useElements();
-  const [processing, setProcessing] = useState(false);
-  const [error, setError] = useState(null);
-  const [stripeReady, setStripeReady] = useState(false);
-
-  // Check if Stripe is ready
-  useEffect(() => {
-    if (stripe && elements) {
-      console.log('✅ Stripe Elements ready (Split Payment)');
-      setStripeReady(true);
-    } else {
-      console.log('⏳ Waiting for Stripe Elements... (Split Payment)');
-      setStripeReady(false);
-    }
-  }, [stripe, elements]);
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setProcessing(true);
-
-    if (!stripe || !elements) {
-      setError('Stripe is not loaded');
-      setProcessing(false);
-      return;
-    }
-
-    try {
-      const { error: stripeError, paymentMethod } = await stripe.createPaymentMethod({
-        type: 'card',
-        card: elements.getElement(CardElement),
-        billing_details: {
-          // Add any billing details if needed
-        }
-      });
-
-      if (stripeError) {
-        throw stripeError;
-      }
-
-      // Pass both paymentMethod and stripe instance to onSuccess
-      await onSuccess(paymentMethod.id, stripe);
-    } catch (err) {
-      console.error('Payment error:', err);
-      setError(err.message);
-    } finally {
-      setProcessing(false);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div 
-        className="p-4 border rounded-lg bg-white mobile-payment-container"
-        style={{
-          // Ensure proper mobile input handling
-          WebkitAppearance: 'none',
-          appearance: 'none',
-          // Prevent zoom on focus for iOS
-          fontSize: '16px',
-          // Ensure proper touch handling
-          touchAction: 'manipulation',
-          // Prevent text selection issues
-          userSelect: 'text',
-          WebkitUserSelect: 'text',
-          // Additional mobile fixes
-          minHeight: '60px',
-          display: 'flex',
-          alignItems: 'center',
-        }}
-      >
-        {!stripeReady ? (
-          <div className="w-full text-center text-gray-500">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-burgundy mx-auto mb-2"></div>
-            <p className="text-sm">Loading payment form...</p>
-          </div>
-        ) : (
-          <CardElement 
-            options={{
-              style: {
-                base: {
-                  fontSize: '16px',
-                  color: '#800020',
-                  fontFamily: 'system-ui, -apple-system, sans-serif',
-                  lineHeight: '1.5',
-                  '::placeholder': {
-                    color: '#800020',
-                  },
-                },
-                invalid: {
-                  color: '#e53e3e',
-                },
-              },
-              hidePostalCode: true,
-              // Mobile-specific options
-              supportedNetworks: ['visa', 'mastercard', 'amex', 'discover'],
-              // Ensure proper mobile input handling
-              placeholder: {
-                number: '1234 5678 9012 3456',
-                expiry: 'MM/YY',
-                cvc: 'CVC',
-              },
-              // Disable autofill for better mobile compatibility
-              disableLink: false,
-              // Ensure proper focus handling on mobile
-              classes: {
-                focus: 'is-focused',
-                invalid: 'is-invalid',
-              }
-            }}
-          />
-        )}
-      </div>
-      <Button 
-        type="submit" 
-        disabled={!stripe || !stripeReady || processing}
-        className="w-full bg-brand-burgundy text-white"
-      >
-        {processing ? 'Processing...' : `Pay ₦${amount.toLocaleString()}`}
-      </Button>
-      {error && (
-        <div className="text-red-500 text-sm bg-red-50 p-3 rounded-lg">
-          {error}
-        </div>
-      )}
-    </form>
-  );
-};
 
 const SplitPaymentForm = ({ 
   totalAmount, 
   onSplitCreated, 
   user, 
   bookingId, 
-  createBookingIfNeeded
+  createBookingIfNeeded // new prop
 }) => {
   const { toast } = useToast();
-  const navigate = useNavigate();
-  const { loading: authLoading } = useAuth();
   const [splitCount, setSplitCount] = useState(2);
   const [splitAmounts, setSplitAmounts] = useState([]);
   const [splitRecipients, setSplitRecipients] = useState([]);
@@ -180,147 +38,23 @@ const SplitPaymentForm = ({
   const [showSearchDialog, setShowSearchDialog] = useState(false);
   const [currentSplitIndex, setCurrentSplitIndex] = useState(0);
   const [isCreating, setIsCreating] = useState(false);
-  // Add this state for tracking split payment creation
-  const [splitRequestsCreated, setSplitRequestsCreated] = useState(false);
-  const [createdSplitRequests, setCreatedSplitRequests] = useState([]);
-  const [searchTimeout, setSearchTimeout] = useState(null);
 
-  // Function to check if all payments are complete and send completion emails
-  const checkAllPaymentsComplete = async (bookingId) => {
-    try {
-      const { data: requests } = await supabase
-        .from('split_payment_requests')
-        .select('*')
-        .eq('booking_id', bookingId);
-        
-      const allPaid = requests.every(req => req.status === 'paid');
-      
-      if (allPaid) {
-        // Update booking status to confirmed
-        await supabase
-          .from('bookings')
-          .update({ status: 'confirmed' })
-          .eq('id', bookingId);
-
-        // Get booking and venue data for emails
-        const { data: bookingData } = await supabase
-          .from('bookings')
-          .select(`
-            *,
-            venues (
-              name,
-              address,
-              city,
-              contact_email,
-              contact_phone
-            ),
-            profiles (
-              first_name,
-              last_name,
-              email
-            )
-          `)
-          .eq('id', bookingId)
-          .single();
-
-        if (bookingData) {
-          // Send completion email to initiator via Edge Function
-          const { data: completionEmailResult, error: completionEmailError } = await supabase.functions.invoke('send-email', {
-            body: {
-                                            to: bookingData.profiles?.email || 'initiator@example.com',
-                              subject: `Booking Confirmed! - ${bookingData.venues?.name || 'Your Venue'}`,
-                              template: 'split-payment-complete',
-                              data: {
-                                // Recipient info
-                                email: bookingData.profiles?.email || 'initiator@example.com',
-                                customerName: `${bookingData.profiles?.first_name || ''} ${bookingData.profiles?.last_name || ''}`.trim() || 'Guest',
-                
-                // Booking details
-                bookingId: bookingData.id,
-                bookingDate: bookingData.booking_date || bookingData.bookingDate,
-                bookingTime: bookingData.start_time || bookingData.booking_time,
-                guestCount: bookingData.number_of_guests || bookingData.guest_count,
-                totalAmount: bookingData.total_amount || bookingData.totalAmount,
-                initiatorAmount: requests.find(req => req.requester_id === req.recipient_id)?.amount || 0,
-                
-                // Venue details
-                venueName: bookingData.venues?.name,
-                venueAddress: bookingData.venues?.address,
-                venuePhone: bookingData.venues?.contact_phone,
-                
-                // Dashboard URL
-                dashboardUrl: `${window.location.origin}/profile`
-              }
-            }
-          });
-
-          if (completionEmailError) {
-            console.error('❌ Error sending split payment completion email:', completionEmailError);
-          } else {
-          }
-
-        }
-      }
-    } catch (error) {
-      console.error('❌ Error checking payment completion:', error);
-    }
-  };
-  // Add state for realBookingId
-  const [realBookingId, setRealBookingId] = useState(null);
-  // Add myAmount to the state variables
-  const [myAmount, setMyAmount] = useState(0);
-
-
-  // Update the useEffect to set myAmount in state
+  // Initialize split amounts when count changes
   useEffect(() => {
-    
-    // Separate table price and service charge
-    const serviceCharge = 25; // Service charge is ₦25
-    const tablePrice = totalAmount - serviceCharge; // Get the base table price
-    
-    // Calculate split for table price
-    const tablePricePerPerson = Math.ceil(tablePrice / splitCount);
-    
-    // Each person pays their share of table price + service charge
-    const amountPerPerson = tablePricePerPerson + serviceCharge;
+    const amountPerPerson = Math.ceil(totalAmount / splitCount);
     const amounts = Array(splitCount - 1).fill(amountPerPerson); // Exclude current user
     
-    // Your amount is your share of table + service charge
-    const myTableShare = tablePricePerPerson;
-    const calculatedMyAmount = myTableShare + serviceCharge;
-    
+    // Adjust the last amount to account for rounding
+    const totalSplit = amounts.reduce((sum, amount) => sum + amount, 0);
+    const remainingAmount = totalAmount - totalSplit;
     
     setSplitAmounts(amounts);
     setSplitRecipients(Array(splitCount - 1).fill(null));
-    setMyAmount(calculatedMyAmount); // Set myAmount in state
   }, [splitCount, totalAmount]);
-
-  // Cleanup search timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (searchTimeout) {
-        clearTimeout(searchTimeout);
-      }
-    };
-  }, [searchTimeout]);
 
   const handleSplitCountChange = (newCount) => {
     if (newCount < 2) return;
     setSplitCount(newCount);
-  };
-
-  const debouncedSearch = (query) => {
-    // Clear existing timeout
-    if (searchTimeout) {
-      clearTimeout(searchTimeout);
-    }
-    
-    // Set new timeout
-    const timeout = setTimeout(() => {
-      searchUsers(query);
-    }, 300); // 300ms delay
-    
-    setSearchTimeout(timeout);
   };
 
   const searchUsers = async (query) => {
@@ -329,32 +63,10 @@ const SplitPaymentForm = ({
       return;
     }
 
-    // Simple inline sanitization - remove dangerous characters
-    const sanitizedQuery = query.trim()
-      .replace(/[^a-zA-Z0-9\s@.'-]/g, '')
-      .substring(0, 50)
-      .replace(/\s+/g, ' ');
-    
-    // Validate sanitized query length
-    if (sanitizedQuery.length < 2) {
-      console.log('🔍 Query too short, clearing results');
-      setSearchResults([]);
-      return;
-    }
-
-    console.log('🔍 Starting user search with query:', sanitizedQuery);
-    console.log('🔍 User object:', user);
-    console.log('🔍 Auth loading:', authLoading);
-    
+    console.log('Searching users with user object:', user);
     setIsSearching(true);
     try {
-      // Validate user exists and is authenticated (only check if auth is loaded)
-      if (authLoading) {
-        console.log('🔍 Auth still loading, skipping search');
-        setSearchResults([]);
-        return;
-      }
-      
+      // Validate user exists and is authenticated
       if (!user?.id) {
         console.error('No user ID available for search. User object:', user);
         toast({
@@ -366,32 +78,22 @@ const SplitPaymentForm = ({
         return;
       }
 
-      // Simple rate limiting - you could add this later if needed
-      // For now, the basic sanitization is sufficient for SQL injection protection
+             const { data, error } = await supabase
+         .from('profiles')
+         .select('id, first_name, last_name, phone')
+         .or(`first_name.ilike.%${query}%,last_name.ilike.%${query}%,phone.ilike.%${query}%`)
+         .neq('id', user.id) // Exclude current user
+         .limit(10);
 
-      console.log('🔍 Executing database query for profiles...');
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, first_name, last_name, phone')
-        .or(`first_name.ilike.%${sanitizedQuery}%,last_name.ilike.%${sanitizedQuery}%,phone.ilike.%${sanitizedQuery}%`)
-        .neq('id', user.id) // Exclude current user
-        .limit(10);
+      if (error) throw error;
 
-      console.log('🔍 Database query result:', { data, error });
+             // Transform results
+       const results = (data || []).map(profile => ({
+         ...profile,
+         displayName: `${profile.first_name} ${profile.last_name}`.trim(),
+         type: 'profile'
+       }));
 
-      if (error) {
-        console.error('🔍 Database query error:', error);
-        throw error;
-      }
-
-      // Transform results
-      const results = (data || []).map(profile => ({
-        ...profile,
-        displayName: `${profile.first_name} ${profile.last_name}`.trim(),
-        type: 'profile'
-      }));
-
-      console.log('🔍 Transformed results:', results);
       setSearchResults(results);
     } catch (error) {
       console.error('Error searching users:', error);
@@ -421,11 +123,7 @@ const SplitPaymentForm = ({
   };
 
   const openSearchDialog = (index) => {
-    // Check if user is authenticated before opening search dialog (only if auth is loaded)
-    if (authLoading) {
-      return;
-    }
-    
+    // Check if user is authenticated before opening search dialog
     if (!user?.id) {
       toast({
         title: "Authentication Required",
@@ -439,169 +137,135 @@ const SplitPaymentForm = ({
   };
 
   const createSplitPaymentRequests = async () => {
+    if (!user?.id) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to create split payment requests.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validate that all recipients are selected
+    const hasEmptyRecipients = splitRecipients.some(recipient => !recipient);
+    if (hasEmptyRecipients) {
+      toast({
+        title: "Missing Recipients",
+        description: "Please select recipients for all split payments.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+         // Ensure user profile exists in profiles table
+     let userProfileId = user.id;
+     const { data: existingProfile, error: profileError } = await supabase
+       .from('profiles')
+       .select('id')
+       .eq('id', user.id)
+       .single();
+
+     if (profileError && profileError.code === 'PGRST116') {
+       // Profile doesn't exist, create it
+       const { data: newProfile, error: createError } = await supabase
+         .from('profiles')
+         .insert([{ 
+           id: user.id,
+           first_name: user.user_metadata?.first_name || user.user_metadata?.full_name?.split(' ')[0] || '',
+           last_name: user.user_metadata?.last_name || user.user_metadata?.full_name?.split(' ').slice(1).join(' ') || '',
+           phone: user.user_metadata?.phone || ''
+         }])
+         .select('id')
+         .single();
+
+       if (createError) {
+         console.error('Error creating user profile:', createError);
+         toast({
+           title: "Profile Error",
+           description: "Failed to create user profile. Please try again.",
+           variant: "destructive"
+         });
+         return;
+       }
+       userProfileId = newProfile.id;
+     } else if (profileError) {
+       console.error('Error checking user profile:', profileError);
+       toast({
+         title: "Profile Error",
+         description: "Failed to verify user profile. Please try again.",
+         variant: "destructive"
+       });
+       return;
+     }
+
+    setIsCreating(true);
     try {
-      let newBookingId = bookingId;
-
-      if (!newBookingId && typeof createBookingIfNeeded === 'function') {
-        newBookingId = await createBookingIfNeeded();
+      let realBookingId = bookingId;
+      if (!realBookingId && typeof createBookingIfNeeded === 'function') {
+        realBookingId = await createBookingIfNeeded();
       }
+      if (!realBookingId) throw new Error('Booking could not be created.');
 
-      if (!newBookingId) {
-        console.error('No booking ID available');
-        throw new Error('Booking could not be created.');
-      }
-
-      // Store the bookingId
-      setRealBookingId(newBookingId);
-
-      // CRITICAL: Verify the booking actually exists in the database before proceeding
-      const { data: bookingVerification, error: verifyError } = await supabase
-        .from('bookings')
-        .select('id, status')
-        .eq('id', newBookingId)
-        .single();
-        
-      if (verifyError || !bookingVerification) {
-        console.error('❌ Booking verification failed:', { verifyError, bookingVerification });
-        
-        // Show all bookings for debugging
-        const { data: allBookings } = await supabase
-          .from('bookings')
-          .select('id, status, created_at')
-          .order('created_at', { ascending: false })
-          .limit(5);
-        
-        throw new Error(`Booking ${newBookingId} was not properly saved to database. Please try again.`);
-      }
-      
-
-      // Ensure we have recipients before creating requests
-      if (!splitRecipients || splitRecipients.length === 0) {
-        throw new Error('Please select recipients for split payment.');
-      }
-
-      // Create split requests
-      const userProfileId = user.id;
-      
-      // Create initiator payment record (status: 'paid' for initiator)
-      const initiatorRequest = {
-        booking_id: newBookingId,
-        requester_id: userProfileId,
-        recipient_id: userProfileId, // Initiator is also a recipient
-        recipient_phone: user?.phone || null,
-        amount: myAmount,
-        status: 'paid',
-        paid_at: new Date().toISOString()
-      };
-      
-      // Create recipient payment requests (status: 'pending')
-      const recipientRequests = splitRecipients.map((recipient, index) => ({
-        booking_id: newBookingId,
-        requester_id: userProfileId,
-        recipient_id: recipient.id,
-        recipient_phone: recipient.phone || null,
-        amount: splitAmounts[index],
-        status: 'pending'
-      }));
-      
-      // Combine all requests
-      const allRequests = [initiatorRequest, ...recipientRequests];
-
+             const splitRequests = splitRecipients.map((recipient, index) => ({
+         booking_id: realBookingId,
+         requester_id: userProfileId,
+         recipient_id: recipient.id,
+         recipient_phone: recipient.phone || null,
+         amount: splitAmounts[index],
+         payment_link: `${window.location.origin}/split-payment/${realBookingId}/${index}`,
+         status: 'pending'
+       }));
 
       const { data, error } = await supabase
         .from('split_payment_requests')
-        .insert(allRequests)
+        .insert(splitRequests)
         .select();
 
       if (error) throw error;
 
-      // Now update the payment links with the actual request IDs
-      const updatedRequests = data.map((request, index) => {
-        if (index === 0) {
-          // Initiator request
-          return {
-            ...request,
-            payment_link: `${window.location.origin}/split-payment/${newBookingId}/initiator`
-          };
-        } else {
-          // Recipient requests - use the actual request ID from the database
-          return {
-            ...request,
-            payment_link: `${window.location.origin}/split-payment/${newBookingId}/${request.id}`
-          };
-        }
-      });
+             // Create notifications for recipients
+       const notifications = data.map(request => ({
+         user_id: request.recipient_id,
+         split_payment_id: request.id,
+         type: 'payment_request',
+         title: 'Payment Request Received',
+         message: `${user.user_metadata?.first_name || user.user_metadata?.full_name?.split(' ')[0] || 'Someone'} has requested ₦${request.amount.toLocaleString()} for a shared booking.`
+       }));
 
-      // Update the payment links in the database
-      for (const request of updatedRequests) {
-        if (request.payment_link) {
-          await supabase
-            .from('split_payment_requests')
-            .update({ payment_link: request.payment_link })
-            .eq('id', request.id);
-        }
+      const { error: notifError } = await supabase
+        .from('payment_notifications')
+        .insert(notifications);
+
+      if (notifError) {
+        console.error('Error creating notifications:', notifError);
       }
 
-      // Store the created requests and mark as created
-      setCreatedSplitRequests(data.filter(req => req.recipient_id !== userProfileId)); // Exclude initiator request
-      setSplitRequestsCreated(true);
-
-      // Return the newBookingId so we can use it immediately
-      return newBookingId;
-
-    } catch (error) {
-      console.error('Error in createSplitPaymentRequests:', error);
-      throw error;
-    }
-  };
-
-  // Add comprehensive logging to debug the amounts
-
-
-  const handlePayment = async () => {
-    try {
-      // First create the split payment requests
-      await createSplitPaymentRequests();
-      
-      // Then navigate to checkout with the correct data
-      navigate('/checkout', {
-        state: {
-          ...location.state,
-          isSplitPayment: true,
-          initiatorAmount: myAmount,
-          splitRequests: createdSplitRequests,
-          totalAmount: totalAmount,
-          bookingId: bookingId
-        }
+      toast({
+        title: "Split Payment Requests Created!",
+        description: `Successfully sent ${data.length} payment requests.`,
+        className: "bg-green-500 text-white"
       });
+
+      onSplitCreated(data);
+
     } catch (error) {
-      console.error('Error handling split payment:', error);
+      console.error('Error creating split payment requests:', error);
       toast({
         title: "Error",
-        description: "Failed to process split payment. Please try again.",
+        description: "Failed to create split payment requests. Please try again.",
         variant: "destructive"
       });
+    } finally {
+      setIsCreating(false);
     }
   };
+
+  const myAmount = totalAmount - splitAmounts.reduce((sum, amount) => sum + amount, 0);
 
   return (
     <div className="space-y-6">
       {/* Authentication Status */}
-      {authLoading ? (
-        <Card className="border-blue-200 bg-blue-50">
-          <CardContent className="pt-4 sm:pt-6">
-            <div className="flex items-center gap-2 sm:gap-3 text-blue-800">
-              <div className="w-4 h-4 sm:w-5 sm:h-5 bg-blue-200 rounded-full flex items-center justify-center flex-shrink-0">
-                <User className="h-2 w-2 sm:h-3 sm:w-3" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="font-medium text-sm sm:text-base">Loading...</div>
-                <div className="text-xs sm:text-sm">Please wait while we verify your authentication.</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ) : !user?.id ? (
+      {!user?.id && (
         <Card className="border-orange-200 bg-orange-50">
           <CardContent className="pt-4 sm:pt-6">
             <div className="flex items-center gap-2 sm:gap-3 text-orange-800">
@@ -615,7 +279,7 @@ const SplitPaymentForm = ({
             </div>
           </CardContent>
         </Card>
-      ) : null}
+      )}
 
       {/* Split Count Control */}
       <Card>
@@ -718,11 +382,11 @@ const SplitPaymentForm = ({
                     variant="outline"
                     className="w-full text-sm sm:text-base"
                     onClick={() => openSearchDialog(index)}
-                    disabled={authLoading || !user?.id}
+                    disabled={!user?.id}
                   >
                     <Search className="h-4 w-4 mr-2" />
                     <span className="truncate">
-                      {authLoading ? "Loading..." : user?.id ? "Search for recipient" : "Sign in to search"}
+                      {user?.id ? "Search for recipient" : "Sign in to search"}
                     </span>
                   </Button>
                 )}
@@ -732,493 +396,83 @@ const SplitPaymentForm = ({
         </CardContent>
       </Card>
 
-      {/* Initiator's Payment Section */}
-      {user?.id && splitRecipients.some(r => r) && (
-        <Card className="border-green-200 bg-green-50">
-          <CardHeader>
-            <CardTitle className="text-lg text-green-800">Your Payment</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {/* Payment Summary */}
-              <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-green-200">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
-                    <User className="h-4 w-4 text-white" />
-                  </div>
-                  <div>
-                    <div className="font-medium text-green-800">Your Portion</div>
-                    <div className="text-sm text-green-600">
-                      {splitRecipients.filter(r => r).length} other people will pay ₦{splitAmounts.reduce((sum, amount) => sum + amount, 0).toLocaleString()}
-                    </div>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-2xl font-bold text-green-800">₦{myAmount.toLocaleString()}</div>
-                  <div className="text-sm text-green-600">Pay now</div>
-                </div>
-              </div>
-
-              {/* Payment Form */}
-              <Elements stripe={stripePromise}>
-                <PaymentForm 
-                  amount={myAmount} 
-                  onSuccess={async (paymentMethodId, stripe) => {
-                    try {
-                      // Add loading state to prevent double clicks
-                      if (isCreating) {
-                        return;
-                      }
-
-                      setIsCreating(true);
-
-
-                      // Create booking and split requests in one step
-                      const { confirmedBookingId, splitRequests } = await (async () => {
-                        // Get or create booking ID
-                        let newBookingId = bookingId;
-                        if (!newBookingId && typeof createBookingIfNeeded === 'function') {
-                          newBookingId = await createBookingIfNeeded();
-                        }
-
-                        if (!newBookingId) {
-                          throw new Error('Could not create booking.');
-                        }
-
-                        // Create split requests
-                        const userProfileId = user.id;
-                        
-                        // Create initiator payment record (status: 'paid' for initiator)
-                        const initiatorRequest = {
-                          booking_id: newBookingId,
-                          requester_id: userProfileId,
-                          recipient_id: userProfileId, // Initiator is also a recipient
-                          recipient_phone: user?.phone || null,
-                          amount: myAmount,
-                          payment_link: `${window.location.origin}/split-payment/${newBookingId}/initiator`,
-                          status: 'paid',
-                          paid_at: new Date().toISOString()
-                        };
-                        
-                        // Create recipient payment requests (status: 'pending')
-                        const recipientRequests = splitRecipients.map((recipient, index) => ({
-                          booking_id: newBookingId,
-                          requester_id: userProfileId,
-                          recipient_id: recipient.id,
-                          recipient_phone: recipient.phone || null,
-                          amount: splitAmounts[index],
-                          payment_link: `${window.location.origin}/split-payment/${newBookingId}/${recipient.id}`,
-                          status: 'pending'
-                        }));
-                        
-                        // Combine all requests
-                        const allRequests = [initiatorRequest, ...recipientRequests];
-
-                        const { data, error } = await supabase
-                          .from('split_payment_requests')
-                          .insert(allRequests)
-                          .select();
-
-                        if (error) throw error;
-
-                        // Now update the payment links with the actual request IDs
-                        const updatedRequests = data.map((request, index) => {
-                          if (index === 0) {
-                            // Initiator request
-                            return {
-                              ...request,
-                              payment_link: `${window.location.origin}/split-payment/${newBookingId}/initiator`
-                            };
-                          } else {
-                            // Recipient requests - use the actual request ID from the database
-                            return {
-                              ...request,
-                              payment_link: `${window.location.origin}/split-payment/${newBookingId}/${request.id}`
-                            };
-                          }
-                        });
-
-                        // Update the payment links in the database
-                        for (const request of updatedRequests) {
-                          if (request.payment_link) {
-                            await supabase
-                              .from('split_payment_requests')
-                              .update({ payment_link: request.payment_link })
-                              .eq('id', request.id);
-                          }
-                        }
-
-                        return { confirmedBookingId: newBookingId, splitRequests: updatedRequests };
-                      })();
-
-                                              // Store the created requests
-                        setCreatedSplitRequests(splitRequests);
-                        setSplitRequestsCreated(true);
-
-                        // Send email notifications via Edge Function
-                        try {
-                          // Get booking and venue data for emails
-                          const { data: bookingData } = await supabase
-                            .from('bookings')
-                            .select(`
-                              *,
-                              venues (
-                                name,
-                                address,
-                                city,
-                                contact_email,
-                                contact_phone
-                              )
-                            `)
-                            .eq('id', confirmedBookingId)
-                            .single();
-
-                          if (bookingData && splitRequests.length > 0) {
-                            // Send split payment initiation email to initiator
-                            const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-email', {
-                              body: {
-                                to: user.email,
-                                subject: `Split Payment Initiated - ${bookingData.venues?.name || 'Your Venue'}`,
-                                template: 'split-payment-initiation',
-                                data: {
-                                  // Recipient info
-                                  email: user.email,
-                                  customerName: `${user.user_metadata?.first_name || ''} ${user.user_metadata?.last_name || ''}`.trim() || user.user_metadata?.full_name || 'Guest',
-                                  
-                                  // Booking details
-                                  bookingId: bookingData.id,
-                                  bookingDate: bookingData.booking_date || bookingData.bookingDate,
-                                  bookingTime: bookingData.start_time || bookingData.booking_time,
-                                  guestCount: bookingData.number_of_guests || bookingData.guest_count,
-                                  totalAmount: bookingData.total_amount || bookingData.totalAmount,
-                                  initiatorAmount: splitRequests[0]?.amount || 0,
-                                  requestsCount: splitRequests.length - 1, // Exclude initiator
-                                  
-                                  // Venue details
-                                  venueName: bookingData.venues?.name,
-                                  venueAddress: bookingData.venues?.address,
-                                  venuePhone: bookingData.venues?.contact_phone,
-                                  
-                                  // Dashboard URL
-                                  dashboardUrl: `${window.location.origin}/profile`
-                                }
-                              }
-                            });
-
-                            if (emailError) {
-                              console.error('❌ Error sending split payment initiation email:', emailError);
-                            } else {
-                            }
-
-                            // Send request emails to recipients
-                            const recipientRequests = splitRequests.filter(req => req.recipient_id !== user.id);
-                            for (const request of recipientRequests) {
-                              try {
-                                // Get recipient profile data
-                                const { data: recipientProfile } = await supabase
-                                  .from('profiles')
-                                  .select('*')
-                                  .eq('id', request.recipient_id)
-                                  .single();
-
-                                if (recipientProfile) {
-                                  const { data: requestEmailResult, error: requestEmailError } = await supabase.functions.invoke('send-email', {
-                                    body: {
-                                      to: recipientProfile.email,
-                                      subject: `Split Payment Request from ${user.user_metadata?.first_name || 'Your friend'} - ${bookingData.venues?.name || 'Venue Booking'}`,
-                                      template: 'split-payment-request',
-                                      data: {
-                                        // Recipient info
-                                        email: recipientProfile.email,
-                                        customerName: `${recipientProfile.first_name || ''} ${recipientProfile.last_name || ''}`.trim() || 'Guest',
-                                        
-                                        // Initiator info
-                                        initiatorName: `${user.user_metadata?.first_name || ''} ${user.user_metadata?.last_name || ''}`.trim() || user.user_metadata?.full_name || 'Your friend',
-                                        
-                                        // Request details
-                                        requestId: request.id,
-                                        amount: request.amount,
-                                        
-                                        // Booking details
-                                        bookingId: bookingData.id,
-                                        bookingDate: bookingData.booking_date || bookingData.bookingDate,
-                                        bookingTime: bookingData.start_time || bookingData.booking_time,
-                                        guestCount: bookingData.number_of_guests || bookingData.guest_count,
-                                        totalAmount: bookingData.total_amount || bookingData.totalAmount,
-                                        
-                                        // Venue details
-                                        venueName: bookingData.venues?.name,
-                                        venueAddress: bookingData.venues?.address,
-                                        venuePhone: bookingData.venues?.contact_phone,
-                                        
-                                        // Payment URL
-                                        paymentUrl: `${window.location.origin}/split-payment/${request.id}`
-                                      }
-                                    }
-                                  });
-
-                                  if (requestEmailError) {
-                                    console.error(`❌ Error sending split payment request email to ${recipientProfile.email}:`, requestEmailError);
-                                  } else {
-                                  }
-                                }
-                              } catch (recipientEmailError) {
-                                console.error(`❌ Error processing recipient email for request ${request.id}:`, recipientEmailError);
-                              }
-                            }
-                          }
-                        } catch (emailError) {
-                          console.error('❌ Error sending split payment emails:', emailError);
-                          // Don't fail the entire process if emails fail
-                        }
-
-                      // Process payment immediately after creating requests
-                      const response = await fetch(
-                        'https://agydpkzfucicraedllgl.supabase.co/functions/v1/create-split-payment-intent',
-                        {
-                          method: 'POST',
-                          headers: { 
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-                          },
-                          body: JSON.stringify({
-                            amount: myAmount,
-                            paymentMethodId,
-                            bookingId: confirmedBookingId,
-                            splitRequests,
-                            email: user?.email,
-                            bookingType: 'split',
-                            isInitiatorPayment: true
-                          })
-                        }
-                      );
-
-                      if (!response.ok) {
-                        const errorText = await response.text();
-                        console.error('API Error Response:', errorText);
-                        throw new Error(`Payment failed. Please try again.`);
-                      }
-
-                      const { clientSecret, paymentIntentId } = await response.json();
-                      const { error: confirmError } = await stripe.confirmCardPayment(clientSecret);
-                      
-                      if (confirmError) {
-                        throw new Error('Payment could not be confirmed. Please try again.');
-                      }
-
-                      // Get the first split request ID for success page
-                      const splitRequestId = splitRequests[0]?.id;
-                      if (!splitRequestId) {
-                        throw new Error('Split request ID is missing.');
-                      }
-
-                      // Update the initiator's payment status in the booking
-                      // This doesn't affect the split payment requests - they remain pending
-                      // Note: Only update columns that exist in the database schema
-                      const { error: bookingUpdateError } = await supabase
-                        .from('bookings')
-                        .update({ 
-                          status: 'pending'
-                        })
-                        .eq('id', confirmedBookingId);
-
-                      if (bookingUpdateError) {
-                        console.error('Error updating booking status:', bookingUpdateError);
-                      }
-
-                      // Show success message
-                      toast({
-                        title: "Payment Successful!",
-                        description: `Your portion (₦${myAmount.toLocaleString()}) has been paid. Split payment requests have been sent to your friends.`,
-                        className: "bg-green-500 text-white"
-                      });
-
-                      // Call the callback to show the split requests dialog
-                      if (onSplitCreated) {
-                        onSplitCreated(splitRequests);
-                      }
-
-                      // Check if all payments are complete (in case initiator is the last to pay)
-                      await checkAllPaymentsComplete(confirmedBookingId);
-
-                      // Navigate to success page
-                      navigate(`/split-payment-success?payment_intent=${paymentIntentId}&request_id=${splitRequestId}`);
-
-                    } catch (error) {
-                      console.error('Payment failed:', error);
-                      toast({
-                        title: "Payment Failed",
-                        description: error.message || "Failed to process payment. Please try again.",
-                        variant: "destructive"
-                      });
-                    } finally {
-                      setIsCreating(false);
-                    }
-                  }}
-                />
-              </Elements>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Payment Section - Show after split requests are created */}
-      {splitRequestsCreated && (
-        <Card className="border-blue-200 bg-blue-50">
-          <CardHeader>
-            <CardTitle className="text-lg text-blue-800">Complete Your Payment</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {/* Payment Summary */}
-              <div className="bg-white p-4 rounded-lg border border-blue-200">
-                <h4 className="font-semibold text-blue-800 mb-3">Payment Summary</h4>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span>Total Booking Amount:</span>
-                    <span className="font-medium">₦{totalAmount.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Split Requests Sent:</span>
-                    <span className="text-blue-600">{createdSplitRequests.length} people</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Others will pay:</span>
-                    <span className="text-blue-600">₦{splitAmounts.reduce((sum, amount) => sum + amount, 0).toLocaleString()}</span>
-                  </div>
-                  <div className="border-t pt-2 mt-2">
-                    <div className="flex justify-between font-semibold text-blue-800">
-                      <span>Your Payment Due:</span>
-                      <span className="text-lg">₦{myAmount.toLocaleString()}</span>
-                    </div>
-                      </div>
-                    </div>
-                  </div>
-
-              {/* Payment Form */}
-              <div className="bg-white p-4 rounded-lg border border-blue-200">
-                <h4 className="font-semibold text-blue-800 mb-3">Payment Details</h4>
-                <div className="space-y-3">
-                  <div>
-                    <Label htmlFor="cardNumber" className="text-sm text-blue-700">Card Number</Label>
-                    <Input 
-                      id="cardNumber" 
-                      placeholder="1234 5678 9012 3456" 
-                      className="mt-1"
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <Label htmlFor="expiryDate" className="text-sm text-blue-700">Expiry Date</Label>
-                      <Input 
-                        id="expiryDate" 
-                        placeholder="MM/YY" 
-                        className="mt-1"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="cvv" className="text-sm text-blue-700">CVV</Label>
-                      <Input 
-                        id="cvv" 
-                        placeholder="123" 
-                        className="mt-1"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="cardholderName" className="text-sm text-blue-700">Cardholder Name</Label>
-                    <Input 
-                      id="cardholderName" 
-                      placeholder="John Doe" 
-                      className="mt-1"
-                      defaultValue={user?.user_metadata?.full_name || user?.user_metadata?.first_name || ''}
-                    />
-                  </div>
-                </div>
-            </div>
-
-              {/* Payment Button */}
-              <Button 
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white h-12 text-base font-medium"
-                onClick={() => {
-                  toast({
-                    title: "Split Payment Created",
-                    description: "Your split payment requests have been sent. You can now complete your own payment using the main checkout form above.",
-                    variant: "default"
-                  });
-                }}
-              >
-                Split Payment Complete
-              </Button>
-              </div>
-          </CardContent>
-        </Card>
-            )}
+      {/* Create Split Payment Button */}
+      <Button
+        className="w-full bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90 text-sm sm:text-base"
+        onClick={createSplitPaymentRequests}
+        disabled={isCreating || splitRecipients.some(r => !r) || !user?.id}
+      >
+        {isCreating ? (
+          <div className="flex items-center">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-brand-burgundy mr-2"></div>
+            <span className="text-sm sm:text-base">Creating Requests...</span>
+          </div>
+        ) : (
+          <>
+            <Send className="h-4 w-4 mr-2" />
+            <span className="truncate">
+              {user?.id ? "Send Payment Requests" : "Sign in to send requests"}
+            </span>
+          </>
+        )}
+      </Button>
 
       {/* Search Dialog */}
       <Dialog open={showSearchDialog} onOpenChange={setShowSearchDialog}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-w-[95vw]">
           <DialogHeader>
-            <DialogTitle>Search for Recipient</DialogTitle>
+            <DialogTitle className="text-lg sm:text-xl">Search for Recipient</DialogTitle>
           </DialogHeader>
-          
           <div className="space-y-4">
-            {/* Search Input */}
-            <div className="space-y-2">
-              <Label htmlFor="searchQuery">Search by name or phone</Label>
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="searchQuery"
-                  placeholder="Enter name or phone number..."
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    // Simple search without debouncing for now
-                    debouncedSearch(e.target.value);
-                  }}
-                  className="pl-10"
-                />
-              </div>
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by name or phone..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  searchUsers(e.target.value);
+                }}
+                className="pl-10 text-sm sm:text-base"
+              />
             </div>
 
-            {/* Search Results */}
             {isSearching && (
               <div className="text-center py-4">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mx-auto"></div>
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-burgundy mx-auto"></div>
                 <p className="text-sm text-muted-foreground mt-2">Searching...</p>
               </div>
             )}
 
-            {!isSearching && searchResults.length > 0 && (
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                {searchResults.map((result) => (
-                  <div
-                    key={result.id}
-                    className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted cursor-pointer"
-                    onClick={() => selectRecipient(result, currentSplitIndex)}
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                        <User className="h-4 w-4 text-white" />
-                      </div>
-                      <div>
-                        <div className="font-medium">{result.displayName}</div>
-                        <div className="text-sm text-muted-foreground">{result.phone}</div>
+            <div className="max-h-60 overflow-y-auto space-y-2">
+              {searchResults.map((result) => (
+                <div
+                  key={result.id}
+                  className="flex items-center justify-between p-2 sm:p-3 border rounded-lg hover:bg-muted cursor-pointer gap-2"
+                  onClick={() => selectRecipient(result, currentSplitIndex)}
+                >
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-brand-burgundy/10 rounded-full flex items-center justify-center flex-shrink-0">
+                      <User className="h-3 w-3 sm:h-4 sm:w-4 text-brand-burgundy" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-sm sm:text-base truncate">{result.displayName}</div>
+                      <div className="text-xs sm:text-sm text-muted-foreground truncate">
+                        {result.phone}
                       </div>
                     </div>
-                    <Button variant="ghost" size="sm">
-                      <Plus className="h-4 w-4" />
-                    </Button>
                   </div>
-                ))}
-              </div>
-            )}
+                  <Badge variant="outline" className="flex-shrink-0 text-xs">
+                    VIP Member
+                  </Badge>
+                </div>
+              ))}
+            </div>
 
-            {!isSearching && searchQuery && searchResults.length === 0 && (
+            {searchQuery && !isSearching && searchResults.length === 0 && (
               <div className="text-center py-4 text-muted-foreground">
-                <p>No users found matching "{searchQuery}"</p>
-                <p className="text-sm">Try searching by first name, last name, or phone number</p>
+                <p className="text-sm sm:text-base">No users found matching "{searchQuery}"</p>
+                <p className="text-xs sm:text-sm mt-1">Try searching by name or phone number</p>
               </div>
             )}
           </div>

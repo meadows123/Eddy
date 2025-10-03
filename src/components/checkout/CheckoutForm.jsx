@@ -158,20 +158,22 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
             <div 
               className="p-4 border rounded-lg bg-white mobile-payment-container"
               style={{
-                // Ensure proper mobile input handling
+                // Remove appearance styles that might interfere with touch
                 WebkitAppearance: 'none',
                 appearance: 'none',
-                // Prevent zoom on focus for iOS
-                fontSize: '16px',
-                // Ensure proper touch handling
-                touchAction: 'manipulation',
-                // Prevent text selection issues
-                userSelect: 'text',
-                WebkitUserSelect: 'text',
-                // Additional mobile fixes
+                // Set explicit dimensions
+                width: '100%',
                 minHeight: '60px',
+                // Remove touch action to allow direct interaction
+                touchAction: 'none',
+                // Ensure the container doesn't interfere with input
+                pointerEvents: 'auto',
+                cursor: 'text',
+                // Basic styling
                 display: 'flex',
                 alignItems: 'center',
+                position: 'relative',
+                zIndex: 1
               }}
             >
               {!stripeReady ? (
