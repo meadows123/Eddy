@@ -252,34 +252,50 @@ const SplitPaymentForm = ({
       try {
         console.log('📧 Sending email notifications...');
         
-        // Get booking details
+        // Get booking details with venue and owner info
         const { data: bookingData, error: bookingError } = await supabase
           .from('bookings')
           .select(`
             *,
-            venue:venues(*)
+            venue:venues(
+              *,
+              owner:venue_owners(*)
+            )
           `)
           .eq('id', realBookingId)
           .single();
 
-        if (bookingError) throw bookingError;
+        if (bookingError) {
+          console.error('❌ Error fetching booking details:', bookingError);
+          throw bookingError;
+        }
+
+        console.log('📝 Booking data fetched:', bookingData);
 
         // Send confirmation to the main booker
-        await sendBookingConfirmation({
-          userEmail: user.email,
-          userName: user.user_metadata?.full_name || user.email,
-          bookingDetails: {
-            ...bookingData,
-            isSplitPayment: true,
-            splitAmount: myAmount,
-            totalAmount: totalAmount,
-            numberOfSplits: splitCount
-          }
-        });
+        if (user?.email) {
+          console.log('📧 Sending confirmation to main booker:', user.email);
+          await sendBookingConfirmation({
+            userEmail: user.email,
+            userName: user.user_metadata?.full_name || user.email,
+            bookingDetails: {
+              ...bookingData,
+              isSplitPayment: true,
+              splitAmount: myAmount,
+              totalAmount: totalAmount,
+              numberOfSplits: splitCount,
+              venue_name: bookingData.venue?.name,
+              booking_date: bookingData.booking_date,
+              start_time: bookingData.start_time,
+              end_time: bookingData.end_time
+            }
+          });
+        }
 
         // Send notifications to all split recipients
         for (const recipient of splitRecipients) {
-          if (recipient && recipient.email) {
+          if (recipient?.email) {
+            console.log('📧 Sending confirmation to split recipient:', recipient.email);
             await sendBookingConfirmation({
               userEmail: recipient.email,
               userName: recipient.displayName,
@@ -289,22 +305,36 @@ const SplitPaymentForm = ({
                 splitAmount: splitAmounts[splitRecipients.indexOf(recipient)],
                 totalAmount: totalAmount,
                 numberOfSplits: splitCount,
-                mainBooker: user.user_metadata?.full_name || user.email
+                mainBooker: user.user_metadata?.full_name || user.email,
+                venue_name: bookingData.venue?.name,
+                booking_date: bookingData.booking_date,
+                start_time: bookingData.start_time,
+                end_time: bookingData.end_time
               }
             });
           }
         }
 
         // Notify venue owner
-        await sendVenueOwnerNotification({
-          venueEmail: bookingData.venue.email,
-          bookingDetails: {
-            ...bookingData,
-            isSplitPayment: true,
-            splitCount: splitCount,
-            mainBooker: user.user_metadata?.full_name || user.email
-          }
-        });
+        const venueEmail = bookingData.venue?.owner?.email || bookingData.venue?.contact_email;
+        if (venueEmail) {
+          console.log('📧 Sending notification to venue owner:', venueEmail);
+          await sendVenueOwnerNotification({
+            venueEmail: venueEmail,
+            bookingDetails: {
+              ...bookingData,
+              isSplitPayment: true,
+              splitCount: splitCount,
+              mainBooker: user.user_metadata?.full_name || user.email,
+              venue_name: bookingData.venue?.name,
+              booking_date: bookingData.booking_date,
+              start_time: bookingData.start_time,
+              end_time: bookingData.end_time
+            }
+          });
+        } else {
+          console.warn('⚠️ No venue owner email found');
+        }
 
         console.log('✅ All email notifications sent successfully');
       } catch (emailError) {
