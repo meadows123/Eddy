@@ -517,11 +517,6 @@ export const testContactFormEmail = async (testData = {}) => {
   }
 };
 
-// Make test function available globally for debugging
-if (typeof window !== 'undefined') {
-  window.testContactFormEmail = testContactFormEmail;
-}
-
 // QR scan notification email function
 export const sendQRScanNotification = async (notificationData) => {
   try {
@@ -585,6 +580,11 @@ This notification was sent automatically by the Eddys Members QR scanning system
     throw error;
   }
 };
+
+// Make test function available globally for debugging
+if (typeof window !== 'undefined') {
+  window.testContactFormEmail = testContactFormEmail;
+}
 
 // Contact form email function
 export const sendContactFormEmail = async (formData) => {
