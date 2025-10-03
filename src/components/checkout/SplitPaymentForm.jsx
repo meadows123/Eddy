@@ -303,7 +303,7 @@ const SplitPaymentForm = ({
           // Send split payment request using Edge Function
           const { error: emailError } = await supabase.functions.invoke('send-email', {
             body: {
-              template: 'split-payment-initiator',
+              template: 'split-payment-confirmation',
               data: {
                 email: mainBookerProfile.email,
                 recipientName: `${mainBookerProfile.first_name} ${mainBookerProfile.last_name}`.trim() || currentUser.email,
@@ -345,7 +345,7 @@ const SplitPaymentForm = ({
             // Send split payment request using Edge Function
             const { error: emailError } = await supabase.functions.invoke('send-email', {
               body: {
-                template: 'split-payment-request',
+                template: 'split-payment-initiation',
                 data: {
                   email: recipientProfile.email,
                   recipientName: recipient.displayName || `${recipientProfile.first_name} ${recipientProfile.last_name}`.trim(),
