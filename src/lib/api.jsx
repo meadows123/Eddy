@@ -505,12 +505,22 @@ export const checkTableAvailability = async (venueId, tableId, date) => {
     // Check which times are available
     const availability = allTimeSlots.map(time => {
       const slotStart = new Date(`2000-01-01 ${time}`);
-      const slotEnd = new Date(slotStart.getTime() + 30 * 60000); // 30-minute slots
+      let slotEnd = new Date(slotStart.getTime() + 30 * 60000); // 30-minute slots
+      
+      // Handle slot crossing midnight
+      if (slotEnd < slotStart) {
+        slotEnd.setDate(slotEnd.getDate() + 1);
+      }
       
       // Check if this slot conflicts with existing bookings
       const isAvailable = !existingBookings.some(booking => {
         const bookingStart = new Date(`2000-01-01 ${booking.start_time}`);
-        const bookingEnd = new Date(`2000-01-01 ${booking.end_time}`);
+        let bookingEnd = new Date(`2000-01-01 ${booking.end_time}`);
+        
+        // Handle bookings that cross midnight
+        if (bookingEnd < bookingStart) {
+          bookingEnd.setDate(bookingEnd.getDate() + 1);
+        }
         
         // Check for overlap
         return (slotStart < bookingEnd && slotEnd > bookingStart);

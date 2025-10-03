@@ -102,24 +102,14 @@ export const sendBookingConfirmation = async (booking, venue, customer, qrCodeIm
     // Optimize email delivery to reduce spam filtering
     const optimizedParams = optimizeEmailDelivery(templateParams);
 
-    // Generate HTML content using local template
-    const bookingData = {
-      ...optimizedParams,
-      qrCodeImage: qrCodeImage,
-      hasQrCode: !!qrCodeImage
-    };
-    
-    const htmlContent = bookingConfirmationTemplate(bookingData);
-
-    // Send to customer using EmailJS with HTML content
+    // Send to customer using EmailJS template with QR code parameters
     const result = await emailjs.send(
       EMAILJS_CONFIG.serviceId,
       EMAILJS_CONFIG.templateId,
       {
         ...optimizedParams,
-        html_content: htmlContent,
-        qrCodeImage: qrCodeImage,
-        hasQrCode: !!qrCodeImage
+        qrCodeImage: qrCodeImage?.base64 || qrCodeImage,
+        qrCodeUrl: qrCodeImage?.externalUrl || qrCodeImage?.base64 || qrCodeImage
       }
     );
 

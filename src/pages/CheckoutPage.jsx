@@ -878,7 +878,7 @@ if (!venueId) {
         venueOwnerName: venueOwnerData?.owner_name,
         venueDescription: venueData?.description || 'Experience luxury dining and entertainment in Lagos\' most exclusive venue.',
         venueDressCode: venueData?.dress_code || 'Smart Casual',
-        qrCodeImage: qrCodeImage?.base64 || qrCodeImage?.externalUrl || null
+        qrCodeImage: qrCodeImage
       });
 
       if (emailResult) {
