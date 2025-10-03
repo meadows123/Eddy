@@ -139,7 +139,20 @@ const SplitPaymentForm = ({
   };
 
   const createSplitPaymentRequests = async () => {
-    if (!user?.id) {
+    // Check current session first
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError || !session) {
+      console.error('❌ Session error:', sessionError);
+      toast({
+        title: "Session Expired",
+        description: "Your session has expired. Please sign in again.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!session.user?.id) {
       toast({
         title: "Authentication Required",
         description: "Please sign in to create split payment requests.",
@@ -147,6 +160,9 @@ const SplitPaymentForm = ({
       });
       return;
     }
+
+    // Update user reference with fresh session data
+    const currentUser = session.user;
 
     // Validate that all recipients are selected
     const hasEmptyRecipients = splitRecipients.some(recipient => !recipient);
@@ -205,7 +221,8 @@ const SplitPaymentForm = ({
       let realBookingId = bookingId;
       if (!realBookingId && typeof createBookingIfNeeded === 'function') {
         try {
-          realBookingId = await createBookingIfNeeded();
+          // Pass the current user session to createBooking
+          realBookingId = await createBookingIfNeeded(currentUser);
           console.log('✅ Booking created successfully:', realBookingId);
         } catch (err) {
           console.error('❌ Error creating booking:', err);
@@ -273,11 +290,11 @@ const SplitPaymentForm = ({
         console.log('📝 Booking data fetched:', bookingData);
 
         // Send confirmation to the main booker
-        if (user?.email) {
-          console.log('📧 Sending confirmation to main booker:', user.email);
+        if (currentUser?.email) {
+          console.log('📧 Sending confirmation to main booker:', currentUser.email);
           await sendBookingConfirmation({
-            userEmail: user.email,
-            userName: user.user_metadata?.full_name || user.email,
+            userEmail: currentUser.email,
+            userName: currentUser.user_metadata?.full_name || currentUser.email,
             bookingDetails: {
               ...bookingData,
               isSplitPayment: true,
@@ -305,7 +322,7 @@ const SplitPaymentForm = ({
                 splitAmount: splitAmounts[splitRecipients.indexOf(recipient)],
                 totalAmount: totalAmount,
                 numberOfSplits: splitCount,
-                mainBooker: user.user_metadata?.full_name || user.email,
+                mainBooker: currentUser.user_metadata?.full_name || currentUser.email,
                 venue_name: bookingData.venue?.name,
                 booking_date: bookingData.booking_date,
                 start_time: bookingData.start_time,
@@ -325,7 +342,7 @@ const SplitPaymentForm = ({
               ...bookingData,
               isSplitPayment: true,
               splitCount: splitCount,
-              mainBooker: user.user_metadata?.full_name || user.email,
+              mainBooker: currentUser.user_metadata?.full_name || currentUser.email,
               venue_name: bookingData.venue?.name,
               booking_date: bookingData.booking_date,
               start_time: bookingData.start_time,
