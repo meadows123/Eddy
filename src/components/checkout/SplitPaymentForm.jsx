@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabase';
 import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { sendBookingConfirmation, sendVenueOwnerNotification } from '@/lib/emailService.js';
 import { 
   Plus, 
   Minus, 
@@ -245,6 +246,70 @@ const SplitPaymentForm = ({
 
       if (notifError) {
         console.error('Error creating notifications:', notifError);
+      }
+
+      // Send email notifications
+      try {
+        console.log('📧 Sending email notifications...');
+        
+        // Get booking details
+        const { data: bookingData, error: bookingError } = await supabase
+          .from('bookings')
+          .select(`
+            *,
+            venue:venues(*)
+          `)
+          .eq('id', realBookingId)
+          .single();
+
+        if (bookingError) throw bookingError;
+
+        // Send confirmation to the main booker
+        await sendBookingConfirmation({
+          userEmail: user.email,
+          userName: user.user_metadata?.full_name || user.email,
+          bookingDetails: {
+            ...bookingData,
+            isSplitPayment: true,
+            splitAmount: myAmount,
+            totalAmount: totalAmount,
+            numberOfSplits: splitCount
+          }
+        });
+
+        // Send notifications to all split recipients
+        for (const recipient of splitRecipients) {
+          if (recipient && recipient.email) {
+            await sendBookingConfirmation({
+              userEmail: recipient.email,
+              userName: recipient.displayName,
+              bookingDetails: {
+                ...bookingData,
+                isSplitPayment: true,
+                splitAmount: splitAmounts[splitRecipients.indexOf(recipient)],
+                totalAmount: totalAmount,
+                numberOfSplits: splitCount,
+                mainBooker: user.user_metadata?.full_name || user.email
+              }
+            });
+          }
+        }
+
+        // Notify venue owner
+        await sendVenueOwnerNotification({
+          venueEmail: bookingData.venue.email,
+          bookingDetails: {
+            ...bookingData,
+            isSplitPayment: true,
+            splitCount: splitCount,
+            mainBooker: user.user_metadata?.full_name || user.email
+          }
+        });
+
+        console.log('✅ All email notifications sent successfully');
+      } catch (emailError) {
+        console.error('❌ Error sending email notifications:', emailError);
+        // Don't throw here - we still want to show success even if emails fail
       }
 
       toast({
