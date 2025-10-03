@@ -30,7 +30,7 @@ const optimizeEmailDelivery = (params) => {
   };
 };
 
-export const sendBookingConfirmation = async (booking, venue, customer) => {
+export const sendBookingConfirmation = async (booking, venue, customer, qrCodeImage = null) => {
   try {
     // Check if EmailJS is configured
     if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.templateId || !EMAILJS_CONFIG.publicKey) {
@@ -92,7 +92,11 @@ export const sendBookingConfirmation = async (booking, venue, customer) => {
       cancelBookingUrl: `${window.location.origin}/profile`,
       websiteUrl: window.location.origin,
       supportUrl: 'mailto:info@oneeddy.com',
-      unsubscribeUrl: `${window.location.origin}/settings`
+      unsubscribeUrl: `${window.location.origin}/settings`,
+      
+      // QR Code for venue entry
+      qrCodeImage: qrCodeImage || null,
+      hasQrCode: !!qrCodeImage
     };
 
     // Optimize email delivery to reduce spam filtering

@@ -518,8 +518,8 @@ email: bookingData.customerEmail || formData.email,
 phone: bookingData.customerPhone || formData.phone
 };
 
-// Send customer confirmation email using EmailJS
-const customerEmailResult = await sendBookingConfirmation(booking, venue, customer);
+// Send customer confirmation email using EmailJS with QR code
+const customerEmailResult = await sendBookingConfirmation(booking, venue, customer, bookingData.qrCodeImage);
 
 // Get venue owner info if available for notification
 const dataSource = selection || bookingData;
