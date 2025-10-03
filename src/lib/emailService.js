@@ -140,6 +140,13 @@ export const sendVenueOwnerNotification = async (booking, venue, customer, venue
       email: venueOwnerData?.owner_email || venueOwnerData?.email || venue.contact_email || 'info@oneeddy.com'
     };
     
+    // Debug logging
+    console.log('🔍 Venue owner notification data:', {
+      venueOwnerData,
+      ownerData,
+      venueContactEmail: venue.contact_email
+    });
+    
     const ownerTemplate = venueOwnerNotificationTemplate(emailData, ownerData);
     
     // Send to venue owner
@@ -147,8 +154,8 @@ export const sendVenueOwnerNotification = async (booking, venue, customer, venue
       EMAILJS_CONFIG.serviceId,
       EMAILJS_CONFIG.templateId,
       {
-        to_email: venue.contact_email,
-        to_name: 'Venue Manager',
+        to_email: ownerData.email,
+        to_name: ownerData.name,
         subject: `New Booking - ${venue.name}`,
         html_content: ownerTemplate,
         from_name: 'Eddys Members',

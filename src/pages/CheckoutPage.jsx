@@ -545,7 +545,7 @@ const venueOwnerEmail = bookingData?.venueOwnerEmail || venue?.venue_owners?.own
 
 if (venueOwnerEmail && venueOwnerEmail.includes('@')) {
   const venueOwner = {
-    full_name: bookingData?.venueOwnerName || venue?.venue_owners?.owner_name || 'Venue Owner',
+    name: bookingData?.venueOwnerName || venue?.venue_owners?.owner_name || 'Venue Owner',
     email: venueOwnerEmail
   };
 
