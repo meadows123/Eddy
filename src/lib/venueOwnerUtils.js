@@ -4,21 +4,17 @@ import { supabase } from './supabase.js';
 // Check for broken venue owner links
 export const checkBrokenVenueOwnerLinks = async () => {
   try {
-    console.log('🔍 Checking for broken venue owner links...');
     
     const { data, error } = await supabase
       .from('broken_venue_owner_links')
       .select('*');
     
     if (error) {
-      console.error('❌ Error checking broken links:', error);
       throw error;
     }
     
-    console.log('📊 Broken links found:', data);
     return data;
   } catch (error) {
-    console.error('❌ Failed to check broken links:', error);
     throw error;
   }
 };

@@ -208,12 +208,11 @@ const venueOwnerTemplates = {
 // Venue Owner Email Functions
 export const sendVenueOwnerApplicationApproved = async (venueOwnerData) => {
   try {
+    console.log('🔄 Sending venue owner application approved email to:', venueOwnerData.email);
     
     // Try Edge Function first
     const { data, error } = await supabase.functions.invoke('send-email', {
       body: {
-        to: venueOwnerData.email,
-        subject: '🎉 Your Venue Application Has Been Approved!',
         template: 'venue-owner-application-approved',
         data: {
           email: venueOwnerData.email,
@@ -222,17 +221,20 @@ export const sendVenueOwnerApplicationApproved = async (venueOwnerData) => {
           venueType: venueOwnerData.venue_type || 'Restaurant', // Keep fallback but prefer actual type
           venueAddress: venueOwnerData.venue_address,
           venueCity: venueOwnerData.venue_city,
-          registrationUrl: `${window.location.origin}/venue-owner/login?approved=true&email=${encodeURIComponent(venueOwnerData.email)}`
+          registrationUrl: `${window.location.origin}/venue-owner/register?approved=true&email=${encodeURIComponent(venueOwnerData.email)}`
         }
       }
     });
 
     if (error) {
+      console.warn('⚠️ Edge Function failed, trying EmailJS fallback...', error);
       throw error; // This will trigger the fallback
     }
 
+    console.log('✅ Venue owner application approved email sent successfully via Edge Function:', data);
     return data;
   } catch (error) {
+    console.log('🔄 Falling back to EmailJS for approval email...');
     
     // Fallback to EmailJS
     try {
@@ -261,6 +263,7 @@ export const sendVenueOwnerApplicationApproved = async (venueOwnerData) => {
         registration_url: `${window.location.origin}/venue-owner/register?approved=true&email=${encodeURIComponent(venueOwnerData.email)}`
       });
       
+      console.log('✅ Approval email sent via EmailJS fallback:', result);
       return result;
     } catch (fallbackError) {
       console.error('❌ Both Edge Function and EmailJS fallback failed:', fallbackError);
@@ -271,12 +274,11 @@ export const sendVenueOwnerApplicationApproved = async (venueOwnerData) => {
 
 export const sendVenueOwnerRegistrationComplete = async (venueOwnerData) => {
   try {
+    console.log('🔄 Sending venue owner registration complete email to:', venueOwnerData.email);
     
     // Try Edge Function first
     const { data, error } = await supabase.functions.invoke('send-email', {
       body: {
-        to: venueOwnerData.email,
-        subject: '✅ Venue Registration Complete - Welcome to One Eddys!',
         template: 'venue-owner-signup-complete',
         data: {
           email: venueOwnerData.email,
@@ -292,11 +294,14 @@ export const sendVenueOwnerRegistrationComplete = async (venueOwnerData) => {
     });
 
     if (error) {
+      console.warn('⚠️ Edge Function failed, trying EmailJS fallback...', error);
       throw error; // This will trigger the fallback
     }
 
+    console.log('✅ Venue owner registration complete email sent successfully via Edge Function:', data);
     return data;
   } catch (error) {
+    console.log('🔄 Falling back to EmailJS for registration complete email...');
     
     // Fallback to EmailJS
     try {
@@ -325,6 +330,7 @@ export const sendVenueOwnerRegistrationComplete = async (venueOwnerData) => {
         login_url: `${window.location.origin}/venue-owner/login`
       });
       
+      console.log('✅ Registration complete email sent via EmailJS fallback:', result);
       return result;
     } catch (fallbackError) {
       console.error('❌ Both Edge Function and EmailJS fallback failed:', fallbackError);
@@ -335,11 +341,10 @@ export const sendVenueOwnerRegistrationComplete = async (venueOwnerData) => {
 
 export const sendVenueOwnerPasswordReset = async (venueOwnerData) => {
   try {
+    console.log('🔄 Sending venue owner password reset email to:', venueOwnerData.email);
     
     const { data, error } = await supabase.functions.invoke('send-email', {
       body: {
-        to: venueOwnerData.email,
-        subject: '🔐 Reset Your Venue Owner Password',
         template: 'venue-owner-password-reset',
         data: {
           email: venueOwnerData.email,
@@ -355,6 +360,7 @@ export const sendVenueOwnerPasswordReset = async (venueOwnerData) => {
       throw error;
     }
 
+    console.log('✅ Venue owner password reset email sent successfully:', data);
     return data;
   } catch (error) {
     console.error('❌ Error in sendVenueOwnerPasswordReset:', error);
@@ -364,11 +370,10 @@ export const sendVenueOwnerPasswordReset = async (venueOwnerData) => {
 
 export const sendVenueOwnerEmailConfirmation = async (venueOwnerData) => {
   try {
+    console.log('🔄 Sending venue owner email confirmation to:', venueOwnerData.email);
     
     const { data, error } = await supabase.functions.invoke('send-email', {
       body: {
-        to: venueOwnerData.email,
-        subject: '📧 Confirm Your Venue Owner Email Address',
         template: 'venue-owner-email-confirmation',
         data: {
           email: venueOwnerData.email,
@@ -384,6 +389,7 @@ export const sendVenueOwnerEmailConfirmation = async (venueOwnerData) => {
       throw error;
     }
 
+    console.log('✅ Venue owner email confirmation sent successfully:', data);
     return data;
   } catch (error) {
     console.error('❌ Error in sendVenueOwnerEmailConfirmation:', error);
@@ -392,73 +398,77 @@ export const sendVenueOwnerEmailConfirmation = async (venueOwnerData) => {
 };
 
 export const notifyAdminOfVenueOwnerRegistration = async (venueOwnerData) => {
-  const USE_EDGE = (import.meta.env.VITE_USE_EDGE_EMAIL ?? 'true').toString().toLowerCase() !== 'false';
-  const ADMIN_EMAIL = 'info@oneeddy.com';
   try {
-
-    if (USE_EDGE) {
-      const { data, error } = await supabase.functions.invoke('send-email', {
-        body: {
-          to: ADMIN_EMAIL,
-          subject: 'New Venue Owner Registration',
-          template: 'admin-venue-owner-registration',
-          data: {
-            ownerName: venueOwnerData.owner_name,
-            email: venueOwnerData.email,
-            phone: venueOwnerData.phone,
-            venueName: venueOwnerData.venue_name,
-            venueType: venueOwnerData.venue_type,
-            venueAddress: venueOwnerData.venue_address,
-            venueCity: venueOwnerData.venue_city,
-            adminUrl: `oneeddy://admin/venue-approvals`
-          }
+    console.log('🔄 Notifying admin of venue owner registration');
+    
+    // Try Edge Function first
+    const { data, error } = await supabase.functions.invoke('send-email', {
+      body: {
+        template: 'admin-venue-owner-registration',
+        data: {
+          adminEmail: 'sales@oneeddy.com', // Replace with your admin email
+          ownerName: venueOwnerData.owner_name,
+          email: venueOwnerData.email,
+          phone: venueOwnerData.phone,
+          venueName: venueOwnerData.venue_name,
+          venueType: venueOwnerData.venue_type,
+          venueAddress: venueOwnerData.venue_address,
+          venueCity: venueOwnerData.venue_city,
+          adminUrl: `${window.location.origin}/admin/venue-approvals`
         }
-      });
-      if (error) {
-        console.error('🚨 Edge Function error:', {
-          message: error.message,
-          details: error.details || null,
-          fullError: error
-        });
-        throw error;
       }
-      return data;
+    });
+
+    if (error) {
+      console.warn('⚠️ Edge Function failed, trying EmailJS fallback...', error);
+      throw error; // This will trigger the fallback
     }
 
-    console.log('🔄 Using EmailJS fallback for admin notification...');
-    const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
-    const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_VENUE_OWNER_REQUEST_TEMPLATE;
-    const PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
-    if (!SERVICE_ID || !TEMPLATE_ID || !PUBLIC_KEY) {
-      throw new Error('EmailJS configuration missing');
-    }
-    const { default: emailjs } = await import('@emailjs/browser');
-    emailjs.init(PUBLIC_KEY);
-    const result = await emailjs.send(SERVICE_ID, TEMPLATE_ID, {
-      to_email: ADMIN_EMAIL,
-      to_name: 'Admin',
-      from_name: 'VIPClub System',
-      subject: 'New Venue Owner Registration',
-      ownerName: venueOwnerData.owner_name,
-      ownerEmail: venueOwnerData.email,
-      ownerPhone: venueOwnerData.phone || 'Not provided',
-      venueName: venueOwnerData.venue_name,
-      venueType: venueOwnerData.venue_type || 'Restaurant',
-      venueAddress: venueOwnerData.venue_address,
-      venueCity: venueOwnerData.venue_city,
-      applicationDate: new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
-    });
-    console.log('✅ Admin notification sent via EmailJS fallback:', result);
-    return result;
+    console.log('✅ Admin notification sent successfully via Edge Function:', data);
+    return data;
   } catch (error) {
-    console.error('❌ Admin notification failed:', {
-      message: error.message,
-      name: error.name,
-      details: error.details || null,
-      cause: error.cause || null,
-      fullError: error
-    });
-    throw error;
+    console.log('🔄 Falling back to EmailJS for admin notification...');
+    
+    // Fallback to EmailJS
+    try {
+      const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+      const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_VENUE_OWNER_REQUEST_TEMPLATE;
+      const PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
+      
+      if (!SERVICE_ID || !TEMPLATE_ID || !PUBLIC_KEY) {
+        throw new Error('EmailJS configuration missing');
+      }
+      
+      // Initialize EmailJS
+      const { default: emailjs } = await import('@emailjs/browser');
+      emailjs.init(PUBLIC_KEY);
+      
+      const result = await emailjs.send(SERVICE_ID, TEMPLATE_ID, {
+        email: 'sales@oneeddy.com', // Admin email
+        to_name: 'Admin',
+        from_name: 'VIPClub System',
+        subject: 'New Venue Owner Registration',
+        ownerName: venueOwnerData.owner_name,
+        ownerEmail: venueOwnerData.email,
+        ownerPhone: venueOwnerData.phone || 'Not provided',
+        venueName: venueOwnerData.venue_name,
+        venueType: venueOwnerData.venue_type || 'Restaurant',
+        venueAddress: venueOwnerData.venue_address,
+        venueCity: venueOwnerData.venue_city,
+        applicationDate: new Date().toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        })
+      });
+      
+      console.log('✅ Admin notification sent via EmailJS fallback:', result);
+      return result;
+    } catch (fallbackError) {
+      console.error('❌ Both Edge Function and EmailJS fallback failed:', fallbackError);
+      throw fallbackError;
+    }
   }
 };
 
@@ -470,8 +480,6 @@ export const sendApprovalEmailWithFallback = async (venueOwnerData) => {
     // Try Edge Function first
     const { data, error } = await supabase.functions.invoke('send-email', {
       body: {
-        to: venueOwnerData.email,
-        subject: '🎉 Your Venue Application Has Been Approved!',
         template: 'venue-owner-invitation',
         data: {
           email: venueOwnerData.email,
@@ -485,12 +493,14 @@ export const sendApprovalEmailWithFallback = async (venueOwnerData) => {
     });
 
     if (error) {
+      console.warn('⚠️ Edge Function failed, trying EmailJS fallback...', error);
       throw error; // This will trigger the fallback
     }
 
     console.log('✅ Approval email sent via Edge Function:', data);
     return data;
   } catch (error) {
+    console.log('🔄 Falling back to EmailJS for approval email...');
     
     // Fallback to EmailJS
     try {
@@ -518,6 +528,7 @@ export const sendApprovalEmailWithFallback = async (venueOwnerData) => {
         application_date: new Date().toLocaleDateString()
       });
       
+      console.log('✅ Approval email sent via EmailJS fallback:', result);
       return result;
     } catch (fallbackError) {
       console.error('❌ Both Edge Function and EmailJS fallback failed:', fallbackError);
@@ -528,7 +539,6 @@ export const sendApprovalEmailWithFallback = async (venueOwnerData) => {
 
 // Test function for venue owner emails
 export const testVenueOwnerEmails = async (testEmail = 'test@example.com') => {
-  console.log('🧪 Testing venue owner email templates...');
   
   const testData = {
     email: testEmail,
@@ -543,21 +553,16 @@ export const testVenueOwnerEmails = async (testEmail = 'test@example.com') => {
 
   try {
     // Test application approved email
-    console.log('📧 Testing application approved email...');
     await sendVenueOwnerApplicationApproved(testData);
     
     // Test registration complete email
-    console.log('📧 Testing registration complete email...');
     await sendVenueOwnerRegistrationComplete(testData);
     
     // Test password reset email
-    console.log('📧 Testing password reset email...');
     await sendVenueOwnerPasswordReset(testData);
     
-    console.log('✅ All venue owner email tests completed successfully!');
     return { success: true };
   } catch (error) {
-    console.error('❌ Venue owner email test failed:', error);
     return { success: false, error: error.message };
   }
 };
@@ -569,7 +574,6 @@ if (typeof window !== 'undefined') {
 
 // Simple test function to debug email service configuration
 export const testEmailConfiguration = async () => {
-  console.log('🔍 Testing email service configuration...');
   
   // Check environment variables
   const envVars = {
@@ -593,8 +597,6 @@ export const testEmailConfiguration = async () => {
     console.log('🔄 Testing Edge Function...');
     const { data, error } = await supabase.functions.invoke('send-email', {
       body: {
-        to: 'test@example.com',
-        subject: 'Test Email',
         template: 'test',
         data: {
           email: 'test@example.com',

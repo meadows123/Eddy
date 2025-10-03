@@ -223,9 +223,8 @@ const SplitPaymentForm = ({
         try {
           // Pass the current user session to createBooking
           realBookingId = await createBookingIfNeeded(currentUser);
-          console.log('✅ Booking created successfully:', realBookingId);
         } catch (err) {
-          console.error('❌ Error creating booking:', err);
+          console.error('Error creating booking:', err);
           throw new Error('Failed to create booking: ' + err.message);
         }
       }
@@ -267,7 +266,6 @@ const SplitPaymentForm = ({
 
       // Send email notifications
       try {
-        console.log('📧 Sending email notifications...');
         
         // Get booking details with venue and owner info
         const { data: bookingData, error: bookingError } = await supabase
@@ -283,11 +281,10 @@ const SplitPaymentForm = ({
           .single();
 
         if (bookingError) {
-          console.error('❌ Error fetching booking details:', bookingError);
+          console.error('Error fetching booking details:', bookingError);
           throw bookingError;
         }
 
-        console.log('📝 Booking data fetched:', bookingData);
 
         // Get main booker's profile data
         const { data: mainBookerProfile, error: mainBookerError } = await supabase
@@ -297,9 +294,8 @@ const SplitPaymentForm = ({
           .single();
 
         if (mainBookerError) {
-          console.error('❌ Error fetching main booker profile:', mainBookerError);
+          console.error('Error fetching main booker profile:', mainBookerError);
         } else if (mainBookerProfile?.email) {
-          console.log('📧 Sending confirmation to main booker:', mainBookerProfile.email);
           // Send split payment request using Edge Function
           // Format times and dates for main booker
           const formattedStartTime = new Date(`2000-01-01T${bookingData.start_time}`).toLocaleTimeString('en-US', {
@@ -319,15 +315,6 @@ const SplitPaymentForm = ({
             day: 'numeric'
           });
 
-          console.log('📅 Main booker booking details:', {
-            id: bookingData.id,
-            date: formattedDate,
-            startTime: formattedStartTime,
-            endTime: formattedEndTime,
-            rawStartTime: bookingData.start_time,
-            rawEndTime: bookingData.end_time,
-            rawBookingData: bookingData
-          });
 
           const mainBookerEmailData = {
             template: 'split-payment-initiator',
@@ -349,17 +336,16 @@ const SplitPaymentForm = ({
             }
           };
 
-          console.log('📧 Sending main booker email with data:', mainBookerEmailData);
 
           const { error: emailError } = await supabase.functions.invoke('send-email', {
             body: mainBookerEmailData
           });
 
           if (emailError) {
-            console.error('❌ Failed to send split payment initiator email:', emailError);
+            console.error('Failed to send split payment initiator email:', emailError);
           }
         } else {
-          console.warn('⚠️ No email found for main booker');
+          console.warn('No email found for main booker');
         }
 
         // Send notifications to all split recipients
@@ -372,12 +358,11 @@ const SplitPaymentForm = ({
             .single();
 
           if (recipientError) {
-            console.error('❌ Error fetching recipient profile:', recipientError);
+            console.error('Error fetching recipient profile:', recipientError);
             continue;
           }
 
           if (recipientProfile?.email) {
-            console.log('📧 Sending confirmation to split recipient:', recipientProfile.email);
             // Send split payment request using Edge Function
             // Format the booking time
             const formattedStartTime = new Date(`2000-01-01T${bookingData.start_time}`).toLocaleTimeString('en-US', {
@@ -399,14 +384,6 @@ const SplitPaymentForm = ({
               day: 'numeric'
             });
 
-            console.log('📅 Formatting booking details:', {
-              id: bookingData.id,
-              date: formattedDate,
-              startTime: formattedStartTime,
-              endTime: formattedEndTime,
-              rawStartTime: bookingData.start_time,
-              rawEndTime: bookingData.end_time
-            });
 
             const recipientEmailData = {
               template: 'split-payment-initiation',
@@ -430,35 +407,22 @@ const SplitPaymentForm = ({
               }
             };
 
-            console.log('📧 Sending recipient email with data:', {
-              ...recipientEmailData,
-              rawBookingData: bookingData,
-              formattedData: {
-                id: bookingData.id,
-                date: formattedDate,
-                startTime: formattedStartTime,
-                endTime: formattedEndTime,
-                rawStartTime: bookingData.start_time,
-                rawEndTime: bookingData.end_time
-              }
-            });
 
             const { error: emailError } = await supabase.functions.invoke('send-email', {
               body: recipientEmailData
             });
 
             if (emailError) {
-              console.error('❌ Failed to send split payment request email:', emailError);
+              console.error('Failed to send split payment request email:', emailError);
             }
           } else {
-            console.warn('⚠️ No email found for recipient:', recipient.displayName);
+            console.warn('No email found for recipient:', recipient.displayName);
           }
         }
 
         // Notify venue owner
         const venueEmail = bookingData.venue?.owner?.email || bookingData.venue?.contact_email;
         if (venueEmail) {
-          console.log('📧 Sending notification to venue owner:', venueEmail);
           // Send split payment notification to venue owner using Edge Function
           const venueEmailData = {
             template: 'split-payment-venue-notification',
@@ -476,22 +440,19 @@ const SplitPaymentForm = ({
             }
           };
 
-          console.log('📧 Sending venue owner email with data:', venueEmailData);
 
           const { error: emailError } = await supabase.functions.invoke('send-email', {
             body: venueEmailData
           });
 
           if (emailError) {
-            console.error('❌ Failed to send venue owner notification:', emailError);
+            console.error('Failed to send venue owner notification:', emailError);
           }
         } else {
-          console.warn('⚠️ No venue owner email found');
         }
 
-        console.log('✅ All email notifications sent successfully');
       } catch (emailError) {
-        console.error('❌ Error sending email notifications:', emailError);
+        console.error('Error sending email notifications:', emailError);
         // Don't throw here - we still want to show success even if emails fail
       }
 

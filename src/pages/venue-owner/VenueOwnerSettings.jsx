@@ -78,7 +78,6 @@ const VenueOwnerSettings = () => {
         .select('*')
         .eq('owner_id', user.id);
 
-      if (venueError) console.error('❌ Venue check error:', venueError);
 
       // Check venue_owners record
       const { data: venueOwnerCheck, error: ownerError } = await supabase
@@ -86,7 +85,6 @@ const VenueOwnerSettings = () => {
         .select('*')
         .eq('user_id', user.id);
 
-      if (ownerError) console.error('❌ Venue owner check error:', ownerError);
 
       // Test if we can update the venue
       if (venue) {
@@ -96,11 +94,9 @@ const VenueOwnerSettings = () => {
           .eq('id', venue.id)
           .eq('owner_id', user.id);
 
-        if (updateError) console.error('❌ Update test error:', updateError);
       }
 
     } catch (error) {
-      console.error('❌ Debug function error:', error);
     }
   };
 

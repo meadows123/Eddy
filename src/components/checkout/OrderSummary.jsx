@@ -7,16 +7,6 @@ const OrderSummary = ({ selection, totalAmount, vipPerks }) => {
   const isFromModal = selection.isFromModal;
   const hasTable = isFromModal ? (selection.selectedTable && Object.keys(selection.selectedTable).length > 0) : (selection.table && Object.keys(selection.table).length > 0);
   
-  // Debug logging to understand the data structure
-  console.log('🔍 OrderSummary Debug:', {
-    isFromModal,
-    hasTable: !!hasTable,
-    'selection.selectedTable': selection.selectedTable,
-    'selection.table': selection.table,
-    'selectedTable.table_number': selection.selectedTable?.table_number,
-    'selectedTable.name': selection.selectedTable?.name,
-    'full selection': selection
-  });
   
   return (
     <div className="bg-secondary/20 border border-border/50 rounded-lg p-6">

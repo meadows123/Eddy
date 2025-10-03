@@ -14,10 +14,8 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
   // Check if Stripe is ready
   React.useEffect(() => {
     if (stripe && elements) {
-      console.log('✅ Stripe Elements ready');
       setStripeReady(true);
     } else {
-      console.log('⏳ Waiting for Stripe Elements...');
       setStripeReady(false);
     }
   }, [stripe, elements]);
@@ -32,7 +30,6 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
     }
 
     if (!stripe || !elements) {
-      console.error('Stripe not initialized');
       return;
     }
 
@@ -50,14 +47,13 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
       });
 
       if (stripeError) {
-        console.error('Stripe error:', stripeError);
         throw stripeError;
       }
 
       // Only pass the payment method ID
       await handleSubmit(paymentMethod.id);
     } catch (err) {
-      console.error('Payment error:', err);
+      // Payment error handled by parent component
     } finally {
       setIsProcessingPayment(false);
     }

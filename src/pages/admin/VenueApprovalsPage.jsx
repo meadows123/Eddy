@@ -136,7 +136,6 @@ const VenueApprovalsPage = () => {
 
   const loadRequests = async () => {
     try {
-      console.log('🔄 Loading venue owner requests...');
       
       const { data, error } = await supabase
         .from('pending_venue_owner_requests')
@@ -145,16 +144,12 @@ const VenueApprovalsPage = () => {
       
       if (error) throw error;
       
-      console.log('✅ Loaded requests:', data?.length || 0, 'requests');
-      console.log('📊 Request statuses:', data?.map(r => ({ id: r.id, status: r.status, email: r.email })) || []);
       
       setRequests(data || []);
       
       // If approval was just completed, force a second refresh after a delay
       if (approvalCompleted) {
-        console.log('🔄 Approval was completed, doing final refresh in 3 seconds...');
         setTimeout(async () => {
-          console.log('🔄 Final refresh after approval...');
           const { data: finalData, error: finalError } = await supabase
             .from('pending_venue_owner_requests')
             .select('*')
@@ -162,7 +157,6 @@ const VenueApprovalsPage = () => {
           
           if (!finalError) {
             setRequests(finalData || []);
-            console.log('✅ Final refresh completed');
           }
         }, 3000);
         
@@ -170,7 +164,6 @@ const VenueApprovalsPage = () => {
         setApprovalCompleted(false);
       }
     } catch (error) {
-      console.error('Error loading requests:', error);
     } finally {
       setLoading(false);
     }
@@ -179,7 +172,6 @@ const VenueApprovalsPage = () => {
   const handleApprove = async (req) => {
     setProcessing(true);
     try {
-      console.log('🔄 Starting approval process for:', req.email);
       
       // First delete any existing venue owner records for this email
       const { error: deleteError } = await supabase

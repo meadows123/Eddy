@@ -171,7 +171,6 @@ const handleAuthSubmit = async (e) => {
       }
     }
   } catch (error) {
-    console.error('Auth error:', error);
     setAuthError(error.message);
   } finally {
     setAuthLoading(false);
@@ -197,7 +196,6 @@ const checkEmailConfirmed = async () => {
       setAuthError('Email not yet confirmed. Please check your inbox and click the confirmation link.');
     }
   } catch (error) {
-    console.error('Email confirmation check error:', error);
     setAuthError(error.message);
   } finally {
     setAuthLoading(false);
@@ -221,7 +219,6 @@ const resendConfirmation = async () => {
       description: "Please check your inbox.",
     });
   } catch (error) {
-    console.error('Resend confirmation error:', error);
     setAuthError(error.message);
   } finally {
     setAuthLoading(false);
@@ -248,7 +245,6 @@ const adjustTimeForMidnight = (startTime, endTime) => {
   if (endTime < startTime) {
     // Keep the original end time - the database can handle midnight crossing
     // by storing the time as-is and interpreting it as next day
-    console.log('Booking crosses midnight:', { startTime, endTime });
   }
 
   return { startTime, endTime };
@@ -281,16 +277,6 @@ const createBooking = async () => {
     const rawStartTime = selection?.time || bookingData?.time || formData?.startTime || '19:00';
     const rawEndTime = selection?.endTime || bookingData?.endTime || formData?.endTime || '23:00';
 
-    console.log('🕐 Time sources for booking:', {
-      selectionTime: selection?.time,
-      bookingDataTime: bookingData?.time,
-      formDataStartTime: formData?.startTime,
-      rawStartTime,
-      selectionEndTime: selection?.endTime,
-      bookingDataEndTime: bookingData?.endTime,
-      formDataEndTime: formData?.endTime,
-      rawEndTime
-    });
 
     const { startTime, endTime } = adjustTimeForMidnight(rawStartTime, rawEndTime);
 
@@ -347,7 +333,6 @@ const createBooking = async () => {
     return bookingRecord.id;
 
   } catch (error) {
-    console.error('Error creating booking for split payment:', error);
     throw error;
   }
 };
@@ -425,7 +410,6 @@ useEffect(() => {
 // Add this useEffect after your existing useEffects to populate form data for authenticated users
 useEffect(() => {
   if (user && !formData.fullName && !formData.email) {
-    
     // Populate form with user's profile information
     setFormData(prev => ({
       ...prev,
@@ -592,7 +576,7 @@ if (user) {
           });
 
 if (profileError) {
-  console.error('Error updating user profile:', profileError);
+  // Profile update failed, continue anyway
 }
 
 return user;
@@ -624,7 +608,6 @@ options: {
 });
 
 if (signUpError) {
-console.error('Signup error:', signUpError);
 throw signUpError;
 }
 
@@ -641,7 +624,6 @@ throw new Error('Failed to create user account - no user returned from signup');
           });
           
           if (sessionError) {
-            console.error('❌ Failed to set session for new user:', sessionError);
             throw new Error('Failed to establish authentication session');
           }
           
@@ -651,12 +633,10 @@ throw new Error('Failed to create user account - no user returned from signup');
           // Verify the session is working
           const { data: verifySession, error: verifyError } = await supabase.auth.getUser();
           if (verifyError || !verifySession.user || verifySession.user.id !== newUser.user.id) {
-            console.error('❌ Session verification failed:', { verifyError, verifySession });
             throw new Error('Authentication session verification failed');
           }
           
         } else {
-          console.error('❌ No session returned from signup - RLS will fail');
           throw new Error('No authentication session available - please try again');
         }
 
@@ -667,19 +647,16 @@ throw new Error('Failed to create user account - no user returned from signup');
 
 return newUser.user;
 } catch (error) {
-console.error('Error with user account:', error);
 throw error;
 }
 };
 
 const handleSubmit = async (paymentMethodId) => {
   if (!paymentMethodId) {
-    console.error('No payment method ID provided');
     return;
   }
 
   if (!stripe) {
-    console.error('Stripe not initialized');
     return;
   }
 
@@ -778,13 +755,10 @@ if (!venueId) {
     const { clientSecret } = await response.json();
 
     // Confirm the payment
-    console.log('💳 Confirming payment with Stripe...');
     const { paymentIntent, error: confirmError } = await stripe.confirmCardPayment(clientSecret);
     
     if (confirmError) {
-      console.error('❌ Payment confirmation failed:', confirmError);
       // If payment fails, send admin notification and mark payment as failed
-      console.error('❌ Payment failed for booking:', pendingBooking.id);
       
       // Update booking with payment failure
       await supabase
@@ -809,7 +783,6 @@ if (!venueId) {
     }
 
     // Update booking status to confirmed
-    console.log('📝 Updating booking status to confirmed:', pendingBooking.id);
     
     const { data: updatedBooking, error: updateError } = await supabase
       .from('bookings')
@@ -822,11 +795,8 @@ if (!venueId) {
       .single();
 
     if (updateError) {
-      console.error('❌ Failed to update booking status:', updateError);
       throw new Error(`Failed to update booking status: ${updateError.message}`);
     }
-    
-    console.log('✅ Booking status updated:', updatedBooking);
 
     // Show success message
     toast({ 
@@ -899,13 +869,11 @@ if (!venueId) {
       } else {
       }
     } catch (emailError) {
-      console.error('❌ Email sending error:', emailError);
       // Don't fail the booking if email fails
 }
 
       setShowConfirmation(true);
     } catch (error) {
-console.error('Error processing booking:', error);
 toast({
   title: "Booking Error",
       description: error.message || "Failed to process booking",

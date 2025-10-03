@@ -13,7 +13,7 @@ const playSuccessBlip = () => {
     successSound.volume = 0.4;
     successSound.play();
   } catch (e) {
-    console.log('Audio feedback not supported');
+    // Audio feedback not supported
   }
 };
 
@@ -56,7 +56,6 @@ const CameraQRScanner = ({ onMemberScanned }) => {
 
   const initializeCamera = async () => {
     try {
-      console.log('📷 Initializing camera...');
       setError(null);
       
       // Check if camera is supported
@@ -67,7 +66,6 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       // Get available video devices
       const devices = await navigator.mediaDevices.enumerateDevices();
       const videoDevices = devices.filter(device => device.kind === 'videoinput');
-      console.log('📷 Available cameras:', videoDevices.map(d => d.label));
       
       if (videoDevices.length === 0) {
         throw new Error('No cameras found');
@@ -84,12 +82,7 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       
       if (backCamera) {
         selectedDeviceId = backCamera.deviceId;
-        console.log('📷 Using back camera:', backCamera.label);
-      } else {
-        console.log('📷 Using default camera:', videoDevices[0].label);
       }
-
-      console.log('📷 Selected camera ID:', selectedDeviceId);
 
       // Enhanced mobile-optimized constraints
       const constraints = {
@@ -111,7 +104,6 @@ const CameraQRScanner = ({ onMemberScanned }) => {
         // Try with exact environment mode first
         stream = await navigator.mediaDevices.getUserMedia(constraints);
       } catch (err) {
-        console.log('📷 Exact environment mode failed, trying fallback...', err);
         
         // Fallback to preferred environment mode
         const fallbackConstraints = {
@@ -145,25 +137,21 @@ const CameraQRScanner = ({ onMemberScanned }) => {
           try {
             // Try to play immediately
             await videoRef.current.play();
-            console.log('📷 Video playback started successfully');
             
             // Start QR code detection
             startQRDetection();
           } catch (playError) {
-            console.warn('❌ Video play failed:', playError);
             
             // Try alternative play approach
             try {
               const playPromise = videoRef.current.play();
               if (playPromise !== undefined) {
                 await playPromise;
-                console.log('📷 Video playback started with promise');
                 
                 // Start QR code detection
                 startQRDetection();
               }
             } catch (retryError) {
-              console.error('❌ Video play retry failed:', retryError);
               throw new Error('Failed to start video playback');
             }
           }
@@ -172,13 +160,11 @@ const CameraQRScanner = ({ onMemberScanned }) => {
 
       setIsScanning(true);
       setError(null);
-      console.log('✅ Camera started successfully');
       
       // Show instruction to user
       setSuccess('Camera activated! Point at QR code to scan.');
 
     } catch (err) {
-      console.error('❌ Error accessing camera:', err);
       
       if (err.name === 'NotAllowedError' || err.message.includes('permission')) {
         setError('Camera access denied. Please allow camera permissions and try again.');
@@ -296,9 +282,8 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       }
       
       setIsScanning(false);
-      console.log('✅ QR Scanner stopped');
     } catch (err) {
-      console.error('❌ Error stopping camera:', err);
+      // Error stopping camera
     }
   };
 
@@ -321,19 +306,15 @@ const CameraQRScanner = ({ onMemberScanned }) => {
 
   const handleScan = async (qrDataString) => {
     try {
-      console.log('🔍 Processing scanned QR code:', qrDataString);
       
       // Prevent multiple simultaneous scans using ref (immediate check)
       if (isProcessingRef.current) {
-        console.log('⏳ [REF CHECK] Already processing a scan, ignoring duplicate');
         return;
       }
       
       // Check cooldown period to prevent rapid duplicate scans using ref
       const now = Date.now();
       if (now - lastScanTimeRef.current < SCAN_COOLDOWN) {
-        const remaining = Math.round((SCAN_COOLDOWN - (now - lastScanTimeRef.current)) / 1000);
-        console.log(`⏳ [REF CHECK] Scan cooldown active. Please wait ${remaining} more seconds.`);
         return;
       }
       
@@ -345,15 +326,11 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       setIsProcessing(true);
       setEmailRateLimited(false);
       
-      console.log('🔒 [LOCKED] Processing locked at', new Date().toISOString());
-      
       // Parse the QR code data
       let qrData;
       try {
         qrData = parseQRCodeData(qrDataString);
-        console.log('📋 Parsed QR data:', qrData);
       } catch (parseError) {
-        console.log('⚠️ QR code parsing error:', parseError.message);
         // Silently ignore parsing errors
         isProcessingRef.current = false;
         setIsProcessing(false);
@@ -362,7 +339,6 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       
       // Check if qrData is valid
       if (!qrData) {
-        console.log('⚠️ Failed to parse QR code data - invalid format');
         // Don't throw error for parse failures - just silently ignore
         isProcessingRef.current = false;
         setIsProcessing(false);
@@ -376,7 +352,6 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       
       // Check if we've already scanned this QR code recently
       if (recentlyScanned.has(scanId)) {
-        console.log('🔄 QR code already scanned recently, ignoring duplicate');
         return;
       }
       
@@ -410,80 +385,45 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       }
       
     } catch (err) {
-      console.error('❌ Error processing QR scan:', err);
       setError(err.message);
       setSuccess(null);
     } finally {
       isProcessingRef.current = false;
       setIsProcessing(false);
-      console.log('🔓 [UNLOCKED] Processing unlocked at', new Date().toISOString());
     }
   };
 
   const handleBookingScan = async (qrData) => {
     try {
-      console.log('🔍 Processing booking QR code:', qrData);
 
       if (!qrData.bookingId || !qrData.securityCode) {
         throw new Error('Invalid booking QR code format');
       }
 
       // Get booking details
-      console.log('🔍 Looking up booking:', qrData.bookingId);
       
       // First check if booking exists at all
-      console.log('🔍 Initial booking check:', qrData.bookingId);
       let { data: bookingCheck, error: checkError } = await supabase
         .from('bookings')
         .select('id, status, qr_security_code, booking_date, created_at')
         .eq('id', qrData.bookingId)
         .single();
       
-      console.log('📋 Initial booking check result:', { 
-        bookingCheck, 
-        checkError,
-        errorMessage: checkError?.message,
-        errorDetails: checkError?.details,
-        bookingId: qrData.bookingId,
-        bookingDate: qrData.bookingDate,
-        securityCode: qrData.securityCode
-      });
         
       if (checkError) {
-        console.error('❌ Booking lookup failed:', {
-          error: checkError,
-          message: checkError.message,
-          details: checkError.details,
-          hint: checkError.hint,
-          code: checkError.code
-        });
         throw new Error(`Booking lookup failed: ${checkError.message}`);
       }
       
       if (!bookingCheck) {
-        console.error('❌ No booking found:', { bookingId: qrData.bookingId });
         throw new Error(`No booking found with ID: ${qrData.bookingId}`);
       }
       
       if (bookingCheck.status !== 'confirmed') {
-        console.error('❌ Booking not confirmed:', { 
-          status: bookingCheck.status,
-          bookingId: qrData.bookingId,
-          date: bookingCheck.booking_date
-        });
         throw new Error(`Booking is not confirmed (status: ${bookingCheck.status})`);
       }
       
-      console.log('✅ Booking found:', {
-        id: bookingCheck.id,
-        status: bookingCheck.status,
-        date: bookingCheck.booking_date,
-        securityCode: bookingCheck.qr_security_code,
-        qrSecurityCode: qrData.securityCode
-      });
       
       // Get full booking details
-      console.log('🔍 Looking up full booking details:', qrData.bookingId);
       let { data: booking, error: bookingError } = await supabase
         .from('bookings')
         .select(`
@@ -502,27 +442,10 @@ const CameraQRScanner = ({ onMemberScanned }) => {
         .eq('status', 'confirmed')
         .single();
 
-      console.log('📋 Full booking lookup result:', {
-        booking,
-        bookingError,
-        errorMessage: bookingError?.message,
-        errorDetails: bookingError?.details
-      });
-
       if (bookingError || !booking) {
-        console.error('❌ Full booking lookup failed:', { 
-          error: bookingError,
-          message: bookingError?.message,
-          details: bookingError?.details,
-          hint: bookingError?.hint,
-          code: bookingError?.code,
-          bookingId: qrData.bookingId,
-          initialBooking: bookingCheck
-        });
 
         // Since we already found the booking in the first check, use that data
         if (bookingCheck) {
-          console.log('✅ Using initial booking data:', bookingCheck);
           const fallbackBooking = {
             ...bookingCheck,
             profiles: { full_name: 'Unknown', email: 'Unknown', phone: 'Unknown' },
@@ -535,7 +458,6 @@ const CameraQRScanner = ({ onMemberScanned }) => {
         }
       } else {
         // Get related data separately
-        console.log('🔍 Getting related data for booking:', booking.id);
         
         // Get user profile
         let profiles = { full_name: 'Unknown', email: 'Unknown', phone: 'Unknown' };
@@ -580,37 +502,11 @@ const CameraQRScanner = ({ onMemberScanned }) => {
         booking.profiles = profiles;
         booking.venues = venues;
         booking.venue_tables = venue_tables;
-
-        console.log('📋 Final booking with related data:', {
-          booking,
-          profiles,
-          venues,
-          venue_tables
-        });
       }
 
       if (bookingError || !booking) {
-        console.error('❌ Full booking lookup failed:', { 
-          error: bookingError,
-          message: bookingError?.message,
-          details: bookingError?.details,
-          hint: bookingError?.hint,
-          code: bookingError?.code,
-          bookingId: qrData.bookingId,
-          initialBooking: bookingCheck
-        });
-
-        // Play error sound (simple blop)
-        try {
-          const errorSound = new Audio("data:audio/wav;base64,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");
-          errorSound.play();
-        } catch (e) {
-          console.log('Audio feedback not supported');
-        }
-
         // Since we already found the booking in the first check, use that data
         if (bookingCheck) {
-          console.log('✅ Using initial booking data:', bookingCheck);
           const fallbackBooking = {
             ...bookingCheck,
             profiles: { full_name: 'Unknown', email: 'Unknown', phone: 'Unknown' },
@@ -628,28 +524,9 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       const today = now.toISOString().split('T')[0];
       const bookingDate = qrData.bookingDate || booking.booking_date;
 
-      // Log all date-related information
-      console.log('📅 Date comparison:', {
-        now: now.toISOString(),
-        today,
-        bookingDate,
-        qrDate: qrData.bookingDate,
-        dbDate: booking.booking_date,
-        matches: bookingDate === today,
-        startTime: booking.start_time,
-        endTime: booking.end_time,
-        currentTime: now.toTimeString().split(' ')[0]
-      });
-
       // Normalize dates for comparison (strip any timezone info)
       const normalizedBookingDate = new Date(bookingDate).toISOString().split('T')[0];
       const normalizedToday = new Date(today).toISOString().split('T')[0];
-
-      console.log('📅 Normalized dates:', {
-        normalizedBookingDate,
-        normalizedToday,
-        matches: normalizedBookingDate === normalizedToday
-      });
 
       if (normalizedBookingDate !== normalizedToday) {
         throw new Error(`This booking is for ${normalizedBookingDate}, not today (${normalizedToday})`);
@@ -659,15 +536,8 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       if (booking.qr_security_code) {
         // For bookings with security codes, verify they match
         if (booking.qr_security_code !== qrData.securityCode) {
-          console.error('❌ Security code mismatch:', {
-            expected: booking.qr_security_code,
-            received: qrData.securityCode
-          });
           throw new Error('Invalid security code');
         }
-      } else {
-        // For legacy bookings without security codes, log but allow
-        console.log('⚠️ Legacy booking without security code:', booking.id);
       }
 
       // Update scan count
@@ -680,7 +550,7 @@ const CameraQRScanner = ({ onMemberScanned }) => {
         .eq('id', qrData.bookingId);
 
       if (updateError) {
-        console.warn('⚠️ Failed to update scan count:', updateError);
+        // Failed to update scan count, continue anyway
       }
 
       const scanResultData = {
@@ -698,13 +568,6 @@ const CameraQRScanner = ({ onMemberScanned }) => {
         status: 'verified'
       };
 
-      console.log('📋 Setting scan result:', {
-        scanResultData,
-        rawProfiles: booking.profiles,
-        rawVenues: booking.venues,
-        rawVenueTables: booking.venue_tables
-      });
-
       setScanResult(scanResultData);
 
       // Play success sound for successful verification
@@ -719,25 +582,18 @@ const CameraQRScanner = ({ onMemberScanned }) => {
 
       // Send email notification to customer (with rate limiting)
       if (emailEnabled) {
-        console.log('📧 [EMAIL CHECK] Starting email check process for booking:', booking.id);
         try {
           const customerEmail = booking.profiles?.email || 'unknown@example.com';
           const bookingId = booking.id;
           
-          console.log('📧 [EMAIL CHECK] Customer email:', customerEmail, 'Booking ID:', bookingId);
-          
           // Check if we can send an email
           const rateLimitCheck = emailRateLimiter.canSendEmail(bookingId, customerEmail);
-          console.log('📧 [EMAIL CHECK] Rate limit check result:', rateLimitCheck);
           
           if (!rateLimitCheck.canSend) {
-            console.log('🚫 [CLIENT] Email rate limited:', rateLimitCheck.reason);
-            console.log('📊 Rate limiter stats:', emailRateLimiter.getStats());
             setEmailRateLimited(true);
             // Don't send email, but don't show error to user
           } else {
             setEmailRateLimited(false);
-            console.log('📧 [SENDING] Attempting to send QR scan notification email...');
             const notificationData = {
               customerName: booking.profiles?.full_name || 'Valued Customer',
               customerEmail: customerEmail,
@@ -750,46 +606,29 @@ const CameraQRScanner = ({ onMemberScanned }) => {
               scanTime: new Date().toLocaleString()
             };
             
-            console.log('📧 [SENDING] Calling sendQRScanNotification with data:', notificationData);
-            
             const emailResult = await sendQRScanNotification(notificationData);
-            
-            console.log('📧 [RESULT] Email send result:', emailResult);
             
             // Record that we sent an email
             emailRateLimiter.recordEmailSent(bookingId, customerEmail);
-            
-            console.log('✅ [SUCCESS] QR scan notification email sent successfully');
-            console.log('📊 Updated rate limiter stats:', emailRateLimiter.getStats());
           }
         } catch (emailError) {
-          console.error('❌ [ERROR] Failed to send QR scan notification email:', {
-            error: emailError,
-            message: emailError.message,
-            stack: emailError.stack
-          });
           // Don't throw error - email failure shouldn't break the scan process
         }
-      } else {
-        console.log('📧 [DISABLED] Email sending disabled - scan processed without sending email');
       }
 
       setSuccess('✅ Booking verified! Customer can be seated.');
       setError(null);
       
       // Stop scanning after successful scan to prevent duplicates
-      console.log('🛑 Stopping scanner after successful scan');
       stopScanning();
 
     } catch (err) {
-      console.error('❌ Error processing booking scan:', err);
       throw err;
     }
   };
 
   const handleMemberScan = async (qrData) => {
     try {
-      console.log('🔍 Processing member QR code:', qrData);
       
       if (!qrData.memberId) {
         throw new Error('Invalid member QR code format');
@@ -839,11 +678,9 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       setError(null);
       
       // Stop scanning after successful scan to prevent duplicates
-      console.log('🛑 Stopping scanner after successful member scan');
       stopScanning();
 
     } catch (err) {
-      console.error('❌ Error processing member scan:', err);
       throw err;
     }
   };

@@ -82,7 +82,6 @@ const UserProfilePage = () => {
       
       
       if (simpleError) {
-        console.error('❌ Table query failed:', simpleError);
         
         // Try to get table info
         const { data: tableInfo, error: tableError } = await supabase
@@ -107,7 +106,6 @@ const UserProfilePage = () => {
       }
       
     } catch (error) {
-      console.error('❌ Debug function error:', error);
     }
   };
 

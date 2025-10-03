@@ -88,7 +88,6 @@ const BookingModal = ({ isOpen, onClose, venue }) => {
       }, 500);
 
     } catch (error) {
-      console.error('Authentication error:', error);
       setAuthError(error.message || 'Authentication failed');
     } finally {
       setAuthLoading(false);
@@ -120,7 +119,6 @@ const BookingModal = ({ isOpen, onClose, venue }) => {
       if (error) throw error;
       setAvailableTables(data || []);
     } catch (error) {
-      console.error('Error loading tables:', error);
       setErrorMessage('Failed to load available tables');
     }
   };
@@ -134,7 +132,6 @@ const BookingModal = ({ isOpen, onClose, venue }) => {
       
       setTimeAvailability(data || []);
     } catch (error) {
-      console.error('Error checking availability:', error);
       setTimeAvailability([]);
       setErrorMessage('Failed to load availability');
     } finally {
@@ -177,12 +174,9 @@ const BookingModal = ({ isOpen, onClose, venue }) => {
 
     // Check if user is authenticated before proceeding to checkout
     if (!user) {
-      console.log('🔐 User not authenticated, showing auth modal');
       setShowAuthModal(true);
       return;
     }
-
-    console.log('✅ User authenticated, proceeding to checkout');
     continueToCheckout();
   };
 
@@ -197,27 +191,11 @@ const BookingModal = ({ isOpen, onClose, venue }) => {
       guestCount: guestCount
     };
 
-    console.log('🚀 About to navigate to checkout with data:', bookingData);
-    console.log('📍 Current location:', window.location.href);
-    console.log('📋 Data structure check:', {
-      venue: !!bookingData.venue,
-      venueId: bookingData.venue?.id,
-      table: !!bookingData.table,
-      tableId: bookingData.table?.id,
-      date: !!bookingData.date,
-      time: !!bookingData.time,
-      endTime: !!bookingData.endTime,
-      guestCount: bookingData.guestCount
-    });
-
     // Navigate FIRST, then close modal
-    console.log('🧭 Navigating to /checkout...');
     navigate(`/checkout/${venue?.id}`, {
       state: bookingData,
       replace: true
     });
-    
-    console.log('✅ Navigation call completed');
     
     // Close the modal after navigation
     setTimeout(() => {

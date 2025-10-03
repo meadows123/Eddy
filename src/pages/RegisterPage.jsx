@@ -37,33 +37,14 @@ const RegisterForm = () => {
         }
       };
       
-      console.log('🔍 DEBUG: Registration payload:', {
-        email,
-        name,
-        age,
-        country,
-        city,
-        phone,
-        signUpPayload
-      });
-
       // Register user with metadata
-      console.log('🚀 DEBUG: Calling supabase.auth.signUp...');
       const { data, error } = await supabase.auth.signUp(signUpPayload);
-      
-      console.log('📥 DEBUG: Auth response:', { data, error });
 
       if (error) {
-        console.error('❌ DEBUG: Auth signup error:', {
-          message: error.message,
-          status: error.status,
-          details: error
-        });
         setError(`Auth Error: ${error.message}`);
         return;
       }
 
-      console.log('✅ DEBUG: Auth signup successful, user created:', data.user);
       setSuccess('Registration successful! Please check your email to confirm your account.');
       
       // Do not write to profiles here; a DB trigger creates it on user creation.
@@ -94,7 +75,6 @@ const RegisterForm = () => {
       });
       
     } catch (err) {
-      console.error('💥 DEBUG: Unexpected error during registration:', err);
       setError(`Unexpected Error: ${err.message}`);
     } finally {
       setLoading(false);

@@ -7,13 +7,6 @@ import QRCode from 'qrcode';
  */
 export const generateEddysMemberQR = async (memberData) => {
   try {
-    console.log('🔍 Eddys Member QR Generator - Received member data:', {
-      userId: memberData.userId,
-      venueId: memberData.venueId,
-      memberTier: memberData.memberTier,
-      creditBalance: memberData.creditBalance,
-      memberSince: memberData.memberSince
-    });
     
     // Import supabase client
     const { supabase } = await import('./supabase.js');
@@ -32,7 +25,6 @@ export const generateEddysMemberQR = async (memberData) => {
       timestamp: new Date().toISOString()
     };
 
-    console.log('🔍 Eddys Member QR Generator - Generated QR data:', qrData);
 
     // Store security code in database (only for real members, not test ones)
     if (memberData.userId && !memberData.userId.startsWith('test-')) {
@@ -46,7 +38,6 @@ export const generateEddysMemberQR = async (memberData) => {
         .eq('id', memberData.userId);
 
       if (updateError) {
-        console.log('⚠️ Full update failed, trying with just qr_security_code:', updateError.message);
         
         // If that fails, try with just the qr_security_code field
         const { error: fallbackError } = await supabase
@@ -57,16 +48,12 @@ export const generateEddysMemberQR = async (memberData) => {
           .eq('id', memberData.userId);
 
         if (fallbackError) {
-          console.error('❌ Error storing member QR security code:', fallbackError);
           // Continue anyway - QR code will still work
         } else {
-          console.log('✅ Member QR security code stored in database (fallback)');
         }
       } else {
-        console.log('✅ Member QR security code stored in database');
       }
     } else {
-      console.log('🧪 Test member - skipping database update');
     }
 
     // Generate QR code image
@@ -79,13 +66,6 @@ export const generateEddysMemberQR = async (memberData) => {
       }
     });
 
-    console.log('🔍 QR Code Image details:', {
-      length: qrCodeImage?.length || 0,
-      start: qrCodeImage?.substring(0, 100) || 'N/A',
-      isBase64: qrCodeImage?.startsWith('data:image/') || false
-    });
-
-    console.log('✅ Eddys Member QR code generated for member:', memberData.userId);
     
     // For email compatibility, return both base64 and external URL
     return {
@@ -94,7 +74,6 @@ export const generateEddysMemberQR = async (memberData) => {
     };
 
   } catch (error) {
-    console.error('❌ Error generating Eddys Member QR code:', error);
     throw error;
   }
 };
@@ -106,17 +85,6 @@ export const generateEddysMemberQR = async (memberData) => {
  */
 export const generateVenueEntryQR = async (bookingData) => {
   try {
-    console.log('🔍 QR Code Generator - Received booking data:', {
-      id: bookingData.id,
-      venue_id: bookingData.venue_id,
-      booking_date: bookingData.booking_date,
-      start_time: bookingData.start_time,
-      number_of_guests: bookingData.number_of_guests,
-      status: bookingData.status,
-      table: bookingData.table,
-      venue_tables: bookingData.venue_tables,
-      table_number: bookingData.table_number
-    });
     
     // Import supabase client
     const { supabase } = await import('./supabase.js');
@@ -145,7 +113,6 @@ export const generateVenueEntryQR = async (bookingData) => {
           tableNumber = tableData.table_number;
         }
       } catch (error) {
-        console.log('⚠️ Could not fetch table number:', error.message);
       }
     }
 
@@ -164,7 +131,6 @@ export const generateVenueEntryQR = async (bookingData) => {
       timestamp: new Date().toISOString()
     };
 
-    console.log('🔍 QR Code Generator - Generated QR data:', qrData);
 
     // Store security code in database (only for real bookings, not test ones)
     if (bookingData.id && !bookingData.id.startsWith('test-')) {
@@ -174,13 +140,10 @@ export const generateVenueEntryQR = async (bookingData) => {
         .eq('id', bookingData.id);
 
       if (updateError) {
-        console.error('❌ Error storing QR security code:', updateError);
         // Continue anyway - QR code will still work
       } else {
-        console.log('✅ QR security code stored in database');
       }
     } else {
-      console.log('🧪 Test booking - skipping database update');
     }
 
     // Generate QR code as base64 image
@@ -193,12 +156,6 @@ export const generateVenueEntryQR = async (bookingData) => {
       }
     });
 
-    console.log('✅ QR code generated for booking:', bookingData.id);
-    console.log('🔍 QR Code Image details:', {
-      length: qrCodeImage?.length || 0,
-      start: qrCodeImage?.substring(0, 100) || 'N/A',
-      isBase64: qrCodeImage?.startsWith('data:image/') || false
-    });
     
     // For email compatibility, return both base64 and external URL
     return {
@@ -206,7 +163,6 @@ export const generateVenueEntryQR = async (bookingData) => {
       externalUrl: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(JSON.stringify(qrData))}&color=800020&bgcolor=FFFFFF&margin=1`
     };
   } catch (error) {
-    console.error('❌ Error generating QR code:', error);
     throw error;
   }
 };
@@ -231,21 +187,9 @@ export const generateSecurityCode = () => {
  */
 export const parseQRCodeData = (qrDataString) => {
   try {
-    console.log('🔍 Parsing QR data string:', qrDataString);
     
     // Try to parse as JSON
     const qrData = JSON.parse(qrDataString);
-    console.log('📋 Parsed QR data:', {
-      qrData,
-      type: qrData.type,
-      bookingId: qrData.bookingId,
-      venueId: qrData.venueId,
-      securityCode: qrData.securityCode,
-      bookingDate: qrData.bookingDate,
-      startTime: qrData.startTime,
-      endTime: qrData.endTime,
-      tableNumber: qrData.tableNumber
-    });
 
     // Check if this is a new format with app link and fallback
     if (qrData.url && qrData.url.startsWith('vipclub://scan')) {
@@ -299,10 +243,8 @@ export const parseQRCodeData = (qrDataString) => {
         }
       }
     } catch (urlError) {
-      console.error('❌ Error parsing QR code URL:', urlError);
     }
     
-    console.error('❌ Error parsing QR code data:', error);
     return null;
   }
 };
