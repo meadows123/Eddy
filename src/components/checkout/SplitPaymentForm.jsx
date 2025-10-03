@@ -24,10 +24,10 @@ import {
 
 const SplitPaymentForm = ({ 
   totalAmount, 
-  onSplitCreated, 
+  onSplitCreated = () => {}, // Make optional with default no-op function
   user, 
   bookingId, 
-  createBookingIfNeeded // new prop
+  createBookingIfNeeded // Function to create booking if needed
 }) => {
   const { toast } = useToast();
   const [splitCount, setSplitCount] = useState(2);
@@ -203,7 +203,13 @@ const SplitPaymentForm = ({
     try {
       let realBookingId = bookingId;
       if (!realBookingId && typeof createBookingIfNeeded === 'function') {
-        realBookingId = await createBookingIfNeeded();
+        try {
+          realBookingId = await createBookingIfNeeded();
+          console.log('✅ Booking created successfully:', realBookingId);
+        } catch (err) {
+          console.error('❌ Error creating booking:', err);
+          throw new Error('Failed to create booking: ' + err.message);
+        }
       }
       if (!realBookingId) throw new Error('Booking could not be created.');
 
@@ -247,7 +253,10 @@ const SplitPaymentForm = ({
         className: "bg-green-500 text-white"
       });
 
-      onSplitCreated(data);
+      // Handle successful split payment creation
+      if (typeof onSplitCreated === 'function') {
+        onSplitCreated(data);
+      }
 
     } catch (error) {
       console.error('Error creating split payment requests:', error);
