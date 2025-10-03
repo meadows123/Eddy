@@ -406,7 +406,7 @@ export const notifyAdminOfVenueOwnerRegistration = async (venueOwnerData) => {
       body: {
         template: 'admin-venue-owner-registration',
         data: {
-          adminEmail: 'sales@oneeddy.com', // Replace with your admin email
+          adminEmail: 'info@oneeddy.com', // Replace with your admin email
           ownerName: venueOwnerData.owner_name,
           email: venueOwnerData.email,
           phone: venueOwnerData.phone,

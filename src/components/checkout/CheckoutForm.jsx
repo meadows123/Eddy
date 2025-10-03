@@ -107,7 +107,7 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
                   placeholder="Create a password for your account"
                 />
                 {errors.password && <p className="text-destructive text-sm mt-1">{errors.password}</p>}
-                <p className="text-xs text-muted-foreground mt-1">This will create your VIPClub account for future bookings</p>
+                <p className="text-xs text-muted-foreground mt-1">This will create your Eddy's Members account for future bookings</p>
               </div>
             )}
             {isAuthenticated && (
@@ -117,7 +117,7 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
                     <User className="h-3 w-3 text-white" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-green-800">Signed in to your VIPClub account</p>
+                    <p className="text-sm font-medium text-green-800">Signed in to your Eddy's Members account</p>
                     <p className="text-xs text-green-600">Your booking will be saved to your profile</p>
                   </div>
                 </div>
