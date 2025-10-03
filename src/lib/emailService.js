@@ -581,6 +581,106 @@ This notification was sent automatically by the Eddys Members QR scanning system
   }
 };
 
+// Split payment venue owner notification email function
+export const sendSplitPaymentVenueOwnerNotification = async (bookingData, venueData, customerData) => {
+  try {
+    // Use Supabase Edge Function to send the split payment venue notification
+    const { data, error } = await supabase.functions.invoke('send-email', {
+      body: {
+        template: 'split-payment-venue-notification',
+        data: {
+          adminEmail: 'info@oneeddy.com',
+          venueName: venueData.name,
+          venueContactEmail: venueData.contact_email,
+          bookingId: bookingData.id,
+          bookingDate: bookingData.booking_date,
+          startTime: bookingData.start_time,
+          endTime: bookingData.end_time,
+          guestCount: bookingData.number_of_guests,
+          customerName: customerData.full_name,
+          customerEmail: customerData.email,
+          totalAmount: bookingData.total_amount,
+          splitPaymentCount: bookingData.split_payment_count || 0,
+          venueAddress: venueData.address
+        }
+      }
+    });
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error sending split payment venue owner notification:', error);
+    throw error;
+  }
+};
+
+// Split payment completion emails function
+export const sendSplitPaymentCompletionEmails = async (bookingData, venueData, customerData, splitPayments) => {
+  try {
+    // Send completion email to main booker
+    const { data: mainBookerData, error: mainBookerError } = await supabase.functions.invoke('send-email', {
+      body: {
+        template: 'split-payment-completion',
+        data: {
+          email: customerData.email,
+          customerName: customerData.full_name,
+          bookingId: bookingData.id,
+          bookingDate: bookingData.booking_date,
+          startTime: bookingData.start_time,
+          endTime: bookingData.end_time,
+          venueName: venueData.name,
+          venueAddress: venueData.address,
+          totalAmount: bookingData.total_amount,
+          splitPaymentCount: splitPayments.length,
+          completionDate: new Date().toLocaleDateString()
+        }
+      }
+    });
+
+    if (mainBookerError) {
+      throw mainBookerError;
+    }
+
+    // Send completion emails to all split payment participants
+    const participantEmails = splitPayments.map(async (payment) => {
+      const { data, error } = await supabase.functions.invoke('send-email', {
+        body: {
+          template: 'split-payment-participant-completion',
+          data: {
+            email: payment.recipient_email,
+            recipientName: payment.recipient_name,
+            mainBookerName: customerData.full_name,
+            bookingId: bookingData.id,
+            bookingDate: bookingData.booking_date,
+            startTime: bookingData.start_time,
+            endTime: bookingData.end_time,
+            venueName: venueData.name,
+            venueAddress: venueData.address,
+            amountPaid: payment.amount,
+            completionDate: new Date().toLocaleDateString()
+          }
+        }
+      });
+
+      if (error) {
+        console.error(`Failed to send completion email to ${payment.recipient_email}:`, error);
+      }
+
+      return data;
+    });
+
+    await Promise.all(participantEmails);
+
+    return { mainBookerData, participantEmails };
+  } catch (error) {
+    console.error('Error sending split payment completion emails:', error);
+    throw error;
+  }
+};
+
 // Make test function available globally for debugging
 if (typeof window !== 'undefined') {
   window.testContactFormEmail = testContactFormEmail;
