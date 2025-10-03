@@ -289,12 +289,20 @@ const SplitPaymentForm = ({
 
         console.log('📝 Booking data fetched:', bookingData);
 
-        // Send confirmation to the main booker
-        if (currentUser?.email) {
-          console.log('📧 Sending confirmation to main booker:', currentUser.email);
+        // Get main booker's profile data
+        const { data: mainBookerProfile, error: mainBookerError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', currentUser.id)
+          .single();
+
+        if (mainBookerError) {
+          console.error('❌ Error fetching main booker profile:', mainBookerError);
+        } else if (mainBookerProfile?.email) {
+          console.log('📧 Sending confirmation to main booker:', mainBookerProfile.email);
           await sendBookingConfirmation({
-            userEmail: currentUser.email,
-            userName: currentUser.user_metadata?.full_name || currentUser.email,
+            userEmail: mainBookerProfile.email,
+            userName: `${mainBookerProfile.first_name} ${mainBookerProfile.last_name}`.trim() || currentUser.email,
             bookingDetails: {
               ...bookingData,
               isSplitPayment: true,
@@ -307,15 +315,29 @@ const SplitPaymentForm = ({
               end_time: bookingData.end_time
             }
           });
+        } else {
+          console.warn('⚠️ No email found for main booker');
         }
 
         // Send notifications to all split recipients
         for (const recipient of splitRecipients) {
-          if (recipient?.email) {
-            console.log('📧 Sending confirmation to split recipient:', recipient.email);
+          // Get recipient's profile data to ensure we have their email
+          const { data: recipientProfile, error: recipientError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', recipient.id)
+            .single();
+
+          if (recipientError) {
+            console.error('❌ Error fetching recipient profile:', recipientError);
+            continue;
+          }
+
+          if (recipientProfile?.email) {
+            console.log('📧 Sending confirmation to split recipient:', recipientProfile.email);
             await sendBookingConfirmation({
-              userEmail: recipient.email,
-              userName: recipient.displayName,
+              userEmail: recipientProfile.email,
+              userName: recipient.displayName || `${recipientProfile.first_name} ${recipientProfile.last_name}`.trim(),
               bookingDetails: {
                 ...bookingData,
                 isSplitPayment: true,
@@ -329,6 +351,8 @@ const SplitPaymentForm = ({
                 end_time: bookingData.end_time
               }
             });
+          } else {
+            console.warn('⚠️ No email found for recipient:', recipient.displayName);
           }
         }
 
