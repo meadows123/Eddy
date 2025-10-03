@@ -300,24 +300,28 @@ const SplitPaymentForm = ({
           console.error('❌ Error fetching main booker profile:', mainBookerError);
         } else if (mainBookerProfile?.email) {
           console.log('📧 Sending confirmation to main booker:', mainBookerProfile.email);
-          await sendBookingConfirmation(
-            {
-              ...bookingData,
-              isSplitPayment: true,
-              splitAmount: myAmount,
-              totalAmount: totalAmount,
-              numberOfSplits: splitCount,
-              venue_name: bookingData.venue?.name,
-              booking_date: bookingData.booking_date,
-              start_time: bookingData.start_time,
-              end_time: bookingData.end_time
-            },
-            bookingData.venue,
-            {
-              email: mainBookerProfile.email,
-              full_name: `${mainBookerProfile.first_name} ${mainBookerProfile.last_name}`.trim() || currentUser.email
+          // Send split payment request using Edge Function
+          const { error: emailError } = await supabase.functions.invoke('send-email', {
+            body: {
+              template: 'split-payment-initiator',
+              data: {
+                email: mainBookerProfile.email,
+                recipientName: `${mainBookerProfile.first_name} ${mainBookerProfile.last_name}`.trim() || currentUser.email,
+                venueName: bookingData.venue?.name,
+                bookingDate: bookingData.booking_date,
+                startTime: bookingData.start_time,
+                endTime: bookingData.end_time,
+                totalAmount: totalAmount,
+                splitAmount: myAmount,
+                numberOfSplits: splitCount,
+                dashboardUrl: `${window.location.origin}/profile`
+              }
             }
-          );
+          });
+
+          if (emailError) {
+            console.error('❌ Failed to send split payment initiator email:', emailError);
+          }
         } else {
           console.warn('⚠️ No email found for main booker');
         }
@@ -338,25 +342,30 @@ const SplitPaymentForm = ({
 
           if (recipientProfile?.email) {
             console.log('📧 Sending confirmation to split recipient:', recipientProfile.email);
-            await sendBookingConfirmation(
-              {
-                ...bookingData,
-                isSplitPayment: true,
-                splitAmount: splitAmounts[splitRecipients.indexOf(recipient)],
-                totalAmount: totalAmount,
-                numberOfSplits: splitCount,
-                mainBooker: currentUser.user_metadata?.full_name || currentUser.email,
-                venue_name: bookingData.venue?.name,
-                booking_date: bookingData.booking_date,
-                start_time: bookingData.start_time,
-                end_time: bookingData.end_time
-              },
-              bookingData.venue,
-              {
-                email: recipientProfile.email,
-                full_name: recipient.displayName || `${recipientProfile.first_name} ${recipientProfile.last_name}`.trim()
+            // Send split payment request using Edge Function
+            const { error: emailError } = await supabase.functions.invoke('send-email', {
+              body: {
+                template: 'split-payment-request',
+                data: {
+                  email: recipientProfile.email,
+                  recipientName: recipient.displayName || `${recipientProfile.first_name} ${recipientProfile.last_name}`.trim(),
+                  initiatorName: currentUser.user_metadata?.full_name || currentUser.email,
+                  venueName: bookingData.venue?.name,
+                  bookingDate: bookingData.booking_date,
+                  startTime: bookingData.start_time,
+                  endTime: bookingData.end_time,
+                  totalAmount: totalAmount,
+                  splitAmount: splitAmounts[splitRecipients.indexOf(recipient)],
+                  numberOfSplits: splitCount,
+                  paymentLink: `${window.location.origin}/split-payment/${bookingData.id}/${splitRecipients.indexOf(recipient)}`,
+                  dashboardUrl: `${window.location.origin}/profile`
+                }
               }
-            );
+            });
+
+            if (emailError) {
+              console.error('❌ Failed to send split payment request email:', emailError);
+            }
           } else {
             console.warn('⚠️ No email found for recipient:', recipient.displayName);
           }
@@ -366,26 +375,27 @@ const SplitPaymentForm = ({
         const venueEmail = bookingData.venue?.owner?.email || bookingData.venue?.contact_email;
         if (venueEmail) {
           console.log('📧 Sending notification to venue owner:', venueEmail);
-          await sendVenueOwnerNotification(
-            {
-              ...bookingData,
-              isSplitPayment: true,
-              splitCount: splitCount,
-              mainBooker: currentUser.user_metadata?.full_name || currentUser.email,
-              venue_name: bookingData.venue?.name,
-              booking_date: bookingData.booking_date,
-              start_time: bookingData.start_time,
-              end_time: bookingData.end_time
-            },
-            {
-              ...bookingData.venue,
-              contact_email: venueEmail
-            },
-            {
-              email: currentUser.email,
-              full_name: currentUser.user_metadata?.full_name || currentUser.email
+          // Send split payment notification to venue owner using Edge Function
+          const { error: emailError } = await supabase.functions.invoke('send-email', {
+            body: {
+              template: 'split-payment-venue-notification',
+              data: {
+                email: venueEmail,
+                venueName: bookingData.venue?.name,
+                initiatorName: currentUser.user_metadata?.full_name || currentUser.email,
+                bookingDate: bookingData.booking_date,
+                startTime: bookingData.start_time,
+                endTime: bookingData.end_time,
+                totalAmount: totalAmount,
+                numberOfSplits: splitCount,
+                dashboardUrl: `${window.location.origin}/venue-owner/dashboard`
+              }
             }
-          );
+          });
+
+          if (emailError) {
+            console.error('❌ Failed to send venue owner notification:', emailError);
+          }
         } else {
           console.warn('⚠️ No venue owner email found');
         }
