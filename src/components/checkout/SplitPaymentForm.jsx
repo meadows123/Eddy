@@ -301,16 +301,47 @@ const SplitPaymentForm = ({
         } else if (mainBookerProfile?.email) {
           console.log('📧 Sending confirmation to main booker:', mainBookerProfile.email);
           // Send split payment request using Edge Function
+          // Format times and dates for main booker
+          const formattedStartTime = new Date(`2000-01-01T${bookingData.start_time}`).toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: 'numeric',
+            hour12: true
+          });
+          const formattedEndTime = new Date(`2000-01-01T${bookingData.end_time}`).toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: 'numeric',
+            hour12: true
+          });
+          const formattedDate = new Date(bookingData.booking_date).toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          });
+
+          console.log('📅 Main booker booking details:', {
+            id: bookingData.id,
+            date: formattedDate,
+            startTime: formattedStartTime,
+            endTime: formattedEndTime,
+            rawStartTime: bookingData.start_time,
+            rawEndTime: bookingData.end_time,
+            rawBookingData: bookingData
+          });
+
           const mainBookerEmailData = {
-            template: 'split-payment-confirmation',
+            template: 'split-payment-initiator',
             to: mainBookerProfile.email,
             subject: 'Split Payment Initiated',
             data: {
               recipientName: `${mainBookerProfile.first_name} ${mainBookerProfile.last_name}`.trim() || currentUser.email,
               venueName: bookingData.venue?.name,
-              bookingDate: bookingData.booking_date,
-              startTime: bookingData.start_time,
-              endTime: bookingData.end_time,
+              bookingId: bookingData.id || 'N/A',
+              bookingReference: `VIP-${bookingData.id}`,
+              bookingDate: formattedDate,
+              startTime: formattedStartTime,
+              endTime: formattedEndTime,
+              bookingTime: `${formattedStartTime} - ${formattedEndTime}`,
               totalAmount: totalAmount,
               splitAmount: myAmount,
               numberOfSplits: splitCount,
@@ -348,6 +379,35 @@ const SplitPaymentForm = ({
           if (recipientProfile?.email) {
             console.log('📧 Sending confirmation to split recipient:', recipientProfile.email);
             // Send split payment request using Edge Function
+            // Format the booking time
+            const formattedStartTime = new Date(`2000-01-01T${bookingData.start_time}`).toLocaleTimeString('en-US', {
+              hour: 'numeric',
+              minute: 'numeric',
+              hour12: true
+            });
+            const formattedEndTime = new Date(`2000-01-01T${bookingData.end_time}`).toLocaleTimeString('en-US', {
+              hour: 'numeric',
+              minute: 'numeric',
+              hour12: true
+            });
+
+            // Format the booking date
+            const formattedDate = new Date(bookingData.booking_date).toLocaleDateString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            });
+
+            console.log('📅 Formatting booking details:', {
+              id: bookingData.id,
+              date: formattedDate,
+              startTime: formattedStartTime,
+              endTime: formattedEndTime,
+              rawStartTime: bookingData.start_time,
+              rawEndTime: bookingData.end_time
+            });
+
             const recipientEmailData = {
               template: 'split-payment-initiation',
               to: recipientProfile.email,
@@ -356,11 +416,12 @@ const SplitPaymentForm = ({
                 recipientName: recipient.displayName || `${recipientProfile.first_name} ${recipientProfile.last_name}`.trim(),
                 initiatorName: currentUser.user_metadata?.full_name || currentUser.email,
                 venueName: bookingData.venue?.name,
-                bookingId: bookingData.id,
-                bookingDate: bookingData.booking_date,
-                startTime: bookingData.start_time,
-                endTime: bookingData.end_time,
-                bookingTime: `${bookingData.start_time} - ${bookingData.end_time}`,
+                bookingId: bookingData.id || 'N/A',
+                bookingReference: `VIP-${bookingData.id}`,
+                bookingDate: formattedDate,
+                startTime: formattedStartTime,
+                endTime: formattedEndTime,
+                bookingTime: `${formattedStartTime} - ${formattedEndTime}`,
                 totalAmount: totalAmount,
                 splitAmount: splitAmounts[splitRecipients.indexOf(recipient)],
                 numberOfSplits: splitCount,
@@ -369,7 +430,18 @@ const SplitPaymentForm = ({
               }
             };
 
-            console.log('📧 Sending recipient email with data:', recipientEmailData);
+            console.log('📧 Sending recipient email with data:', {
+              ...recipientEmailData,
+              rawBookingData: bookingData,
+              formattedData: {
+                id: bookingData.id,
+                date: formattedDate,
+                startTime: formattedStartTime,
+                endTime: formattedEndTime,
+                rawStartTime: bookingData.start_time,
+                rawEndTime: bookingData.end_time
+              }
+            });
 
             const { error: emailError } = await supabase.functions.invoke('send-email', {
               body: recipientEmailData
