@@ -158,22 +158,10 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
             <div 
               className="p-4 border rounded-lg bg-white mobile-payment-container"
               style={{
-                // Remove appearance styles that might interfere with touch
-                WebkitAppearance: 'none',
-                appearance: 'none',
-                // Set explicit dimensions
-                width: '100%',
-                minHeight: '60px',
-                // Remove touch action to allow direct interaction
-                touchAction: 'none',
-                // Ensure the container doesn't interfere with input
-                pointerEvents: 'auto',
-                cursor: 'text',
-                // Basic styling
-                display: 'flex',
-                alignItems: 'center',
-                position: 'relative',
-                zIndex: 1
+                padding: '10px',
+                border: '1px solid #d1d5db',
+                borderRadius: '4px',
+                backgroundColor: 'white'
               }}
             >
               {!stripeReady ? (
@@ -201,12 +189,8 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
                     hidePostalCode: true,
                     // Mobile-specific options
                     supportedNetworks: ['visa', 'mastercard', 'amex', 'discover'],
-                    // Ensure proper mobile input handling
-                    placeholder: {
-                      number: '1234 5678 9012 3456',
-                      expiry: 'MM/YY',
-                      cvc: 'CVC',
-                    },
+                    // Simple placeholder text
+                    placeholder: 'Card number',
                     // Disable autofill for better mobile compatibility
                     disableLink: false,
                     // Ensure proper focus handling on mobile

@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabase';
+import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { 
   Plus, 
   Minus, 
@@ -392,6 +393,47 @@ const SplitPaymentForm = ({
                 )}
               </div>
             ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Payment Input */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Payment Details</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="p-4 border rounded-lg bg-white">
+            <CardElement 
+              options={{
+                style: {
+                  base: {
+                    fontSize: '16px',
+                    color: '#800020',
+                    fontFamily: 'system-ui, -apple-system, sans-serif',
+                    lineHeight: '1.5',
+                    '::placeholder': {
+                      color: '#800020',
+                    },
+                  },
+                  invalid: {
+                    color: '#e53e3e',
+                  },
+                },
+                hidePostalCode: true,
+                // Mobile-specific options
+                supportedNetworks: ['visa', 'mastercard', 'amex', 'discover'],
+                // Simple placeholder text
+                placeholder: 'Card number',
+                // Disable autofill for better mobile compatibility
+                disableLink: false,
+                // Ensure proper focus handling on mobile
+                classes: {
+                  focus: 'is-focused',
+                  invalid: 'is-invalid',
+                }
+              }}
+            />
           </div>
         </CardContent>
       </Card>
