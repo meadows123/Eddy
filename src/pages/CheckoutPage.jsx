@@ -17,7 +17,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { sendBookingConfirmation, sendVenueOwnerNotification, debugBookingEmail, sendBookingConfirmationEmail } from '../lib/emailService.js';
+import { sendBookingConfirmation, sendVenueOwnerNotification, debugBookingEmail } from '../lib/emailService.js';
 import { Elements, CardElement } from '@stripe/react-stripe-js';
 import { stripePromise } from '@/lib/stripe';
 import { generateSecurityCode } from '@/lib/qrCodeService';
