@@ -301,22 +301,27 @@ const SplitPaymentForm = ({
         } else if (mainBookerProfile?.email) {
           console.log('📧 Sending confirmation to main booker:', mainBookerProfile.email);
           // Send split payment request using Edge Function
-          const { error: emailError } = await supabase.functions.invoke('send-email', {
-            body: {
-              template: 'split-payment-confirmation',
-              data: {
-                email: mainBookerProfile.email,
-                recipientName: `${mainBookerProfile.first_name} ${mainBookerProfile.last_name}`.trim() || currentUser.email,
-                venueName: bookingData.venue?.name,
-                bookingDate: bookingData.booking_date,
-                startTime: bookingData.start_time,
-                endTime: bookingData.end_time,
-                totalAmount: totalAmount,
-                splitAmount: myAmount,
-                numberOfSplits: splitCount,
-                dashboardUrl: `${window.location.origin}/profile`
-              }
+          const mainBookerEmailData = {
+            template: 'split-payment-confirmation',
+            data: {
+              to: mainBookerProfile.email,
+              subject: 'Split Payment Initiated',
+              recipientName: `${mainBookerProfile.first_name} ${mainBookerProfile.last_name}`.trim() || currentUser.email,
+              venueName: bookingData.venue?.name,
+              bookingDate: bookingData.booking_date,
+              startTime: bookingData.start_time,
+              endTime: bookingData.end_time,
+              totalAmount: totalAmount,
+              splitAmount: myAmount,
+              numberOfSplits: splitCount,
+              dashboardUrl: `${window.location.origin}/profile`
             }
+          };
+
+          console.log('📧 Sending main booker email with data:', mainBookerEmailData);
+
+          const { error: emailError } = await supabase.functions.invoke('send-email', {
+            body: mainBookerEmailData
           });
 
           if (emailError) {
@@ -343,24 +348,29 @@ const SplitPaymentForm = ({
           if (recipientProfile?.email) {
             console.log('📧 Sending confirmation to split recipient:', recipientProfile.email);
             // Send split payment request using Edge Function
-            const { error: emailError } = await supabase.functions.invoke('send-email', {
-              body: {
-                template: 'split-payment-initiation',
-                data: {
-                  email: recipientProfile.email,
-                  recipientName: recipient.displayName || `${recipientProfile.first_name} ${recipientProfile.last_name}`.trim(),
-                  initiatorName: currentUser.user_metadata?.full_name || currentUser.email,
-                  venueName: bookingData.venue?.name,
-                  bookingDate: bookingData.booking_date,
-                  startTime: bookingData.start_time,
-                  endTime: bookingData.end_time,
-                  totalAmount: totalAmount,
-                  splitAmount: splitAmounts[splitRecipients.indexOf(recipient)],
-                  numberOfSplits: splitCount,
-                  paymentLink: `${window.location.origin}/split-payment/${bookingData.id}/${splitRecipients.indexOf(recipient)}`,
-                  dashboardUrl: `${window.location.origin}/profile`
-                }
+            const recipientEmailData = {
+              template: 'split-payment-initiation',
+              data: {
+                to: recipientProfile.email,
+                subject: 'Split Payment Request',
+                recipientName: recipient.displayName || `${recipientProfile.first_name} ${recipientProfile.last_name}`.trim(),
+                initiatorName: currentUser.user_metadata?.full_name || currentUser.email,
+                venueName: bookingData.venue?.name,
+                bookingDate: bookingData.booking_date,
+                startTime: bookingData.start_time,
+                endTime: bookingData.end_time,
+                totalAmount: totalAmount,
+                splitAmount: splitAmounts[splitRecipients.indexOf(recipient)],
+                numberOfSplits: splitCount,
+                paymentLink: `${window.location.origin}/split-payment/${bookingData.id}/${splitRecipients.indexOf(recipient)}`,
+                dashboardUrl: `${window.location.origin}/profile`
               }
+            };
+
+            console.log('📧 Sending recipient email with data:', recipientEmailData);
+
+            const { error: emailError } = await supabase.functions.invoke('send-email', {
+              body: recipientEmailData
             });
 
             if (emailError) {
@@ -376,21 +386,26 @@ const SplitPaymentForm = ({
         if (venueEmail) {
           console.log('📧 Sending notification to venue owner:', venueEmail);
           // Send split payment notification to venue owner using Edge Function
-          const { error: emailError } = await supabase.functions.invoke('send-email', {
-            body: {
-              template: 'split-payment-venue-notification',
-              data: {
-                email: venueEmail,
-                venueName: bookingData.venue?.name,
-                initiatorName: currentUser.user_metadata?.full_name || currentUser.email,
-                bookingDate: bookingData.booking_date,
-                startTime: bookingData.start_time,
-                endTime: bookingData.end_time,
-                totalAmount: totalAmount,
-                numberOfSplits: splitCount,
-                dashboardUrl: `${window.location.origin}/venue-owner/dashboard`
-              }
+          const venueEmailData = {
+            template: 'split-payment-venue-notification',
+            data: {
+              to: venueEmail,
+              subject: 'New Split Payment Booking',
+              venueName: bookingData.venue?.name,
+              initiatorName: currentUser.user_metadata?.full_name || currentUser.email,
+              bookingDate: bookingData.booking_date,
+              startTime: bookingData.start_time,
+              endTime: bookingData.end_time,
+              totalAmount: totalAmount,
+              numberOfSplits: splitCount,
+              dashboardUrl: `${window.location.origin}/venue-owner/dashboard`
             }
+          };
+
+          console.log('📧 Sending venue owner email with data:', venueEmailData);
+
+          const { error: emailError } = await supabase.functions.invoke('send-email', {
+            body: venueEmailData
           });
 
           if (emailError) {
