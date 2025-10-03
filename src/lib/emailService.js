@@ -102,11 +102,25 @@ export const sendBookingConfirmation = async (booking, venue, customer, qrCodeIm
     // Optimize email delivery to reduce spam filtering
     const optimizedParams = optimizeEmailDelivery(templateParams);
 
-    // Send to customer using optimized template parameters
+    // Generate HTML content using local template
+    const bookingData = {
+      ...optimizedParams,
+      qrCodeImage: qrCodeImage,
+      hasQrCode: !!qrCodeImage
+    };
+    
+    const htmlContent = bookingConfirmationTemplate(bookingData);
+
+    // Send to customer using EmailJS with HTML content
     const result = await emailjs.send(
       EMAILJS_CONFIG.serviceId,
       EMAILJS_CONFIG.templateId,
-      optimizedParams
+      {
+        ...optimizedParams,
+        html_content: htmlContent,
+        qrCodeImage: qrCodeImage,
+        hasQrCode: !!qrCodeImage
+      }
     );
 
     
