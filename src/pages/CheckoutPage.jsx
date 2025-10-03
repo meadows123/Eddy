@@ -20,7 +20,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { sendBookingConfirmation, sendVenueOwnerNotification, debugBookingEmail } from '../lib/emailService.js';
 import { Elements, CardElement } from '@stripe/react-stripe-js';
 import { stripePromise } from '@/lib/stripe';
-import { generateSecurityCode } from '@/lib/qrCodeService';
+import { generateSecurityCode, generateVenueEntryQR } from '@/lib/qrCodeService';
 
 const CheckoutPage = () => {
 const { id } = useParams();
@@ -534,7 +534,7 @@ if (venueOwnerEmail && venueOwnerEmail.includes('@')) {
 
   // Send venue owner notification (blocking to ensure it's sent)
   try {
-    const venueOwnerResult = await sendVenueOwnerNotification(booking, venue, customer, venueOwner);
+    const venueOwnerResult = await sendVenueOwnerNotification(booking, venue, customer);
   } catch (venueOwnerError) {
     console.error('❌ Venue owner notification failed:', venueOwnerError);
     // Don't fail the entire process if venue owner email fails
@@ -798,6 +798,21 @@ if (!venueId) {
       throw new Error(`Failed to update booking status: ${updateError.message}`);
     }
 
+    // Generate QR code for venue entry
+    let qrCodeImage = null;
+    try {
+      const qrCodeData = await generateVenueEntryQR({
+        ...updatedBooking,
+        venue_id: venueId,
+        table_id: tableId,
+        table: { table_number: selection?.table?.name || selection?.table?.table_number || 'N/A' }
+      });
+      qrCodeImage = qrCodeData;
+    } catch (qrError) {
+      console.error('❌ Failed to generate QR code:', qrError);
+      // Continue without QR code - booking is still valid
+    }
+
     // Show success message
     toast({ 
       title: "Booking Confirmed!",
@@ -851,7 +866,7 @@ if (!venueId) {
     try {
       const dataSource = selection || bookingData;
       const emailResult = await sendBookingConfirmationEmail({
-        ...pendingBooking,
+        ...updatedBooking,
         customerName: formData.fullName,
         customerEmail: formData.email,
         customerPhone: formData.phone,
@@ -862,7 +877,8 @@ if (!venueId) {
         venueOwnerEmail: venueOwnerData?.owner_email || venueOwnerData?.email,
         venueOwnerName: venueOwnerData?.owner_name,
         venueDescription: venueData?.description || 'Experience luxury dining and entertainment in Lagos\' most exclusive venue.',
-        venueDressCode: venueData?.dress_code || 'Smart Casual'
+        venueDressCode: venueData?.dress_code || 'Smart Casual',
+        qrCodeImage: qrCodeImage?.base64 || qrCodeImage?.externalUrl || null
       });
 
       if (emailResult) {
