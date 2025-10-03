@@ -303,9 +303,9 @@ const SplitPaymentForm = ({
           // Send split payment request using Edge Function
           const mainBookerEmailData = {
             template: 'split-payment-confirmation',
+            to: mainBookerProfile.email,
+            subject: 'Split Payment Initiated',
             data: {
-              to: mainBookerProfile.email,
-              subject: 'Split Payment Initiated',
               recipientName: `${mainBookerProfile.first_name} ${mainBookerProfile.last_name}`.trim() || currentUser.email,
               venueName: bookingData.venue?.name,
               bookingDate: bookingData.booking_date,
@@ -350,9 +350,9 @@ const SplitPaymentForm = ({
             // Send split payment request using Edge Function
             const recipientEmailData = {
               template: 'split-payment-initiation',
+              to: recipientProfile.email,
+              subject: 'Split Payment Request',
               data: {
-                to: recipientProfile.email,
-                subject: 'Split Payment Request',
                 recipientName: recipient.displayName || `${recipientProfile.first_name} ${recipientProfile.last_name}`.trim(),
                 initiatorName: currentUser.user_metadata?.full_name || currentUser.email,
                 venueName: bookingData.venue?.name,
@@ -388,9 +388,9 @@ const SplitPaymentForm = ({
           // Send split payment notification to venue owner using Edge Function
           const venueEmailData = {
             template: 'split-payment-venue-notification',
+            to: venueEmail,
+            subject: 'New Split Payment Booking',
             data: {
-              to: venueEmail,
-              subject: 'New Split Payment Booking',
               venueName: bookingData.venue?.name,
               initiatorName: currentUser.user_metadata?.full_name || currentUser.email,
               bookingDate: bookingData.booking_date,
