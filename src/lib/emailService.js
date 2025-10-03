@@ -125,7 +125,7 @@ export const sendBookingConfirmation = async (booking, venue, customer, qrCodeIm
   }
 };
 
-export const sendVenueOwnerNotification = async (booking, venue, customer) => {
+export const sendVenueOwnerNotification = async (booking, venue, customer, venueOwnerData = null) => {
   try {
     // Check if EmailJS is configured
     if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.templateId || !EMAILJS_CONFIG.publicKey) {
@@ -133,7 +133,14 @@ export const sendVenueOwnerNotification = async (booking, venue, customer) => {
     }
 
     const emailData = generateEmailData(booking, venue, customer);
-    const ownerTemplate = venueOwnerNotificationTemplate(emailData);
+    
+    // Create venue owner data with fallbacks
+    const ownerData = {
+      name: venueOwnerData?.owner_name || venueOwnerData?.name || 'Venue Manager',
+      email: venueOwnerData?.owner_email || venueOwnerData?.email || venue.contact_email || 'info@oneeddy.com'
+    };
+    
+    const ownerTemplate = venueOwnerNotificationTemplate(emailData, ownerData);
     
     // Send to venue owner
     const result = await emailjs.send(
