@@ -144,7 +144,9 @@ export const sendVenueOwnerNotification = async (booking, venue, customer, venue
     console.log('🔍 Venue owner notification data:', {
       venueOwnerData,
       ownerData,
-      venueContactEmail: venue.contact_email
+      venueContactEmail: venue.contact_email,
+      finalEmail: ownerData.email,
+      emailIsValid: ownerData.email && ownerData.email.includes('@')
     });
     
     const ownerTemplate = venueOwnerNotificationTemplate(emailData, ownerData);

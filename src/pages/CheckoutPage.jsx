@@ -542,6 +542,16 @@ const customerEmailResult = await sendBookingConfirmation(booking, venue, custom
 const dataSource = selection || bookingData;
 const venueOwnerEmail = bookingData?.venueOwnerEmail || venue?.venue_owners?.owner_email || venue?.venue_owners?.email || venue?.contact_email || dataSource?.ownerEmail || venue?.owner_email;
 
+// Debug logging for venue owner email
+console.log('🔍 Venue owner email sources:', {
+  bookingDataVenueOwnerEmail: bookingData?.venueOwnerEmail,
+  venueOwnersOwnerEmail: venue?.venue_owners?.owner_email,
+  venueOwnersEmail: venue?.venue_owners?.email,
+  venueContactEmail: venue?.contact_email,
+  dataSourceOwnerEmail: dataSource?.ownerEmail,
+  venueOwnerEmail: venue?.owner_email,
+  finalVenueOwnerEmail: venueOwnerEmail
+});
 
 if (venueOwnerEmail && venueOwnerEmail.includes('@')) {
   const venueOwner = {
@@ -900,6 +910,13 @@ if (!venueId) {
 
       if (emailResult) {
         // Send venue owner notification after successful booking confirmation
+        console.log('🔍 Second path venue owner data:', {
+          venueOwnerData,
+          ownerEmail: venueOwnerData?.owner_email,
+          email: venueOwnerData?.email,
+          hasValidEmail: venueOwnerData?.owner_email || venueOwnerData?.email
+        });
+        
         if (venueOwnerData?.owner_email || venueOwnerData?.email) {
           try {
             const venueOwner = {

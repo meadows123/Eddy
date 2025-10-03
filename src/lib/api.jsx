@@ -531,17 +531,6 @@ export const checkTableAvailability = async (venueId, tableId, date) => {
         // Two time ranges overlap if: start1 < end2 && end1 > start2
         const overlaps = slotStart < bookingEnd && slotEnd > bookingStart;
         
-        // Debug logging for overlap detection
-        if (overlaps) {
-          console.log(`🔄 Overlap detected for slot ${time}:`, {
-            slotStart: slotStart.toTimeString().slice(0, 8),
-            slotEnd: slotEnd.toTimeString().slice(0, 8),
-            bookingStart: bookingStart.toTimeString().slice(0, 8),
-            bookingEnd: bookingEnd.toTimeString().slice(0, 8),
-            condition1: slotStart < bookingEnd,
-            condition2: slotEnd > bookingStart
-          });
-        }
         
         return overlaps;
       });
@@ -554,10 +543,6 @@ export const checkTableAvailability = async (venueId, tableId, date) => {
         reason: isAvailable ? null : `Table already booked from ${conflictingBooking?.start_time} to ${conflictingBooking?.end_time}`
       };
       
-      // Debug logging for unavailable slots
-      if (!isAvailable) {
-        console.log(`❌ Slot ${time} blocked by booking:`, conflictingBooking);
-      }
       
       return result;
     });
