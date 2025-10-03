@@ -522,6 +522,70 @@ if (typeof window !== 'undefined') {
   window.testContactFormEmail = testContactFormEmail;
 }
 
+// QR scan notification email function
+export const sendQRScanNotification = async (notificationData) => {
+  try {
+    // Check if EmailJS is configured
+    if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.publicKey) {
+      throw new Error('EmailJS configuration incomplete');
+    }
+
+    // Validate notification data
+    if (!notificationData.customerEmail || !notificationData.venueName || !notificationData.bookingId) {
+      throw new Error('Missing required notification data');
+    }
+
+    // Create notification message
+    const notificationMessage = `
+QR CODE SCAN NOTIFICATION
+
+Booking ID: ${notificationData.bookingId}
+Venue: ${notificationData.venueName}
+Customer Email: ${notificationData.customerEmail}
+Scan Time: ${notificationData.scanTime}
+Booking Date: ${notificationData.bookingDate}
+Start Time: ${notificationData.startTime}
+Guest Count: ${notificationData.guestCount}
+Table Number: ${notificationData.tableNumber}
+
+Customer has successfully scanned their QR code and is ready to be seated.
+
+---
+This notification was sent automatically by the Eddys Members QR scanning system.
+    `.trim();
+
+    // Use the main template but with notification data
+    const templateParams = {
+      customerEmail: 'info@oneeddy.com', // Send notification to admin
+      to_name: 'Eddys Members Admin',
+      from_name: 'QR Scanner System',
+      message: notificationMessage,
+      subject: `QR Code Scanned - ${notificationData.venueName}`,
+      
+      // Add minimal booking-like data to satisfy template requirements
+      customerName: 'QR Scanner System',
+      bookingReference: notificationData.bookingId,
+      venueName: notificationData.venueName,
+      bookingDate: notificationData.bookingDate,
+      bookingTime: notificationData.startTime,
+      partySize: notificationData.guestCount,
+      totalAmount: '0'
+    };
+
+    // Send email using EmailJS
+    const result = await emailjs.send(
+      EMAILJS_CONFIG.serviceId,
+      EMAILJS_CONFIG.templateId,
+      templateParams
+    );
+
+    return { success: true, result };
+  } catch (error) {
+    console.error('Error sending QR scan notification:', error);
+    throw error;
+  }
+};
+
 // Contact form email function
 export const sendContactFormEmail = async (formData) => {
   try {
