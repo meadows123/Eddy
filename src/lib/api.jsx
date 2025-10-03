@@ -495,12 +495,17 @@ export const checkTableAvailability = async (venueId, tableId, date) => {
       .eq('venue_id', venueId)
       .eq('table_id', tableId)
       .eq('booking_date', date)
-      .in('status', ['confirmed', 'pending']); // Count both confirmed and pending bookings
+      .in('status', ['confirmed', 'pending', 'paid']); // Count confirmed, pending, and paid bookings
 
     if (error) throw error;
 
+    // Debug logging
+    console.log('🔍 Checking availability for:', { venueId, tableId, date });
+    console.log('📅 Existing bookings:', existingBookings);
+
     // Generate all possible time slots
     const allTimeSlots = generateTimeSlots('18:00', '02:00'); // Adjust based on your venue hours
+    console.log('⏰ Generated time slots:', allTimeSlots);
     
     // Check which times are available
     const availability = allTimeSlots.map(time => {
@@ -513,7 +518,7 @@ export const checkTableAvailability = async (venueId, tableId, date) => {
       }
       
       // Check if this slot conflicts with existing bookings
-      const isAvailable = !existingBookings.some(booking => {
+      const conflictingBooking = existingBookings.find(booking => {
         const bookingStart = new Date(`2000-01-01 ${booking.start_time}`);
         let bookingEnd = new Date(`2000-01-01 ${booking.end_time}`);
         
@@ -522,17 +527,42 @@ export const checkTableAvailability = async (venueId, tableId, date) => {
           bookingEnd.setDate(bookingEnd.getDate() + 1);
         }
         
-        // Check for overlap
-        return (slotStart < bookingEnd && slotEnd > bookingStart);
+        // Check for overlap - more precise comparison
+        // Two time ranges overlap if: start1 < end2 && end1 > start2
+        const overlaps = slotStart < bookingEnd && slotEnd > bookingStart;
+        
+        // Debug logging for overlap detection
+        if (overlaps) {
+          console.log(`🔄 Overlap detected for slot ${time}:`, {
+            slotStart: slotStart.toTimeString().slice(0, 8),
+            slotEnd: slotEnd.toTimeString().slice(0, 8),
+            bookingStart: bookingStart.toTimeString().slice(0, 8),
+            bookingEnd: bookingEnd.toTimeString().slice(0, 8),
+            condition1: slotStart < bookingEnd,
+            condition2: slotEnd > bookingStart
+          });
+        }
+        
+        return overlaps;
       });
       
-      return {
+      const isAvailable = !conflictingBooking;
+      
+      const result = {
         time,
         available: isAvailable,
-        reason: isAvailable ? null : 'Table already booked for this time'
+        reason: isAvailable ? null : `Table already booked from ${conflictingBooking?.start_time} to ${conflictingBooking?.end_time}`
       };
+      
+      // Debug logging for unavailable slots
+      if (!isAvailable) {
+        console.log(`❌ Slot ${time} blocked by booking:`, conflictingBooking);
+      }
+      
+      return result;
     });
 
+    console.log('✅ Final availability result:', availability);
     return { data: availability, error: null };
   } catch (error) {
     console.error('Error checking table availability:', error);

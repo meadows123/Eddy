@@ -18,6 +18,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { sendBookingConfirmation, sendVenueOwnerNotification, debugBookingEmail } from '../lib/emailService.js';
+import { checkTableAvailability } from '../lib/api.jsx';
 import { Elements, CardElement } from '@stripe/react-stripe-js';
 import { stripePromise } from '@/lib/stripe';
 import { generateSecurityCode, generateVenueEntryQR } from '@/lib/qrCodeService';
@@ -318,6 +319,22 @@ const createBooking = async () => {
       throw new Error(`Invalid booking times: ${error.message}`);
     }
 
+    // Final availability check before booking creation
+    const { data: finalAvailabilityCheck, error: availabilityError } = await checkTableAvailability(
+      venueId, 
+      tableId, 
+      bookingDataToInsert.booking_date
+    );
+
+    if (availabilityError) {
+      throw new Error('Failed to verify table availability');
+    }
+
+    // Check if the selected time slot is still available
+    const selectedTimeSlot = finalAvailabilityCheck?.find(slot => slot.time === bookingDataToInsert.start_time);
+    if (!selectedTimeSlot?.available) {
+      throw new Error(`Time slot ${bookingDataToInsert.start_time} is no longer available. Please select a different time.`);
+    }
 
     // Save booking to database
     const { data: bookingRecord, error: bookingError } = await supabase
@@ -534,7 +551,7 @@ if (venueOwnerEmail && venueOwnerEmail.includes('@')) {
 
   // Send venue owner notification (blocking to ensure it's sent)
   try {
-    const venueOwnerResult = await sendVenueOwnerNotification(booking, venue, customer, venueOwnerData);
+    const venueOwnerResult = await sendVenueOwnerNotification(booking, venue, customer, venueOwner);
   } catch (venueOwnerError) {
     console.error('❌ Venue owner notification failed:', venueOwnerError);
     // Don't fail the entire process if venue owner email fails
@@ -882,6 +899,25 @@ if (!venueId) {
       });
 
       if (emailResult) {
+        // Send venue owner notification after successful booking confirmation
+        if (venueOwnerData?.owner_email || venueOwnerData?.email) {
+          try {
+            const venueOwner = {
+              name: venueOwnerData?.owner_name || 'Venue Manager',
+              email: venueOwnerData?.owner_email || venueOwnerData?.email
+            };
+            
+            const venueOwnerResult = await sendVenueOwnerNotification(
+              updatedBooking,
+              venueData,
+              { full_name: formData.fullName, email: formData.email, phone: formData.phone },
+              venueOwner
+            );
+          } catch (venueOwnerError) {
+            console.error('❌ Venue owner notification failed:', venueOwnerError);
+            // Don't fail the booking if venue owner email fails
+          }
+        }
       } else {
       }
     } catch (emailError) {
