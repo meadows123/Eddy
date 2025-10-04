@@ -464,14 +464,8 @@ export const getAvailableTimeSlots = async (venueId, date, tableId = null) => {
     // Filter out unavailable time slots
     const availableSlots = allTimeSlots.filter(slot => {
       const slotStart = new Date(`2000-01-01 ${slot}`);
-      let slotEnd = new Date(slotStart.getTime() + 4 * 60 * 60000); // 4-hour booking duration
       
-      // Handle slot crossing midnight
-      if (slotEnd < slotStart) {
-        slotEnd.setDate(slotEnd.getDate() + 1);
-      }
-      
-      // Check if this slot conflicts with existing bookings
+      // Check if this specific time slot conflicts with existing bookings
       const isAvailable = !existingBookings.some(booking => {
         const bookingStart = new Date(`2000-01-01 ${booking.start_time}`);
         let bookingEnd = new Date(`2000-01-01 ${booking.end_time}`);
@@ -481,8 +475,9 @@ export const getAvailableTimeSlots = async (venueId, date, tableId = null) => {
           bookingEnd.setDate(bookingEnd.getDate() + 1);
         }
         
-        // Check for overlap - if any part of the slot overlaps with a booking, it's unavailable
-        return (slotStart < bookingEnd && slotEnd > bookingStart);
+        // Check if the slot time falls within the existing booking time range
+        // A slot is unavailable if it falls within an existing booking period
+        return slotStart >= bookingStart && slotStart < bookingEnd;
       });
       
       return isAvailable;
@@ -522,15 +517,7 @@ export const checkTableAvailability = async (venueId, tableId, date) => {
     const availability = allTimeSlots.map(time => {
       const slotStart = new Date(`2000-01-01 ${time}`);
       
-      // Calculate the 4-hour booking period for this slot
-      let slotEnd = new Date(slotStart.getTime() + 4 * 60 * 60000); // 4-hour booking duration
-      
-      // Handle slot crossing midnight
-      if (slotEnd < slotStart) {
-        slotEnd.setDate(slotEnd.getDate() + 1);
-      }
-      
-      // Check if this slot conflicts with existing bookings
+      // Check if this specific time slot conflicts with existing bookings
       const conflictingBooking = existingBookings.find(booking => {
         const bookingStart = new Date(`2000-01-01 ${booking.start_time}`);
         let bookingEnd = new Date(`2000-01-01 ${booking.end_time}`);
@@ -540,11 +527,11 @@ export const checkTableAvailability = async (venueId, tableId, date) => {
           bookingEnd.setDate(bookingEnd.getDate() + 1);
         }
         
-        // Check for overlap - more precise comparison
-        // Two time ranges overlap if: start1 < end2 && end1 > start2
-        const overlaps = slotStart < bookingEnd && slotEnd > bookingStart;
+        // Check if the slot time falls within the existing booking time range
+        // A slot is unavailable if it falls within an existing booking period
+        const slotFallsWithinBooking = slotStart >= bookingStart && slotStart < bookingEnd;
         
-        return overlaps;
+        return slotFallsWithinBooking;
       });
       
       const isAvailable = !conflictingBooking;
@@ -557,10 +544,9 @@ export const checkTableAvailability = async (venueId, tableId, date) => {
       
       if (!isAvailable) {
         console.log(`❌ Time slot ${time} is unavailable due to booking:`, {
-          conflictingBooking,
-          slotStart: slotStart.toTimeString(),
-          slotEnd: slotEnd.toTimeString(),
-          bookingDuration: '4 hours'
+          slotTime: slotStart.toTimeString(),
+          conflictingBooking: `${conflictingBooking?.start_time} to ${conflictingBooking?.end_time}`,
+          bookingStatus: conflictingBooking?.status
         });
       }
       

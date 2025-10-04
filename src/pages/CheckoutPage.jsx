@@ -276,8 +276,14 @@ const createBooking = async () => {
 
     // Handle the times - check multiple possible sources
     const rawStartTime = selection?.time || bookingData?.time || formData?.startTime || '19:00';
-    const rawEndTime = selection?.endTime || bookingData?.endTime || formData?.endTime || '23:00';
-
+    let rawEndTime = selection?.endTime || bookingData?.endTime || formData?.endTime;
+    
+    // If no end time is provided, calculate it as 4 hours from start time
+    if (!rawEndTime) {
+      const startTimeObj = new Date(`2000-01-01 ${rawStartTime}`);
+      const endTimeObj = new Date(startTimeObj.getTime() + 4 * 60 * 60 * 1000); // Add 4 hours
+      rawEndTime = endTimeObj.toTimeString().slice(0, 8); // Format as HH:MM:SS
+    }
 
     const { startTime, endTime } = adjustTimeForMidnight(rawStartTime, rawEndTime);
 
