@@ -463,21 +463,35 @@ export const getAvailableTimeSlots = async (venueId, date, tableId = null) => {
     
     // Filter out unavailable time slots
     const availableSlots = allTimeSlots.filter(slot => {
-      const slotStart = new Date(`2000-01-01 ${slot}`);
+      // Create slot time as minutes since midnight for easier comparison
+      const [hours, minutes] = slot.split(':').map(Number);
+      const slotMinutes = hours * 60 + minutes;
       
       // Check if this specific time slot conflicts with existing bookings
       const isAvailable = !existingBookings.some(booking => {
-        const bookingStart = new Date(`2000-01-01 ${booking.start_time}`);
-        let bookingEnd = new Date(`2000-01-01 ${booking.end_time}`);
+        // Convert booking times to minutes since midnight
+        const [startHours, startMins] = booking.start_time.split(':').map(Number);
+        const [endHours, endMins] = booking.end_time.split(':').map(Number);
+        
+        let bookingStartMinutes = startHours * 60 + startMins;
+        let bookingEndMinutes = endHours * 60 + endMins;
         
         // Handle bookings that cross midnight
-        if (bookingEnd < bookingStart) {
-          bookingEnd.setDate(bookingEnd.getDate() + 1);
+        if (bookingEndMinutes < bookingStartMinutes) {
+          bookingEndMinutes += 24 * 60; // Add 24 hours (1440 minutes)
         }
         
         // Check if the slot time falls within the existing booking time range
         // A slot is unavailable if it falls within an existing booking period
-        return slotStart >= bookingStart && slotStart < bookingEnd;
+        let slotMinutesToCheck = slotMinutes;
+        
+        // If booking crosses midnight and slot is in the early morning (00:00-06:00),
+        // we need to add 24 hours to the slot time for comparison
+        if (bookingEndMinutes > 24 * 60 && slotMinutes < 6 * 60) {
+          slotMinutesToCheck += 24 * 60;
+        }
+        
+        return slotMinutesToCheck >= bookingStartMinutes && slotMinutesToCheck < bookingEndMinutes;
       });
       
       return isAvailable;
@@ -515,21 +529,35 @@ export const checkTableAvailability = async (venueId, tableId, date) => {
     
     // Check which times are available
     const availability = allTimeSlots.map(time => {
-      const slotStart = new Date(`2000-01-01 ${time}`);
+      // Create slot time as minutes since midnight for easier comparison
+      const [hours, minutes] = time.split(':').map(Number);
+      const slotMinutes = hours * 60 + minutes;
       
       // Check if this specific time slot conflicts with existing bookings
       const conflictingBooking = existingBookings.find(booking => {
-        const bookingStart = new Date(`2000-01-01 ${booking.start_time}`);
-        let bookingEnd = new Date(`2000-01-01 ${booking.end_time}`);
+        // Convert booking times to minutes since midnight
+        const [startHours, startMins] = booking.start_time.split(':').map(Number);
+        const [endHours, endMins] = booking.end_time.split(':').map(Number);
+        
+        let bookingStartMinutes = startHours * 60 + startMins;
+        let bookingEndMinutes = endHours * 60 + endMins;
         
         // Handle bookings that cross midnight
-        if (bookingEnd < bookingStart) {
-          bookingEnd.setDate(bookingEnd.getDate() + 1);
+        if (bookingEndMinutes < bookingStartMinutes) {
+          bookingEndMinutes += 24 * 60; // Add 24 hours (1440 minutes)
         }
         
         // Check if the slot time falls within the existing booking time range
         // A slot is unavailable if it falls within an existing booking period
-        const slotFallsWithinBooking = slotStart >= bookingStart && slotStart < bookingEnd;
+        let slotMinutesToCheck = slotMinutes;
+        
+        // If booking crosses midnight and slot is in the early morning (00:00-06:00),
+        // we need to add 24 hours to the slot time for comparison
+        if (bookingEndMinutes > 24 * 60 && slotMinutes < 6 * 60) {
+          slotMinutesToCheck += 24 * 60;
+        }
+        
+        const slotFallsWithinBooking = slotMinutesToCheck >= bookingStartMinutes && slotMinutesToCheck < bookingEndMinutes;
         
         return slotFallsWithinBooking;
       });
@@ -544,7 +572,7 @@ export const checkTableAvailability = async (venueId, tableId, date) => {
       
       if (!isAvailable) {
         console.log(`❌ Time slot ${time} is unavailable due to booking:`, {
-          slotTime: slotStart.toTimeString(),
+          slotTime: time,
           conflictingBooking: `${conflictingBooking?.start_time} to ${conflictingBooking?.end_time}`,
           bookingStatus: conflictingBooking?.status
         });
