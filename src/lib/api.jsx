@@ -464,12 +464,22 @@ export const getAvailableTimeSlots = async (venueId, date, tableId = null) => {
     // Filter out unavailable time slots
     const availableSlots = allTimeSlots.filter(slot => {
       const slotStart = new Date(`2000-01-01 ${slot}`);
-      const slotEnd = new Date(slotStart.getTime() + 30 * 60000); // 30-minute slots
+      let slotEnd = new Date(slotStart.getTime() + 4 * 60 * 60000); // 4-hour booking duration
+      
+      // Handle slot crossing midnight
+      if (slotEnd < slotStart) {
+        slotEnd.setDate(slotEnd.getDate() + 1);
+      }
       
       // Check if this slot conflicts with existing bookings
       const isAvailable = !existingBookings.some(booking => {
         const bookingStart = new Date(`2000-01-01 ${booking.start_time}`);
-        const bookingEnd = new Date(`2000-01-01 ${booking.end_time}`);
+        let bookingEnd = new Date(`2000-01-01 ${booking.end_time}`);
+        
+        // Handle bookings that cross midnight
+        if (bookingEnd < bookingStart) {
+          bookingEnd.setDate(bookingEnd.getDate() + 1);
+        }
         
         // Check for overlap - if any part of the slot overlaps with a booking, it's unavailable
         return (slotStart < bookingEnd && slotEnd > bookingStart);
@@ -511,7 +521,9 @@ export const checkTableAvailability = async (venueId, tableId, date) => {
     // Check which times are available
     const availability = allTimeSlots.map(time => {
       const slotStart = new Date(`2000-01-01 ${time}`);
-      let slotEnd = new Date(slotStart.getTime() + 30 * 60000); // 30-minute slots
+      
+      // Calculate the 4-hour booking period for this slot
+      let slotEnd = new Date(slotStart.getTime() + 4 * 60 * 60000); // 4-hour booking duration
       
       // Handle slot crossing midnight
       if (slotEnd < slotStart) {
@@ -547,7 +559,8 @@ export const checkTableAvailability = async (venueId, tableId, date) => {
         console.log(`❌ Time slot ${time} is unavailable due to booking:`, {
           conflictingBooking,
           slotStart: slotStart.toTimeString(),
-          slotEnd: slotEnd.toTimeString()
+          slotEnd: slotEnd.toTimeString(),
+          bookingDuration: '4 hours'
         });
       }
       

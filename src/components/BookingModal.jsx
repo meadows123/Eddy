@@ -300,6 +300,9 @@ const BookingModal = ({ isOpen, onClose, venue }) => {
                   <div className="text-sm text-blue-700 text-center">
                     <span className="font-semibold">{getAvailableCount()}</span> of <span className="font-semibold">{getTotalCount()}</span> time slots available
                   </div>
+                  <div className="text-xs text-blue-600 text-center mt-1">
+                    Each booking reserves the table for 4 hours
+                  </div>
                 </div>
               )}
               
@@ -324,7 +327,7 @@ const BookingModal = ({ isOpen, onClose, venue }) => {
                             : 'time-slot unavailable border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
                         }`}
                         disabled={!timeSlot.available}
-                        title={timeSlot.available ? `Book at ${timeSlot.time}` : timeSlot.reason || 'Time slot unavailable'}
+                        title={timeSlot.available ? `Book at ${timeSlot.time} (4 hours)` : timeSlot.reason || 'Time slot unavailable'}
                       >
                         {timeSlot.time}
                       </button>
