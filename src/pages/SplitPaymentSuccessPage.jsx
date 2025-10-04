@@ -43,10 +43,6 @@ const SplitPaymentSuccessPage = () => {
               name,
               address,
               city
-            ),
-            profiles!bookings_user_id_fkey (
-              first_name,
-              last_name
             )
           )
         `)
