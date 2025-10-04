@@ -430,50 +430,8 @@ const SplitPaymentForm = ({
           }
         }
 
-        // Notify venue owner
-        const venueEmail = bookingData.venue?.contact_email || bookingData.venue?.owner?.email;
-        console.log('🔍 Venue email lookup in SplitPaymentForm:', {
-          venueData: bookingData.venue,
-          ownerEmail: bookingData.venue?.owner?.email,
-          contactEmail: bookingData.venue?.contact_email,
-          finalEmail: venueEmail
-        });
-        
-        if (venueEmail) {
-          // Send split payment notification to venue owner using Edge Function
-          const venueEmailData = {
-            template: 'split-payment-venue-notification',
-            to: venueEmail,
-            subject: 'New Split Payment Booking',
-            data: {
-              venueName: bookingData.venue?.name,
-              initiatorName: currentUser.user_metadata?.full_name || currentUser.email,
-              bookingDate: bookingData.booking_date,
-              startTime: bookingData.start_time,
-              endTime: bookingData.end_time,
-              totalAmount: totalAmount,
-              numberOfSplits: splitCount,
-              dashboardUrl: `${window.location.origin}/venue-owner/dashboard`
-            }
-          };
-          
-          console.log('📧 Sending venue owner email from SplitPaymentForm:', {
-            to: venueEmailData.to,
-            subject: venueEmailData.subject,
-            template: venueEmailData.template,
-            dataKeys: Object.keys(venueEmailData.data)
-          });
-
-
-          const { error: emailError } = await supabase.functions.invoke('send-email', {
-            body: venueEmailData
-          });
-
-          if (emailError) {
-            console.error('Failed to send venue owner notification:', emailError);
-          }
-        } else {
-        }
+        // Note: Venue owner notification will be sent by the Stripe webhook
+        // when all split payments are completed
 
       } catch (emailError) {
         console.error('Error sending email notifications:', emailError);
