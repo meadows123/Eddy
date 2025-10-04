@@ -590,6 +590,16 @@ body {
   position: relative;
 }
 
+.time-slot.unavailable::after {
+  content: "✕";
+  position: absolute;
+  top: 2px;
+  right: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  color: #dc3545;
+}
+
 .time-slot.unavailable:hover {
   background: #f8d7da;
   color: #721c24;

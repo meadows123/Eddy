@@ -113,6 +113,13 @@ const BookingModal = ({ isOpen, onClose, venue }) => {
     }
   }, [selectedDate, selectedTable]);
 
+  // Refresh availability when modal opens (in case bookings were confirmed while closed)
+  useEffect(() => {
+    if (isOpen && selectedDate && selectedTable) {
+      checkAvailability();
+    }
+  }, [isOpen]);
+
   const loadAvailableTables = async () => {
     try {
       const { data, error } = await getAvailableTables(venue.id);
@@ -313,11 +320,11 @@ const BookingModal = ({ isOpen, onClose, venue }) => {
                           isSelected
                             ? 'border-brand-burgundy bg-brand-burgundy text-white'
                             : timeSlot.available
-                            ? 'border-gray-300 hover:border-gray-400 hover:bg-gray-50'
-                            : 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
+                            ? 'time-slot available border-gray-300 hover:border-gray-400 hover:bg-gray-50'
+                            : 'time-slot unavailable border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
                         }`}
                         disabled={!timeSlot.available}
-                        title={timeSlot.available ? `Book at ${timeSlot.time}` : timeSlot.reason}
+                        title={timeSlot.available ? `Book at ${timeSlot.time}` : timeSlot.reason || 'Time slot unavailable'}
                       >
                         {timeSlot.time}
                       </button>

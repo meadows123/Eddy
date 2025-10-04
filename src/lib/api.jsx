@@ -502,6 +502,7 @@ export const checkTableAvailability = async (venueId, tableId, date) => {
     // Debug logging
     console.log('🔍 Checking availability for:', { venueId, tableId, date });
     console.log('📅 Existing bookings:', existingBookings);
+    console.log('📊 Booking statuses found:', existingBookings.map(b => ({ time: b.start_time, status: b.status })));
 
     // Generate all possible time slots
     const allTimeSlots = generateTimeSlots('18:00', '02:00'); // Adjust based on your venue hours
@@ -539,8 +540,16 @@ export const checkTableAvailability = async (venueId, tableId, date) => {
       const result = {
         time,
         available: isAvailable,
-        reason: isAvailable ? null : `Table already booked from ${conflictingBooking?.start_time} to ${conflictingBooking?.end_time}`
+        reason: isAvailable ? null : `Table already booked from ${conflictingBooking?.start_time} to ${conflictingBooking?.end_time} (Status: ${conflictingBooking?.status})`
       };
+      
+      if (!isAvailable) {
+        console.log(`❌ Time slot ${time} is unavailable due to booking:`, {
+          conflictingBooking,
+          slotStart: slotStart.toTimeString(),
+          slotEnd: slotEnd.toTimeString()
+        });
+      }
       
       return result;
     });
