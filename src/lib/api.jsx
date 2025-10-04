@@ -531,7 +531,6 @@ export const checkTableAvailability = async (venueId, tableId, date) => {
         // Two time ranges overlap if: start1 < end2 && end1 > start2
         const overlaps = slotStart < bookingEnd && slotEnd > bookingStart;
         
-        
         return overlaps;
       });
       
@@ -542,7 +541,6 @@ export const checkTableAvailability = async (venueId, tableId, date) => {
         available: isAvailable,
         reason: isAvailable ? null : `Table already booked from ${conflictingBooking?.start_time} to ${conflictingBooking?.end_time}`
       };
-      
       
       return result;
     });
@@ -568,7 +566,9 @@ const generateTimeSlots = (startTime, endTime) => {
   
   const current = new Date(start);
   while (current < end) {
-    slots.push(current.toTimeString().slice(0, 5));
+    // Format time as HH:MM:SS to match database format
+    const timeString = current.toTimeString().slice(0, 8);
+    slots.push(timeString);
     current.setMinutes(current.getMinutes() + 30); // 30-minute intervals
   }
   

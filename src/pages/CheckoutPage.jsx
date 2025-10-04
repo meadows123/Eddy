@@ -319,19 +319,49 @@ const createBooking = async () => {
       throw new Error(`Invalid booking times: ${error.message}`);
     }
 
-    // Final availability check before booking creation
-    const { data: finalAvailabilityCheck, error: availabilityError } = await checkTableAvailability(
-      venueId, 
-      tableId, 
-      bookingDataToInsert.booking_date
-    );
+    // Final availability check before booking creation with retry logic
+    let finalAvailabilityCheck = null;
+    let availabilityError = null;
+    let retryCount = 0;
+    const maxRetries = 2;
+    
+    while (retryCount <= maxRetries) {
+      const result = await checkTableAvailability(
+        venueId, 
+        tableId, 
+        bookingDataToInsert.booking_date
+      );
+      
+      finalAvailabilityCheck = result.data;
+      availabilityError = result.error;
+      
+      if (!availabilityError) break;
+      
+      retryCount++;
+      if (retryCount <= maxRetries) {
+        console.log(`Availability check failed, retrying (${retryCount}/${maxRetries})...`);
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+      }
+    }
 
     if (availabilityError) {
-      throw new Error('Failed to verify table availability');
+      throw new Error('Failed to verify table availability after multiple attempts');
     }
 
     // Check if the selected time slot is still available
-    const selectedTimeSlot = finalAvailabilityCheck?.find(slot => slot.time === bookingDataToInsert.start_time);
+    // Normalize time formats for comparison
+    const normalizedStartTime = bookingDataToInsert.start_time.includes(':') 
+      ? bookingDataToInsert.start_time 
+      : `${bookingDataToInsert.start_time}:00`;
+    
+    const selectedTimeSlot = finalAvailabilityCheck?.find(slot => {
+      // Normalize slot time format for comparison
+      const normalizedSlotTime = slot.time.includes(':') 
+        ? slot.time 
+        : `${slot.time}:00`;
+      return normalizedSlotTime === normalizedStartTime;
+    });
+    
     if (!selectedTimeSlot?.available) {
       throw new Error(`Time slot ${bookingDataToInsert.start_time} is no longer available. Please select a different time.`);
     }

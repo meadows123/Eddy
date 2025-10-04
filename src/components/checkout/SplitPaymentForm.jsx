@@ -225,7 +225,17 @@ const SplitPaymentForm = ({
           realBookingId = await createBookingIfNeeded(currentUser);
         } catch (err) {
           console.error('Error creating booking:', err);
-          throw new Error('Failed to create booking: ' + err.message);
+          
+          // Provide more specific error messages for common issues
+          if (err.message.includes('no longer available')) {
+            throw new Error('The selected time slot is no longer available. Please go back and select a different time slot.');
+          } else if (err.message.includes('venue_id') || err.message.includes('Venue ID')) {
+            throw new Error('Invalid venue selection. Please go back and try again.');
+          } else if (err.message.includes('authentication') || err.message.includes('session')) {
+            throw new Error('Your session has expired. Please sign in again.');
+          } else {
+            throw new Error('Failed to create booking: ' + err.message);
+          }
         }
       }
       if (!realBookingId) throw new Error('Booking could not be created.');
@@ -469,9 +479,28 @@ const SplitPaymentForm = ({
 
     } catch (error) {
       console.error('Error creating split payment requests:', error);
+      
+      // Provide more specific error messages
+      let errorTitle = "Error";
+      let errorDescription = "Failed to create split payment requests. Please try again.";
+      
+      if (error.message.includes('no longer available')) {
+        errorTitle = "Time Slot Unavailable";
+        errorDescription = error.message;
+      } else if (error.message.includes('Invalid venue')) {
+        errorTitle = "Invalid Selection";
+        errorDescription = error.message;
+      } else if (error.message.includes('session has expired')) {
+        errorTitle = "Session Expired";
+        errorDescription = error.message;
+      } else if (error.message.includes('Failed to create booking')) {
+        errorTitle = "Booking Failed";
+        errorDescription = error.message;
+      }
+      
       toast({
-        title: "Error",
-        description: "Failed to create split payment requests. Please try again.",
+        title: errorTitle,
+        description: errorDescription,
         variant: "destructive"
       });
     } finally {
