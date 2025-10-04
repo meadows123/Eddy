@@ -276,14 +276,7 @@ const createBooking = async () => {
 
     // Handle the times - check multiple possible sources
     const rawStartTime = selection?.time || bookingData?.time || formData?.startTime || '19:00';
-    let rawEndTime = selection?.endTime || bookingData?.endTime || formData?.endTime;
-    
-    // If no end time is provided, calculate 4 hours from start time
-    if (!rawEndTime) {
-      const startTimeObj = new Date(`2000-01-01 ${rawStartTime}`);
-      const endTimeObj = new Date(startTimeObj.getTime() + 4 * 60 * 60000); // 4 hours later
-      rawEndTime = endTimeObj.toTimeString().slice(0, 8); // Format as HH:MM:SS
-    }
+    const rawEndTime = selection?.endTime || bookingData?.endTime || formData?.endTime || '23:00';
 
 
     const { startTime, endTime } = adjustTimeForMidnight(rawStartTime, rawEndTime);
@@ -511,28 +504,10 @@ booking = {
   booking_date: bookingData.bookingDate || new Date().toISOString(),
   booking_time: selection.time || '19:00:00',
   guest_count: selection.guests || selection.guestCount || 2,
-  table_number: selection.table?.table_number || selection.table?.name,
+  table_number: selection.table?.name || selection.table?.table_number,
   total_amount: bookingData.totalAmount,
   status: 'confirmed'
 };
-}
-
-// Fetch table information if we have a table_id
-if (booking.table_id) {
-  const { data: tableData, error: tableError } = await supabase
-    .from('venue_tables')
-    .select('table_number, table_type, capacity, features')
-    .eq('id', booking.table_id)
-    .single();
-
-  if (!tableError && tableData) {
-    booking.venue_tables = tableData;
-    // Also set direct properties for easier access
-    booking.table_number = tableData.table_number;
-    booking.table_type = tableData.table_type;
-    booking.table_capacity = tableData.capacity;
-    booking.table_features = tableData.features;
-  }
 }
 
 // Fetch actual venue data from database if venue_id is available

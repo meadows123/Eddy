@@ -67,11 +67,11 @@ export const sendBookingConfirmation = async (booking, venue, customer, qrCodeIm
       bookingDuration: booking.duration || booking.booking_duration || '4',
       
       // Table Information - Use actual table data
-      tableNumber: booking.table_number || booking.venue_tables?.table_number || booking.table?.table_number || 'TBD',
-      tableType: booking.table_type || booking.venue_tables?.table_type || booking.table?.table_type || 'VIP Table',
-      tableCapacity: booking.venue_tables?.capacity || booking.table?.capacity || booking.guest_count || booking.guests || booking.number_of_guests || '2',
+      tableNumber: booking.table_number || booking.table_id || 'VIP-001',
+      tableType: booking.table_type || venue.table_type || 'VIP Table',
+      tableCapacity: booking.guest_count || booking.guests || booking.number_of_guests || '2',
       tableLocation: booking.table_location || venue.table_location || 'Prime Location',
-      tableFeatures: booking.table_features || booking.venue_tables?.features || booking.table?.features || 'Premium seating with excellent view',
+      tableFeatures: booking.table_features || venue.table_features || 'Premium seating with excellent view',
       
       // Venue Information - Use actual venue data
       venueName: venue.name || 'Premium Venue',
@@ -393,13 +393,7 @@ export const testEmailJSNow = async (testEmail = 'test@example.com') => {
     bookingDate: new Date().toLocaleDateString(),
     bookingTime: '19:00',
     partySize: '2',
-    totalAmount: '5000',
-    // Table Information - Test data
-    tableNumber: 'VIP-05',
-    tableType: 'Premium Table',
-    tableCapacity: '4',
-    tableLocation: 'Main Floor',
-    tableFeatures: 'Window view with premium seating'
+    totalAmount: '5000'
   };
   
   try {
@@ -419,80 +413,11 @@ export const testEmailJSNow = async (testEmail = 'test@example.com') => {
   }
 };
 
-// Test function specifically for table information in emails
-export const testTableInfoInEmails = async (testEmail = 'test@example.com') => {
-  console.log('🧪 Testing table information in booking confirmation emails...');
-  
-  // Check configuration
-  if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.templateId || !EMAILJS_CONFIG.publicKey) {
-    console.error('❌ EmailJS not fully configured. Check your .env file.');
-    return false;
-  }
-  
-  // Test data with table information
-  const testParams = {
-    customerEmail: testEmail,
-    to_name: 'Table Test User',
-    customerName: 'Table Test User',
-    bookingReference: 'TABLE-TEST-123',
-    venueName: 'Table Test Venue',
-    bookingDate: new Date().toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    }),
-    bookingTime: '19:00',
-    partySize: '4',
-    totalAmount: '15000',
-    // Table Information - Test all possible formats
-    tableNumber: 'VIP-05',
-    table_number: 'VIP-05', // Alternative format
-    tableType: 'Premium Table',
-    table_type: 'Premium Table', // Alternative format
-    tableCapacity: '4',
-    table_capacity: '4', // Alternative format
-    tableLocation: 'Main Floor',
-    table_location: 'Main Floor', // Alternative format
-    tableFeatures: 'Window view with premium seating',
-    table_features: 'Window view with premium seating' // Alternative format
-  };
-  
-  console.log('📧 Testing table info with params:', {
-    tableNumber: testParams.tableNumber,
-    tableType: testParams.tableType,
-    tableCapacity: testParams.tableCapacity,
-    tableLocation: testParams.tableLocation,
-    tableFeatures: testParams.tableFeatures
-  });
-  
-  try {
-    const result = await emailjs.send(
-      EMAILJS_CONFIG.serviceId,
-      EMAILJS_CONFIG.templateId,
-      testParams
-    );
-    
-    console.log('✅ Table info test email sent successfully!', result);
-    console.log('📋 Expected in email:');
-    console.log('   - Table: VIP-05');
-    console.log('   - Type: Premium Table');
-    console.log('   - Capacity: 4 guests');
-    console.log('   - Location: Main Floor');
-    console.log('   - Features: Window view with premium seating');
-    return true;
-  } catch (error) {
-    console.error('❌ Table info test email failed:', error);
-    return false;
-  }
-};
-
 // Make test function available globally for debugging
 if (typeof window !== 'undefined') {
   window.quickEmailTest = quickEmailTest;
   window.testEmailService = testEmailService;
   window.testEmailJSNow = testEmailJSNow;
-  window.testTableInfoInEmails = testTableInfoInEmails;
 } 
 
 export const sendVenueOwnerSignupEmail = async (venueOwnerData) => {

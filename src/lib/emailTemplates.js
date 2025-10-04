@@ -236,8 +236,7 @@ export const venueOwnerNotificationTemplate = (bookingData, venueOwnerData) => {
           <strong>Date:</strong> ${bookingData.date}<br>
           <strong>Time:</strong> ${bookingData.time}<br>
           <strong>Guests:</strong> ${bookingData.guests}<br>
-          <strong>Table:</strong> ${bookingData.tableNumber || bookingData.table_number || 'TBD'}<br>
-          <strong>Table Type:</strong> ${bookingData.tableType || bookingData.table_type || 'VIP Table'}<br>
+          ${bookingData.tableNumber ? `<strong>Table:</strong> ${bookingData.tableNumber}<br>` : ''}
           <strong>Total Amount:</strong> ₦${bookingData.totalAmount}
         </p>
       </div>
@@ -374,9 +373,7 @@ export const generateEmailData = (booking, venue, customer) => {
     }),
     time: booking.booking_time,
     guests: booking.guest_count,
-    tableNumber: booking.table_number || booking.venue_tables?.table_number,
-    tableType: booking.table_type || booking.venue_tables?.table_type,
-    tableCapacity: booking.venue_tables?.capacity,
+    tableNumber: booking.table_number,
     bookingFee: booking.booking_fee || '0',
     serviceCharge: booking.service_charge || '0',
     totalAmount: booking.total_amount || booking.amount,
