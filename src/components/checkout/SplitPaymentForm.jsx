@@ -431,7 +431,14 @@ const SplitPaymentForm = ({
         }
 
         // Notify venue owner
-        const venueEmail = bookingData.venue?.owner?.email || bookingData.venue?.contact_email;
+        const venueEmail = bookingData.venue?.contact_email || bookingData.venue?.owner?.email;
+        console.log('🔍 Venue email lookup in SplitPaymentForm:', {
+          venueData: bookingData.venue,
+          ownerEmail: bookingData.venue?.owner?.email,
+          contactEmail: bookingData.venue?.contact_email,
+          finalEmail: venueEmail
+        });
+        
         if (venueEmail) {
           // Send split payment notification to venue owner using Edge Function
           const venueEmailData = {
@@ -449,6 +456,13 @@ const SplitPaymentForm = ({
               dashboardUrl: `${window.location.origin}/venue-owner/dashboard`
             }
           };
+          
+          console.log('📧 Sending venue owner email from SplitPaymentForm:', {
+            to: venueEmailData.to,
+            subject: venueEmailData.subject,
+            template: venueEmailData.template,
+            dataKeys: Object.keys(venueEmailData.data)
+          });
 
 
           const { error: emailError } = await supabase.functions.invoke('send-email', {
