@@ -113,12 +113,12 @@ const validateBookingTimes = (startTime, endTime) => {
     end = new Date(`1970-01-02T${endTime}`);
   }
 
-  // Venue closing time (01:30)
-  const closingTime = new Date(`1970-01-02T01:30:00`);
+  // Ensure the booking is exactly 4 hours
+  const expectedEnd = new Date(start.getTime() + 4 * 60 * 60 * 1000); // Add exactly 4 hours
   
-  // If booking extends past closing time, adjust it
-  if (end > closingTime) {
-    endTime = '01:30:00';
+  // If the provided end time doesn't match the expected 4-hour duration, use the calculated one
+  if (Math.abs(end.getTime() - expectedEnd.getTime()) > 60000) { // Allow 1 minute tolerance
+    endTime = expectedEnd.toTimeString().slice(0, 8); // Format as HH:MM:SS
   }
   
   return {
