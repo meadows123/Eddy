@@ -788,27 +788,39 @@ const SplitPaymentSuccessPage = () => {
           
           console.log('📧 Venue owner email:', venueOwnerEmail);
           
+          // Prepare email data
+          const emailData = {
+            to: venueOwnerEmail,
+            subject: `New Split Payment Booking - ${bookingData.venues?.name || 'Venue'}`,
+            template: 'split-payment-venue-notification',
+            data: {
+              venueName: bookingData.venues?.name || 'Venue',
+              venueContactEmail: bookingData.venues?.contact_email || 'info@oneeddy.com',
+              bookingId: bookingData.id,
+              bookingDate: bookingData.booking_date,
+              startTime: bookingData.start_time,
+              endTime: bookingData.end_time,
+              guestCount: bookingData.number_of_guests,
+              customerName: `${bookingData.profiles?.first_name || ''} ${bookingData.profiles?.last_name || ''}`.trim() || 'Guest',
+              customerEmail: bookingData.profiles?.email || 'guest@example.com',
+              totalAmount: bookingData.total_amount,
+              splitPaymentCount: requests.length,
+              venueAddress: bookingData.venues?.address || 'Lagos, Nigeria'
+            }
+          };
+          
+          console.log('📧 DEBUG: Email data being sent to Edge Function:', {
+            to: emailData.to,
+            subject: emailData.subject,
+            template: emailData.template,
+            dataKeys: Object.keys(emailData.data),
+            venueOwnerEmail,
+            bookingDataVenues: bookingData.venues
+          });
+          
           // Send venue owner notification directly via Edge Function
           const { data: venueEmailResult, error: venueEmailError } = await supabase.functions.invoke('send-email', {
-            body: {
-              to: venueOwnerEmail,
-              subject: `New Split Payment Booking - ${bookingData.venues?.name || 'Venue'}`,
-              template: 'split-payment-venue-notification',
-              data: {
-                venueName: bookingData.venues?.name || 'Venue',
-                venueContactEmail: bookingData.venues?.contact_email || 'info@oneeddy.com',
-                bookingId: bookingData.id,
-                bookingDate: bookingData.booking_date,
-                startTime: bookingData.start_time,
-                endTime: bookingData.end_time,
-                guestCount: bookingData.number_of_guests,
-                customerName: `${bookingData.profiles?.first_name || ''} ${bookingData.profiles?.last_name || ''}`.trim() || 'Guest',
-                customerEmail: bookingData.profiles?.email || 'guest@example.com',
-                totalAmount: bookingData.total_amount,
-                splitPaymentCount: requests.length,
-                venueAddress: bookingData.venues?.address || 'Lagos, Nigeria'
-              }
-            }
+            body: emailData
           });
 
           if (venueEmailError) {
