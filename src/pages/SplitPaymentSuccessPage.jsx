@@ -784,30 +784,43 @@ const SplitPaymentSuccessPage = () => {
         // Send email to venue owner when all payments are completed
         console.log('📧 Sending venue owner notification...');
         console.log('🔍 DEBUG: This venue owner notification is being sent because ALL payments are complete');
+        console.log('🚨 DEBUG: NEW VENUE OWNER EMAIL LOOKUP CODE IS BEING EXECUTED!');
         console.log('🔍 DEBUG: Available venue data:', {
           venueId: bookingData.venues?.id,
           venueName: bookingData.venues?.name,
           venueContactEmail: bookingData.venues?.contact_email,
           fullVenueData: bookingData.venues
         });
+        
+        console.log('🔍 DEBUG: Full venue data structure:', JSON.stringify(bookingData.venues, null, 2));
         try {
           // Fetch venue owner email from database
           let venueOwnerEmail = 'info@oneeddy.com'; // fallback
           
-          if (bookingData.venues?.id) {
-            console.log('🔍 Looking up venue owner for venue ID:', bookingData.venues.id);
+          // Try different possible venue ID fields
+          const venueId = bookingData.venues?.id || bookingData.venues?.venue_id || bookingData.venue_id;
+          
+          console.log('🔍 Venue ID lookup:', {
+            venuesId: bookingData.venues?.id,
+            venuesVenueId: bookingData.venues?.venue_id,
+            bookingVenueId: bookingData.venue_id,
+            finalVenueId: venueId
+          });
+          
+          if (venueId) {
+            console.log('🔍 Looking up venue owner for venue ID:', venueId);
             
             // Try to get venue owner email from venue_owners table
             const { data: ownerData, error: ownerError } = await supabase
               .from('venue_owners')
               .select('owner_email, email, venue_id, user_id')
-              .eq('venue_id', bookingData.venues.id)
+              .eq('venue_id', venueId)
               .single();
             
             console.log('🔍 Venue owner lookup result:', {
               ownerData,
               ownerError,
-              venueId: bookingData.venues.id
+              venueId: venueId
             });
             
             if (!ownerError && ownerData) {
