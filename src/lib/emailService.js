@@ -7,6 +7,7 @@ import {
   generateEmailData 
 } from './emailTemplates';
 import { supabase } from '@/lib/supabase.js';
+import { getBaseUrl } from './urlUtils';
 
 // EmailJS configuration from environment variables
 const EMAILJS_CONFIG = {
@@ -87,12 +88,12 @@ export const sendBookingConfirmation = async (booking, venue, customer, qrCodeIm
       specialRequests: booking.special_requests || booking.notes || booking.additional_notes || 'None specified',
       
       // Action URLs (you can update these later)
-      viewBookingUrl: `${window.location.origin}/profile`,
-      modifyBookingUrl: `${window.location.origin}/profile`,
-      cancelBookingUrl: `${window.location.origin}/profile`,
-      websiteUrl: window.location.origin,
+      viewBookingUrl: `${getBaseUrl()}/profile`,
+      modifyBookingUrl: `${getBaseUrl()}/profile`,
+      cancelBookingUrl: `${getBaseUrl()}/profile`,
+      websiteUrl: getBaseUrl(),
       supportUrl: 'mailto:info@oneeddy.com',
-      unsubscribeUrl: `${window.location.origin}/settings`,
+      unsubscribeUrl: `${getBaseUrl()}/settings`,
       
       // QR Code for venue entry
       qrCodeImage: qrCodeImage || null,
@@ -434,7 +435,7 @@ export const sendVenueOwnerSignupEmail = async (venueOwnerData) => {
           venueType: venueOwnerData.venue_type || 'Restaurant',
           venueAddress: venueOwnerData.venue_address,
           venueCity: venueOwnerData.venue_city,
-          dashboardUrl: `${window.location.origin}/venue-owner/dashboard`
+          dashboardUrl: `${getBaseUrl()}/venue-owner/dashboard`
         }
       }
     });
@@ -765,7 +766,7 @@ ${formData.message}
 
 ---
 This message was sent from the Eddys Members contact form.
-Website: ${window.location.origin}
+Website: ${getBaseUrl()}
     `.trim();
 
     // Use the main template but with minimal, simple data

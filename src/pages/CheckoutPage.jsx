@@ -22,6 +22,7 @@ import { checkTableAvailability } from '../lib/api.jsx';
 import { Elements, CardElement } from '@stripe/react-stripe-js';
 import { stripePromise } from '@/lib/stripe';
 import { generateSecurityCode, generateVenueEntryQR } from '@/lib/qrCodeService';
+import { getFullUrl } from '@/lib/urlUtils';
 
 const CheckoutPage = () => {
 const { id } = useParams();
@@ -1040,7 +1041,7 @@ setSplitLinks(Array(newCount).fill(''));
 const generateSplitLinks = () => {
 const links = splitAmounts.map((amount, index) => {
 // In a real app, this would generate a unique payment link
-return `${window.location.origin}/split-payment/${id}/${index + 1}/${amount}`;
+return getFullUrl(`/split-payment/${id}/${index + 1}/${amount}`);
 });
 setSplitLinks(links);
 setShowShareDialog(true);

@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { stripePromise } from '@/lib/stripe';
 import { useAuth } from '@/contexts/AuthContext';
+import { getBaseUrl } from '@/lib/urlUtils';
 
 // Payment form component
 const PaymentForm = ({ amount, onSuccess }) => {

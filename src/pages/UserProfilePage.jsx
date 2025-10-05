@@ -12,6 +12,7 @@ import { Input } from "../components/ui/input";
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Badge } from '../components/ui/badge';
 import { useToast } from "@/components/ui/use-toast";
+import { getFullUrl } from '@/lib/urlUtils';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
@@ -1335,7 +1336,7 @@ const UserProfilePage = () => {
                                 variant="outline"
                                 className="text-brand-burgundy border-brand-burgundy hover:bg-brand-burgundy/10"
                                 onClick={() => {
-                                  navigator.clipboard.writeText(`${window.location.origin}/split-payment/${request.booking_id}/${request.id}`);
+                                  navigator.clipboard.writeText(getFullUrl(`/split-payment/${request.booking_id}/${request.id}`));
                                   toast({
                                     title: "Success",
                                     description: "Payment link copied to clipboard"

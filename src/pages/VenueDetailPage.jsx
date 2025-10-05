@@ -7,6 +7,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabase';
 import BookingModal from '@/components/BookingModal';
 import VenueReviews from '@/components/VenueReviews';
+import { shareUrl, getFullUrl } from '@/lib/urlUtils';
 import 'mapbox-gl/dist/mapbox-gl.css';
 
 const VenueDetailPage = () => {
@@ -118,23 +119,13 @@ const VenueDetailPage = () => {
   };
 
   const handleShare = async () => {
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title: venue?.name,
-          text: venue?.description,
-          url: window.location.href,
-        });
-      } else {
-        await navigator.clipboard.writeText(window.location.href);
-        toast({
-          title: "Link copied!",
-          description: "Venue link has been copied to clipboard",
-        });
-      }
-    } catch (error) {
-      console.error('Error sharing:', error);
-    }
+    const shareData = {
+      title: venue?.name,
+      text: venue?.description,
+      url: getFullUrl(`/venues/${id}`),
+    };
+    
+    await shareUrl(shareData, toast);
   };
 
   const toggleFavorite = () => {

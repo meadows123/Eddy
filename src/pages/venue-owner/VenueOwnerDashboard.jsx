@@ -414,10 +414,13 @@ const VenueOwnerDashboard = () => {
               <span className="hidden sm:inline">Receipt Management</span>
               <span className="sm:hidden">Receipts</span>
             </Button>
-            <Button className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90 w-full sm:w-auto text-sm sm:text-base py-2 sm:py-2">
+            <Button 
+              className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90 w-full sm:w-auto text-sm sm:text-base py-2 sm:py-2"
+              onClick={() => navigate('/venue-owner/qr-scanner')}
+            >
               <QrCode className="h-4 w-4 mr-2" />
-              <span className="hidden sm:inline">Generate QR Code</span>
-              <span className="sm:hidden">QR Code</span>
+              <span className="hidden sm:inline">QR Scanner</span>
+              <span className="sm:hidden">QR Scanner</span>
             </Button>
             <Button 
               variant="outline" 
