@@ -784,6 +784,12 @@ const SplitPaymentSuccessPage = () => {
         // Send email to venue owner when all payments are completed
         console.log('📧 Sending venue owner notification...');
         console.log('🔍 DEBUG: This venue owner notification is being sent because ALL payments are complete');
+        console.log('🔍 DEBUG: Available venue data:', {
+          venueId: bookingData.venues?.id,
+          venueName: bookingData.venues?.name,
+          venueContactEmail: bookingData.venues?.contact_email,
+          fullVenueData: bookingData.venues
+        });
         try {
           // Fetch venue owner email from database
           let venueOwnerEmail = 'info@oneeddy.com'; // fallback
