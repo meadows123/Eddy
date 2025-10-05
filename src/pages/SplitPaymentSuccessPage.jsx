@@ -789,21 +789,49 @@ const SplitPaymentSuccessPage = () => {
           let venueOwnerEmail = 'info@oneeddy.com'; // fallback
           
           if (bookingData.venues?.id) {
+            console.log('🔍 Looking up venue owner for venue ID:', bookingData.venues.id);
+            
             // Try to get venue owner email from venue_owners table
             const { data: ownerData, error: ownerError } = await supabase
               .from('venue_owners')
-              .select('owner_email, email')
+              .select('owner_email, email, venue_id, user_id')
               .eq('venue_id', bookingData.venues.id)
               .single();
+            
+            console.log('🔍 Venue owner lookup result:', {
+              ownerData,
+              ownerError,
+              venueId: bookingData.venues.id
+            });
             
             if (!ownerError && ownerData) {
               venueOwnerEmail = ownerData.owner_email || ownerData.email || 'info@oneeddy.com';
               console.log('📧 Found venue owner email from venue_owners table:', venueOwnerEmail);
             } else {
+              console.log('📧 No venue owner found, trying alternative lookup...');
+              
+              // Try alternative lookup by venue name or other fields
+              const { data: altOwnerData, error: altOwnerError } = await supabase
+                .from('venue_owners')
+                .select('owner_email, email, venue_id')
+                .limit(10); // Get a few records to see the structure
+              
+              console.log('🔍 Alternative venue owners lookup:', {
+                altOwnerData,
+                altOwnerError,
+                allVenueOwners: altOwnerData?.map(owner => ({
+                  venueId: owner.venue_id,
+                  email: owner.owner_email || owner.email
+                }))
+              });
+              
               // Fallback to venue contact email
               venueOwnerEmail = bookingData.venues?.contact_email || 'info@oneeddy.com';
               console.log('📧 Using venue contact email as fallback:', venueOwnerEmail);
             }
+          } else {
+            console.log('📧 No venue ID available, using fallback email');
+            venueOwnerEmail = 'info@oneeddy.com';
           }
           
           console.log('📧 Final venue owner email:', venueOwnerEmail);
