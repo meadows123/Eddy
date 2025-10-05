@@ -29,7 +29,7 @@ import VenueCreditPurchase from './pages/VenueCreditPurchase';
 // import SupabaseTest from './components/SupabaseTest';
 // import AuthTestPage from './pages/AuthTestPage';
 // import EmailTest from './components/EmailTest';
-import EmailTestPage from './pages/EmailTestPage';
+// import EmailTestPage from './pages/EmailTestPage';
 // import MapTest from './components/MapTest';
 import SplitPaymentPage from './pages/SplitPaymentPage';
 import SplitPaymentSuccessPage from './pages/SplitPaymentSuccessPage';
@@ -103,7 +103,7 @@ const App = () => {
             {/* <Route path="/test" element={<SupabaseTest />} /> */}
             {/* <Route path="/auth-test" element={<AuthTestPage />} /> */}
             {/* <Route path="/email-test" element={<EmailTest />} /> */}
-            <Route path="/email-debug" element={<EmailTestPage />} />
+            {/* <Route path="/email-debug" element={<EmailTestPage />} /> */}
             {/* <Route path="/email-templates" element={<EmailTemplateTest />} /> */}
             {/* <Route path="/map-test" element={<MapTest />} /> */}
 

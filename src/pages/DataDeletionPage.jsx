@@ -202,7 +202,7 @@ const DataDeletionPage = () => {
           <AlertTriangle className="h-8 w-8 text-red-600" />
         </div>
         <h2 className="text-2xl font-bold text-brand-burgundy mb-2">
-          Delete Your Data
+          Delete Your Account
         </h2>
         <p className="text-brand-burgundy/70">
           This action will permanently delete all your personal data from our system.
@@ -334,7 +334,7 @@ const DataDeletionPage = () => {
           disabled={!confirmed}
           className="flex-1 bg-red-600 hover:bg-red-700 text-white"
         >
-          Continue to Confirmation
+          Continue to Account Deletion
         </Button>
       </div>
     </div>
@@ -347,10 +347,10 @@ const DataDeletionPage = () => {
           <Shield className="h-8 w-8 text-orange-600" />
         </div>
         <h2 className="text-2xl font-bold text-brand-burgundy mb-2">
-          Final Confirmation
+          Confirm Account Deletion
         </h2>
         <p className="text-brand-burgundy/70">
-          Please review your data deletion request before proceeding.
+          Please review your account deletion request before proceeding.
         </p>
       </div>
 
@@ -412,7 +412,7 @@ const DataDeletionPage = () => {
           className="flex-1 bg-red-600 hover:bg-red-700 text-white"
         >
           <Trash2 className="h-4 w-4 mr-2" />
-          Delete My Data Now
+          Delete My Account Now
         </Button>
       </div>
     </div>
@@ -423,11 +423,11 @@ const DataDeletionPage = () => {
       <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
         <Database className="h-8 w-8 text-blue-600 animate-pulse" />
       </div>
-      <h2 className="text-2xl font-bold text-brand-burgundy mb-2">
-        Deleting Your Data
-      </h2>
+        <h2 className="text-2xl font-bold text-brand-burgundy mb-2">
+          Deleting Your Account
+        </h2>
       <p className="text-brand-burgundy/70">
-        Please wait while we securely delete your data from our system...
+        Please wait while we securely delete your account and data from our system...
       </p>
       <div className="flex justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-burgundy"></div>
@@ -440,9 +440,9 @@ const DataDeletionPage = () => {
       <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
         <CheckCircle className="h-8 w-8 text-green-600" />
       </div>
-      <h2 className="text-2xl font-bold text-brand-burgundy mb-2">
-        Data Deletion Complete
-      </h2>
+        <h2 className="text-2xl font-bold text-brand-burgundy mb-2">
+          Account Deletion Complete
+        </h2>
       <p className="text-brand-burgundy/70">
         All your data has been successfully deleted from our system. You will be redirected to the home page.
       </p>
@@ -487,10 +487,10 @@ const DataDeletionPage = () => {
         >
           <Card className="shadow-xl border-brand-gold/20">
             <CardHeader className="bg-gradient-to-r from-brand-burgundy to-brand-gold text-white">
-              <CardTitle className="flex items-center">
-                <Trash2 className="h-6 w-6 mr-2" />
-                Data Deletion Request
-              </CardTitle>
+          <CardTitle className="flex items-center">
+            <Trash2 className="h-6 w-6 mr-2" />
+            Delete Account Request
+          </CardTitle>
             </CardHeader>
             <CardContent className="p-6">
               {step === 1 && renderStep1()}

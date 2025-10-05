@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
-import { Heart, Calendar, Settings, Clipboard, XCircle, CheckCircle, Send, Link as LinkIcon, Wallet, User, Eye, EyeOff, Clock, Copy } from 'lucide-react';
+import { Heart, Calendar, Settings, Clipboard, XCircle, CheckCircle, Send, Link as LinkIcon, Wallet, User, Eye, EyeOff, Clock, Copy, Database, Trash2, AlertTriangle } from 'lucide-react';
 import { supabase } from '../lib/supabase.js';
 import { Elements, useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
@@ -1221,6 +1221,55 @@ const UserProfilePage = () => {
                 <div className="space-y-2 pb-8 border-b border-brand-burgundy/10">
                   <h2 className="text-xl font-semibold mb-2">Payment Details</h2>
                   <p className="text-brand-burgundy/70">Payment management coming soon...</p>
+                </div>
+
+                {/* Data Management Section */}
+                <div className="space-y-4 pb-8 border-b border-brand-burgundy/10">
+                  <h2 className="text-xl font-semibold mb-4 flex items-center">
+                    <Database className="h-5 w-5 mr-2" />
+                    Delete Account
+                  </h2>
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div className="flex items-start space-x-3">
+                      <Trash2 className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-red-800 mb-2">Delete Your Account</h3>
+                        <p className="text-sm text-red-700 mb-4">
+                          You have the right to request deletion of all your personal data from our system. 
+                          This includes your profile, booking history, and payment records.
+                        </p>
+                        <div className="space-y-2 text-xs text-red-600 mb-4">
+                          <p><strong>This will delete:</strong></p>
+                          <ul className="list-disc list-inside space-y-1 ml-4">
+                            <li>Your profile information (name, email, phone)</li>
+                            <li>All booking history and reservations</li>
+                            <li>Payment records and transaction history</li>
+                            <li>Email communication records</li>
+                          </ul>
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          className="border-red-300 text-red-700 hover:bg-red-100"
+                          onClick={() => navigate('/delete-data')}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete My Account
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <div className="flex items-start space-x-3">
+                      <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-yellow-800 mb-2">Important Notice</h3>
+                        <p className="text-sm text-yellow-700">
+                          <strong>This action is permanent and cannot be undone.</strong> Once your data is deleted, 
+                          you will be signed out and will need to create a new account if you wish to use our service again.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 
                 {/* Referral Codes Section */}

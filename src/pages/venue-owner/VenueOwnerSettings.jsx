@@ -479,8 +479,8 @@ const VenueOwnerSettings = () => {
             className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-2 p-3 sm:p-4 text-sm sm:text-base min-h-[70px] sm:min-h-[60px] transition-all duration-200 hover:bg-brand-gold/10"
           >
             <Database className="h-4 w-4 sm:h-5 sm:w-5" />
-            <span className="hidden sm:inline">Data Management</span>
-            <span className="sm:hidden">Data</span>
+            <span className="hidden sm:inline">Delete Account</span>
+            <span className="sm:hidden">Delete</span>
           </TabsTrigger>
         </TabsList>
 
@@ -978,13 +978,13 @@ const VenueOwnerSettings = () => {
           </Card>
         </TabsContent>
 
-        {/* Data Management Tab */}
+        {/* Delete Account Tab */}
         <TabsContent value="data">
           <Card className="bg-white border-brand-burgundy/10">
             <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
               <CardTitle className="flex items-center text-lg sm:text-xl">
                 <Database className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                Data Management
+                Delete Account
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 sm:px-6 pb-6">

@@ -256,12 +256,12 @@ const SettingsPage = () => {
             </CardContent>
           </Card>
 
-          {/* Data Management */}
+          {/* Delete Account */}
           <Card className="bg-white border-brand-burgundy/10">
             <CardHeader>
               <CardTitle className="flex items-center text-xl font-semibold text-brand-burgundy">
                 <Database className="h-5 w-5 mr-2" />
-                Data Management
+                Delete Account
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
