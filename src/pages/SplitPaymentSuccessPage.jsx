@@ -783,17 +783,39 @@ const SplitPaymentSuccessPage = () => {
         // Send email to venue owner when all payments are completed
         console.log('📧 Sending venue owner notification...');
         try {
-          await sendSplitPaymentVenueOwnerNotification(
-            bookingData,
-            bookingData.venues,
-            {
-              email: bookingData.profiles?.email || 'initiator@example.com',
-              full_name: `${bookingData.profiles?.first_name || ''} ${bookingData.profiles?.last_name || ''}`.trim() || 'Guest',
-              customerName: `${bookingData.profiles?.first_name || ''} ${bookingData.profiles?.last_name || ''}`.trim() || 'Guest'
-            },
-            requests
-          );
-          console.log('✅ Venue owner notification sent successfully');
+          // Get venue owner email
+          const venueOwnerEmail = bookingData.venues?.contact_email || 'info@oneeddy.com';
+          
+          console.log('📧 Venue owner email:', venueOwnerEmail);
+          
+          // Send venue owner notification directly via Edge Function
+          const { data: venueEmailResult, error: venueEmailError } = await supabase.functions.invoke('send-email', {
+            body: {
+              to: venueOwnerEmail,
+              subject: `New Split Payment Booking - ${bookingData.venues?.name || 'Venue'}`,
+              template: 'split-payment-venue-notification',
+              data: {
+                venueName: bookingData.venues?.name || 'Venue',
+                venueContactEmail: bookingData.venues?.contact_email || 'info@oneeddy.com',
+                bookingId: bookingData.id,
+                bookingDate: bookingData.booking_date,
+                startTime: bookingData.start_time,
+                endTime: bookingData.end_time,
+                guestCount: bookingData.number_of_guests,
+                customerName: `${bookingData.profiles?.first_name || ''} ${bookingData.profiles?.last_name || ''}`.trim() || 'Guest',
+                customerEmail: bookingData.profiles?.email || 'guest@example.com',
+                totalAmount: bookingData.total_amount,
+                splitPaymentCount: requests.length,
+                venueAddress: bookingData.venues?.address || 'Lagos, Nigeria'
+              }
+            }
+          });
+
+          if (venueEmailError) {
+            console.error('❌ Error sending venue owner notification:', venueEmailError);
+          } else {
+            console.log('✅ Venue owner notification sent successfully:', venueEmailResult);
+          }
         } catch (venueOwnerError) {
           console.error('❌ Error sending venue owner notification:', venueOwnerError);
         }

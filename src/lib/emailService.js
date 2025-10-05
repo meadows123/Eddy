@@ -616,9 +616,16 @@ This notification was sent automatically by the Eddys Members QR scanning system
 // Split payment venue owner notification email function
 export const sendSplitPaymentVenueOwnerNotification = async (bookingData, venueData, customerData) => {
   try {
+    // Determine venue owner email
+    const venueOwnerEmail = venueData.contact_email || venueData.owner_email || 'info@oneeddy.com';
+    
+    console.log('📧 Sending venue owner notification to:', venueOwnerEmail);
+    
     // Use Supabase Edge Function to send the split payment venue notification
     const { data, error } = await supabase.functions.invoke('send-email', {
       body: {
+        to: venueOwnerEmail,
+        subject: `New Split Payment Booking - ${venueData.name}`,
         template: 'split-payment-venue-notification',
         data: {
           adminEmail: 'info@oneeddy.com',
