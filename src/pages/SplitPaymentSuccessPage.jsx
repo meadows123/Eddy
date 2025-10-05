@@ -357,6 +357,7 @@ const SplitPaymentSuccessPage = () => {
       
       if (allPaid) {
         console.log('🎉 All payments are complete! Sending completion emails...');
+        console.log('🔍 DEBUG: All payments confirmed - venue owner notification will be sent');
         // Update booking status to confirmed
         await supabase
           .from('bookings')
@@ -782,11 +783,30 @@ const SplitPaymentSuccessPage = () => {
 
         // Send email to venue owner when all payments are completed
         console.log('📧 Sending venue owner notification...');
+        console.log('🔍 DEBUG: This venue owner notification is being sent because ALL payments are complete');
         try {
-          // Get venue owner email
-          const venueOwnerEmail = bookingData.venues?.contact_email || 'info@oneeddy.com';
+          // Fetch venue owner email from database
+          let venueOwnerEmail = 'info@oneeddy.com'; // fallback
           
-          console.log('📧 Venue owner email:', venueOwnerEmail);
+          if (bookingData.venues?.id) {
+            // Try to get venue owner email from venue_owners table
+            const { data: ownerData, error: ownerError } = await supabase
+              .from('venue_owners')
+              .select('owner_email, email')
+              .eq('venue_id', bookingData.venues.id)
+              .single();
+            
+            if (!ownerError && ownerData) {
+              venueOwnerEmail = ownerData.owner_email || ownerData.email || 'info@oneeddy.com';
+              console.log('📧 Found venue owner email from venue_owners table:', venueOwnerEmail);
+            } else {
+              // Fallback to venue contact email
+              venueOwnerEmail = bookingData.venues?.contact_email || 'info@oneeddy.com';
+              console.log('📧 Using venue contact email as fallback:', venueOwnerEmail);
+            }
+          }
+          
+          console.log('📧 Final venue owner email:', venueOwnerEmail);
           
           // Prepare email data
           const emailData = {
