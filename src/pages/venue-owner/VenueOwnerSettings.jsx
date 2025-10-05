@@ -11,7 +11,7 @@ import { Badge } from '../../components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../components/ui/use-toast';
-import { Save, Phone, Mail, MapPin, Clock, Users, Plus, Trash2, UserPlus, Settings, Bell, Calendar, User } from 'lucide-react';
+import { Save, Phone, Mail, MapPin, Clock, Users, Plus, Trash2, UserPlus, Settings, Bell, Calendar, User, Database, AlertTriangle } from 'lucide-react';
 import BackToDashboardButton from '../../components/BackToDashboardButton';
 import { Checkbox } from '../../components/ui/checkbox';
 
@@ -449,7 +449,7 @@ const VenueOwnerSettings = () => {
       
       <Tabs defaultValue="profile" className="space-y-4 sm:space-y-6">
         {/* Updated TabsList with better sizing and spacing */}
-        <TabsList className="bg-white p-2 rounded-lg border border-brand-burgundy/10 mb-6 grid grid-cols-3 w-full max-w-4xl mx-auto">
+        <TabsList className="bg-white p-2 rounded-lg border border-brand-burgundy/10 mb-6 grid grid-cols-4 w-full max-w-4xl mx-auto">
           <TabsTrigger 
             value="profile" 
             className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-2 p-3 sm:p-4 text-sm sm:text-base min-h-[70px] sm:min-h-[60px] transition-all duration-200 hover:bg-brand-gold/10"
@@ -473,6 +473,14 @@ const VenueOwnerSettings = () => {
             <Bell className="h-4 w-4 sm:h-5 sm:w-5" />
             <span className="hidden sm:inline">Notifications</span>
             <span className="sm:hidden">Alerts</span>
+          </TabsTrigger>
+          <TabsTrigger 
+            value="data" 
+            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-2 p-3 sm:p-4 text-sm sm:text-base min-h-[70px] sm:min-h-[60px] transition-all duration-200 hover:bg-brand-gold/10"
+          >
+            <Database className="h-4 w-4 sm:h-5 sm:w-5" />
+            <span className="hidden sm:inline">Data Management</span>
+            <span className="sm:hidden">Data</span>
           </TabsTrigger>
         </TabsList>
 
@@ -964,6 +972,95 @@ const VenueOwnerSettings = () => {
                     <span className="hidden sm:inline">Save Preferences</span>
                     <span className="sm:hidden">Save</span>
                   </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Data Management Tab */}
+        <TabsContent value="data">
+          <Card className="bg-white border-brand-burgundy/10">
+            <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
+              <CardTitle className="flex items-center text-lg sm:text-xl">
+                <Database className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                Data Management
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 sm:px-6 pb-6">
+              <div className="space-y-6">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 sm:p-6">
+                  <div className="flex items-start space-x-3">
+                    <Trash2 className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-red-800 mb-2 text-base sm:text-lg">Delete All Your Data</h3>
+                      <p className="text-sm sm:text-base text-red-700 mb-4">
+                        You have the right to request deletion of all your personal data and venue information from our system. 
+                        This includes your profile, venue details, booking history, and all related data.
+                      </p>
+                      <div className="space-y-2 text-xs sm:text-sm text-red-600">
+                        <p><strong>This will delete:</strong></p>
+                        <ul className="list-disc list-inside space-y-1 ml-4">
+                          <li>Your venue profile and business information</li>
+                          <li>All venue tables and configurations</li>
+                          <li>Booking history and customer data</li>
+                          <li>Payment records and transaction history</li>
+                          <li>Staff member information</li>
+                          <li>All email and communication records</li>
+                        </ul>
+                      </div>
+                      <div className="mt-4">
+                        <Button 
+                          variant="outline" 
+                          className="border-red-300 text-red-700 hover:bg-red-100 w-full sm:w-auto"
+                          onClick={() => navigate('/delete-data')}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Request Data Deletion
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 sm:p-6">
+                  <div className="flex items-start space-x-3">
+                    <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-yellow-800 mb-2 text-base sm:text-lg">Important Notice</h3>
+                      <div className="text-sm sm:text-base text-yellow-700 space-y-2">
+                        <p>
+                          <strong>This action is permanent and cannot be undone.</strong> Once your data is deleted:
+                        </p>
+                        <ul className="list-disc list-inside space-y-1 ml-4">
+                          <li>You will be immediately signed out of your account</li>
+                          <li>All your venue information will be permanently removed</li>
+                          <li>You will need to create a new account if you wish to use our service again</li>
+                          <li>Any existing bookings at your venue will be affected</li>
+                        </ul>
+                        <p className="mt-3">
+                          <strong>Contact us first</strong> if you have any concerns or questions about data deletion. 
+                          We're here to help and can provide alternatives if needed.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 sm:p-6">
+                  <div className="flex items-start space-x-3">
+                    <Database className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-blue-800 mb-2 text-base sm:text-lg">Data Protection</h3>
+                      <p className="text-sm sm:text-base text-blue-700 mb-3">
+                        We take your privacy seriously and comply with data protection regulations. 
+                        Your data deletion request will be processed securely and completely.
+                      </p>
+                      <div className="text-xs sm:text-sm text-blue-600">
+                        <p><strong>Compliance:</strong> GDPR Article 17 (Right to Erasure), CCPA, and other applicable privacy laws</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>
