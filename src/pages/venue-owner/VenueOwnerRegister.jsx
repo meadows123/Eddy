@@ -46,7 +46,7 @@ const VenueOwnerRegister = () => {
     };
   });
 
-  const ADMIN_EMAIL = "sales@oneeddy.com"; // Replace with your admin's email
+  const ADMIN_EMAIL = "info@oneeddy.com"; // Replace with your admin's email
 
   // Test function to check Supabase email configuration
   const testSupabaseEmail = async () => {
@@ -58,7 +58,7 @@ const VenueOwnerRegister = () => {
         email: testEmail,
         password: 'testpassword123',
         options: {
-          emailRedirectTo: `${window.location.origin}/venue-owner/login`
+          emailRedirectTo: `https://oneeddy.com/venue-owner/login`
         }
       });
       
@@ -148,7 +148,7 @@ const VenueOwnerRegister = () => {
           email: formData.email,
           password: formData.password,
           options: {
-            emailRedirectTo: `${window.location.origin}/venue-owner/login`,
+            emailRedirectTo: `https://oneeddy.com/venue-owner/login`,
             data: {
               full_name: formData.full_name,
               phone: formData.phone,
@@ -373,7 +373,7 @@ const VenueOwnerRegister = () => {
         email: formData.email,
         password: formData.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/venue-owner/login`,
+          emailRedirectTo: `https://oneeddy.com/venue-owner/login`,
           data: {
             full_name: formData.full_name,
             phone: formData.phone,
@@ -455,45 +455,22 @@ const VenueOwnerRegister = () => {
       }
 
       // Send admin notification email
-      const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
-      const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_VENUE_OWNER_REQUEST_TEMPLATE;
-      const PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
-      
-      if (SERVICE_ID && TEMPLATE_ID && PUBLIC_KEY) {
-        try {
-          emailjs.init(PUBLIC_KEY);
-          await emailjs.send(
-            SERVICE_ID,
-            TEMPLATE_ID,
-            {
-              email: 'info@oneeddy.com',
-              to_name: 'Admin',
-              from_name: 'Eddys Members',
-              subject: 'New Venue Owner Application',
-              ownerName: formData.full_name,
-              ownerEmail: formData.email,
-              ownerPhone: formData.phone,
-              applicationDate: new Date().toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-              }),
-              venueName: formData.venue_name,
-              venueDescription: formData.venue_description,
-              venueType: formData.venue_type || 'Not specified',
-              venueCapacity: formData.capacity || 'Not specified',
-              venueAddress: formData.venue_address,
-              priceRange: formData.price_range || 'Not specified',
-              openingHours: formData.opening_hours || 'Not specified',
-              venuePhone: formData.phone
-            }
-          );
-          console.log('✅ Admin notification email sent');
-        } catch (emailError) {
-          console.error('❌ Failed to send admin notification:', emailError);
-          // Don't fail the registration if email fails
-        }
+      try {
+        const venueOwnerData = {
+          owner_name: formData.full_name,
+          email: formData.email,
+          phone: formData.phone,
+          venue_name: formData.venue_name,
+          venue_type: formData.venue_type || 'Not specified',
+          venue_address: formData.venue_address,
+          venue_city: formData.venue_city
+        };
+        
+        await notifyAdminOfVenueOwnerRegistration(venueOwnerData);
+        console.log('✅ Admin notification email sent successfully');
+      } catch (emailError) {
+        console.error('❌ Failed to send admin notification email:', emailError);
+        // Don't fail the registration if email fails
       }
 
       // Check if email confirmation is required
@@ -847,10 +824,8 @@ const VenueOwnerRegister = () => {
                     className="w-full pl-10 pr-3 py-2 bg-white border border-brand-burgundy/20 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-burgundy focus:border-transparent"
                   >
                     <option value="restaurant">Restaurant</option>
-                    <option value="bar">Bar</option>
                     <option value="club">Club</option>
                     <option value="lounge">Lounge</option>
-                    <option value="other">Other</option>
                   </select>
                 </div>
               </div>

@@ -132,7 +132,13 @@ const VenuesPage = () => {
   }, [typeFromUrl]);
 
   useEffect(() => {
+    if (!venues || venues.length === 0) {
+      setFilteredVenues([]);
+      return;
+    }
+
     let results = venues;
+    
     if (searchTerm) {
       results = results.filter(venue =>
         (venue.name && venue.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -142,41 +148,62 @@ const VenuesPage = () => {
         (venue.music && Array.isArray(venue.music) && venue.music.some(m => m.toLowerCase().includes(searchTerm.toLowerCase())))
       );
     }
+    
     if (filters.location !== 'all') {
       results = results.filter(venue => venue.city === filters.location);
     }
+    
     if (filters.venueType !== 'all') {
-      results = results.filter(venue => venue.type && venue.type.toLowerCase() === filters.venueType.toLowerCase());
+      const venueTypeLower = filters.venueType.toLowerCase();
+      results = results.filter(venue => {
+        if (!venue.type) return false;
+        const typeLower = venue.type.toLowerCase();
+        return typeLower === venueTypeLower;
+      });
     }
+    
     if (filters.rating !== 'all') {
       results = results.filter(venue => venue.rating >= parseFloat(filters.rating));
     }
+    
     if (filters.cuisineType !== 'all') {
       results = results.filter(venue => 
         (venue.cuisine && Array.isArray(venue.cuisine) && venue.cuisine.includes(filters.cuisineType))
       );
     }
+    
     if (filters.musicGenre !== 'all') {
       results = results.filter(venue => 
         (venue.music && Array.isArray(venue.music) && venue.music.includes(filters.musicGenre)) ||
         (venue.musicGenres && Array.isArray(venue.musicGenres) && venue.musicGenres.includes(filters.musicGenre))
       );
     }
+    
     setFilteredVenues(results);
   }, [venues, searchTerm, filters.location, filters.venueType, filters.rating, filters.cuisineType, filters.musicGenre]);
 
   useEffect(() => {
     const fetchVenues = async () => {
       try {
-        // Fetch venues
+        setLoading(true);
+
+        // Fetch venues with filters
         const { data: venuesData, error: venuesError } = await supabase
           .from('venues')
           .select('*')
-          .eq('status', 'approved')
+          .eq('status', 'active')
           .eq('is_active', true)
           .order('created_at', { ascending: false });
 
         if (venuesError) throw venuesError;
+
+        // If no active venues
+        if (!venuesData || venuesData.length === 0) {
+          setVenues([]);
+          setFilteredVenues([]);
+          generateFilterOptions([]);
+          return;
+        }
 
         // Fetch images for all venues
         const { data: imagesData, error: imagesError } = await supabase
@@ -203,7 +230,8 @@ const VenuesPage = () => {
         });
 
         setVenues(venuesWithImages);
-        generateFilterOptions(venuesWithImages); // Generate dynamic options after venues are fetched
+        setFilteredVenues(venuesWithImages);
+        generateFilterOptions(venuesWithImages);
       } catch (error) {
         console.error('Error fetching venues:', error);
         toast({
@@ -211,6 +239,8 @@ const VenuesPage = () => {
           description: "Failed to load venues. Please try again.",
           variant: "destructive"
         });
+        setVenues([]);
+        setFilteredVenues([]);
       } finally {
         setLoading(false);
       }

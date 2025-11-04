@@ -126,7 +126,7 @@ const EmailTemplateTest = () => {
       
       toast({
         title: 'Admin Notification Test Successful!',
-        description: 'V2 notification sent to sales@oneeddy.com',
+        description: 'V2 notification sent to info@oneeddy.com',
       });
       
     } catch (error) {
@@ -295,7 +295,7 @@ const EmailTemplateTest = () => {
             <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
               <h4 className="font-semibold text-orange-800 mb-2">Admin Notification Test:</h4>
               <p className="text-sm text-orange-700">
-                This tests the admin notification system that sends emails to <strong>sales@oneeddy.com</strong> when venue owners register. 
+                This tests the admin notification system that sends emails to <strong>info@oneeddy.com</strong> when venue owners register. 
                 Now using the proper Supabase function invocation method.
               </p>
             </div>

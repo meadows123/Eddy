@@ -100,6 +100,17 @@ const Footer = () => {
         </div>
         <div className="border-t border-brand-cream/10 mt-8 pt-8 text-center text-brand-cream/60">
           <p>&copy; {currentYear} Eddys Members. All rights reserved. Built in memory of Eddy.</p>
+          <p className="mt-2">
+            Developed by{' '}
+            <a
+              href="https://www.cisconnects.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-brand-cream/80 hover:text-white transition-colors underline"
+            >
+              Cisconnects
+            </a>
+          </p>
         </div>
       </div>
     </footer>

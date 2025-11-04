@@ -14,7 +14,7 @@ export const EMAILJS_CONFIG = {
     
     // Support and booking emails
     SUPPORT_EMAIL: process.env.VIP_SUPPORT_EMAIL || 'info@oneeddy.com',
-    BOOKING_EMAIL: process.env.VIP_BOOKING_EMAIL || 'sales@oneeddy.com',
+    BOOKING_EMAIL: process.env.VIP_BOOKING_EMAIL || 'info@oneeddy.com',
 };
 
 // EmailJS Template IDs (only for custom emails, not Supabase auth emails)

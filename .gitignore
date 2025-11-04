@@ -2,4 +2,5 @@
 .env.local
 .env.development
 .env.production
-node_modulesdist/
+dist/
+node_modules

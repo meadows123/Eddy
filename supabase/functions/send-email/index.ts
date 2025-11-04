@@ -1,8 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { SmtpClient } from 'https://deno.land/x/smtp@v0.7.0/mod.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.3'
-import { loadStripe } from 'https://esm.sh/@supabase/stripe@2.39.3'
-import { Stripe } from 'https://esm.sh/@supabase/stripe@2.39.3'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -21,13 +18,6 @@ const supabaseClient = createClient(
     }
   }
 )
-
-// ✅ GOOD - Using environment variables
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-
-// ✅ GOOD - Deno environment variables in Edge Functions  
-const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "");
 
 serve(async (req) => {
   // Handle CORS preflight requests
@@ -50,18 +40,15 @@ serve(async (req) => {
     console.log('Received request:', req.method)
     console.log('Request data:', body)
 
-    const { to, subject, template, data } = body
+    let { to, subject, template, data } = body
 
-    const client = new SmtpClient()
+    // Validate SendGrid API configuration
+    const sendgridApiKey = Deno.env.get('SMTP_PASSWORD') || Deno.env.get('SENDGRID_API_KEY') || '';
+    const smtpFrom = Deno.env.get('SMTP_FROM') || '';
 
-    console.log('Connecting to SMTP server...')
-    await client.connectTLS({
-      hostname: Deno.env.get('SMTP_HOSTNAME') || '',
-      port: parseInt(Deno.env.get('SMTP_PORT') || '587'),
-      username: Deno.env.get('SMTP_USERNAME') || '',
-      password: Deno.env.get('SMTP_PASSWORD') || '',
-    })
-    console.log('Connected to SMTP server')
+    if (!sendgridApiKey || !smtpFrom) {
+      throw new Error(`SendGrid configuration incomplete. Missing: ${!sendgridApiKey ? 'SMTP_PASSWORD or SENDGRID_API_KEY ' : ''}${!smtpFrom ? 'SMTP_FROM' : ''}`);
+    }
 
     let html = ''
     switch (template) {
@@ -76,7 +63,7 @@ serve(async (req) => {
             <li>Manage your tables and bookings</li>
             <li>Update your venue information</li>
           </ul>
-          <p>Login to your account to get started: <a href="${Deno.env.get('APP_URL')}/venue-owner/login">Login Here</a></p>
+          <p>Login to your account to get started: <a href="https://oneeddy.com/venue-owner/login">Login Here</a></p>
           <p>Best regards,<br>The Eddy Team</p>
         `
         break
@@ -144,7 +131,7 @@ serve(async (req) => {
               <p style="color: #333; line-height: 1.6;">If you have any questions or need to make changes to your booking, please contact our support team.</p>
               
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${Deno.env.get('APP_URL')}/profile" style="background: linear-gradient(135deg, #8B1538, #D4AF37); color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-weight: bold;">View My Bookings</a>
+                <a href="https://oneeddy.com/profile" style="background: linear-gradient(135deg, #8B1538, #D4AF37); color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-weight: bold;">View My Bookings</a>
               </div>
               
               <p style="color: #333;">Thank you for choosing VIPClub!</p>
@@ -168,11 +155,51 @@ serve(async (req) => {
         `
         break
 
+      case 'admin-venue-owner-registration':
+        to = data.adminEmail || 'info@oneeddy.com'
+        subject = 'New Venue Owner Registration - Action Required'
+        html = `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: linear-gradient(135deg, #8B1538, #D4AF37); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+              <h1 style="color: white; margin: 0; font-size: 28px;">New Venue Owner Registration</h1>
+              <p style="color: #F5F5DC; margin: 10px 0 0 0; font-size: 16px;">Action Required</p>
+            </div>
+            
+            <div style="background: white; padding: 30px; border: 1px solid #ddd; border-top: none;">
+              <p style="font-size: 18px; color: #333; margin-bottom: 20px;">A new venue owner has completed their registration:</p>
+              
+              <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="color: #8B1538; margin-top: 0;">Venue Owner Details</h3>
+                <p><strong>Name:</strong> ${data.ownerName}</p>
+                <p><strong>Email:</strong> ${data.email}</p>
+                <p><strong>Phone:</strong> ${data.phone || 'Not provided'}</p>
+                <p><strong>Venue:</strong> ${data.venueName}</p>
+                <p><strong>Venue Type:</strong> ${data.venueType || 'Not specified'}</p>
+                <p><strong>Address:</strong> ${data.venueAddress}</p>
+                <p><strong>City:</strong> ${data.venueCity}</p>
+              </div>
+              
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${data.adminUrl || 'https://oneeddy.com/admin/venue-approvals'}" style="background: linear-gradient(135deg, #8B1538, #D4AF37); color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; display: inline-block;">Review Registration</a>
+              </div>
+              
+              <p style="color: #333; line-height: 1.6;">Please review this registration in the admin dashboard and approve or reject the venue owner.</p>
+              
+              <p style="color: #666; font-size: 14px;">Best regards,<br>The Eddy Team</p>
+            </div>
+            
+            <div style="background: #f8f9fa; padding: 20px; text-align: center; border-radius: 0 0 10px 10px; border: 1px solid #ddd; border-top: none;">
+              <p style="color: #666; font-size: 12px; margin: 0;">This is an automated message. Please do not reply to this email.</p>
+            </div>
+          </div>
+        `
+        break
+
       case 'venue-owner-invitation':
         // Use Supabase's built-in inviteUserByEmail function to trigger "Confirm signup" template
         try {
           const { data: inviteData, error: inviteError } = await supabaseClient.auth.admin.inviteUserByEmail(data.email, {
-            redirectTo: `${Deno.env.get('APP_URL')}/venue-owner/register`,
+            redirectTo: `https://oneeddy.com/venue-owner/register`,
             data: {
               venue_name: data.venueName,
               contact_name: data.contactName,
@@ -207,17 +234,37 @@ serve(async (req) => {
         throw new Error('Invalid template')
     }
 
-    console.log('Sending email...')
-    await client.send({
-      from: Deno.env.get('SMTP_FROM') || '',
-      to: to,
+    console.log('Sending email via SendGrid API...', { from: smtpFrom, to: to, subject: subject });
+    
+    // Use SendGrid HTTP API instead of SMTP
+    const sendgridResponse = await fetch('https://api.sendgrid.com/v3/mail/send', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${sendgridApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        personalizations: [{
+          to: [{ email: to }],
       subject: subject,
-      content: html,
-      html: html,
-    })
-    console.log('Email sent successfully')
+        }],
+        from: { email: smtpFrom },
+        content: [
+          {
+            type: 'text/html',
+            value: html,
+          },
+        ],
+      }),
+    });
 
-    await client.close()
+    if (!sendgridResponse.ok) {
+      const errorText = await sendgridResponse.text();
+      console.error('SendGrid API error:', errorText);
+      throw new Error(`SendGrid API error: ${sendgridResponse.status} ${errorText}`);
+    }
+
+    console.log('Email sent successfully to:', to);
 
     return new Response(
       JSON.stringify({ success: true }),
@@ -249,7 +296,7 @@ serve(async (req) => {
  */
 export async function notifyAdminOfVenueSubmission(newVenue, userProfile, user) {
   const EDGE_FUNCTION_URL = `${Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '.functions.supabase.co')}/send-email`;
-  const ADMIN_EMAIL = "sales@oneeddy.com"; // Change to your admin email
+  const ADMIN_EMAIL = "info@oneeddy.com"; // Change to your admin email
 
   try {
     const response = await fetch(EDGE_FUNCTION_URL, {

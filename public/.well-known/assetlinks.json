@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.oneeddy.members",
+      "sha256_cert_fingerprints": [
+        "E7:BC:6C:D0:BC:38:D9:EF:2B:2D:20:2F:88:99:7F:FD:87:34:E6:26:9B:B8:B2:53:BD:FD:E9:7D:7A:D7:FC:19"
+      ]
+    }
+  }
+]
+

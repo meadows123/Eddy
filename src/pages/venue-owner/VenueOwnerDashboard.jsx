@@ -94,17 +94,58 @@ const VenueOwnerDashboard = () => {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError) throw userError;
 
-      const { data: venueOwner, error: venueOwnerError } = await supabase
+      // Try to find venue owner by user_id first
+      let venueOwner = null;
+      const { data: venueOwnerByUserId, error: errorByUserId } = await supabase
         .from('venue_owners')
         .select('*')
         .eq('user_id', user.id)
         .single();
 
-      if (venueOwnerError || !venueOwner) {
+      if (venueOwnerByUserId && !errorByUserId) {
+        venueOwner = venueOwnerByUserId;
+      } else {
+        // Fallback: try by email
+        const { data: venueOwnersByEmail, error: errorByEmail } = await supabase
+          .from('venue_owners')
+          .select('*')
+          .eq('owner_email', user.email)
+          .order('created_at', { ascending: false });
+
+        if (venueOwnersByEmail && venueOwnersByEmail.length > 0) {
+          // Pick the best match (active/approved status, or most recent)
+          const activeRecord = venueOwnersByEmail.find(vo => vo.status === 'active' || vo.status === 'approved');
+          venueOwner = activeRecord || venueOwnersByEmail[0];
+          
+          // If found by email but user_id doesn't match, update it
+          if (venueOwner.user_id !== user.id) {
+            await supabase
+              .from('venue_owners')
+              .update({ user_id: user.id })
+              .eq('id', venueOwner.id);
+            venueOwner.user_id = user.id;
+          }
+        }
+      }
+
+      if (!venueOwner) {
         console.log('User is not a venue owner, redirecting to register...');
         toast({
           title: 'Venue Owner Account Required',
           description: 'Please register as a venue owner to access the dashboard',
+          variant: 'destructive',
+        });
+        navigate('/venue-owner/register');
+        return;
+      }
+
+      // Check if venue owner is active (allow both 'active' and 'approved' status)
+      const validStatuses = ['active', 'approved'];
+      if (!validStatuses.includes(venueOwner.status)) {
+        console.log('Venue owner account is not active, redirecting to register...');
+        toast({
+          title: 'Account Pending Approval',
+          description: `Your venue owner account status is "${venueOwner.status}". Please wait for admin approval or contact support.`,
           variant: 'destructive',
         });
         navigate('/venue-owner/register');

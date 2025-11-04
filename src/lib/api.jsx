@@ -263,7 +263,7 @@ export async function removeStripePaymentMethod(id) {
 export async function notifyAdminOfVenueSubmission(newVenue, venueOwner, user) {
   console.log("🔔 [ADMIN EMAIL] Starting venue submission notification...");
   
-  const ADMIN_EMAIL = "sales@oneeddy.com";
+  const ADMIN_EMAIL = "info@oneeddy.com";
   
   const EMAILJS_CONFIG = {
     serviceId: import.meta.env.VITE_EMAILJS_SERVICE_ID,
@@ -394,7 +394,7 @@ export async function testEmailJSConnection() {
       {
         name: 'Common EmailJS fields',
         data: {
-          email: 'sales@oneeddy.com',
+          email: 'info@oneeddy.com',
           name: 'Eddys Members Admin',
           subject: 'EmailJS Connection Test',
           message: 'This is a test message to verify EmailJS connectivity.'
@@ -404,7 +404,7 @@ export async function testEmailJSConnection() {
       {
         name: 'Standard to/from fields',
         data: {
-          to: 'sales@oneeddy.com',
+          to: 'info@oneeddy.com',
           from: 'Eddys Members Test',
           subject: 'EmailJS Connection Test',
           message: 'This is a test message to verify EmailJS connectivity.'
@@ -414,7 +414,7 @@ export async function testEmailJSConnection() {
       {
         name: 'User-based fields',
         data: {
-          user_email: 'sales@oneeddy.com',
+          user_email: 'info@oneeddy.com',
           user_name: 'Eddys Members Admin',
           subject: 'EmailJS Connection Test',
           message: 'This is a test message to verify EmailJS connectivity.'
@@ -425,7 +425,7 @@ export async function testEmailJSConnection() {
         name: 'Current approach',
         data: {
           to_name: 'Eddys Members Admin',
-          to_email: 'sales@oneeddy.com',
+          to_email: 'info@oneeddy.com',
           from_name: 'Eddys Members Test',
           reply_to: 'noreply@oneeddy.com',
           subject: 'EmailJS Connection Test',

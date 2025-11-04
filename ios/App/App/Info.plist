@@ -45,5 +45,23 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<!-- Custom URL Scheme for Deep Linking -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.oneeddy.members</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.oneeddy.members</string>
+			</array>
+		</dict>
+	</array>
+	<!-- Associated Domains for Universal Links -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:oneeddy.com</string>
+		<string>applinks:www.oneeddy.com</string>
+	</array>
 </dict>
 </plist>

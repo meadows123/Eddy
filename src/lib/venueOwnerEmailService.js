@@ -406,7 +406,7 @@ export const notifyAdminOfVenueOwnerRegistration = async (venueOwnerData) => {
       body: {
         template: 'admin-venue-owner-registration',
         data: {
-          adminEmail: 'sales@oneeddy.com', // Replace with your admin email
+          adminEmail: 'info@oneeddy.com', // Replace with your admin email
           ownerName: venueOwnerData.owner_name,
           email: venueOwnerData.email,
           phone: venueOwnerData.phone,
@@ -414,7 +414,7 @@ export const notifyAdminOfVenueOwnerRegistration = async (venueOwnerData) => {
           venueType: venueOwnerData.venue_type,
           venueAddress: venueOwnerData.venue_address,
           venueCity: venueOwnerData.venue_city,
-          adminUrl: `${window.location.origin}/admin/venue-approvals`
+          adminUrl: `https://oneeddy.com/admin/venue-approvals`
         }
       }
     });
@@ -444,7 +444,7 @@ export const notifyAdminOfVenueOwnerRegistration = async (venueOwnerData) => {
       emailjs.init(PUBLIC_KEY);
       
       const result = await emailjs.send(SERVICE_ID, TEMPLATE_ID, {
-        email: 'sales@oneeddy.com', // Admin email
+        email: 'info@oneeddy.com', // Admin email
         to_name: 'Admin',
         from_name: 'VIPClub System',
         subject: 'New Venue Owner Registration',

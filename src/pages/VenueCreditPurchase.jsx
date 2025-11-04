@@ -78,7 +78,7 @@ const VenueCreditPurchase = () => {
       const { data: venuesData, error } = await supabase
         .from('venues')
         .select('*')
-        .eq('status', 'approved')
+        .eq('status', 'active')
         .eq('is_active', true)
         .order('name');
 

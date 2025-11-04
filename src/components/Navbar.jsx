@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Menu, X, Home, Compass, MapPin, CalendarDays, UserCircle, Wine } from 'lucide-react'; // Wine for brand icon
 import { Button } from '@/components/ui/button';
+// import logoImage from '../../public/logos/Logo1-Trans.png';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -23,32 +24,16 @@ const Navbar = () => {
     <header className="sticky top-0 z-50 w-full border-b border-brand-burgundy/20 bg-brand-cream/90 backdrop-blur supports-[backdrop-filter]:bg-brand-cream/70">
       <div className="container flex h-20 items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
-          <motion.img
-            src="/logos/Logo1-Trans-new.png"
-            className="h-16 w-auto object-contain"
+          <motion.div
+            className="h-16 flex items-center justify-center bg-gradient-to-r from-brand-burgundy to-brand-gold text-white px-4 py-2 rounded-lg"
             style={{ maxWidth: '250px', minHeight: '64px' }}
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
-            onLoad={(e) => {
-              console.log('✅ Navbar logo loaded successfully');
-              console.log('📏 Navbar logo dimensions:', e.target.naturalWidth, 'x', e.target.naturalHeight);
-              console.log('📐 Navbar logo display size:', e.target.width, 'x', e.target.height);
-            }}
-            onError={(e) => {
-              console.log('❌ Navbar logo failed to load from:', e.target.src);
-              // Try alternative logos in build order
-              if (e.target.src.includes('Logo1-Trans-new.png')) {
-                e.target.src = '/logos/Logo1-Trans-new.png';
-              } else if (e.target.src.includes('Logo-Trans-new.png')) {
-                e.target.src = '/logos/Logo1-Trans-new.png';
-              } else {
-                // Show text fallback if all logos fail
-                e.target.style.display = 'none';
-                e.target.nextSibling.style.display = 'flex';
-              }
-            }}
-          />
+          >
+            <span className="text-xl font-bold">EDDY'S</span>
+            <span className="text-sm font-medium ml-2">MEMBERS</span>
+          </motion.div>
           <motion.div
             className="flex items-center gap-2"
             style={{ display: 'none' }}
@@ -59,10 +44,11 @@ const Navbar = () => {
             <div className="h-10 w-10 bg-gradient-to-br from-brand-burgundy to-brand-gold rounded-lg flex items-center justify-center">
               <span className="text-white font-bold text-lg">V</span>
             </div>
-            <span className="text-xl font-heading text-brand-burgundy font-bold">
-              Eddys Members
+            <span className="text-xl font-heading text-brand-burgundy font-bold" style={{color: 'red', fontSize: '24px', fontWeight: 'bold'}}>
+              🔥 TEST CHANGE - IF YOU SEE THIS RED TEXT, BUILD IS WORKING! 🔥
             </span>
           </motion.div>
+
         </Link>
 
         <nav className="hidden md:flex items-center gap-x-6 lg:gap-x-8">
