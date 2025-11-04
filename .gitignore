@@ -4,3 +4,6 @@
 .env.production
 dist/
 node_modules
+
+# Windows Zone.Identifier files (alternate data streams)
+*:Zone.Identifier
