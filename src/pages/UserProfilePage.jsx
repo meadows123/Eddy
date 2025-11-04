@@ -4,19 +4,21 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Card } from '../components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs';
-import { Heart, Calendar, Settings, Clipboard, XCircle, CheckCircle, Send, Link as LinkIcon, Wallet, User, Eye, EyeOff } from 'lucide-react';
+import { Heart, Calendar, Settings, Clipboard, XCircle, CheckCircle, Send, Link as LinkIcon, Wallet, User, Eye, EyeOff, Clock, Copy, Database, Trash2, AlertTriangle } from 'lucide-react';
 import { supabase } from '../lib/supabase.js';
 import { Elements, useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import { Input } from "../components/ui/input";
 import { useNavigate, useLocation } from 'react-router-dom';
+import { Badge } from '../components/ui/badge';
+import { useToast } from "@/components/ui/use-toast";
+import { getFullUrl } from '@/lib/urlUtils';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
 
 const UserProfilePage = () => {
-  console.log('🔍 UserProfilePage component is rendering');
+  const { toast } = useToast();
   const { user, signIn, signUp, signOut } = useAuth();
-  console.log('👤 Current user:', user);
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -67,11 +69,53 @@ const UserProfilePage = () => {
   const [showSignupPassword, setShowSignupPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  // Add this function to debug table structure
+  const debugTableStructure = async () => {
+    if (!user) return;
+    
+    
+    try {
+      // First, let's try a simple select to see if the table exists
+      const { data: simpleData, error: simpleError } = await supabase
+        .from('venue_credits')
+        .select('*')
+        .limit(1);
+      
+      
+      if (simpleError) {
+        
+        // Try to get table info
+        const { data: tableInfo, error: tableError } = await supabase
+          .rpc('get_table_info', { table_name: 'venue_credits' });
+        
+        
+        // Try alternative table names
+        const alternativeTables = ['venue_credits', 'credits', 'user_credits', 'venue_credit'];
+        
+        for (const tableName of alternativeTables) {
+          const { data: altData, error: altError } = await supabase
+            .from(tableName)
+            .select('*')
+            .limit(1);
+          
+          if (!altError) {
+            break;
+          } else {
+          }
+        }
+      } else {
+      }
+      
+    } catch (error) {
+    }
+  };
+
   // Load user data when logged in
   useEffect(() => {
     if (user) {
       loadUserData();
       loadVenueCredits();
+      debugTableStructure(); // Add this debug call
     }
   }, [user]);
 
@@ -81,26 +125,57 @@ const UserProfilePage = () => {
     setSplitPaymentsLoading(true);
     const fetchSplitPayments = async () => {
       try {
-        // Sent requests
+        // Sent requests - join with recipient profiles
         const { data: sent, error: sentError } = await supabase
           .from('split_payment_requests')
-          .select('*')
+          .select(`
+            *,
+            profiles!split_payment_requests_recipient_id_fkey (
+              first_name,
+              last_name,
+              phone
+            )
+          `)
           .eq('requester_id', user.id)
           .order('created_at', { ascending: false });
-        // Received requests
+        
+        // Received requests - join with requester profiles  
         const { data: received, error: receivedError } = await supabase
           .from('split_payment_requests')
-          .select('*')
+          .select(`
+            *,
+            profiles!split_payment_requests_requester_id_fkey (
+              first_name,
+              last_name,
+              phone
+            )
+          `)
           .eq('recipient_id', user.id)
           .order('created_at', { ascending: false });
+          
+          
         if (sentError || receivedError) throw sentError || receivedError;
-        setSplitPaymentsSent(sent || []);
-        setSplitPaymentsReceived(received || []);
+        
+        // Map the joined data to the expected format
+        const mappedSent = (sent || []).map(request => ({
+          ...request,
+          recipient_profile: request.profiles
+        }));
+        
+        const mappedReceived = (received || []).map(request => ({
+          ...request,
+          requester_profile: request.profiles
+        }));
+        
+        setSplitPaymentsSent(mappedSent);
+        setSplitPaymentsReceived(mappedReceived);
         setSplitPaymentsError(null);
+        
         // Notification for new received requests
-        const newRequest = (received || []).find(r => r.status === 'pending' && !r.seen_by_recipient);
+        const newRequest = mappedReceived.find(r => r.status === 'pending' && !r.seen_by_recipient);
         if (newRequest) setSplitPaymentNotification('You have a new split payment request!');
       } catch (err) {
+        console.error('Error fetching split payments:', err);
         setSplitPaymentsError('Failed to load split payment requests.');
       } finally {
         setSplitPaymentsLoading(false);
@@ -110,9 +185,12 @@ const UserProfilePage = () => {
   }, [user]);
 
   const loadVenueCredits = async () => {
-    if (!user) return;
+    if (!user) {
+      return;
+    }
     
     setCreditsLoading(true);
+    
     try {
       const { data: creditsData, error } = await supabase
         .from('venue_credits')
@@ -120,14 +198,25 @@ const UserProfilePage = () => {
         .eq('user_id', user.id)
         .eq('status', 'active')
         .gt('remaining_balance', 0)
-        .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+
+      if (error) {
+        console.error('❌ Error fetching credits:', error);
+        console.error('❌ Error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
+        throw error;
+      }
+
 
       // Get venue data for each credit separately
       const creditsWithVenueData = await Promise.all(
-        (creditsData || []).map(async (credit) => {
+        (creditsData || []).map(async (credit, index) => {
+          
           try {
             const { data: venueData, error: venueError } = await supabase
               .from('venues')
@@ -148,7 +237,7 @@ const UserProfilePage = () => {
               };
             }
           } catch (err) {
-            console.error('Error fetching venue data:', err);
+            console.error(`❌ Error fetching venue data for credit ${index + 1}:`, err);
             credit.venues = {
               id: credit.venue_id,
               name: 'Unknown Venue',
@@ -162,8 +251,9 @@ const UserProfilePage = () => {
       );
 
       setVenueCredits(creditsWithVenueData);
+      
     } catch (error) {
-      console.error('Error loading venue credits:', error);
+      console.error('❌ Error loading venue credits:', error);
     } finally {
       setCreditsLoading(false);
     }
@@ -172,7 +262,7 @@ const UserProfilePage = () => {
   const loadUserData = async () => {
     try {
       // Load profile - handle missing profile by creating one
-      let { data: profileData, error: profileError } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
@@ -180,7 +270,6 @@ const UserProfilePage = () => {
       
       if (profileError && profileError.code === 'PGRST116') {
         // Profile doesn't exist, try to create one or update existing
-        console.log('Profile not found, attempting to create or update...');
         const { data: newProfile, error: createError } = await supabase
           .from('profiles')
           .upsert([{
@@ -241,6 +330,7 @@ const UserProfilePage = () => {
       }
 
       // Load saved venues (check if table exists first)
+      
       const { data: savedVenuesData, error: savedVenuesError } = await supabase
         .from('saved_venues')
         .select(`
@@ -255,8 +345,9 @@ const UserProfilePage = () => {
         `)
         .eq('user_id', user.id);
       
+      
       if (savedVenuesError) {
-        console.error('Saved venues error:', savedVenuesError);
+        console.error('❌ Saved venues error:', savedVenuesError);
         // If table doesn't exist, set empty array
         setSavedVenues([]);
       } else {
@@ -264,30 +355,55 @@ const UserProfilePage = () => {
       }
 
       // Load bookings with proper relationships
+
+      // In loadUserData function
+
+      // First, test a simple query with created_at
+      const { data: testData, error: testError } = await supabase
+        .from('bookings')
+        .select('id, booking_date, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(5);
+
+      // Then the full query with both sorts
       const { data: bookingsData, error: bookingsError } = await supabase
         .from('bookings')
         .select(`
-          *,
-          venues (
-            id,
-            name,
-            type,
-            city,
-            address
-          ),
-          venue_tables!table_id (
-            id,
-            table_number
-          )
+          id,
+          booking_date,
+          start_time,
+          end_time,
+          number_of_guests,
+          status,
+          total_amount,
+          created_at,
+          venues:venue_id (*),
+          venue_tables:table_id (*)
         `)
         .eq('user_id', user.id)
-        .order('booking_date', { ascending: false });
-      
+        .order('created_at', { ascending: false }) // Sort by creation time first
+        .order('booking_date', { ascending: false }); // Then by booking date
+
+      // Check if we got any data
       if (bookingsError) {
-        console.error('Bookings error:', bookingsError);
+        console.error('❌ Bookings error:', bookingsError);
         setBookings([]);
       } else {
-        setBookings(bookingsData || []);
+        if (bookingsData && bookingsData.length > 0) {
+        } else {
+        }
+        if (bookingsData) {
+          
+          // Force a fresh state update
+          setBookings([]);
+          setTimeout(() => {
+            setBookings(bookingsData);
+          }, 0);
+        } else {
+          console.error('❌ No bookings data received:', bookingsError);
+          setBookings([]);
+        }
       }
     } catch (error) {
       console.error('Error loading user data:', error);
@@ -314,7 +430,6 @@ const UserProfilePage = () => {
 
       setProfile(updatedProfile);
       setEditingProfile(false);
-      console.log('Profile updated successfully');
     } catch (error) {
       console.error('Error updating profile:', error);
     }
@@ -326,7 +441,18 @@ const UserProfilePage = () => {
       const { error } = await signIn(form);
       if (error) throw error;
     } catch (error) {
-      setError(error.message);
+      // Provide more specific and helpful error messages
+      if (error.message === 'Invalid login credentials' || error.message.includes('Invalid login credentials')) {
+        setError('The email or password you entered is incorrect. Please check your credentials and try again. If you\'ve forgotten your password, click "Forgot Password?" below to reset it.');
+      } else if (error.message.includes('Email not confirmed')) {
+        setError('Please check your email and click the confirmation link before logging in. If you didn\'t receive the email, try signing up again.');
+      } else if (error.message.includes('Too many requests')) {
+        setError('Too many login attempts. Please wait a few minutes before trying again. If you\'ve forgotten your password, use the "Forgot Password?" option below.');
+      } else if (error.message.includes('User not found')) {
+        setError('No account found with this email address. Please check your email or create a new account.');
+      } else {
+        setError(error.message || 'Login failed. Please try again or contact support if the problem persists.');
+      }
     }
   };
 
@@ -337,13 +463,6 @@ const UserProfilePage = () => {
       return;
     }
     try {
-      console.log('🔍 DEBUG: UserProfilePage signup payload:', {
-        email: signupForm.email,
-        firstName: signupForm.firstName,
-        lastName: signupForm.lastName,
-        city: signupForm.city,
-        country: signupForm.country
-      });
 
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email: signupForm.email,
@@ -360,7 +479,6 @@ const UserProfilePage = () => {
         }
       });
 
-      console.log('📥 DEBUG: Auth response:', { signUpData, signUpError });
 
       if (signUpError) {
         console.error('❌ DEBUG: Sign up error:', signUpError);
@@ -368,7 +486,6 @@ const UserProfilePage = () => {
         return;
       }
 
-      console.log('✅ DEBUG: Auth signup successful, user created:', signUpData.user);
 
       const userId = signUpData.user.id;
       // Use upsert to handle the case where trigger already created a profile
@@ -383,13 +500,11 @@ const UserProfilePage = () => {
         email: signupForm.email
       };
 
-      console.log('📤 DEBUG: Profile data for upsert:', profileData);
 
       const { error: profileError } = await supabase
         .from('profiles')
         .upsert([profileData]);
 
-      console.log('📥 DEBUG: Profile upsert result:', { profileError });
 
       if (profileError) {
         console.error('❌ DEBUG: Upsert error:', profileError);
@@ -397,7 +512,6 @@ const UserProfilePage = () => {
         return;
       }
 
-      console.log('✅ DEBUG: Profile created successfully');
       setSignupSuccess('Account created successfully! Please check your email to confirm your account.');
       
     } catch (error) {
@@ -405,6 +519,79 @@ const UserProfilePage = () => {
       setSignupError(error.message);
     }
   };
+
+  const [activeTab, setActiveTab] = useState(location.state?.activeTab || "profile");
+
+  // Add a debug effect for tab changes
+  useEffect(() => {
+    console.log('�� Active tab changed:', activeTab);
+  }, [activeTab]);
+
+  // Add near the top of the component where other useEffects are
+  useEffect(() => {
+    if (!user) return;
+
+    // Set up real-time subscription for new bookings
+    const bookingsSubscription = supabase
+      .channel('bookings_channel')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen for all events (insert, update, delete)
+          schema: 'public',
+          table: 'bookings',
+          filter: `user_id=eq.${user.id}` // Only listen for this user's bookings
+        },
+        (payload) => {
+          console.log('🔄 Booking change detected:', payload);
+          // Reload the bookings data
+          loadUserData();
+        }
+      )
+      .subscribe((status) => {
+      });
+
+    // Debug log to confirm subscription is set up
+
+    // Cleanup subscription on unmount
+    return () => {
+      bookingsSubscription.unsubscribe();
+    };
+  }, [user]); // Only re-run if user changes
+
+  // Add this near your other useEffects
+  useEffect(() => {
+    // Bookings state changed - no logging needed in production
+  }, [bookings]);
+
+  // Add near the top with other useEffects
+  useEffect(() => {
+    if (!user) return;
+
+
+    const channel = supabase
+      .channel('bookings_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*', // Listen for all events (insert, update, delete)
+          schema: 'public',
+          table: 'bookings',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          // Reload the bookings data when we get an update
+          loadUserData();
+        }
+      )
+      .subscribe((status) => {
+      });
+
+    // Cleanup subscription when component unmounts
+    return () => {
+      channel.unsubscribe();
+    };
+  }, [user]);
 
   if (!user) {
     return (
@@ -536,6 +723,23 @@ const UserProfilePage = () => {
                 className="w-full border p-2 rounded bg-white"
                 required
               />
+              {/* Email Confirmation Reminder */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <svg className="h-5 w-5 text-blue-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-blue-800">Important: Check Your Email</h3>
+                    <div className="mt-2 text-sm text-blue-700">
+                      <p>After signing up, you'll receive a confirmation email. <strong>Please check your inbox and click the verification link</strong> to complete your account setup and start booking exclusive venues!</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {signupError && <div className="text-red-500">{signupError}</div>}
               {signupSuccess && <div className="text-green-600">{signupSuccess}</div>}
               <Button type="submit" className="w-full bg-brand-burgundy text-white">Sign Up</Button>
@@ -605,10 +809,17 @@ const UserProfilePage = () => {
                         redirectTo: `${window.location.origin}/reset-password`
                       });
                       if (error) throw error;
-                      setSuccess('Password reset email sent! Check your inbox.');
+                      setSuccess('Password reset email sent! Check your inbox and spam folder. Click the link in the email to reset your password.');
                       setError(''); // Clear any previous errors
                     } catch (err) {
-                      setError(err.message || 'Failed to send password reset email');
+                      // Provide more helpful error messages for password reset
+                      if (err.message.includes('User not found')) {
+                        setError('No account found with this email address. Please check your email or create a new account.');
+                      } else if (err.message.includes('Too many requests')) {
+                        setError('Too many password reset requests. Please wait a few minutes before trying again.');
+                      } else {
+                        setError(err.message || 'Failed to send password reset email. Please try again or contact support.');
+                      }
                     }
                   }}
                   className="text-sm text-brand-burgundy hover:text-brand-gold transition-colors"
@@ -651,7 +862,11 @@ const UserProfilePage = () => {
           </Button>
         </div>
 
-        <Tabs defaultValue={location.state?.activeTab || "profile"} className="space-y-4 sm:space-y-6">
+        <Tabs 
+          value={activeTab} 
+          onValueChange={setActiveTab} 
+          className="space-y-4 sm:space-y-6"
+        >
           <TabsList className="bg-white p-1 rounded-lg border border-brand-burgundy/10 grid grid-cols-2 md:grid-cols-7 h-auto">
             <TabsTrigger value="profile" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 p-2 md:p-3 text-xs md:text-sm">
               <User className="h-3 w-3 md:h-4 md:w-4" />
@@ -663,7 +878,11 @@ const UserProfilePage = () => {
               <span className="hidden sm:inline">Saved</span>
               <span className="sm:hidden">Saved</span>
             </TabsTrigger>
-            <TabsTrigger value="bookings" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 p-2 md:p-3 text-xs md:text-sm">
+            <TabsTrigger value="bookings" className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2 p-2 md:p-3 text-xs md:text-sm"
+              onClick={() => {
+                setActiveTab('bookings');
+              }}
+            >
               <Calendar className="h-3 w-3 md:h-4 md:w-4" />
               <span className="hidden sm:inline">Bookings</span>
               <span className="sm:hidden">Bookings</span>
@@ -874,8 +1093,20 @@ const UserProfilePage = () => {
                 <h2 className="text-xl font-semibold mb-4">My Bookings</h2>
                   {bookings.length > 0 ? (
                   <div className="space-y-4">
-                    {bookings.map((booking) => (
-                      <Card key={booking.id} className="p-4">
+                    {bookings.map((booking) => {
+                      console.log('�� Booking data:', {
+                        id: booking.id,
+                        venue: booking.venues,
+                        date: booking.booking_date,
+                        time: booking.start_time,
+                        guests: booking.number_of_guests,
+                        table: booking.venue_tables,
+                        amount: booking.total_amount,
+                        status: booking.status
+                      });
+                      
+                      return (
+                        <Card key={booking.id} className="p-4">
                           <div className="flex justify-between items-start">
                             <div>
                             <h3 className="font-semibold">{booking.venues?.name || 'Venue not found'}</h3>
@@ -883,7 +1114,7 @@ const UserProfilePage = () => {
                               {booking.booking_date ? new Date(booking.booking_date).toLocaleDateString() : 'Date not set'} at {booking.start_time || 'Time not set'}
                             </p>
                             <p className="text-sm text-brand-burgundy/70">
-                              {booking.number_of_guests || booking.guest_count || 0} guests
+                              {booking.number_of_guests || 0} guests
                             </p>
                             {booking.venue_tables && (
                               <p className="text-sm text-brand-burgundy/70">
@@ -891,7 +1122,7 @@ const UserProfilePage = () => {
                               </p>
                             )}
                             <p className="text-sm text-brand-burgundy/70">
-                              Total: ₦{(booking.total_amount || 0).toLocaleString()}
+                              Total: ₦{(parseFloat(booking.total_amount) || 0).toLocaleString()}
                             </p>
                           </div>
                           <div className="text-right">
@@ -901,37 +1132,75 @@ const UserProfilePage = () => {
                             {(booking.status === 'confirmed' || booking.status === 'pending') && (
                               <Button
                                 onClick={async () => {
+                                  // Check if eligible for refund
+                                  const now = new Date();
+                                  const bookingDateTime = new Date(`${booking.booking_date} ${booking.start_time}`);
+                                  const hoursUntilBooking = (bookingDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+                                  
+                                  if (hoursUntilBooking < 24) {
+                                    toast({
+                                      title: "Cancellation Not Available",
+                                      description: "Cancellations with refund are only available 24+ hours before your booking. Please contact support for assistance.",
+                                      variant: "destructive"
+                                    });
+                                    return;
+                                  }
+                                  
                                   try {
-                                    const { error } = await supabase
-                                      .from('bookings')
-                                      .update({ status: 'cancelled', updated_at: new Date().toISOString() })
-                                      .eq('id', booking.id);
+                                    // Call the refund edge function
+                                    const { data, error } = await supabase.functions.invoke('process-booking-refund', {
+                                      body: { 
+                                        bookingId: booking.id,
+                                        reason: 'customer_cancellation'
+                                      }
+                                    });
                                     
                                     if (error) throw error;
+                                    
+                                    if (data.refunded) {
+                                      toast({
+                                        title: "Booking Cancelled & Refunded",
+                                        description: `Your booking has been cancelled and ₦${(data.amount_refunded / 100).toLocaleString()} will be refunded to your card within 5-10 business days.`,
+                                        className: "bg-green-500 text-white"
+                                      });
+                                    } else {
+                                      toast({
+                                        title: "Booking Cancelled",
+                                        description: "Your booking has been cancelled successfully.",
+                                        className: "bg-green-500 text-white"
+                                      });
+                                    }
                                     
                                     // Update local state
                                     setBookings(prev => 
                                       prev.map(b => 
                                         b.id === booking.id 
-                                          ? { ...b, status: 'cancelled' }
+                                          ? { ...b, status: 'cancelled', refund_status: data.refunded ? 'refunded' : 'no_payment' }
                                           : b
                                       )
                                     );
+                                    
                                   } catch (error) {
-                                    console.error('Error cancelling booking:', error);
+                                    console.error('Error processing cancellation:', error);
+                                    toast({
+                                      title: "Cancellation Failed",
+                                      description: error.message || "Failed to cancel booking. Please try again.",
+                                      variant: "destructive"
+                                    });
                                   }
                                 }}
                                 variant="outline"
                                 className="mt-2 text-red-500 border-red-500 hover:bg-red-50"
                               >
-                                Cancel
+                                Cancel & Refund
                               </Button>
                             )}
                           </div>
                         </div>
                       </Card>
-                      ))}
-                    </div>
+                    );
+                  })}
+                </div>
                   ) : (
                   <p>No bookings yet</p>
                   )}
@@ -953,6 +1222,55 @@ const UserProfilePage = () => {
                   <h2 className="text-xl font-semibold mb-2">Payment Details</h2>
                   <p className="text-brand-burgundy/70">Payment management coming soon...</p>
                 </div>
+
+                {/* Data Management Section */}
+                <div className="space-y-4 pb-8 border-b border-brand-burgundy/10">
+                  <h2 className="text-xl font-semibold mb-4 flex items-center">
+                    <Database className="h-5 w-5 mr-2" />
+                    Delete Account
+                  </h2>
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div className="flex items-start space-x-3">
+                      <Trash2 className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-red-800 mb-2">Delete Your Account</h3>
+                        <p className="text-sm text-red-700 mb-4">
+                          You have the right to request deletion of all your personal data from our system. 
+                          This includes your profile, booking history, and payment records.
+                        </p>
+                        <div className="space-y-2 text-xs text-red-600 mb-4">
+                          <p><strong>This will delete:</strong></p>
+                          <ul className="list-disc list-inside space-y-1 ml-4">
+                            <li>Your profile information (name, email, phone)</li>
+                            <li>All booking history and reservations</li>
+                            <li>Payment records and transaction history</li>
+                            <li>Email communication records</li>
+                          </ul>
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          className="border-red-300 text-red-700 hover:bg-red-100"
+                          onClick={() => navigate('/delete-data')}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete My Account
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <div className="flex items-start space-x-3">
+                      <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-yellow-800 mb-2">Important Notice</h3>
+                        <p className="text-sm text-yellow-700">
+                          <strong>This action is permanent and cannot be undone.</strong> Once your data is deleted, 
+                          you will be signed out and will need to create a new account if you wish to use our service again.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
                 
                 {/* Referral Codes Section */}
                 <div className="space-y-2">
@@ -967,98 +1285,164 @@ const UserProfilePage = () => {
             <Card className="bg-white border-brand-burgundy/10">
               <div className="p-2 sm:p-4 md:p-6">
                 <h2 className="text-xl font-semibold mb-4">Split Payments</h2>
-                {splitPaymentNotification && (
-                  <div className="mb-4 p-3 rounded bg-brand-gold/20 text-brand-burgundy flex items-center gap-2">
-                    <Send className="h-4 w-4" />
-                    {splitPaymentNotification}
-                  </div>
-                )}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  <div>
-                    <h3 className="font-semibold mb-2">Requests You've Sent</h3>
-                    {splitPaymentsLoading ? <p>Loading...</p> : splitPaymentsSent.length === 0 ? <p>No sent requests.</p> : (
-                      <div className="space-y-3">
-                        {splitPaymentsSent.map(req => (
-                          <Card key={req.id} className="p-3 flex flex-col gap-2 border border-brand-burgundy/10">
-                            <div className="flex justify-between items-center">
-                              <div>
-                                <div className="font-medium">To: {req.recipient_phone || req.recipient_id}</div>
-                                <div className="text-sm text-brand-burgundy/70">Amount: ₦{req.amount?.toLocaleString()}</div>
-                                <div className="text-xs text-brand-burgundy/50">Status: {req.status}</div>
+                
+                {/* Received Requests Section */}
+                <div className="mb-8">
+                  <h3 className="text-lg font-semibold text-brand-burgundy mb-4">Received Payment Requests</h3>
+                  {splitPaymentsLoading ? (
+                    <div className="text-center py-4">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-burgundy mx-auto"></div>
+                      <p className="mt-2 text-brand-burgundy/70">Loading requests...</p>
+                    </div>
+                  ) : splitPaymentsReceived.length === 0 ? (
+                    <div className="text-center py-6 bg-brand-cream/30 rounded-lg">
+                      <p className="text-brand-burgundy/70">No payment requests received</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {splitPaymentsReceived.map(request => (
+                        <Card key={request.id} className="p-4 hover:shadow-md transition-shadow">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="font-medium text-brand-burgundy">₦{request.amount?.toLocaleString()}</div>
+                              <div className="text-sm text-brand-burgundy/70">
+                                From: {request.requester_profile ? 
+                                  `${request.requester_profile.first_name} ${request.requester_profile.last_name}`.trim() || 
+                                  request.requester_profile.phone || 
+                                  'Unknown User'
+                                  : 'A friend'}
                               </div>
-                              <div className="flex gap-2">
-                                <Button size="icon" variant="outline" onClick={() => navigator.clipboard.writeText(req.payment_link)} title="Copy Payment Link"><Clipboard className="h-4 w-4" /></Button>
-                                {req.status === 'pending' && (
-                                  <Button size="icon" variant="outline" onClick={async () => {
-                                    // Cancel request
-                                    await supabase.from('split_payment_requests').update({ status: 'cancelled' }).eq('id', req.id);
-                                    setSplitPaymentsSent(prev => prev.map(r => r.id === req.id ? { ...r, status: 'cancelled' } : r));
-                                  }} title="Cancel"><XCircle className="h-4 w-4 text-red-500" /></Button>
-                                )}
-                              </div>
-                            </div>
-                          </Card>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="font-semibold mb-2">Requests You've Received</h3>
-                    {splitPaymentsLoading ? <p>Loading...</p> : splitPaymentsReceived.length === 0 ? <p>No received requests.</p> : (
-                      <div className="space-y-3">
-                        {splitPaymentsReceived.map(req => (
-                          <Card key={req.id} className="p-3 flex flex-col gap-2 border border-brand-burgundy/10">
-                            <div className="flex justify-between items-center">
-                              <div>
-                                <div className="font-medium">From: {req.requester_id}</div>
-                                <div className="text-sm text-brand-burgundy/70">Amount: ₦{req.amount?.toLocaleString()}</div>
-                                <div className="text-xs text-brand-burgundy/50">Status: {req.status}</div>
-                              </div>
-                              <div className="flex gap-2">
-                                <Button size="icon" variant="outline" onClick={() => navigator.clipboard.writeText(req.payment_link)} title="Copy Payment Link"><LinkIcon className="h-4 w-4" /></Button>
-                                {req.status === 'pending' && (
-                                  <Button size="icon" variant="outline" onClick={() => setPayingRequest(req)} title="Pay"><Send className="h-4 w-4 text-brand-gold" /></Button>
-                                )}
-                                {req.status === 'paid' && bookingRef && (
-                                  <Button size="sm" variant="outline" onClick={() => {/* View booking logic */}} title="View Booking">View Booking</Button>
-                                )}
+                              <div className="text-xs text-brand-burgundy/50">
+                                {new Date(request.created_at).toLocaleDateString()}
                               </div>
                             </div>
-                          </Card>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                            <div>
+                              {request.status === 'pending' && (
+                                <div className="space-y-2">
+                                  <Button
+                                    onClick={() => navigate(`/split-payment/${request.booking_id}/${request.id}`)}
+                                    className="bg-brand-burgundy text-white hover:bg-brand-burgundy/90"
+                                  >
+                                    Pay Your Portion (₦{request.amount?.toLocaleString()})
+                                  </Button>
+                                  <div className="text-xs text-muted-foreground">
+                                    Split payment request from {request.requester_profile ? 
+                                      `${request.requester_profile.first_name} ${request.requester_profile.last_name}`.trim() || 
+                                      request.requester_profile.phone || 
+                                      'Unknown User'
+                                      : 'A friend'}
+                                  </div>
+                                </div>
+                              )}
+                              {request.status === 'paid' && (
+                                <Badge className="bg-green-100 text-green-800">Paid</Badge>
+                              )}
+                              {request.status === 'expired' && (
+                                <Badge className="bg-gray-100 text-gray-800">Expired</Badge>
+                              )}
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                {splitPaymentsError && <div className="text-red-500 mt-4">{splitPaymentsError}</div>}
-                {/* Stripe Payment Modal */}
-                {payingRequest && (
-                  <Elements stripe={stripePromise}>
-                    <SplitPaymentStripeModal
-                      request={payingRequest}
-                      onClose={() => setPayingRequest(null)}
-                      onSuccess={async (paymentIntent) => {
-                        setStripeSuccess('Payment successful!');
-                        setPayingRequest(null);
-                        // Update split_payment_requests row
-                        await supabase.from('split_payment_requests').update({ status: 'paid', stripe_payment_id: paymentIntent.id }).eq('id', payingRequest.id);
-                        setSplitPaymentsReceived(prev => prev.map(r => r.id === payingRequest.id ? { ...r, status: 'paid' } : r));
-                        // Check if all requests for this booking are paid
-                        const { data: allRequests } = await supabase.from('split_payment_requests').select('*').eq('booking_id', payingRequest.booking_id);
-                        if (allRequests && allRequests.every(r => r.status === 'paid')) {
-                          // Update booking status
-                          await supabase.from('bookings').update({ status: 'confirmed' }).eq('id', payingRequest.booking_id);
-                          // Optionally fetch booking ref
-                          const { data: booking } = await supabase.from('bookings').select('id, booking_reference').eq('id', payingRequest.booking_id).single();
-                          setBookingRef(booking?.booking_reference || booking?.id);
-                        }
-                      }}
-                    />
-                  </Elements>
-                )}
-                {stripeSuccess && (
-                  <div className="mt-4 p-3 rounded bg-green-100 text-green-800">{stripeSuccess} {bookingRef && (<span>Booking Ref: <span className="font-bold">{bookingRef}</span></span>)}</div>
-                )}
+
+                {/* Sent Requests Section */}
+                <div>
+                  <h3 className="text-lg font-semibold text-brand-burgundy mb-4">Sent Payment Requests</h3>
+                  {splitPaymentsLoading ? (
+                    <div className="text-center py-4">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-burgundy mx-auto"></div>
+                      <p className="mt-2 text-brand-burgundy/70">Loading requests...</p>
+                    </div>
+                  ) : splitPaymentsSent.length === 0 ? (
+                    <div className="text-center py-6 bg-brand-cream/30 rounded-lg">
+                      <p className="text-brand-burgundy/70">No payment requests sent</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {splitPaymentsSent.map(request => (
+                        <Card key={request.id} className="p-4 hover:shadow-md transition-shadow">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <div className="font-medium text-brand-burgundy">₦{request.amount?.toLocaleString()}</div>
+                              <div className="text-sm text-brand-burgundy/70">
+                                To: {request.recipient_profile ? 
+                                  `${request.recipient_profile.first_name} ${request.recipient_profile.last_name}`.trim() || 
+                                  request.recipient_profile.phone || 
+                                  request.recipient_phone || 
+                                  'Unknown User'
+                                : 'A friend'}
+                              </div>
+                              <div className="text-xs text-brand-burgundy/50">
+                                {new Date(request.created_at).toLocaleDateString()}
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-brand-burgundy border-brand-burgundy hover:bg-brand-burgundy/10"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(getFullUrl(`/split-payment/${request.booking_id}/${request.id}`));
+                                  toast({
+                                    title: "Success",
+                                    description: "Payment link copied to clipboard"
+                                  });
+                                }}
+                              >
+                                <Copy className="h-4 w-4 mr-2" />
+                                Copy Link
+                              </Button>
+                              {request.status === 'pending' && (
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={async () => {
+                                    try {
+                                      await supabase
+                                        .from('split_payment_requests')
+                                        .update({ status: 'cancelled' })
+                                        .eq('id', request.id);
+                                      
+                                      setSplitPaymentsSent(prev => 
+                                        prev.map(r => r.id === request.id ? { ...r, status: 'cancelled' } : r)
+                                      );
+                                      
+                                      toast({
+                                        title: "Success",
+                                        description: "Payment request cancelled"
+                                      });
+                                    } catch (error) {
+                                      console.error('Error cancelling request:', error);
+                                      toast({
+                                        title: "Error",
+                                        description: "Failed to cancel the request",
+                                        variant: "destructive"
+                                      });
+                                    }
+                                  }}
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                          <div className="mt-2">
+                            <Badge variant="outline" className={
+                              request.status === 'pending' ? 'bg-yellow-50 text-yellow-800 border-yellow-300' :
+                              request.status === 'paid' ? 'bg-green-50 text-green-800 border-green-300' :
+                              'bg-red-50 text-red-800 border-red-300'
+                            }>
+                              {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                            </Badge>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </Card>
           </TabsContent>
@@ -1098,13 +1482,13 @@ const UserProfilePage = () => {
                       </div>
                       <div className="bg-brand-cream/30 p-4 rounded-lg border border-brand-burgundy/10 text-center">
                         <div className="text-2xl font-bold text-brand-gold">
-                          ₦{venueCredits.reduce((sum, credit) => sum + (credit.remaining_balance / 100), 0).toLocaleString()}
+                          ₦{venueCredits.reduce((sum, credit) => sum + credit.remaining_balance, 0).toLocaleString()}
                         </div>
                         <div className="text-sm text-brand-burgundy/70">Total Available</div>
                       </div>
                       <div className="bg-brand-cream/30 p-4 rounded-lg border border-brand-burgundy/10 text-center">
                         <div className="text-2xl font-bold text-brand-burgundy">
-                          ₦{venueCredits.reduce((sum, credit) => sum + (credit.amount / 100), 0).toLocaleString()}
+                          ₦{venueCredits.reduce((sum, credit) => sum + credit.amount, 0).toLocaleString()}
                         </div>
                         <div className="text-sm text-brand-burgundy/70">Total Purchased</div>
                       </div>
@@ -1126,19 +1510,19 @@ const UserProfilePage = () => {
                               </p>
                             </div>
                             <div className="flex flex-col sm:items-end">
-                              <div className="text-lg font-bold text-brand-gold">
-                                ₦{(credit.remaining_balance / 100).toLocaleString()}
+                              <div className="text-lg font-bold text-brand-gold mb-1">
+                                ₦{credit.remaining_balance.toLocaleString()}
                               </div>
                               <div className="text-sm text-brand-burgundy/70">
-                                of ₦{(credit.amount / 100).toLocaleString()}
+                                of ₦{credit.amount.toLocaleString()} credits
                               </div>
                               {credit.used_amount > 0 && (
                                 <div className="text-xs text-brand-burgundy/60">
-                                  Used: ₦{(credit.used_amount / 100).toLocaleString()}
+                                  Used: ₦{credit.used_amount.toLocaleString()}
                                 </div>
                               )}
                               <div className="text-xs text-brand-burgundy/50 mt-1">
-                                Expires: {new Date(credit.expires_at).toLocaleDateString()}
+                                Purchased: {new Date(credit.created_at).toLocaleDateString()}
                               </div>
                             </div>
                           </div>
@@ -1363,10 +1747,75 @@ function SimpleReferralSection({ user }) {
 
     setLoading(true);
     try {
-      // For now, just simulate sending an invitation
-      // In a real implementation, you would call your backend API
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
-      
+      // Generate a unique referral code
+      const referralCode = `${user.email.split('@')[0].toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+
+      // Send invitation using Edge Function
+      console.log('📧 Sending referral invitation:', {
+        email: friendEmail,
+        data: {
+          referralCode,
+          senderName: user.user_metadata?.full_name || 'Your friend',
+          personalMessage
+        }
+      });
+
+      // First, store the referral in the database
+      const { data: referralData, error: referralError } = await supabase
+        .from('referrals')
+        .insert([{
+          referrer_id: user.id,
+          referral_code: referralCode,
+          recipient_email: friendEmail,
+          status: 'pending'
+        }])
+        .select()
+        .single();
+
+      if (referralError) {
+        console.error('❌ Error storing referral:', referralError);
+        throw new Error('Failed to create referral record');
+      }
+
+      // Send invitation using our custom Edge Function
+      try {
+        const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
+          body: {
+            to: friendEmail,
+            subject: `${user.user_metadata?.full_name || 'Someone'} invited you to join VIPClub!`,
+            template: 'referral-invitation',
+            data: {
+              senderName: user.user_metadata?.full_name || 'Your friend',
+              personalMessage,
+              referralCode,
+              signupUrl: `${window.location.origin}/signup?ref=${referralCode}`
+            }
+          }
+        });
+
+        if (emailError) {
+          console.error('❌ Email function error:', emailError);
+          await supabase
+            .from('referrals')
+            .update({ status: 'failed', error_message: emailError.message })
+            .eq('id', referralData.id);
+        } else {
+          console.log('✅ Email sent successfully:', emailData);
+          await supabase
+            .from('referrals')
+            .update({ status: 'sent' })
+            .eq('id', referralData.id);
+        }
+      } catch (error) {
+        console.error('❌ Error sending email:', error);
+        await supabase
+          .from('referrals')
+          .update({ status: 'failed', error_message: error.message })
+          .eq('id', referralData.id);
+      }
+
+      console.log('✅ Referral process completed');
+
       setSuccess('Referral invitation sent successfully!');
       setFriendEmail('');
       setPersonalMessage('');
@@ -1434,7 +1883,10 @@ function SimpleReferralSection({ user }) {
             onClick={() => {
               const code = user?.id ? `EDDY${user.id.slice(0, 8).toUpperCase()}` : '';
               navigator.clipboard.writeText(code);
-              setSuccess('Referral code copied to clipboard!');
+              toast({
+                title: "Success",
+                description: "Referral code copied to clipboard"
+              });
             }}
             className="bg-brand-burgundy text-white px-3 py-2 rounded hover:bg-brand-burgundy/90"
           >

@@ -21,7 +21,7 @@ const Navbar = () => {
   const toggleMenu = () => setIsOpen(!isOpen);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-brand-burgundy/20 bg-brand-cream/90 backdrop-blur supports-[backdrop-filter]:bg-brand-cream/70">
+    <header className="sticky top-0 z-50 w-full border-b border-brand-burgundy/20 bg-brand-cream/90 backdrop-blur supports-[backdrop-filter]:bg-brand-cream/70 pt-4 pb-2">
       <div className="container flex h-20 items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
           <motion.div

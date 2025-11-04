@@ -1,4 +1,4 @@
-// EmailJS Template Configuration for VIP Club
+// EmailJS Template Configuration for Eddy's Members
 // This file contains EmailJS template IDs for custom emails (non-Supabase)
 
 // EmailJS Service Configuration

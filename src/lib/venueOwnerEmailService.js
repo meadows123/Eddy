@@ -539,7 +539,6 @@ export const sendApprovalEmailWithFallback = async (venueOwnerData) => {
 
 // Test function for venue owner emails
 export const testVenueOwnerEmails = async (testEmail = 'test@example.com') => {
-  console.log('🧪 Testing venue owner email templates...');
   
   const testData = {
     email: testEmail,
@@ -554,21 +553,16 @@ export const testVenueOwnerEmails = async (testEmail = 'test@example.com') => {
 
   try {
     // Test application approved email
-    console.log('📧 Testing application approved email...');
     await sendVenueOwnerApplicationApproved(testData);
     
     // Test registration complete email
-    console.log('📧 Testing registration complete email...');
     await sendVenueOwnerRegistrationComplete(testData);
     
     // Test password reset email
-    console.log('📧 Testing password reset email...');
     await sendVenueOwnerPasswordReset(testData);
     
-    console.log('✅ All venue owner email tests completed successfully!');
     return { success: true };
   } catch (error) {
-    console.error('❌ Venue owner email test failed:', error);
     return { success: false, error: error.message };
   }
 };
@@ -580,7 +574,6 @@ if (typeof window !== 'undefined') {
 
 // Simple test function to debug email service configuration
 export const testEmailConfiguration = async () => {
-  console.log('🔍 Testing email service configuration...');
   
   // Check environment variables
   const envVars = {

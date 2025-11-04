@@ -19,6 +19,7 @@ import VenueOwnerAnalytics from './pages/venue-owner/VenueOwnerAnalytics';
 import VenueOwnerSettings from './pages/venue-owner/VenueOwnerSettings';
 import VenueOwnerCredits from './pages/venue-owner/VenueOwnerCredits';
 import VenueOwnerReceipts from './pages/venue-owner/VenueOwnerReceipts';
+import QRScannerPage from './pages/venue-owner/QRScannerPage';
 import VenueApprovalsPage from './pages/admin/VenueApprovalsPage';
 import ProfilePage from './pages/ProfilePage';
 import BookingsPage from './pages/BookingsPage';
@@ -26,10 +27,10 @@ import SettingsPage from './pages/SettingsPage';
 import ExplorePage from './pages/ExplorePage';
 import VenueCreditPurchase from './pages/VenueCreditPurchase';
 // import SupabaseTest from './components/SupabaseTest';
-import AuthTestPage from './pages/AuthTestPage';
-import EmailTest from './components/EmailTest';
-import EmailTestPage from './pages/EmailTestPage';
-import MapTest from './components/MapTest';
+// import AuthTestPage from './pages/AuthTestPage';
+// import EmailTest from './components/EmailTest';
+// import EmailTestPage from './pages/EmailTestPage';
+// import MapTest from './components/MapTest';
 import SplitPaymentPage from './pages/SplitPaymentPage';
 import SplitPaymentSuccessPage from './pages/SplitPaymentSuccessPage';
 import { AuthProvider } from './contexts/AuthContext';
@@ -41,7 +42,8 @@ import ContactPage from './pages/ContactPage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPage from './pages/PrivacyPage';
 import FAQPage from './pages/FAQPage';
-import EmailTemplateTest from './components/EmailTemplateTest';
+import DataDeletionPage from './pages/DataDeletionPage';
+// import EmailTemplateTest from './components/EmailTemplateTest';
 
 const App = () => {
 
@@ -77,6 +79,7 @@ const App = () => {
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/faq" element={<FAQPage />} />
+            <Route path="/delete-data" element={<DataDeletionPage />} />
 
             {/* Venue Owner Routes */}
             <Route path="/venue-owner/login" element={<VenueOwnerLogin />} />
@@ -90,6 +93,7 @@ const App = () => {
             <Route path="/venue-owner/settings" element={<VenueOwnerSettings />} />
             <Route path="/venue-owner/credits" element={<VenueOwnerCredits />} />
             <Route path="/venue-owner/receipts" element={<VenueOwnerReceipts />} />
+            <Route path="/venue-owner/qr-scanner" element={<QRScannerPage />} />
             <Route path="/venue-owner/credits/purchase" element={<VenueCreditPurchase />} />
 
             {/* Admin Routes */}
@@ -97,11 +101,11 @@ const App = () => {
 
             {/* Test Routes */}
             {/* <Route path="/test" element={<SupabaseTest />} /> */}
-            <Route path="/auth-test" element={<AuthTestPage />} />
-            <Route path="/email-test" element={<EmailTest />} />
-            <Route path="/email-debug" element={<EmailTestPage />} />
-            <Route path="/email-templates" element={<EmailTemplateTest />} />
-            <Route path="/map-test" element={<MapTest />} />
+            {/* <Route path="/auth-test" element={<AuthTestPage />} /> */}
+            {/* <Route path="/email-test" element={<EmailTest />} /> */}
+            {/* <Route path="/email-debug" element={<EmailTestPage />} /> */}
+            {/* <Route path="/email-templates" element={<EmailTemplateTest />} /> */}
+            {/* <Route path="/map-test" element={<MapTest />} /> */}
 
             {/* Register Route */}
             <Route path="/register" element={<RegisterPage />} />

@@ -7,6 +7,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabase';
+import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { sendBookingConfirmation, sendVenueOwnerNotification } from '@/lib/emailService.js';
 import { 
   Plus, 
   Minus, 
@@ -23,10 +25,10 @@ import {
 
 const SplitPaymentForm = ({ 
   totalAmount, 
-  onSplitCreated, 
+  onSplitCreated = () => {}, // Make optional with default no-op function
   user, 
   bookingId, 
-  createBookingIfNeeded // new prop
+  createBookingIfNeeded // Function to create booking if needed
 }) => {
   const { toast } = useToast();
   const [splitCount, setSplitCount] = useState(2);
@@ -137,7 +139,20 @@ const SplitPaymentForm = ({
   };
 
   const createSplitPaymentRequests = async () => {
-    if (!user?.id) {
+    // Check current session first
+    const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError || !session) {
+      console.error('❌ Session error:', sessionError);
+      toast({
+        title: "Session Expired",
+        description: "Your session has expired. Please sign in again.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!session.user?.id) {
       toast({
         title: "Authentication Required",
         description: "Please sign in to create split payment requests.",
@@ -145,6 +160,9 @@ const SplitPaymentForm = ({
       });
       return;
     }
+
+    // Update user reference with fresh session data
+    const currentUser = session.user;
 
     // Validate that all recipients are selected
     const hasEmptyRecipients = splitRecipients.some(recipient => !recipient);
@@ -202,7 +220,23 @@ const SplitPaymentForm = ({
     try {
       let realBookingId = bookingId;
       if (!realBookingId && typeof createBookingIfNeeded === 'function') {
-        realBookingId = await createBookingIfNeeded();
+        try {
+          // Pass the current user session to createBooking
+          realBookingId = await createBookingIfNeeded(currentUser);
+        } catch (err) {
+          console.error('Error creating booking:', err);
+          
+          // Provide more specific error messages for common issues
+          if (err.message.includes('no longer available')) {
+            throw new Error('The selected time slot is no longer available. Please go back and select a different time slot.');
+          } else if (err.message.includes('venue_id') || err.message.includes('Venue ID')) {
+            throw new Error('Invalid venue selection. Please go back and try again.');
+          } else if (err.message.includes('authentication') || err.message.includes('session')) {
+            throw new Error('Your session has expired. Please sign in again.');
+          } else {
+            throw new Error('Failed to create booking: ' + err.message);
+          }
+        }
       }
       if (!realBookingId) throw new Error('Booking could not be created.');
 
@@ -240,19 +274,205 @@ const SplitPaymentForm = ({
         console.error('Error creating notifications:', notifError);
       }
 
+      // Send email notifications
+      try {
+        
+        // Get booking details with venue and owner info
+        const { data: bookingData, error: bookingError } = await supabase
+          .from('bookings')
+          .select(`
+            *,
+            venue:venues(
+              *,
+              owner:venue_owners(*)
+            )
+          `)
+          .eq('id', realBookingId)
+          .single();
+
+        if (bookingError) {
+          console.error('Error fetching booking details:', bookingError);
+          throw bookingError;
+        }
+
+
+        // Get main booker's profile data
+        const { data: mainBookerProfile, error: mainBookerError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', currentUser.id)
+          .single();
+
+        if (mainBookerError) {
+          console.error('Error fetching main booker profile:', mainBookerError);
+        } else if (mainBookerProfile?.email) {
+          // Send split payment request using Edge Function
+          // Format times and dates for main booker
+          const formattedStartTime = new Date(`2000-01-01T${bookingData.start_time}`).toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: 'numeric',
+            hour12: true
+          });
+          const formattedEndTime = new Date(`2000-01-01T${bookingData.end_time}`).toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: 'numeric',
+            hour12: true
+          });
+          const formattedDate = new Date(bookingData.booking_date).toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+          });
+
+
+          const mainBookerEmailData = {
+            template: 'split-payment-initiator',
+            to: mainBookerProfile.email,
+            subject: 'Split Payment Initiated',
+            data: {
+              recipientName: `${mainBookerProfile.first_name} ${mainBookerProfile.last_name}`.trim() || currentUser.email,
+              venueName: bookingData.venue?.name,
+              bookingId: bookingData.id || 'N/A',
+              bookingReference: `VIP-${bookingData.id}`,
+              bookingDate: formattedDate,
+              startTime: formattedStartTime,
+              endTime: formattedEndTime,
+              bookingTime: `${formattedStartTime} - ${formattedEndTime}`,
+              totalAmount: totalAmount,
+              splitAmount: myAmount,
+              numberOfSplits: splitCount,
+              dashboardUrl: `${window.location.origin}/profile`
+            }
+          };
+
+
+          const { error: emailError } = await supabase.functions.invoke('send-email', {
+            body: mainBookerEmailData
+          });
+
+          if (emailError) {
+            console.error('Failed to send split payment initiator email:', emailError);
+          }
+        } else {
+          console.warn('No email found for main booker');
+        }
+
+        // Send notifications to all split recipients
+        for (const recipient of splitRecipients) {
+          // Get recipient's profile data to ensure we have their email
+          const { data: recipientProfile, error: recipientError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', recipient.id)
+            .single();
+
+          if (recipientError) {
+            console.error('Error fetching recipient profile:', recipientError);
+            continue;
+          }
+
+          if (recipientProfile?.email) {
+            // Send split payment request using Edge Function
+            // Format the booking time
+            const formattedStartTime = new Date(`2000-01-01T${bookingData.start_time}`).toLocaleTimeString('en-US', {
+              hour: 'numeric',
+              minute: 'numeric',
+              hour12: true
+            });
+            const formattedEndTime = new Date(`2000-01-01T${bookingData.end_time}`).toLocaleTimeString('en-US', {
+              hour: 'numeric',
+              minute: 'numeric',
+              hour12: true
+            });
+
+            // Format the booking date
+            const formattedDate = new Date(bookingData.booking_date).toLocaleDateString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            });
+
+
+            const recipientEmailData = {
+              template: 'split-payment-initiation',
+              to: recipientProfile.email,
+              subject: 'Split Payment Request',
+              data: {
+                recipientName: recipient.displayName || `${recipientProfile.first_name} ${recipientProfile.last_name}`.trim(),
+                initiatorName: currentUser.user_metadata?.full_name || currentUser.email,
+                venueName: bookingData.venue?.name,
+                bookingId: bookingData.id || 'N/A',
+                bookingReference: `VIP-${bookingData.id}`,
+                bookingDate: formattedDate,
+                startTime: formattedStartTime,
+                endTime: formattedEndTime,
+                bookingTime: `${formattedStartTime} - ${formattedEndTime}`,
+                totalAmount: totalAmount,
+                splitAmount: splitAmounts[splitRecipients.indexOf(recipient)],
+                numberOfSplits: splitCount,
+                paymentLink: `${window.location.origin}/split-payment/${bookingData.id}/${splitRecipients.indexOf(recipient)}`,
+                dashboardUrl: `${window.location.origin}/profile`
+              }
+            };
+
+
+            const { error: emailError } = await supabase.functions.invoke('send-email', {
+              body: recipientEmailData
+            });
+
+            if (emailError) {
+              console.error('Failed to send split payment request email:', emailError);
+            }
+          } else {
+            console.warn('No email found for recipient:', recipient.displayName);
+          }
+        }
+
+        // Note: Venue owner notification will be sent by the Stripe webhook
+        // when all split payments are completed
+
+      } catch (emailError) {
+        console.error('Error sending email notifications:', emailError);
+        // Don't throw here - we still want to show success even if emails fail
+      }
+
       toast({
         title: "Split Payment Requests Created!",
         description: `Successfully sent ${data.length} payment requests.`,
         className: "bg-green-500 text-white"
       });
 
-      onSplitCreated(data);
+      // Handle successful split payment creation
+      if (typeof onSplitCreated === 'function') {
+        onSplitCreated(data);
+      }
 
     } catch (error) {
       console.error('Error creating split payment requests:', error);
+      
+      // Provide more specific error messages
+      let errorTitle = "Error";
+      let errorDescription = "Failed to create split payment requests. Please try again.";
+      
+      if (error.message.includes('no longer available')) {
+        errorTitle = "Time Slot Unavailable";
+        errorDescription = error.message;
+      } else if (error.message.includes('Invalid venue')) {
+        errorTitle = "Invalid Selection";
+        errorDescription = error.message;
+      } else if (error.message.includes('session has expired')) {
+        errorTitle = "Session Expired";
+        errorDescription = error.message;
+      } else if (error.message.includes('Failed to create booking')) {
+        errorTitle = "Booking Failed";
+        errorDescription = error.message;
+      }
+      
       toast({
-        title: "Error",
-        description: "Failed to create split payment requests. Please try again.",
+        title: errorTitle,
+        description: errorDescription,
         variant: "destructive"
       });
     } finally {
@@ -392,6 +612,47 @@ const SplitPaymentForm = ({
                 )}
               </div>
             ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Payment Input */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Payment Details</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="p-4 border rounded-lg bg-white">
+            <CardElement 
+              options={{
+                style: {
+                  base: {
+                    fontSize: '16px',
+                    color: '#800020',
+                    fontFamily: 'system-ui, -apple-system, sans-serif',
+                    lineHeight: '1.5',
+                    '::placeholder': {
+                      color: '#800020',
+                    },
+                  },
+                  invalid: {
+                    color: '#e53e3e',
+                  },
+                },
+                hidePostalCode: true,
+                // Mobile-specific options
+                supportedNetworks: ['visa', 'mastercard', 'amex', 'discover'],
+                // Simple placeholder text
+                placeholder: 'Card number',
+                // Disable autofill for better mobile compatibility
+                disableLink: false,
+                // Ensure proper focus handling on mobile
+                classes: {
+                  focus: 'is-focused',
+                  invalid: 'is-invalid',
+                }
+              }}
+            />
           </div>
         </CardContent>
       </Card>

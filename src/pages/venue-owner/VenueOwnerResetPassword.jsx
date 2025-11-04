@@ -17,7 +17,6 @@ const VenueOwnerResetPassword = () => {
   const [success, setSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [debugInfo, setDebugInfo] = useState(null);
   const [isStandardReset, setIsStandardReset] = useState(false);
   
   const [formData, setFormData] = useState({
@@ -32,32 +31,14 @@ const VenueOwnerResetPassword = () => {
     const standardToken = searchParams.get('token');
     const type = searchParams.get('type');
     
-    console.log('🔍 Reset password page loaded with params:', {
-      accessToken: accessToken ? 'Present' : 'Missing',
-      refreshToken: refreshToken ? 'Present' : 'Missing',
-      standardToken: standardToken ? 'Present' : 'Missing',
-      type: type,
-      allParams: Object.fromEntries(searchParams.entries())
-    });
-
-    setDebugInfo({
-      accessToken: accessToken ? 'Present' : 'Missing',
-      refreshToken: refreshToken ? 'Present' : 'Missing',
-      standardToken: standardToken ? 'Present' : 'Missing',
-      type: type,
-      allParams: Object.fromEntries(searchParams.entries())
-    });
-
     // Handle standard Supabase password reset (token parameter)
     if (standardToken) {
-      console.log('🔄 Standard password reset detected');
       setIsStandardReset(true);
       return;
     }
 
     // Handle venue owner specific reset (access_token/refresh_token)
     if (!accessToken || !refreshToken) {
-      console.error('❌ Missing tokens for password reset');
       setError('Invalid or missing reset link. Please request a new password reset.');
       return;
     }
@@ -65,33 +46,24 @@ const VenueOwnerResetPassword = () => {
     // Set the session with the tokens from the URL
     const setSession = async () => {
       try {
-        console.log('🔄 Setting session with tokens...');
-        
         const { error } = await supabase.auth.setSession({
           access_token: accessToken,
           refresh_token: refreshToken
         });
 
         if (error) {
-          console.error('❌ Session error:', error);
           setError('Invalid reset link. Please request a new password reset.');
           return;
         }
-
-        console.log('✅ Session set successfully');
         
         // Verify we have a user
         const { data: { user }, error: userError } = await supabase.auth.getUser();
         if (userError || !user) {
-          console.error('❌ User verification failed:', userError);
           setError('Unable to verify user. Please request a new password reset.');
           return;
         }
-
-        console.log('✅ User verified:', user.email);
         
       } catch (error) {
-        console.error('❌ Error setting session:', error);
         setError('Failed to validate reset link. Please try again.');
       }
     };
@@ -210,36 +182,36 @@ const VenueOwnerResetPassword = () => {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen w-full bg-gray-50 flex items-center justify-center p-2 sm:p-4">
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-lg text-center"
+          className="w-full max-w-sm space-y-4 sm:space-y-6 bg-white p-3 sm:p-4 md:p-6 rounded-xl shadow-lg text-center"
         >
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2 }}
-            className="mx-auto h-16 w-16 bg-green-100 rounded-full flex items-center justify-center"
+            className="mx-auto h-10 w-10 sm:h-12 sm:w-12 bg-green-100 rounded-full flex items-center justify-center"
           >
-            <CheckCircle className="h-8 w-8 text-green-600" />
+            <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
           </motion.div>
           
           <div>
-            <h2 className="text-2xl font-heading text-gray-900">
+            <h2 className="text-lg sm:text-xl font-heading text-gray-900">
               Password Updated Successfully!
             </h2>
-            <p className="mt-2 text-sm text-gray-600">
+            <p className="mt-1 sm:mt-2 text-xs sm:text-sm text-gray-600">
               Your password has been updated. You will be redirected to the login page shortly.
             </p>
           </div>
 
           <Button
             onClick={() => isStandardReset ? navigate('/') : navigate('/venue-owner/login')}
-            className="w-full bg-brand-burgundy text-white hover:bg-brand-burgundy/90"
+            className="w-full bg-brand-burgundy text-white hover:bg-brand-burgundy/90 text-xs sm:text-sm py-2 sm:py-3"
           >
             Go to Login
-            <ArrowRight className="ml-2 h-4 w-4" />
+            <ArrowRight className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
           </Button>
         </motion.div>
       </div>
@@ -247,22 +219,22 @@ const VenueOwnerResetPassword = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-6 px-4 sm:py-12 sm:px-6 lg:px-8">
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-lg"
+        className="max-w-md w-full space-y-6 sm:space-y-8 bg-white p-6 sm:p-8 rounded-xl shadow-lg"
       >
         <div className="text-center">
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2 }}
-            className="mx-auto h-12 w-12 bg-brand-burgundy/10 rounded-full flex items-center justify-center"
+            className="mx-auto h-8 w-8 sm:h-10 sm:w-10 bg-brand-burgundy/10 rounded-full flex items-center justify-center"
           >
-            <Store className="h-6 w-6 text-brand-burgundy" />
+            <Store className="h-4 w-4 sm:h-5 sm:w-5 text-brand-burgundy" />
           </motion.div>
-          <h2 className="mt-6 text-3xl font-heading text-brand-burgundy">
+          <h2 className="mt-4 sm:mt-6 text-2xl sm:text-3xl font-heading text-brand-burgundy">
             Reset Your Password
           </h2>
           <p className="mt-2 text-sm text-brand-burgundy/70">
@@ -274,15 +246,15 @@ const VenueOwnerResetPassword = () => {
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-red-50 border border-red-200 rounded-md p-4"
+            className="bg-red-50 border border-red-200 rounded-md p-3 sm:p-4"
           >
             <div className="flex">
-              <AlertCircle className="h-5 w-5 text-red-400 mr-2 mt-0.5" />
-              <div>
-                <p className="text-sm text-red-600">{error}</p>
+              <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-400 mr-2 mt-0.5 flex-shrink-0" />
+              <div className="min-w-0">
+                <p className="text-xs sm:text-sm text-red-600">{error}</p>
                 <button
                   onClick={handleRequestNewReset}
-                  className="text-sm text-red-500 hover:text-red-700 underline mt-1"
+                  className="text-xs sm:text-sm text-red-500 hover:text-red-700 underline mt-1"
                 >
                   Request new password reset
                 </button>
@@ -291,27 +263,15 @@ const VenueOwnerResetPassword = () => {
           </motion.div>
         )}
 
-        {debugInfo && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="bg-blue-50 border border-blue-200 rounded-md p-4"
-          >
-            <p className="text-xs text-blue-600 font-mono">
-              Debug: {JSON.stringify(debugInfo, null, 2)}
-            </p>
-          </motion.div>
-        )}
-
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="space-y-4">
+        <form className="mt-4 sm:mt-6 space-y-3 sm:space-y-4" onSubmit={handleSubmit}>
+          <div className="space-y-3 sm:space-y-4">
             <div>
-              <Label htmlFor="password" className="text-brand-burgundy">
+              <Label htmlFor="password" className="text-brand-burgundy text-xs sm:text-sm">
                 New Password
               </Label>
               <div className="mt-1 relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-brand-burgundy/50" />
+                  <Lock className="h-4 w-4 sm:h-5 sm:w-5 text-brand-burgundy/50" />
                 </div>
                 <Input
                   id="password"
@@ -321,7 +281,7 @@ const VenueOwnerResetPassword = () => {
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className="pl-10 pr-10 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
+                  className="pl-10 pr-10 py-3 sm:py-2 bg-white border-brand-burgundy/20 focus:border-brand-burgundy text-base sm:text-sm"
                   placeholder="Enter your new password"
                 />
                 <button
@@ -330,21 +290,21 @@ const VenueOwnerResetPassword = () => {
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-brand-burgundy/50" />
+                    <EyeOff className="h-4 w-4 sm:h-5 sm:w-5 text-brand-burgundy/50" />
                   ) : (
-                    <Eye className="h-5 w-5 text-brand-burgundy/50" />
+                    <Eye className="h-4 w-4 sm:h-5 sm:w-5 text-brand-burgundy/50" />
                   )}
                 </button>
               </div>
             </div>
 
             <div>
-              <Label htmlFor="confirmPassword" className="text-brand-burgundy">
+              <Label htmlFor="confirmPassword" className="text-brand-burgundy text-xs sm:text-sm">
                 Confirm New Password
               </Label>
               <div className="mt-1 relative">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-brand-burgundy/50" />
+                  <Lock className="h-4 w-4 sm:h-5 sm:w-5 text-brand-burgundy/50" />
                 </div>
                 <Input
                   id="confirmPassword"
@@ -354,7 +314,7 @@ const VenueOwnerResetPassword = () => {
                   required
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  className="pl-10 pr-10 bg-white border-brand-burgundy/20 focus:border-brand-burgundy"
+                  className="pl-10 pr-10 py-3 sm:py-2 bg-white border-brand-burgundy/20 focus:border-brand-burgundy text-base sm:text-sm"
                   placeholder="Confirm your new password"
                 />
                 <button
@@ -363,9 +323,9 @@ const VenueOwnerResetPassword = () => {
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 >
                   {showConfirmPassword ? (
-                    <EyeOff className="h-5 w-5 text-brand-burgundy/50" />
+                    <EyeOff className="h-4 w-4 sm:h-5 sm:w-5 text-brand-burgundy/50" />
                   ) : (
-                    <Eye className="h-5 w-5 text-brand-burgundy/50" />
+                    <Eye className="h-4 w-4 sm:h-5 sm:w-5 text-brand-burgundy/50" />
                   )}
                 </button>
               </div>
@@ -375,17 +335,17 @@ const VenueOwnerResetPassword = () => {
           <div>
             <Button
               type="submit"
-              className="w-full bg-brand-burgundy text-white hover:bg-brand-burgundy/90"
+              className="w-full bg-brand-burgundy text-white hover:bg-brand-burgundy/90 text-xs sm:text-sm py-2 sm:py-3"
               disabled={loading || !!error}
             >
               {loading ? 'Updating Password...' : 'Update Password'}
-              <ArrowRight className="ml-2 h-4 w-4" />
+              <ArrowRight className="ml-1 sm:ml-2 h-3 w-3 sm:h-4 sm:w-4" />
             </Button>
           </div>
         </form>
 
-        <div className="text-center mt-6">
-          <p className="text-sm text-brand-burgundy/70">
+        <div className="text-center mt-3 sm:mt-4">
+          <p className="text-xs sm:text-sm text-brand-burgundy/70">
             Remember your password?{' '}
             <button
               onClick={() => isStandardReset ? navigate('/') : navigate('/venue-owner/login')}

@@ -27,7 +27,7 @@ const Navigation = () => {
   const [logoLoaded, setLogoLoaded] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { signOut, user } = useAuth();
+  const { signOut, user, loading } = useAuth();
   const isOwner = location.pathname.includes('/venue-owner');
 
   // Debug logging
@@ -37,7 +37,8 @@ const Navigation = () => {
     console.log('👤 User:', user);
     console.log('🏢 Is Owner:', isOwner);
     console.log('🖼️ Logo loaded:', logoLoaded);
-  }, [location.pathname, user, isOwner, logoLoaded]);
+    console.log('⏳ Loading:', loading);
+  }, [location.pathname, user, isOwner, logoLoaded, loading]);
 
   const handleLogout = async () => {
     try {
@@ -55,8 +56,7 @@ const Navigation = () => {
     { name: 'Home', path: '/home', icon: Home },
     { name: 'Explore', path: '/explore', icon: Compass },
     { name: 'Venues', path: '/venues', icon: Building2 },
-    ...(user ? [{ name: 'My Bookings', path: '/bookings', icon: Calendar }] : []),
-    // Remove Profile from main nav items since it's in the user menu
+    // My Bookings is conditionally shown in the navigation rendering, not in the array definition
   ];
 
   const ownerNavItems = [
@@ -113,6 +113,20 @@ const Navigation = () => {
                 <span>{item.name}</span>
               </Link>
             ))}
+            {/* Conditionally show My Bookings for authenticated customers */}
+            {!isOwner && user && (
+              <Link
+                to="/bookings"
+                className={`flex items-center space-x-2 text-sm font-medium transition-colors
+                  ${location.pathname === '/bookings' 
+                    ? 'text-brand-gold' 
+                    : 'text-brand-burgundy/70 hover:text-brand-gold'
+                  }`}
+              >
+                <Calendar className="h-4 w-4" />
+                <span>My Bookings</span>
+              </Link>
+            )}
             {/* Add Profile link to desktop navigation for customers */}
             {!isOwner && (
               <Link
@@ -131,7 +145,11 @@ const Navigation = () => {
 
           {/* User Menu */}
           <div className="hidden md:flex items-center space-x-4">
-            {user ? (
+            {loading ? (
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 bg-gray-200 rounded-full animate-pulse"></div>
+              </div>
+            ) : user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-8 w-8 rounded-full">
@@ -208,7 +226,29 @@ const Navigation = () => {
                   <span>{item.name}</span>
                 </Link>
               ))}
-              {user ? (
+              {/* Conditionally show My Bookings for authenticated customers */}
+              {!isOwner && user && (
+                <Link
+                  to="/bookings"
+                  className={`flex items-center space-x-3 text-sm font-medium transition-colors py-2 px-3 rounded-lg
+                    ${location.pathname === '/bookings' 
+                      ? 'text-brand-gold bg-brand-gold/10' 
+                      : 'text-brand-burgundy/70 hover:text-brand-gold hover:bg-brand-burgundy/5'
+                    }`}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                >
+                  <Calendar className="h-4 w-4" />
+                  <span>My Bookings</span>
+                </Link>
+              )}
+              {loading ? (
+                <div className="pt-3 sm:pt-4 border-t border-brand-burgundy/10 space-y-3 sm:space-y-4">
+                  <div className="flex items-center space-x-3 py-2 px-3">
+                    <div className="w-4 h-4 bg-gray-200 rounded animate-pulse"></div>
+                    <div className="w-20 h-4 bg-gray-200 rounded animate-pulse"></div>
+                  </div>
+                </div>
+              ) : user ? (
                 <div className="pt-3 sm:pt-4 border-t border-brand-burgundy/10 space-y-3 sm:space-y-4">
                   <Link
                     to={isOwner ? "/venue-owner/dashboard" : "/profile"}

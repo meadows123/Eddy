@@ -188,7 +188,7 @@ const LandingPage = () => {
         {!showCategories ? (
           <motion.section 
             key="hero"
-            className="relative bg-brand-burgundy flex items-center justify-center overflow-hidden min-h-screen pt-16 pb-16 md:pt-32 md:pb-32"
+            className="relative bg-brand-burgundy flex items-center justify-center overflow-hidden min-h-screen pt-12 pb-8 md:pt-20 md:pb-16"
             initial={{ opacity: 1 }}
             exit={{ 
               opacity: 0,
@@ -206,13 +206,13 @@ const LandingPage = () => {
                 initial="hidden"
                 animate="visible"
               >
-                {/* Logo/Brand Animation */}
+                {/* Logo/Brand Animation - Reduced mobile padding */}
                 <motion.div
                   variants={itemVariants}
-                  className="mb-8 pt-8 pb-4 md:pt-0 md:pb-0"
+                  className="mb-4 pt-2 pb-2 md:pt-0 md:pb-0"
                 >
                   <motion.div
-                    className="inline-flex items-center gap-3 mb-6"
+                    className="inline-flex items-center gap-3 mb-4"
                     whileHover={{ scale: 1.05 }}
                     transition={{ type: "spring", stiffness: 400, damping: 10 }}
                   >
@@ -234,13 +234,13 @@ const LandingPage = () => {
                   </motion.div>
                 </motion.div>
 
-                {/* Main Heading with Typewriter Effect */}
+                {/* Main Heading with Typewriter Effect - Reduced mobile spacing */}
                 <motion.h1 
                   variants={itemVariants}
-                  className="text-5xl md:text-7xl lg:text-8xl font-heading mb-8 font-bold tracking-tight leading-tight"
+                  className="text-4xl md:text-7xl lg:text-8xl font-heading mb-4 md:mb-8 font-bold tracking-tight leading-tight"
                 >
                   <motion.span 
-                    className="block mb-4 text-white/90"
+                    className="block mb-2 md:mb-4 text-white/90"
                     initial={{ opacity: 0, x: -50 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ duration: 0.8, delay: 0.5 }}
@@ -249,7 +249,7 @@ const LandingPage = () => {
                   </motion.span>
                   
                   <motion.span 
-                    className="block text-6xl md:text-8xl lg:text-9xl mb-4"
+                    className="block text-5xl md:text-8xl lg:text-9xl mb-2 md:mb-4"
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 1, delay: 0.8 }}
@@ -260,7 +260,7 @@ const LandingPage = () => {
                   </motion.span>
                   
                   <motion.span 
-                    className="block text-4xl md:text-6xl lg:text-7xl text-white/95"
+                    className="block text-3xl md:text-6xl lg:text-7xl text-white/95"
                     initial={{ opacity: 0, y: 30 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8, delay: 1.5 }}
@@ -269,18 +269,18 @@ const LandingPage = () => {
                   </motion.span>
                 </motion.h1>
 
-                {/* Subtitle with Animation */}
+                {/* Subtitle with Animation - Reduced mobile spacing */}
                 <motion.p 
                   variants={itemVariants}
-                  className="text-xl md:text-2xl lg:text-3xl mb-12 text-white/80 font-medium max-w-3xl mx-auto leading-relaxed"
+                  className="text-lg md:text-2xl lg:text-3xl mb-6 md:mb-12 text-white/80 font-medium max-w-3xl mx-auto leading-relaxed px-4"
                 >
                   Book tables, enjoy exclusive experiences, and make unforgettable memories in Lagos' most prestigious venues
                 </motion.p>
 
-                {/* Animated Action Buttons */}
+                {/* Animated Action Buttons - Reduced mobile spacing */}
                 <motion.div 
                   variants={itemVariants}
-                  className="flex flex-col md:flex-row gap-6 lg:gap-8 justify-center items-center mb-12"
+                  className="flex flex-col md:flex-row gap-4 md:gap-6 lg:gap-8 justify-center items-center mb-6 md:mb-12"
                 >
                   <motion.button
                     whileHover={{ 
@@ -290,7 +290,7 @@ const LandingPage = () => {
                     }}
                     whileTap={{ scale: 0.98 }}
                     onClick={handleCustomerClick}
-                    className="group relative overflow-hidden flex items-center gap-4 bg-brand-cream text-brand-burgundy text-xl lg:text-2xl px-10 py-5 rounded-2xl font-semibold shadow-2xl hover:shadow-3xl transition-all duration-300 min-w-[250px] justify-center"
+                    className="group relative overflow-hidden flex items-center gap-4 bg-brand-cream text-brand-burgundy text-lg md:text-xl lg:text-2xl px-8 md:px-10 py-4 md:py-5 rounded-2xl font-semibold shadow-2xl hover:shadow-3xl transition-all duration-300 min-w-[200px] md:min-w-[250px] justify-center"
                   >
                     <motion.div
                       className="absolute inset-0 bg-gradient-to-r from-brand-gold/20 to-transparent"
@@ -298,9 +298,9 @@ const LandingPage = () => {
                       whileHover={{ x: '100%' }}
                       transition={{ duration: 0.6 }}
                     />
-                    <User className="w-6 h-6 group-hover:scale-110 transition-transform duration-200" />
+                    <User className="w-5 h-5 md:w-6 md:h-6 group-hover:scale-110 transition-transform duration-200" />
                     <span>I'm a Customer</span>
-                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-200" />
+                    <ArrowRight className="w-4 h-4 md:w-5 md:h-5 group-hover:translate-x-1 transition-transform duration-200" />
                   </motion.button>
                   
                   <motion.button
@@ -311,7 +311,7 @@ const LandingPage = () => {
                     }}
                     whileTap={{ scale: 0.98 }}
                     onClick={handleOwnerClick}
-                    className="group relative overflow-hidden flex items-center gap-4 bg-transparent border-2 border-brand-cream text-brand-cream text-xl lg:text-2xl px-10 py-5 rounded-2xl font-semibold shadow-2xl hover:bg-brand-cream/10 backdrop-blur-sm transition-all duration-300 min-w-[250px] justify-center"
+                    className="group relative overflow-hidden flex items-center gap-4 bg-transparent border-2 border-brand-cream text-brand-cream text-lg md:text-xl lg:text-2xl px-8 md:px-10 py-4 md:py-5 rounded-2xl font-semibold shadow-2xl hover:bg-brand-cream/10 backdrop-blur-sm transition-all duration-300 min-w-[200px] md:min-w-[250px] justify-center"
                   >
                     <motion.div
                       className="absolute inset-0 bg-brand-cream/10"
@@ -319,27 +319,27 @@ const LandingPage = () => {
                       whileHover={{ scale: 1, opacity: 1 }}
                       transition={{ duration: 0.3 }}
                     />
-                    <Store className="w-6 h-6 group-hover:scale-110 transition-transform duration-200" />
+                    <Store className="w-5 h-5 md:w-6 md:h-6 group-hover:scale-110 transition-transform duration-200" />
                     <span>I'm a Venue Owner</span>
-                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform duration-200" />
+                    <ArrowRight className="w-4 h-4 md:w-5 md:h-5 group-hover:translate-x-1 transition-transform duration-200" />
                   </motion.button>
                 </motion.div>
 
-                {/* Trust Indicators */}
+                {/* Trust Indicators - Reduced mobile spacing */}
                 <motion.div
                   variants={itemVariants}
-                  className="flex flex-wrap justify-center items-center gap-6 md:gap-8 text-white/60 text-sm pt-4 pb-8 md:pt-0 md:pb-0"
+                  className="flex flex-wrap justify-center items-center gap-4 md:gap-6 lg:gap-8 text-white/60 text-xs md:text-sm pt-2 pb-4 md:pt-0 md:pb-0"
                 >
                   <div className="flex items-center gap-2">
-                    <Star className="w-4 h-4 text-brand-gold fill-brand-gold" />
+                    <Star className="w-3 h-3 md:w-4 md:h-4 text-brand-gold fill-brand-gold" />
                     <span>4.9/5 Customer Rating</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Building2 className="w-4 h-4 text-brand-gold" />
+                    <Building2 className="w-3 h-3 md:w-4 md:h-4 text-brand-gold" />
                     <span>100+ Premium Venues</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Users className="w-4 h-4 text-brand-gold" />
+                    <Users className="w-3 h-3 md:w-4 md:h-4 text-brand-gold" />
                     <span>50K+ Happy Customers</span>
                   </div>
                 </motion.div>
@@ -349,7 +349,7 @@ const LandingPage = () => {
         ) : (
           <motion.section 
             key="categories"
-            className="relative bg-brand-cream min-h-screen flex items-center overflow-hidden pt-16 pb-16 md:pt-32 md:pb-32"
+            className="relative bg-brand-cream min-h-screen flex items-center overflow-hidden pt-12 pb-8 md:pt-20 md:pb-16"
             initial={{ opacity: 0, y: 50 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, ease: "easeOut" }}
@@ -394,29 +394,29 @@ const LandingPage = () => {
             </div>
 
             <div className="container mx-auto px-4 relative z-10">
-              {/* Enhanced Header */}
+              {/* Enhanced Header - Reduced mobile spacing */}
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.2 }}
-                className="text-center mb-20"
+                className="text-center mb-12 md:mb-20"
               >
                 <motion.div
-                  className="inline-block mb-6"
+                  className="inline-block mb-4 md:mb-6"
                   animate={{ 
                     rotate: [0, 2, -2, 0],
                     scale: [1, 1.02, 1]
                   }}
                   transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
                 >
-                  <span className="inline-flex items-center gap-2 bg-gradient-to-r from-brand-burgundy/10 to-brand-gold/10 backdrop-blur-sm border border-brand-burgundy/20 rounded-full px-6 py-2 text-brand-burgundy/70 font-medium">
-                    <Sparkles className="w-4 h-4 text-brand-gold" />
+                  <span className="inline-flex items-center gap-2 bg-gradient-to-r from-brand-burgundy/10 to-brand-gold/10 backdrop-blur-sm border border-brand-burgundy/20 rounded-full px-4 md:px-6 py-2 text-brand-burgundy/70 font-medium text-sm md:text-base">
+                    <Sparkles className="w-3 h-3 md:w-4 md:h-4 text-brand-gold" />
                     Premium Venue Categories
                   </span>
                 </motion.div>
                 
                 <motion.h2 
-                  className="text-5xl md:text-6xl lg:text-7xl font-heading text-brand-burgundy mb-6 font-bold"
+                  className="text-3xl md:text-5xl lg:text-6xl xl:text-7xl font-heading text-brand-burgundy mb-4 md:mb-6 font-bold"
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 1, delay: 0.3 }}
@@ -439,7 +439,7 @@ const LandingPage = () => {
                 </motion.h2>
                 
                 <motion.p 
-                  className="text-xl md:text-2xl text-brand-burgundy/70 max-w-3xl mx-auto leading-relaxed"
+                  className="text-lg md:text-xl lg:text-2xl text-brand-burgundy/70 max-w-3xl mx-auto leading-relaxed px-4"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.8, delay: 0.5 }}
@@ -449,7 +449,7 @@ const LandingPage = () => {
               </motion.div>
               
               {/* Enhanced Category Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 lg:gap-12">
                 {categories.map((category, index) => (
                   <motion.div
                     key={category.id}
@@ -478,7 +478,7 @@ const LandingPage = () => {
                     <div className="relative bg-white rounded-3xl shadow-2xl overflow-hidden border-2 border-brand-burgundy/10 group-hover:border-brand-gold/50 group-hover:shadow-3xl transition-all duration-500 transform-gpu">
                       {/* Clean Background with subtle burgundy accent */}
                       <motion.div 
-                        className="relative h-80 bg-gradient-to-br from-brand-burgundy/5 to-brand-burgundy/10 flex items-center justify-center overflow-hidden"
+                        className="relative h-64 md:h-80 bg-gradient-to-br from-brand-burgundy/5 to-brand-burgundy/10 flex items-center justify-center overflow-hidden"
                         whileHover={{ scale: 1.02 }}
                         transition={{ duration: 0.4 }}
                       >
@@ -543,24 +543,24 @@ const LandingPage = () => {
                             }}
                             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                           >
-                            <category.icon className="w-28 h-28 text-brand-burgundy drop-shadow-2xl" />
+                            <category.icon className="w-20 h-20 md:w-28 md:h-28 text-brand-burgundy drop-shadow-2xl" />
                           </motion.div>
                         </motion.div>
                         
                         {/* Venue count badge */}
                         <motion.div
-                          className="absolute top-6 right-6 bg-brand-burgundy/10 backdrop-blur-sm rounded-2xl px-4 py-2 border border-brand-burgundy/20"
+                          className="absolute top-4 right-4 md:top-6 md:right-6 bg-brand-burgundy/10 backdrop-blur-sm rounded-2xl px-3 py-1 md:px-4 md:py-2 border border-brand-burgundy/20"
                           initial={{ opacity: 0, x: 30, scale: 0.8 }}
                           animate={{ opacity: 1, x: 0, scale: 1 }}
                           transition={{ delay: 0.8 + index * 0.1, duration: 0.5 }}
                           whileHover={{ scale: 1.05, y: -2 }}
                         >
-                          <span className="text-brand-burgundy text-sm font-bold">{category.count}</span>
+                          <span className="text-brand-burgundy text-xs md:text-sm font-bold">{category.count}</span>
                         </motion.div>
 
                         {/* Subtle corner decoration */}
                         <motion.div
-                          className="absolute bottom-6 left-6 w-8 h-8 border-l-2 border-b-2 border-brand-burgundy/30"
+                          className="absolute bottom-4 left-4 md:bottom-6 md:left-6 w-6 h-6 md:w-8 md:h-8 border-l-2 border-b-2 border-brand-burgundy/30"
                           animate={{ 
                             scale: [1, 1.1, 1],
                             opacity: [0.3, 0.6, 0.3]
@@ -571,20 +571,20 @@ const LandingPage = () => {
                       
                       {/* Enhanced Content Section */}
                       <motion.div 
-                        className="p-8 relative"
+                        className="p-6 md:p-8 relative"
                         whileHover={{ backgroundColor: 'rgba(139, 21, 56, 0.02)' }}
                         transition={{ duration: 0.3 }}
                       >
                         {/* Animated title */}
                         <motion.h3 
-                          className="text-3xl md:text-4xl font-bold text-brand-burgundy mb-4 group-hover:text-brand-gold transition-colors duration-300"
+                          className="text-2xl md:text-3xl lg:text-4xl font-bold text-brand-burgundy mb-3 md:mb-4 group-hover:text-brand-gold transition-colors duration-300"
                           whileHover={{ x: 5 }}
                         >
                           {category.name}
                         </motion.h3>
                         
                         <motion.p 
-                          className="text-brand-burgundy/70 text-lg mb-8 leading-relaxed"
+                          className="text-brand-burgundy/70 text-base md:text-lg mb-6 md:mb-8 leading-relaxed"
                           initial={{ opacity: 0.7 }}
                           whileHover={{ opacity: 1 }}
                         >
@@ -592,7 +592,7 @@ const LandingPage = () => {
                         </motion.p>
                         
                         {/* Enhanced Features List */}
-                        <div className="space-y-3 mb-8">
+                        <div className="space-y-2 md:space-y-3 mb-6 md:mb-8">
                           {category.features.map((feature, idx) => (
                             <motion.div
                               key={idx}
@@ -603,7 +603,7 @@ const LandingPage = () => {
                               whileHover={{ x: 5, scale: 1.02 }}
                             >
                               <motion.div
-                                className="mr-3"
+                                className="mr-2 md:mr-3"
                                 animate={{ rotate: [0, 180, 360] }}
                                 transition={{ 
                                   duration: 8, 
@@ -612,16 +612,16 @@ const LandingPage = () => {
                                   delay: idx * 0.2
                                 }}
                               >
-                                <Star className="w-4 h-4 text-brand-gold fill-brand-gold" />
+                                <Star className="w-3 h-3 md:w-4 md:h-4 text-brand-gold fill-brand-gold" />
                               </motion.div>
-                              <span className="font-medium">{feature}</span>
+                              <span className="font-medium text-sm md:text-base">{feature}</span>
                             </motion.div>
                           ))}
                         </div>
                         
                         {/* Enhanced Action Button */}
                         <motion.div
-                          className="relative overflow-hidden bg-gradient-to-r from-brand-burgundy/5 to-brand-gold/5 rounded-2xl p-4 group-hover:from-brand-burgundy/10 group-hover:to-brand-gold/10 transition-all duration-300"
+                          className="relative overflow-hidden bg-gradient-to-r from-brand-burgundy/5 to-brand-gold/5 rounded-2xl p-3 md:p-4 group-hover:from-brand-burgundy/10 group-hover:to-brand-gold/10 transition-all duration-300"
                           whileHover={{ scale: 1.02 }}
                         >
                           <motion.div
@@ -634,18 +634,18 @@ const LandingPage = () => {
                           <div className="flex items-center justify-between relative z-10">
                             <div>
                               <motion.span 
-                                className="font-bold text-brand-burgundy group-hover:text-brand-gold transition-colors duration-300 text-lg"
+                                className="font-bold text-brand-burgundy group-hover:text-brand-gold transition-colors duration-300 text-base md:text-lg"
                                 whileHover={{ scale: 1.05 }}
                               >
                                 Explore {category.name}
                               </motion.span>
-                              <p className="text-sm text-brand-burgundy/60 mt-1">
+                              <p className="text-xs md:text-sm text-brand-burgundy/60 mt-1">
                                 Discover premium venues
                               </p>
                             </div>
                             
                             <motion.div
-                              className="flex items-center justify-center w-12 h-12 bg-brand-burgundy group-hover:bg-brand-gold rounded-full transition-colors duration-300"
+                              className="flex items-center justify-center w-10 h-10 md:w-12 md:h-12 bg-brand-burgundy group-hover:bg-brand-gold rounded-full transition-colors duration-300"
                               whileHover={{ 
                                 scale: 1.1, 
                                 rotate: 90,
@@ -653,14 +653,14 @@ const LandingPage = () => {
                               }}
                               whileTap={{ scale: 0.9 }}
                             >
-                              <ArrowRight className="w-5 h-5 text-white group-hover:text-brand-burgundy transition-colors duration-300" />
+                              <ArrowRight className="w-4 h-4 md:w-5 md:h-5 text-white group-hover:text-brand-burgundy transition-colors duration-300" />
                             </motion.div>
                           </div>
                         </motion.div>
 
                         {/* Decorative elements */}
                         <motion.div
-                          className="absolute top-4 right-4 w-16 h-16 bg-gradient-to-br from-brand-gold/10 to-brand-burgundy/10 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                          className="absolute top-3 right-3 md:top-4 md:right-4 w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-brand-gold/10 to-brand-burgundy/10 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"
                           animate={{ 
                             scale: [1, 1.2, 1],
                             rotate: [0, 180, 360]
@@ -680,15 +680,15 @@ const LandingPage = () => {
                 ))}
               </div>
 
-              {/* Call to Action */}
+              {/* Call to Action - Reduced mobile spacing */}
               <motion.div
                 initial={{ opacity: 0, y: 30 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 1.2 }}
-                className="text-center mt-20"
+                className="text-center mt-12 md:mt-20"
               >
                 <motion.p 
-                  className="text-brand-burgundy/60 mb-6 text-lg"
+                  className="text-brand-burgundy/60 mb-4 md:mb-6 text-base md:text-lg"
                   animate={{ opacity: [0.6, 1, 0.6] }}
                   transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
                 >
@@ -702,7 +702,7 @@ const LandingPage = () => {
                   }}
                   whileTap={{ scale: 0.95 }}
                   onClick={() => navigate('/venues')}
-                  className="bg-gradient-to-r from-brand-burgundy to-brand-burgundy-light hover:from-brand-gold hover:to-yellow-500 text-white px-8 py-4 rounded-2xl font-semibold text-lg shadow-xl transition-all duration-300"
+                  className="bg-gradient-to-r from-brand-burgundy to-brand-burgundy-light hover:from-brand-gold hover:to-yellow-500 text-white px-6 py-3 md:px-8 md:py-4 rounded-2xl font-semibold text-base md:text-lg shadow-xl transition-all duration-300"
                 >
                   Browse All Venues
                 </motion.button>

@@ -11,7 +11,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Eye, Check, X, RefreshCw } from 'lucide-react';
+import { Eye, Check, X, RefreshCw, AlertTriangle } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { toast } from '@/components/ui/use-toast';
 
@@ -21,6 +21,8 @@ const BookingList = ({ currentUser }) => {
   
   // Ref for cleanup
   const subscriptionRef = useRef(null);
+
+  // Debug logging
 
   useEffect(() => {
     if (currentUser) {
@@ -35,7 +37,6 @@ const BookingList = ({ currentUser }) => {
 
   const cleanupSubscriptions = () => {
     if (subscriptionRef.current) {
-      console.log('Cleaning up BookingList real-time subscription...');
       subscriptionRef.current.unsubscribe();
       subscriptionRef.current = null;
     }
@@ -46,11 +47,9 @@ const BookingList = ({ currentUser }) => {
     cleanupSubscriptions();
 
     if (!venueIds || venueIds.length === 0) {
-      console.log('No venue IDs provided for BookingList subscription');
       return;
     }
 
-    console.log('Setting up BookingList real-time subscription for venues:', venueIds);
 
     try {
       // Subscribe to bookings changes for this venue owner's venues
@@ -65,7 +64,6 @@ const BookingList = ({ currentUser }) => {
             filter: `venue_id=in.(${venueIds.join(',')})` // Filter by venue IDs
           },
           (payload) => {
-            console.log('Real-time booking change detected in BookingList:', payload);
             
             // Show notification for new bookings
             if (payload.eventType === 'INSERT') {
@@ -83,9 +81,7 @@ const BookingList = ({ currentUser }) => {
           }
         )
         .subscribe((status) => {
-          console.log('BookingList subscription status:', status);
           if (status === 'SUBSCRIBED') {
-            console.log('Successfully subscribed to BookingList real-time updates');
           }
         });
     } catch (error) {
@@ -95,6 +91,14 @@ const BookingList = ({ currentUser }) => {
 
   const fetchBookings = async (silentRefresh = false) => {
     try {
+      
+      if (!currentUser || !currentUser.id) {
+        console.error('❌ No currentUser or currentUser.id found');
+        setBookings([]);
+        setLoading(false);
+        return;
+      }
+      
       if (!silentRefresh) {
         setLoading(true);
       }
@@ -105,7 +109,11 @@ const BookingList = ({ currentUser }) => {
         .select('id')
         .eq('owner_id', currentUser.id);
 
-      if (venuesError) throw venuesError;
+      if (venuesError) {
+        console.error('❌ Error fetching venues:', venuesError);
+        throw venuesError;
+      }
+
 
       if (!venues || venues.length === 0) {
         setBookings([]);
@@ -123,38 +131,87 @@ const BookingList = ({ currentUser }) => {
       }
 
       // Fetch bookings for these venues with related data
-      const { data: bookingsData, error: bookingsError } = await supabase
+      
+      // First try with full relationships
+      let { data: bookingsData, error: bookingsError } = await supabase
         .from('bookings')
         .select(`
-          *,
+          id,
+          user_id,
+          venue_id,
+          table_id,
+          booking_date,
+          start_time,
+          end_time,
+          number_of_guests,
+          total_amount,
+          status,
+          created_at,
+          updated_at,
           venues (
             id,
             name
-          ),
-          venue_tables!table_id (
-            id,
-            table_number
           )
         `)
         .in('venue_id', venueIds)
         .order('created_at', { ascending: false });
 
-      if (bookingsError) throw bookingsError;
+      // If that fails, try without venue_tables relationship
+      if (bookingsError) {
+        const { data: simpleBookings, error: simpleError } = await supabase
+          .from('bookings')
+          .select(`
+            id,
+            user_id,
+            venue_id,
+            table_id,
+            booking_date,
+            start_time,
+            end_time,
+            number_of_guests,
+            total_amount,
+            status,
+            created_at,
+            updated_at
+          `)
+          .in('venue_id', venueIds)
+          .order('created_at', { ascending: false });
+          
+        if (simpleError) {
+          console.error('❌ Simple query also failed:', simpleError);
+          throw simpleError;
+        } else {
+          bookingsData = simpleBookings;
+          bookingsError = null;
+        }
+      }
+
+      if (bookingsError) {
+        console.error('❌ Error fetching bookings:', bookingsError);
+        throw bookingsError;
+      }
+
+      if (bookingsData && bookingsData.length > 0) {
+      }
 
       // Fetch user profiles for bookings in batches
       const userIds = [...new Set(bookingsData?.map(b => b.user_id))].filter(Boolean);
       const userProfiles = {};
       
       if (userIds.length > 0) {
-        const { data: profiles, error: profilesError } = await supabase
-          .from('profiles')
-          .select('id, first_name, last_name, email, phone')
-          .in('id', userIds);
-        
-        if (!profilesError && profiles) {
-          profiles.forEach(profile => {
-            userProfiles[profile.id] = profile;
-          });
+        try {
+          const { data: profiles, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, first_name, last_name, email, phone')
+            .in('id', userIds);
+          
+          if (!profilesError && profiles) {
+            profiles.forEach(profile => {
+              userProfiles[profile.id] = profile;
+            });
+          } else if (profilesError) {
+          }
+        } catch (error) {
         }
       }
 
@@ -164,9 +221,19 @@ const BookingList = ({ currentUser }) => {
         profiles: userProfiles[booking.user_id] || null
       })) || [];
 
+      // Debug: Log the first booking to see the data structure
+      if (bookingsWithProfiles.length > 0) {
+      }
+
       setBookings(bookingsWithProfiles);
     } catch (error) {
-      console.error('Error fetching bookings:', error);
+      console.error('❌ Error fetching bookings:', error);
+      console.error('❌ Error details:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      });
       if (!silentRefresh) {
         toast({
           title: 'Error',
@@ -217,6 +284,73 @@ const BookingList = ({ currentUser }) => {
     }
   };
 
+  const cancelBooking = async (bookingId) => {
+    try {
+      // Get booking details first
+      const booking = bookings.find(b => b.id === bookingId);
+      if (!booking) throw new Error('Booking not found');
+      
+      // Check refund eligibility
+      const now = new Date();
+      const bookingDateTime = new Date(`${booking.booking_date} ${booking.start_time}`);
+      const hoursUntilBooking = (bookingDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+      
+      if (hoursUntilBooking < 24) {
+        toast({
+          title: "Limited Cancellation Options",
+          description: "For bookings within 24 hours, please contact our support team for assistance with cancellation.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Process automatic refund
+      const { data, error } = await supabase.functions.invoke('process-booking-refund', {
+        body: { 
+          bookingId,
+          reason: 'venue_owner_cancellation'
+        }
+      });
+      
+      if (error) throw error;
+      
+      // Update local state
+      setBookings(prev => 
+        prev.map(booking => 
+          booking.id === bookingId 
+            ? { 
+                ...booking, 
+                status: 'cancelled',
+                refund_status: data.refunded ? 'refunded' : 'no_payment'
+              }
+            : booking
+        )
+      );
+      
+      if (data.refunded) {
+        toast({
+          title: "Booking Cancelled & Refunded",
+          description: `The booking has been cancelled and ₦${(data.amount_refunded / 100).toLocaleString()} will be refunded to the customer within 5-10 business days.`,
+          className: "bg-green-500 text-white"
+        });
+      } else {
+        toast({
+          title: "Booking Cancelled",
+          description: "The booking has been cancelled successfully.",
+          className: "bg-green-500 text-white"
+        });
+      }
+      
+    } catch (error) {
+      console.error('Error cancelling booking:', error);
+      toast({
+        title: "Cancellation Failed",
+        description: error.message || "Failed to cancel booking. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'confirmed':
@@ -234,10 +368,13 @@ const BookingList = ({ currentUser }) => {
 
   const formatCustomerName = (booking) => {
     if (booking.profiles) {
-      return `${booking.profiles.first_name || ''} ${booking.profiles.last_name || ''}`.trim();
+      const firstName = booking.profiles.first_name || '';
+      const lastName = booking.profiles.last_name || '';
+      const fullName = `${firstName} ${lastName}`.trim();
+      return fullName || 'Unknown Customer';
     }
-    // Fallback to localStorage data if available
-    return booking.customerName || 'Unknown Customer';
+    // Fallback to user_id if no profile data
+    return `Customer ${booking.user_id?.substring(0, 8)}...` || 'Unknown Customer';
   };
 
   if (loading) {
@@ -268,15 +405,15 @@ const BookingList = ({ currentUser }) => {
                   {formatCustomerName(booking)}
                 </h4>
                 <p className="text-xs sm:text-sm text-brand-burgundy/60">
-                  {format(new Date(booking.booking_date), 'PPP')} at {booking.booking_time}
+                  {format(new Date(booking.booking_date), 'PPP')} at {booking.start_time || 'N/A'} - {booking.end_time || 'N/A'}
                 </p>
                 <p className="text-xs sm:text-sm text-brand-burgundy/60">
-                  {booking.guest_count || 1} guest{booking.guest_count !== 1 ? 's' : ''} • Table {booking.table_number || 'N/A'}
+                  {booking.number_of_guests || 'N/A'} guest{booking.number_of_guests && booking.number_of_guests !== 1 ? 's' : ''} • {booking.table_id ? `Table ID: ${booking.table_id}` : 'No table assigned'}
                 </p>
               </div>
               <div className="text-left sm:text-right">
                 <div className="font-bold text-brand-gold text-sm sm:text-base">
-                  ₦{(booking.total_amount / 100).toLocaleString()}
+                  ₦{(booking.total_amount || 0).toLocaleString()}
                 </div>
                 <Badge className={`mt-1 ${getStatusColor(booking.status)}`}>
                   {booking.status}
@@ -284,11 +421,7 @@ const BookingList = ({ currentUser }) => {
               </div>
             </div>
             
-            {booking.special_requests && (
-              <div className="mt-3 p-2 bg-brand-cream/30 rounded text-xs sm:text-sm text-brand-burgundy/70">
-                <strong>Special Requests:</strong> {booking.special_requests}
-              </div>
-            )}
+            {/* Special requests removed - column doesn't exist in database */}
           </div>
           
           <div className="flex flex-col sm:flex-row gap-2">
@@ -298,7 +431,6 @@ const BookingList = ({ currentUser }) => {
               className="border-brand-burgundy/20 text-brand-burgundy hover:bg-brand-burgundy/10 w-full sm:w-auto"
               onClick={() => {
                 // Handle view details
-                console.log('View booking details:', booking.id);
               }}
             >
               <Eye className="h-4 w-4 mr-1" />
@@ -326,6 +458,16 @@ const BookingList = ({ currentUser }) => {
                   <span className="hidden sm:inline">Decline</span>
                 </Button>
               </div>
+            )}
+            {(booking.status === 'confirmed' || booking.status === 'pending') && (
+              <Button
+                onClick={() => cancelBooking(booking.id)}
+                variant="outline"
+                className="mt-2 text-red-500 border-red-500 hover:bg-red-50 w-full sm:w-auto"
+              >
+                <AlertTriangle className="h-4 w-4 mr-1" />
+                Cancel & Refund
+              </Button>
             )}
           </div>
         </div>
@@ -376,15 +518,15 @@ const BookingList = ({ currentUser }) => {
                   <div>
                     <div>{format(new Date(booking.booking_date), 'MMM d, yyyy')}</div>
                     <div className="text-sm text-brand-burgundy/60">
-                      {booking.start_time} - {booking.end_time}
+                      {booking.start_time || 'N/A'} - {booking.end_time || 'N/A'}
                     </div>
                   </div>
                 </TableCell>
                 <TableCell>
-                  {booking.venue_tables?.table_number ? `Table ${booking.venue_tables.table_number}` : 'No table assigned'}
+                  {booking.table_id ? `Table ID: ${booking.table_id}` : 'No table assigned'}
                 </TableCell>
                 <TableCell>
-                  {booking.number_of_guests}
+                  {booking.number_of_guests || 'N/A'}
                 </TableCell>
                 <TableCell>
                   ₦{(booking.total_amount || 0).toLocaleString()}
@@ -428,6 +570,17 @@ const BookingList = ({ currentUser }) => {
                         title="Mark as completed"
                       >
                         <Check className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {(booking.status === 'confirmed' || booking.status === 'pending') && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 text-red-600 hover:text-red-700"
+                        onClick={() => cancelBooking(booking.id)}
+                        title="Cancel & Refund"
+                      >
+                        <AlertTriangle className="h-4 w-4" />
                       </Button>
                     )}
                   </div>

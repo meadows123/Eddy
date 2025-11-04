@@ -5,7 +5,7 @@ import React, { useState, useEffect } from 'react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Settings, Heart, Calendar } from 'lucide-react';
 import { Card } from '@/components/ui/card';
-import { Button } from '../components/ui/button.jsx';
+import { Button } from '@/components/ui/button';
 
 // Get user profile by ID
 export const getUserProfile = async (userId) => {
@@ -261,7 +261,6 @@ export async function removeStripePaymentMethod(id) {
 }
 
 export async function notifyAdminOfVenueSubmission(newVenue, venueOwner, user) {
-  console.log("🔔 [ADMIN EMAIL] Starting venue submission notification...");
   
   const ADMIN_EMAIL = "info@oneeddy.com";
   
@@ -272,11 +271,6 @@ export async function notifyAdminOfVenueSubmission(newVenue, venueOwner, user) {
   };
 
   try {
-    console.log('📧 EmailJS config check:', {
-      serviceId: EMAILJS_CONFIG.serviceId ? 'SET' : 'MISSING',
-      templateId: EMAILJS_CONFIG.templateId ? 'SET' : 'MISSING', 
-      publicKey: EMAILJS_CONFIG.publicKey ? 'SET' : 'MISSING'
-    });
 
     if (!EMAILJS_CONFIG.serviceId || !EMAILJS_CONFIG.templateId || !EMAILJS_CONFIG.publicKey) {
       throw new Error('EmailJS configuration incomplete');
@@ -286,7 +280,6 @@ export async function notifyAdminOfVenueSubmission(newVenue, venueOwner, user) {
     const emailjs = (await import('@emailjs/browser')).default;
     try {
       emailjs.init(EMAILJS_CONFIG.publicKey);
-      console.log('✅ EmailJS initialized successfully');
     } catch (initError) {
       console.error('❌ EmailJS initialization failed:', initError);
       throw new Error('Failed to initialize EmailJS');
@@ -315,7 +308,7 @@ export async function notifyAdminOfVenueSubmission(newVenue, venueOwner, user) {
         month: 'long',
         day: 'numeric'
       }),
-      viewUrl: 'https://your-production-domain.com/admin/venue-approvals', // Update this to your actual production URL
+      viewUrl: 'https://oneeddy.com/admin/venue-approvals', // Updated to correct production URL
       
       // Email routing (for EmailJS)
       to_email: ADMIN_EMAIL,
@@ -324,15 +317,10 @@ export async function notifyAdminOfVenueSubmission(newVenue, venueOwner, user) {
       reply_to: venueOwner.email
     };
     
-    console.log('🔥 [VENUE EMAIL] Sending with template data:', {
-      ownerName: templateData.ownerName,
-      venueName: templateData.venueName,
-      ownerEmail: templateData.ownerEmail,
-      viewUrl: templateData.viewUrl,
-      timestamp: new Date().toISOString()
-    });
     
-    // Send email via EmailJS with timeout
+    // Log the complete template data for debugging
+    
+    // Send email via EmailJS (preferred method)
     const emailPromise = emailjs.send(
       EMAILJS_CONFIG.serviceId,
       EMAILJS_CONFIG.templateId,
@@ -346,11 +334,10 @@ export async function notifyAdminOfVenueSubmission(newVenue, venueOwner, user) {
     
     const result = await Promise.race([emailPromise, timeoutPromise]);
 
-    console.log("✅ Admin notification sent successfully via EmailJS:", result);
     return { success: true, result };
     
   } catch (error) {
-    console.error("❌ Error sending admin notification via EmailJS:", error);
+    console.error("❌ Error sending admin notification:", error);
     console.error("❌ Full error details:", {
       name: error.name,
       message: error.message,
@@ -363,7 +350,6 @@ export async function notifyAdminOfVenueSubmission(newVenue, venueOwner, user) {
 // Simple test function for EmailJS connectivity
 export async function testEmailJSConnection() {
   try {
-    console.log('🧪 Testing EmailJS connectivity...');
     
     // Import EmailJS
     const emailjs = (await import('@emailjs/browser')).default;
@@ -375,11 +361,6 @@ export async function testEmailJSConnection() {
       publicKey: import.meta.env.VITE_EMAILJS_PUBLIC_KEY,
     };
     
-    console.log('📋 Config check:', {
-      serviceId: config.serviceId ? 'SET' : 'MISSING',
-      templateId: config.templateId ? 'SET' : 'MISSING',
-      publicKey: config.publicKey ? 'SET' : 'MISSING'
-    });
     
     if (!config.serviceId || !config.templateId || !config.publicKey) {
       throw new Error('EmailJS configuration incomplete');
@@ -438,10 +419,8 @@ export async function testEmailJSConnection() {
     // Try each variation
     for (const variation of commonFieldVariations) {
       try {
-        console.log(`📤 Trying ${variation.name}:`, variation.data);
         
         const result = await emailjs.send(config.serviceId, config.templateId, variation.data);
-        console.log(`✅ SUCCESS with ${variation.name}:`, result);
         
         return { 
           success: true, 
@@ -451,7 +430,6 @@ export async function testEmailJSConnection() {
         };
         
       } catch (error) {
-        console.log(`❌ Failed with ${variation.name}:`, error.message);
         // Continue to next variation
       }
     }
@@ -465,16 +443,187 @@ export async function testEmailJSConnection() {
   }
 }
 
-function VenueOwnersTest() {
-  useEffect(() => {
-    async function fetchVenueOwners() {
-      const { data, error } = await supabase.from("venue_owners").select("*");
-      console.log(data, error);
-    }
-    fetchVenueOwners();
-  }, []);
+// Add this function to your existing api.jsx file
 
-  return <div>Check the console for venue owners data.</div>;
-}
+// Check available time slots for a specific date and venue
+export const getAvailableTimeSlots = async (venueId, date, tableId = null) => {
+  try {
+    // Get all existing bookings for this venue and date
+    const { data: existingBookings, error } = await supabase
+      .from('bookings')
+      .select('start_time, end_time, table_id, status')
+      .eq('venue_id', venueId)
+      .eq('booking_date', date)
+      .in('status', ['confirmed', 'pending']); // Count both confirmed and pending bookings
 
-export default VenueOwnersTest; 
+    if (error) throw error;
+
+    // Generate all possible time slots (e.g., every 30 minutes from opening to closing)
+    const allTimeSlots = generateTimeSlots('18:00', '02:00'); // Adjust based on your venue hours
+    
+    // Filter out unavailable time slots
+    const availableSlots = allTimeSlots.filter(slot => {
+      // Create slot time as minutes since midnight for easier comparison
+      const [hours, minutes] = slot.split(':').map(Number);
+      const slotMinutes = hours * 60 + minutes;
+      
+      // Check if this specific time slot conflicts with existing bookings
+      const isAvailable = !existingBookings.some(booking => {
+        // Convert booking times to minutes since midnight
+        const [startHours, startMins] = booking.start_time.split(':').map(Number);
+        const [endHours, endMins] = booking.end_time.split(':').map(Number);
+        
+        let bookingStartMinutes = startHours * 60 + startMins;
+        let bookingEndMinutes = endHours * 60 + endMins;
+        
+        // Handle bookings that cross midnight
+        if (bookingEndMinutes < bookingStartMinutes) {
+          bookingEndMinutes += 24 * 60; // Add 24 hours (1440 minutes)
+        }
+        
+        // Check if the slot time falls within the existing booking time range
+        // A slot is unavailable if it falls within an existing booking period
+        let slotMinutesToCheck = slotMinutes;
+        
+        // If booking crosses midnight and slot is in the early morning (00:00-06:00),
+        // we need to add 24 hours to the slot time for comparison
+        if (bookingEndMinutes > 24 * 60 && slotMinutes < 6 * 60) {
+          slotMinutesToCheck += 24 * 60;
+        }
+        
+        return slotMinutesToCheck >= bookingStartMinutes && slotMinutesToCheck < bookingEndMinutes;
+      });
+      
+      return isAvailable;
+    });
+
+    return { data: availableSlots, error: null };
+  } catch (error) {
+    console.error('Error getting available time slots:', error);
+    return { data: null, error };
+  }
+};
+
+// Add this function to check real-time table availability
+export const checkTableAvailability = async (venueId, tableId, date) => {
+  try {
+    // Get all existing bookings for this specific table and date
+    const { data: existingBookings, error } = await supabase
+      .from('bookings')
+      .select('start_time, end_time, status')
+      .eq('venue_id', venueId)
+      .eq('table_id', tableId)
+      .eq('booking_date', date)
+      .in('status', ['confirmed', 'pending', 'paid']); // Count confirmed, pending, and paid bookings
+
+    if (error) throw error;
+
+    // Debug logging
+    console.log('🔍 Checking availability for:', { venueId, tableId, date });
+    console.log('📅 Existing bookings:', existingBookings);
+    console.log('📊 Booking statuses found:', existingBookings.map(b => ({ time: b.start_time, status: b.status })));
+
+    // Generate all possible time slots
+    const allTimeSlots = generateTimeSlots('18:00', '02:00'); // Adjust based on your venue hours
+    console.log('⏰ Generated time slots:', allTimeSlots);
+    
+    // Check which times are available
+    const availability = allTimeSlots.map(time => {
+      // Create slot time as minutes since midnight for easier comparison
+      const [hours, minutes] = time.split(':').map(Number);
+      const slotMinutes = hours * 60 + minutes;
+      
+      // Check if this specific time slot conflicts with existing bookings
+      const conflictingBooking = existingBookings.find(booking => {
+        // Convert booking times to minutes since midnight
+        const [startHours, startMins] = booking.start_time.split(':').map(Number);
+        const [endHours, endMins] = booking.end_time.split(':').map(Number);
+        
+        let bookingStartMinutes = startHours * 60 + startMins;
+        let bookingEndMinutes = endHours * 60 + endMins;
+        
+        // Handle bookings that cross midnight
+        if (bookingEndMinutes < bookingStartMinutes) {
+          bookingEndMinutes += 24 * 60; // Add 24 hours (1440 minutes)
+        }
+        
+        // Check if the slot time falls within the existing booking time range
+        // A slot is unavailable if it falls within an existing booking period
+        let slotMinutesToCheck = slotMinutes;
+        
+        // If booking crosses midnight and slot is in the early morning (00:00-06:00),
+        // we need to add 24 hours to the slot time for comparison
+        if (bookingEndMinutes > 24 * 60 && slotMinutes < 6 * 60) {
+          slotMinutesToCheck += 24 * 60;
+        }
+        
+        const slotFallsWithinBooking = slotMinutesToCheck >= bookingStartMinutes && slotMinutesToCheck < bookingEndMinutes;
+        
+        return slotFallsWithinBooking;
+      });
+      
+      const isAvailable = !conflictingBooking;
+      
+      const result = {
+        time,
+        available: isAvailable,
+        reason: isAvailable ? null : `Table already booked from ${conflictingBooking?.start_time} to ${conflictingBooking?.end_time} (Status: ${conflictingBooking?.status})`
+      };
+      
+      if (!isAvailable) {
+        console.log(`❌ Time slot ${time} is unavailable due to booking:`, {
+          slotTime: time,
+          conflictingBooking: `${conflictingBooking?.start_time} to ${conflictingBooking?.end_time}`,
+          bookingStatus: conflictingBooking?.status
+        });
+      }
+      
+      return result;
+    });
+
+    console.log('✅ Final availability result:', availability);
+    return { data: availability, error: null };
+  } catch (error) {
+    console.error('Error checking table availability:', error);
+    return { data: null, error };
+  }
+};
+
+// Helper function to generate time slots
+const generateTimeSlots = (startTime, endTime) => {
+  const slots = [];
+  const start = new Date(`2000-01-01 ${startTime}`);
+  const end = new Date(`2000-01-01 ${endTime}`);
+  
+  // Handle overnight hours (e.g., 18:00 to 02:00)
+  if (end < start) {
+    end.setDate(end.getDate() + 1);
+  }
+  
+  const current = new Date(start);
+  while (current < end) {
+    // Format time as HH:MM:SS to match database format
+    const timeString = current.toTimeString().slice(0, 8);
+    slots.push(timeString);
+    current.setMinutes(current.getMinutes() + 30); // 30-minute intervals
+  }
+  
+  return slots;
+};
+
+// Get available tables for a venue
+export const getAvailableTables = async (venueId) => {
+  try {
+    const { data, error } = await supabase
+      .from('venue_tables')
+      .select('*')
+      .eq('venue_id', venueId)
+      .eq('status', 'available');
+
+    if (error) throw error;
+    return { data, error: null };
+  } catch (error) {
+    console.error('Error fetching available tables:', error);
+    return { data: null, error };
+  }
+};

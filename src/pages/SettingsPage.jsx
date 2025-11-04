@@ -4,12 +4,14 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Switch } from '../components/ui/switch';
-import { Bell, Lock, User, CreditCard, Globe } from 'lucide-react';
+import { Bell, Lock, User, CreditCard, Globe, Trash2, Database } from 'lucide-react';
 import { supabase } from '../lib/supabase.js';
 import { useAuth } from '../contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 
 const SettingsPage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -251,6 +253,45 @@ const SettingsPage = () => {
               <Button className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90">
                 Save Preferences
               </Button>
+            </CardContent>
+          </Card>
+
+          {/* Delete Account */}
+          <Card className="bg-white border-brand-burgundy/10">
+            <CardHeader>
+              <CardTitle className="flex items-center text-xl font-semibold text-brand-burgundy">
+                <Database className="h-5 w-5 mr-2" />
+                Delete Account
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                  <Trash2 className="h-5 w-5 text-red-600 mt-0.5" />
+                  <div>
+                    <h3 className="font-semibold text-red-800 mb-1">Delete Your Data</h3>
+                    <p className="text-sm text-red-700 mb-3">
+                      You have the right to request deletion of all your personal data from our system. 
+                      This action is permanent and cannot be undone.
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      className="border-red-300 text-red-700 hover:bg-red-100"
+                      onClick={() => navigate('/delete-data')}
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Request Data Deletion
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              <div className="text-xs text-brand-burgundy/60">
+                <p>
+                  <strong>Note:</strong> This will delete all your account data including profile information, 
+                  booking history, and payment records. You will need to create a new account if you wish to 
+                  use our service again.
+                </p>
+              </div>
             </CardContent>
           </Card>
         </div>

@@ -7,9 +7,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import { Building, Users, Music, MapPin } from 'lucide-react';
+import { supabase } from '@/lib/supabase'; // Add this import
 
 const JoinVenuePage = () => {
   const { toast } = useToast();
+  const [loading, setLoading] = useState(false); // Add loading state
   const [formData, setFormData] = useState({
     venueName: '',
     contactPerson: '',
@@ -56,19 +58,102 @@ const JoinVenuePage = () => {
     return Object.keys(newErrors).length === 0;
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (validateForm()) {
-      console.log("Venue submission data:", formData);
-      toast({
-        title: "Application Submitted!",
-        description: "Thank you for your interest! We'll review your application and get back to you soon.",
-        className: "bg-primary text-primary-foreground"
-      });
-      setFormData({
-        venueName: '', contactPerson: '', email: '', phone: '',
-        address: '', city: '', venueType: '', capacity: '', musicGenres: '', venueDescription: '',
-      });
+      setLoading(true);
+      try {
+        console.log("Submitting venue application:", formData);
+        
+        // 1. Save the application to the database
+        const { data: applicationData, error: dbError } = await supabase
+          .from('pending_venue_owner_requests')
+          .insert([{
+            venue_name: formData.venueName,
+            contact_name: formData.contactPerson,
+            email: formData.email,
+            contact_phone: formData.phone,
+            venue_address: formData.address,
+            venue_city: formData.city,
+            venue_type: formData.venueType,
+            capacity: formData.capacity,
+            additional_info: formData.venueDescription,
+            music_genres: formData.musicGenres,
+            status: 'pending',
+            created_at: new Date().toISOString()
+          }])
+          .select()
+          .single();
+
+        if (dbError) {
+          console.error('Database error:', dbError);
+          throw new Error('Failed to save application. Please try again.');
+        }
+
+        console.log('✅ Application saved to database:', applicationData);
+
+        // 2. Send admin notification email
+        const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
+          body: {
+            to: 'info@oneeddy.com', // Admin email
+            subject: 'New Venue Owner Application - ' + formData.venueName,
+            template: 'venue-owner-application',
+            data: {
+              ownerName: formData.contactPerson,
+              ownerEmail: formData.email,
+              ownerPhone: formData.phone,
+              applicationDate: new Date().toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              }),
+              venueName: formData.venueName,
+              venueDescription: formData.venueDescription,
+              venueType: formData.venueType,
+              venueCapacity: formData.capacity,
+              venueAddress: formData.address,
+              priceRange: '$$', // Default price range
+              openingHours: 'Not specified',
+              venuePhone: formData.phone,
+              viewUrl: 'https://oneeddy.com/admin/venue-approvals'
+            }
+          }
+        });
+
+        if (emailError) {
+          console.error('Email error:', emailError);
+          // Don't throw here - the application was saved successfully
+          toast({
+            title: "Application Submitted!",
+            description: "Your application has been saved. We'll review it and get back to you soon.",
+            variant: "default"
+          });
+        } else {
+          console.log('✅ Admin notification email sent:', emailData);
+          toast({
+            title: "Application Submitted!",
+            description: "Thank you for your interest! We'll review your application and get back to you soon.",
+            className: "bg-primary text-primary-foreground"
+          });
+        }
+
+        // 3. Reset form
+        setFormData({
+          venueName: '', contactPerson: '', email: '', phone: '',
+          address: '', city: '', venueType: '', capacity: '', musicGenres: '', venueDescription: '',
+        });
+
+      } catch (error) {
+        console.error('Submission error:', error);
+        toast({
+          title: "Error!",
+          description: error.message || "Failed to submit application. Please try again.",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
     } else {
       toast({
         title: "Error!",
@@ -100,84 +185,14 @@ const JoinVenuePage = () => {
           className="max-w-3xl mx-auto bg-card p-6 md:p-10 rounded-lg shadow-xl border border-border/70 glass-effect"
         >
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <Label htmlFor="venueName" className="text-foreground flex items-center"><Building className="h-4 w-4 mr-2 text-primary" />Venue Name</Label>
-                <Input type="text" id="venueName" name="venueName" value={formData.venueName} onChange={handleChange} placeholder="e.g., The Underground Lounge" className={`mt-1 ${errors.venueName ? 'border-destructive' : ''}`} />
-                {errors.venueName && <p className="text-sm text-destructive mt-1">{errors.venueName}</p>}
-              </div>
-              <div>
-                <Label htmlFor="contactPerson" className="text-foreground">Contact Person</Label>
-                <Input type="text" id="contactPerson" name="contactPerson" value={formData.contactPerson} onChange={handleChange} placeholder="e.g., Alex Smith" className={`mt-1 ${errors.contactPerson ? 'border-destructive' : ''}`} />
-                {errors.contactPerson && <p className="text-sm text-destructive mt-1">{errors.contactPerson}</p>}
-              </div>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <Label htmlFor="email" className="text-foreground">Contact Email</Label>
-                <Input type="email" id="email" name="email" value={formData.email} onChange={handleChange} placeholder="contact@yourvenue.com" className={`mt-1 ${errors.email ? 'border-destructive' : ''}`} />
-                {errors.email && <p className="text-sm text-destructive mt-1">{errors.email}</p>}
-              </div>
-              <div>
-                <Label htmlFor="phone" className="text-foreground">Contact Phone</Label>
-                <Input type="tel" id="phone" name="phone" value={formData.phone} onChange={handleChange} placeholder="e.g., 020 1234 5678" className={`mt-1 ${errors.phone ? 'border-destructive' : ''}`} />
-                {errors.phone && <p className="text-sm text-destructive mt-1">{errors.phone}</p>}
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="address" className="text-foreground flex items-center"><MapPin className="h-4 w-4 mr-2 text-primary" />Venue Address</Label>
-              <Input type="text" id="address" name="address" value={formData.address} onChange={handleChange} placeholder="123 Main Street" className={`mt-1 ${errors.address ? 'border-destructive' : ''}`} />
-              {errors.address && <p className="text-sm text-destructive mt-1">{errors.address}</p>}
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <Label htmlFor="city" className="text-foreground">City</Label>
-                <Input type="text" id="city" name="city" value={formData.city} onChange={handleChange} placeholder="e.g., London" className={`mt-1 ${errors.city ? 'border-destructive' : ''}`} />
-                {errors.city && <p className="text-sm text-destructive mt-1">{errors.city}</p>}
-              </div>
-              <div>
-                <Label htmlFor="venueType" className="text-foreground">Venue Type</Label>
-                <Select value={formData.venueType} onValueChange={(value) => handleSelectChange('venueType', value)}>
-                  <SelectTrigger className={`mt-1 ${errors.venueType ? 'border-destructive' : ''}`}>
-                    <SelectValue placeholder="Select venue type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="restaurant">Restaurant</SelectItem>
-                    <SelectItem value="club">Club</SelectItem>
-                    <SelectItem value="lounge">Lounge</SelectItem>
-                    <SelectItem value="bar">Bar</SelectItem>
-                    <SelectItem value="pub">Pub</SelectItem>
-                    <SelectItem value="cafe">Cafe</SelectItem>
-                    <SelectItem value="nightclub">Nightclub</SelectItem>
-                    <SelectItem value="other">Other</SelectItem>
-                  </SelectContent>
-                </Select>
-                {errors.venueType && <p className="text-sm text-destructive mt-1">{errors.venueType}</p>}
-              </div>
-            </div>
-
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <Label htmlFor="capacity" className="text-foreground flex items-center"><Users className="h-4 w-4 mr-2 text-primary" />Capacity (approx.)</Label>
-                <Input type="number" id="capacity" name="capacity" value={formData.capacity} onChange={handleChange} placeholder="e.g., 500" className="mt-1" />
-              </div>
-            </div>
+            {/* ... existing form fields ... */}
             
-            <div>
-              <Label htmlFor="musicGenres" className="text-foreground flex items-center"><Music className="h-4 w-4 mr-2 text-primary" />Main Music Genres (comma-separated)</Label>
-              <Input type="text" id="musicGenres" name="musicGenres" value={formData.musicGenres} onChange={handleChange} placeholder="e.g., House, Techno, Hip Hop" className="mt-1" />
-            </div>
-
-            <div>
-              <Label htmlFor="venueDescription" className="text-foreground">Tell Us About Your Venue</Label>
-              <Textarea id="venueDescription" name="venueDescription" value={formData.venueDescription} onChange={handleChange} placeholder="Describe what makes your venue unique..." rows={5} className="mt-1" />
-            </div>
-
-            <Button type="submit" className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity text-accent-foreground text-lg py-3">
-              Submit Application
+            <Button 
+              type="submit" 
+              className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity text-accent-foreground text-lg py-3"
+              disabled={loading}
+            >
+              {loading ? 'Submitting...' : 'Submit Application'}
             </Button>
           </form>
         </motion.div>

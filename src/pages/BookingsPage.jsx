@@ -55,7 +55,7 @@ const BookingsPage = () => {
           )
         `)
         .eq('user_id', userId)
-        .order('booking_date', { ascending: false });
+        .order('created_at', { ascending: false });
 
       if (bookingsError) throw bookingsError;
 
@@ -74,35 +74,66 @@ const BookingsPage = () => {
 
   const cancelBooking = async (bookingId) => {
     try {
-      const { error } = await supabase
-        .from('bookings')
-        .update({ 
-          status: 'cancelled',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', bookingId);
-
+      // Get booking details first
+      const booking = bookings.find(b => b.id === bookingId);
+      if (!booking) throw new Error('Booking not found');
+      
+      // Check refund eligibility
+      const now = new Date();
+      const bookingDateTime = new Date(`${booking.booking_date} ${booking.start_time}`);
+      const hoursUntilBooking = (bookingDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+      
+      if (hoursUntilBooking < 24) {
+        toast({
+          title: "Limited Cancellation Options",
+          description: "For bookings within 24 hours, please contact our support team for assistance with cancellation.",
+          variant: "destructive"
+        });
+        return;
+      }
+      
+      // Process automatic refund
+      const { data, error } = await supabase.functions.invoke('process-booking-refund', {
+        body: { 
+          bookingId,
+          reason: 'customer_cancellation'
+        }
+      });
+      
       if (error) throw error;
-
+      
       // Update local state
       setBookings(prev => 
         prev.map(booking => 
           booking.id === bookingId 
-            ? { ...booking, status: 'cancelled' }
+            ? { 
+                ...booking, 
+                status: 'cancelled',
+                refund_status: data.refunded ? 'refunded' : 'no_payment'
+              }
             : booking
         )
       );
-
-      toast({
-        title: 'Success',
-        description: 'Booking cancelled successfully',
-        className: 'bg-green-500 text-white'
-      });
+      
+      if (data.refunded) {
+        toast({
+          title: 'Booking Cancelled & Refunded',
+          description: `Your ₦${(data.amount_refunded / 100).toLocaleString()} refund will appear in your account within 5-10 business days.`,
+          className: 'bg-green-500 text-white'
+        });
+      } else {
+        toast({
+          title: 'Booking Cancelled',
+          description: 'Your booking has been cancelled successfully.',
+          className: 'bg-green-500 text-white'
+        });
+      }
+      
     } catch (error) {
       console.error('Error cancelling booking:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to cancel booking',
+        title: 'Cancellation Failed',
+        description: error.message || 'Failed to cancel booking. Please contact support.',
         variant: 'destructive'
       });
     }
@@ -250,13 +281,70 @@ const BookingsPage = () => {
                           >
                             View Details
                           </Button>
-                          {(booking.status === 'pending' || booking.status === 'confirmed') && (
-                            <Button 
-                              variant="outline" 
-                              className="border-red-500 text-red-500 hover:bg-red-50"
-                              onClick={() => cancelBooking(booking.id)}
+                          {(booking.status === 'confirmed' || booking.status === 'pending') && (
+                            <Button
+                              onClick={async () => {
+                                // Check if eligible for refund
+                                const now = new Date();
+                                const bookingDateTime = new Date(`${booking.booking_date} ${booking.start_time}`);
+                                const hoursUntilBooking = (bookingDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+                                
+                                if (hoursUntilBooking < 24) {
+                                  toast({
+                                    title: "Cancellation Not Available",
+                                    description: "Cancellations with refund are only available 24+ hours before your booking. Please contact support for assistance.",
+                                    variant: "destructive"
+                                  });
+                                  return;
+                                }
+                                
+                                try {
+                                  // Call the refund edge function
+                                  const { data, error } = await supabase.functions.invoke('process-booking-refund', {
+                                    body: { 
+                                      bookingId: booking.id,
+                                      reason: 'customer_cancellation'
+                                    }
+                                  });
+                                  
+                                  if (error) throw error;
+                                  
+                                  if (data.refunded) {
+                                    toast({
+                                      title: "Booking Cancelled & Refunded",
+                                      description: `Your booking has been cancelled and ₦${(data.amount_refunded / 100).toLocaleString()} will be refunded to your card within 5-10 business days.`,
+                                      className: "bg-green-500 text-white"
+                                    });
+                                  } else {
+                                    toast({
+                                      title: "Booking Cancelled",
+                                      description: "Your booking has been cancelled successfully.",
+                                      className: "bg-green-500 text-white"
+                                    });
+                                  }
+                                  
+                                  // Update local state
+                                  setBookings(prev => 
+                                    prev.map(b => 
+                                      b.id === booking.id 
+                                        ? { ...b, status: 'cancelled', refund_status: data.refunded ? 'refunded' : 'no_payment' }
+                                        : b
+                                    )
+                                  );
+                                  
+                                } catch (error) {
+                                  console.error('Error processing cancellation:', error);
+                                  toast({
+                                    title: "Cancellation Failed",
+                                    description: error.message || "Failed to cancel booking. Please try again.",
+                                    variant: "destructive"
+                                  });
+                                }
+                              }}
+                              variant="outline"
+                              className="mt-2 text-red-500 border-red-500 hover:bg-red-50"
                             >
-                              Cancel Booking
+                              Cancel & Refund
                             </Button>
                           )}
                         </div>

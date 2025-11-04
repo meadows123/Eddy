@@ -11,8 +11,9 @@ import { Badge } from '../../components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../../components/ui/select';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../components/ui/use-toast';
-import { Save, Phone, Mail, MapPin, Clock, Users, Plus, Trash2, UserPlus, Settings, Bell, Calendar, User } from 'lucide-react';
+import { Save, Phone, Mail, MapPin, Clock, Users, Plus, Trash2, UserPlus, Settings, Bell, Calendar, User, Database, AlertTriangle } from 'lucide-react';
 import BackToDashboardButton from '../../components/BackToDashboardButton';
+import { Checkbox } from '../../components/ui/checkbox';
 
 const VenueOwnerSettings = () => {
   const navigate = useNavigate();
@@ -36,8 +37,11 @@ const VenueOwnerSettings = () => {
     price_range: '',
     opening_hours: '',
     website_url: '',
-    vibe: ''
+    vibe: '',
+    music_genres: []
   });
+
+  const ALL_MUSIC_GENRES = ['Afrobeats', 'Hip Hop', 'R&B', 'House', 'Amapiano', 'Reggae', 'Pop', 'Jazz', 'Live Band', 'DJ Sets'];
 
   // Staff Management
   const [newStaff, setNewStaff] = useState({
@@ -64,13 +68,9 @@ const VenueOwnerSettings = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        console.log('❌ No authenticated user');
         return;
       }
 
-      console.log('🔍 VENUE OWNERSHIP DEBUG:');
-      console.log('👤 Current user:', { id: user.id, email: user.email });
-      console.log('🏢 Current venue:', venue ? { id: venue.id, owner_id: venue.owner_id, name: venue.name } : 'No venue');
 
       // Check venue ownership
       const { data: venueCheck, error: venueError } = await supabase
@@ -78,8 +78,6 @@ const VenueOwnerSettings = () => {
         .select('*')
         .eq('owner_id', user.id);
 
-      console.log('🏢 Venues owned by user:', venueCheck);
-      if (venueError) console.error('❌ Venue check error:', venueError);
 
       // Check venue_owners record
       const { data: venueOwnerCheck, error: ownerError } = await supabase
@@ -87,8 +85,6 @@ const VenueOwnerSettings = () => {
         .select('*')
         .eq('user_id', user.id);
 
-      console.log('👥 Venue owner records:', venueOwnerCheck);
-      if (ownerError) console.error('❌ Venue owner check error:', ownerError);
 
       // Test if we can update the venue
       if (venue) {
@@ -98,12 +94,9 @@ const VenueOwnerSettings = () => {
           .eq('id', venue.id)
           .eq('owner_id', user.id);
 
-        console.log('🧪 Update test result:', updateTest);
-        if (updateError) console.error('❌ Update test error:', updateError);
       }
 
     } catch (error) {
-      console.error('❌ Debug function error:', error);
     }
   };
 
@@ -170,7 +163,6 @@ const VenueOwnerSettings = () => {
     try {
       setLoading(true);
 
-      console.log('🔍 Fetching venue data for user:', userId);
 
       // Fetch venue
       const { data: venueData, error: venueError } = await supabase
@@ -185,7 +177,6 @@ const VenueOwnerSettings = () => {
         // Try to find venue by email instead (fallback)
         const { data: { user } } = await supabase.auth.getUser();
         if (user?.email) {
-          console.log('🔄 Trying to fetch venue by email:', user.email);
           const { data: venueByEmail, error: emailError } = await supabase
             .from('venues')
             .select('*')
@@ -193,7 +184,6 @@ const VenueOwnerSettings = () => {
             .single();
           
           if (venueByEmail && !emailError) {
-            console.log('✅ Found venue by email, updating owner_id...');
             // Update the venue's owner_id
             await supabase
               .from('venues')
@@ -201,7 +191,6 @@ const VenueOwnerSettings = () => {
               .eq('id', venueByEmail.id);
             
             setVenue({ ...venueByEmail, owner_id: userId });
-            console.log('✅ Venue owner_id fixed');
           } else {
             console.error('❌ No venue found by email either:', emailError);
             return;
@@ -211,7 +200,6 @@ const VenueOwnerSettings = () => {
         }
       } else {
         setVenue(venueData);
-        console.log('✅ Venue fetched successfully:', venueData.id);
       }
 
       setVenue(venueData);
@@ -230,8 +218,7 @@ const VenueOwnerSettings = () => {
         opening_hours: venueData.opening_hours || '',
         website_url: venueData.website_url || '',
         vibe: venueData.vibe || '',
-        // Note: capacity should be managed in venue tables, not here
-        // Note: ambiance and dress_code don't exist in venues table
+        music_genres: venueData.music_genres || venueData.musicGenres || []
       });
 
       // Fetch staff (simplified implementation)
@@ -264,9 +251,6 @@ const VenueOwnerSettings = () => {
     try {
       setSaving(true);
 
-      console.log('🔄 Attempting to update venue:', venue.id);
-      console.log('👤 Current user ID:', currentUser?.id);
-      console.log('🏢 Venue owner_id:', venue.owner_id);
 
       // Validate that we have proper authentication
       if (!currentUser?.id) {
@@ -296,13 +280,13 @@ const VenueOwnerSettings = () => {
         opening_hours: venueForm.opening_hours || null,
         website_url: venueForm.website_url || null,
         vibe: venueForm.vibe || null,
+        music_genres: venueForm.music_genres,
         updated_at: new Date().toISOString()
       };
 
       // Note: Removed ambiance and dress_code as they don't exist in venues table
       // Note: Removed capacity as it's not in the venues table (it's in venue_tables)
 
-      console.log('📝 Update data:', updateData);
 
       const { data, error } = await supabase
         .from('venues')
@@ -320,7 +304,6 @@ const VenueOwnerSettings = () => {
         throw new Error('No venue was updated. Please check that you own this venue.');
       }
 
-      console.log('✅ Venue updated successfully:', data[0]);
 
       toast({
         title: 'Success!',
@@ -465,30 +448,39 @@ const VenueOwnerSettings = () => {
       <h1 className="text-2xl sm:text-3xl font-heading text-brand-burgundy mb-4 sm:mb-6">Venue Settings</h1>
       
       <Tabs defaultValue="profile" className="space-y-4 sm:space-y-6">
-        <TabsList className="bg-white p-1 rounded-lg border border-brand-burgundy/10 mb-4 grid grid-cols-3 w-full">
+        {/* Updated TabsList with better sizing and spacing */}
+        <TabsList className="bg-white p-2 rounded-lg border border-brand-burgundy/10 mb-6 grid grid-cols-4 w-full max-w-4xl mx-auto">
           <TabsTrigger 
             value="profile" 
-            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm min-h-[60px] sm:min-h-[50px]"
+            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-2 p-3 sm:p-4 text-sm sm:text-base min-h-[70px] sm:min-h-[60px] transition-all duration-200 hover:bg-brand-gold/10"
           >
-            <Settings className="h-3 w-3 sm:h-4 sm:w-4" />
+            <Settings className="h-4 w-4 sm:h-5 sm:w-5" />
             <span className="hidden sm:inline">Venue Profile</span>
             <span className="sm:hidden">Profile</span>
           </TabsTrigger>
           <TabsTrigger 
             value="staff" 
-            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm min-h-[60px] sm:min-h-[50px]"
+            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-2 p-3 sm:p-4 text-sm sm:text-base min-h-[70px] sm:min-h-[60px] transition-all duration-200 hover:bg-brand-gold/10"
           >
-            <Users className="h-3 w-3 sm:h-4 sm:w-4" />
+            <Users className="h-4 w-4 sm:h-5 sm:w-5" />
             <span className="hidden sm:inline">Staff Management</span>
             <span className="sm:hidden">Staff</span>
           </TabsTrigger>
           <TabsTrigger 
             value="notifications" 
-            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 p-2 sm:p-3 text-xs sm:text-sm min-h-[60px] sm:min-h-[50px]"
+            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-2 p-3 sm:p-4 text-sm sm:text-base min-h-[70px] sm:min-h-[60px] transition-all duration-200 hover:bg-brand-gold/10"
           >
-            <Bell className="h-3 w-3 sm:h-4 sm:w-4" />
+            <Bell className="h-4 w-4 sm:h-5 sm:w-5" />
             <span className="hidden sm:inline">Notifications</span>
             <span className="sm:hidden">Alerts</span>
+          </TabsTrigger>
+          <TabsTrigger 
+            value="data" 
+            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-2 p-3 sm:p-4 text-sm sm:text-base min-h-[70px] sm:min-h-[60px] transition-all duration-200 hover:bg-brand-gold/10"
+          >
+            <Database className="h-4 w-4 sm:h-5 sm:w-5" />
+            <span className="hidden sm:inline">Delete Account</span>
+            <span className="sm:hidden">Delete</span>
           </TabsTrigger>
         </TabsList>
 
@@ -559,6 +551,31 @@ const VenueOwnerSettings = () => {
                           <SelectItem value="Relaxed">Relaxed</SelectItem>
                         </SelectContent>
                       </Select>
+                    </div>
+
+                    <div>
+                      <Label className="text-sm sm:text-base">Music Genres</Label>
+                      <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {ALL_MUSIC_GENRES.map(g => (
+                          <label key={g} className="flex items-center gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={venueForm.music_genres?.includes(g)}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                setVenueForm(v => ({
+                                  ...v,
+                                  music_genres: checked
+                                    ? Array.from(new Set([...(v.music_genres || []), g]))
+                                    : (v.music_genres || []).filter(x => x !== g)
+                                }));
+                              }}
+                            />
+                            <span>{g}</span>
+                          </label>
+                        ))}
+                      </div>
+                      <p className="text-xs text-brand-burgundy/60 mt-1">Select all that apply. These power customer music filters.</p>
                     </div>
                   </div>
 
@@ -649,10 +666,9 @@ const VenueOwnerSettings = () => {
                           <SelectValue placeholder="Select price range" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="budget">Budget</SelectItem>
-                          <SelectItem value="moderate">Moderate</SelectItem>
-                          <SelectItem value="premium">Premium</SelectItem>
-                          <SelectItem value="luxury">Luxury</SelectItem>
+                          <SelectItem value="$">$ (Budget)</SelectItem>
+                          <SelectItem value="$$">$$ (Moderate)</SelectItem>
+                          <SelectItem value="$$$">$$$ (Premium)</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -956,6 +972,95 @@ const VenueOwnerSettings = () => {
                     <span className="hidden sm:inline">Save Preferences</span>
                     <span className="sm:hidden">Save</span>
                   </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Delete Account Tab */}
+        <TabsContent value="data">
+          <Card className="bg-white border-brand-burgundy/10">
+            <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
+              <CardTitle className="flex items-center text-lg sm:text-xl">
+                <Database className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
+                Delete Account
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 sm:px-6 pb-6">
+              <div className="space-y-6">
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 sm:p-6">
+                  <div className="flex items-start space-x-3">
+                    <Trash2 className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-red-800 mb-2 text-base sm:text-lg">Delete All Your Data</h3>
+                      <p className="text-sm sm:text-base text-red-700 mb-4">
+                        You have the right to request deletion of all your personal data and venue information from our system. 
+                        This includes your profile, venue details, booking history, and all related data.
+                      </p>
+                      <div className="space-y-2 text-xs sm:text-sm text-red-600">
+                        <p><strong>This will delete:</strong></p>
+                        <ul className="list-disc list-inside space-y-1 ml-4">
+                          <li>Your venue profile and business information</li>
+                          <li>All venue tables and configurations</li>
+                          <li>Booking history and customer data</li>
+                          <li>Payment records and transaction history</li>
+                          <li>Staff member information</li>
+                          <li>All email and communication records</li>
+                        </ul>
+                      </div>
+                      <div className="mt-4">
+                        <Button 
+                          variant="outline" 
+                          className="border-red-300 text-red-700 hover:bg-red-100 w-full sm:w-auto"
+                          onClick={() => navigate('/delete-data')}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Request Data Deletion
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 sm:p-6">
+                  <div className="flex items-start space-x-3">
+                    <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-yellow-800 mb-2 text-base sm:text-lg">Important Notice</h3>
+                      <div className="text-sm sm:text-base text-yellow-700 space-y-2">
+                        <p>
+                          <strong>This action is permanent and cannot be undone.</strong> Once your data is deleted:
+                        </p>
+                        <ul className="list-disc list-inside space-y-1 ml-4">
+                          <li>You will be immediately signed out of your account</li>
+                          <li>All your venue information will be permanently removed</li>
+                          <li>You will need to create a new account if you wish to use our service again</li>
+                          <li>Any existing bookings at your venue will be affected</li>
+                        </ul>
+                        <p className="mt-3">
+                          <strong>Contact us first</strong> if you have any concerns or questions about data deletion. 
+                          We're here to help and can provide alternatives if needed.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 sm:p-6">
+                  <div className="flex items-start space-x-3">
+                    <Database className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-blue-800 mb-2 text-base sm:text-lg">Data Protection</h3>
+                      <p className="text-sm sm:text-base text-blue-700 mb-3">
+                        We take your privacy seriously and comply with data protection regulations. 
+                        Your data deletion request will be processed securely and completely.
+                      </p>
+                      <div className="text-xs sm:text-sm text-blue-600">
+                        <p><strong>Compliance:</strong> GDPR Article 17 (Right to Erasure), CCPA, and other applicable privacy laws</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </CardContent>

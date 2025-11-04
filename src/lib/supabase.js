@@ -13,10 +13,9 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 supabase.auth.getSession().then(
   ({ data, error }) => {
     if (error) {
-      console.error('Supabase connection error:', error.message)
-    } else {
-      console.log('Supabase connected successfully')
+      // Handle connection error silently in production
     }
+    // Connection successful - no logging needed in production
   }
 )
 

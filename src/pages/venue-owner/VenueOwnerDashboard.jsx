@@ -155,7 +155,6 @@ const VenueOwnerDashboard = () => {
       // If we get here, user is authenticated and is a venue owner
       fetchVenueData();
     } catch (error) {
-      console.error('Auth check error:', error);
       setError(error.message);
       toast({
         title: 'Error',
@@ -167,14 +166,12 @@ const VenueOwnerDashboard = () => {
 
   const fetchVenueData = async (silent = false) => {
     try {
-      console.log('Fetching venue data...');
       setLoading(true);
       setError(null);
 
       // Get current user
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError) {
-        console.error('User fetch error:', userError);
         throw userError;
       }
       setCurrentUser(user);
@@ -187,7 +184,6 @@ const VenueOwnerDashboard = () => {
         .single();
 
       if (venueError) {
-        console.error('Venue fetch error:', venueError);
         throw venueError;
       }
 
@@ -203,7 +199,6 @@ const VenueOwnerDashboard = () => {
         .eq('venue_id', venueData.id);
 
       if (bookingsError) {
-        console.error('Bookings fetch error:', bookingsError);
         throw bookingsError;
       }
 
@@ -460,10 +455,13 @@ const VenueOwnerDashboard = () => {
               <span className="hidden sm:inline">Receipt Management</span>
               <span className="sm:hidden">Receipts</span>
             </Button>
-            <Button className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90 w-full sm:w-auto text-sm sm:text-base py-2 sm:py-2">
+            <Button 
+              className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90 w-full sm:w-auto text-sm sm:text-base py-2 sm:py-2"
+              onClick={() => navigate('/venue-owner/qr-scanner')}
+            >
               <QrCode className="h-4 w-4 mr-2" />
-              <span className="hidden sm:inline">Generate QR Code</span>
-              <span className="sm:hidden">QR Code</span>
+              <span className="hidden sm:inline">QR Scanner</span>
+              <span className="sm:hidden">QR Scanner</span>
             </Button>
             <Button 
               variant="outline" 
