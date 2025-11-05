@@ -50,7 +50,6 @@ const VenueOwnerDashboard = () => {
   const subscriptionRef = useRef(null);
   const autoRefreshRef = useRef(null);
 
-  console.log('Dashboard currentUser (top-level):', currentUser);
 
   useEffect(() => {
     checkAuth();
@@ -59,7 +58,6 @@ const VenueOwnerDashboard = () => {
     // Set up auto-refresh every 60 seconds
     autoRefreshRef.current = setInterval(() => {
       if (currentUser && !loading) {
-        console.log('Auto-refreshing dashboard data...');
         fetchVenueData(true); // silent refresh
       }
     }, 60000);
@@ -80,7 +78,6 @@ const VenueOwnerDashboard = () => {
       if (sessionError) throw sessionError;
       
       if (!session) {
-        console.log('No session found, redirecting to login...');
         toast({
           title: 'Authentication Required',
           description: 'Please log in to access the dashboard',
@@ -129,7 +126,6 @@ const VenueOwnerDashboard = () => {
       }
 
       if (!venueOwner) {
-        console.log('User is not a venue owner, redirecting to register...');
         toast({
           title: 'Venue Owner Account Required',
           description: 'Please register as a venue owner to access the dashboard',
@@ -142,7 +138,6 @@ const VenueOwnerDashboard = () => {
       // Check if venue owner is active (allow both 'active' and 'approved' status)
       const validStatuses = ['active', 'approved'];
       if (!validStatuses.includes(venueOwner.status)) {
-        console.log('Venue owner account is not active, redirecting to register...');
         toast({
           title: 'Account Pending Approval',
           description: `Your venue owner account status is "${venueOwner.status}". Please wait for admin approval or contact support.`,
@@ -314,7 +309,6 @@ const VenueOwnerDashboard = () => {
 
   const cleanupSubscriptions = () => {
     if (subscriptionRef.current) {
-      console.log('Cleaning up dashboard real-time subscription...');
       subscriptionRef.current.unsubscribe();
       subscriptionRef.current = null;
     }
@@ -325,11 +319,9 @@ const VenueOwnerDashboard = () => {
     cleanupSubscriptions();
 
     if (!venueIds || venueIds.length === 0) {
-      console.log('No venue IDs provided for dashboard subscription');
       return;
     }
 
-    console.log('Setting up dashboard real-time subscription for venues:', venueIds);
 
     try {
       // Subscribe to bookings changes for this venue owner's venues
@@ -344,7 +336,6 @@ const VenueOwnerDashboard = () => {
             filter: `venue_id=in.(${venueIds.join(',')})` // Filter by venue IDs
           },
           (payload) => {
-            console.log('Real-time booking change detected in dashboard:', payload);
             
             // Refresh data after a short delay to allow DB changes to propagate
             setTimeout(() => {
@@ -355,10 +346,6 @@ const VenueOwnerDashboard = () => {
           }
         )
         .subscribe((status) => {
-          console.log('Dashboard subscription status:', status);
-          if (status === 'SUBSCRIBED') {
-            console.log('Successfully subscribed to dashboard real-time updates');
-          }
         });
     } catch (error) {
       console.error('Error setting up dashboard real-time subscription:', error);

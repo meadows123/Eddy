@@ -30,15 +30,6 @@ const Navigation = () => {
   const { signOut, user, loading } = useAuth();
   const isOwner = location.pathname.includes('/venue-owner');
 
-  // Debug logging
-  useEffect(() => {
-    console.log('🔍 Navigation Debug Info:');
-    console.log('📍 Current path:', location.pathname);
-    console.log('👤 User:', user);
-    console.log('🏢 Is Owner:', isOwner);
-    console.log('🖼️ Logo loaded:', logoLoaded);
-    console.log('⏳ Loading:', loading);
-  }, [location.pathname, user, isOwner, logoLoaded, loading]);
 
   const handleLogout = async () => {
     try {
@@ -80,7 +71,6 @@ const Navigation = () => {
               className="h-6 w-auto object-contain sm:h-8 md:h-10"
               style={{ maxWidth: '120px', minHeight: '24px' }}
               onError={(e) => {
-                console.log('❌ Navigation logo failed to load from:', e.target.src);
                 if (e.target.src.includes('Logo1-Trans-new.png')) {
                   e.target.src = '/logos/Logo1-Trans.png';
                 } else if (e.target.src.includes('Logo1-Trans.png')) {
@@ -90,8 +80,7 @@ const Navigation = () => {
                   e.target.nextSibling.style.display = 'inline';
                 }
               }}
-              onLoad={(e) => {
-                console.log('✅ Navigation logo loaded successfully from:', e.target.src);
+              onLoad={() => {
                 setLogoLoaded(true);
               }}
             />

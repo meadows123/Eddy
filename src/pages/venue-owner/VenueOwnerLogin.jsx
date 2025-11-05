@@ -193,7 +193,6 @@ const VenueOwnerLogin = () => {
       setLoading(true);
       setError(null);
       
-      console.log('🔄 Resending confirmation email to:', formData.email);
       
       const { error } = await supabase.auth.resend({
         type: 'signup',
@@ -212,10 +211,9 @@ const VenueOwnerLogin = () => {
       });
       
       setError(null);
-      console.log('✅ Confirmation email resent successfully');
       
     } catch (error) {
-      console.error('❌ Resend confirmation error:', error);
+      console.error('Resend confirmation error:', error);
       setError(error.message || 'Failed to resend confirmation email');
       
       toast({
@@ -269,7 +267,6 @@ const VenueOwnerLogin = () => {
       } catch (err) {
         // Catch any network errors or other issues
         venueOwnerError = err;
-        console.error('Error querying venue_owners:', err);
       }
 
       // Handle 406/403 errors (Not Acceptable/Forbidden) - usually RLS policy issues
@@ -293,10 +290,6 @@ const VenueOwnerLogin = () => {
                               venueOwnerError.code === '42501'; // Permission denied
         
         if (isPolicyError) {
-          console.warn('⚠️ RLS policy error when querying venue_owners (status:', venueOwnerError.status, ')');
-          console.warn('⚠️ User ID:', user.id);
-          console.warn('⚠️ Error:', venueOwnerError);
-          
           // Try querying by email as fallback (if user_id doesn't match or RLS blocks by user_id)
           const { data: venueOwnersByEmail, error: emailError } = await supabase
             .from('venue_owners')
@@ -307,11 +300,9 @@ const VenueOwnerLogin = () => {
           if (!emailError && venueOwnersByEmail && venueOwnersByEmail.length > 0) {
             // Use the first result if multiple found
             finalVenueOwner = venueOwnersByEmail[0];
-            console.log('✅ Found venue owner by email fallback');
             
             // If found by email but user_id doesn't match, update it
             if (finalVenueOwner.user_id !== user.id) {
-              console.warn('⚠️ user_id mismatch detected. Venue owner user_id:', finalVenueOwner.user_id, 'Auth user_id:', user.id);
               // Update the user_id if it's NULL or different
               if (finalVenueOwner.user_id === null || finalVenueOwner.user_id !== user.id) {
                 const { error: updateError } = await supabase
@@ -319,10 +310,7 @@ const VenueOwnerLogin = () => {
                   .update({ user_id: user.id })
                   .eq('id', finalVenueOwner.id);
                 
-                if (updateError) {
-                  console.error('❌ Failed to update user_id:', updateError);
-                } else {
-                  console.log('✅ Updated user_id to match auth user');
+                if (!updateError) {
                   finalVenueOwner.user_id = user.id;
                 }
               }
