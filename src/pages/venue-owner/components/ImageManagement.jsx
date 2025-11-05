@@ -278,6 +278,9 @@ const ImageManagement = ({ currentUser }) => {
 
       setImages(prev => [imageData, ...prev]);
       
+      // Refresh the images list to ensure the new image is displayed
+      await fetchVenueAndImages();
+      
       toast({
         title: 'Success',
         description: 'Image uploaded successfully!',
