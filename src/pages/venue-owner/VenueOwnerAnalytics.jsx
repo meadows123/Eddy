@@ -228,9 +228,8 @@ const VenueOwnerAnalytics = () => {
         await setupRealtimeSubscription(venueIds);
       }
 
-      // Fetch bookings for the last 12 months to calculate trends (expanded range)
-      const twelveMonthsAgo = subMonths(new Date(), 12);
-      
+      // Fetch ALL bookings (remove date restriction to show all data)
+      // We'll filter by date range in the calculateAnalytics function instead
       const { data: bookingsData, error: bookingsError } = await supabase
         .from('bookings')
         .select(`
@@ -251,20 +250,20 @@ const VenueOwnerAnalytics = () => {
           )
         `)
         .in('venue_id', venueIds)
-        .gte('created_at', twelveMonthsAgo.toISOString())
         .order('created_at', { ascending: false });
 
-      if (bookingsError) throw bookingsError;
+      if (bookingsError) {
+        console.error('Error fetching bookings:', bookingsError);
+        throw bookingsError;
+      }
+
+      console.log('📥 Fetched ALL bookings:', {
+        totalBookings: bookingsData?.length || 0,
+        venueIds,
+        sampleBooking: bookingsData?.[0]
+      });
 
       setBookings(bookingsData || []);
-      
-      // Debug logging
-      console.log('📥 Fetched bookings data:', {
-        totalBookings: bookingsData?.length || 0,
-        sampleBooking: bookingsData?.[0],
-        venueIds,
-        dateRange: `${twelveMonthsAgo.toISOString()} to ${new Date().toISOString()}`
-      });
 
       if (bookingsData && bookingsData.length > 0) {
         console.log('💰 Sample revenue data:', {

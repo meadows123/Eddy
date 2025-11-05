@@ -131,16 +131,56 @@ const VenueOwnerSettings = () => {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError) throw userError;
 
-      const { data: venueOwner, error: venueOwnerError } = await supabase
+      // Try to find venue owner by user_id first (without .single() to avoid 406 errors)
+      let venueOwner = null;
+      const { data: venueOwnersByUserId, error: errorByUserId } = await supabase
         .from('venue_owners')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .order('created_at', { ascending: false });
 
-      if (venueOwnerError || !venueOwner) {
+      if (venueOwnersByUserId && venueOwnersByUserId.length > 0 && !errorByUserId) {
+        venueOwner = venueOwnersByUserId[0]; // Use first result if multiple found
+      } else {
+        // Fallback: try by email
+        const { data: venueOwnersByEmail, error: errorByEmail } = await supabase
+          .from('venue_owners')
+          .select('*')
+          .eq('owner_email', user.email)
+          .order('created_at', { ascending: false });
+
+        if (venueOwnersByEmail && venueOwnersByEmail.length > 0) {
+          // Pick the best match (active/approved status, or most recent)
+          const activeRecord = venueOwnersByEmail.find(vo => vo.status === 'active' || vo.status === 'approved');
+          venueOwner = activeRecord || venueOwnersByEmail[0];
+
+          // If found by email but user_id doesn't match, update it
+          if (venueOwner.user_id !== user.id) {
+            await supabase
+              .from('venue_owners')
+              .update({ user_id: user.id })
+              .eq('id', venueOwner.id);
+            venueOwner.user_id = user.id;
+          }
+        }
+      }
+
+      if (!venueOwner) {
         toast({
           title: 'Venue Owner Account Required',
           description: 'Please register as a venue owner',
+          variant: 'destructive',
+        });
+        navigate('/venue-owner/register');
+        return;
+      }
+
+      // Check if venue owner is active (allow both 'active' and 'approved' status)
+      const validStatuses = ['active', 'approved'];
+      if (!validStatuses.includes(venueOwner.status)) {
+        toast({
+          title: 'Account Pending Approval',
+          description: `Your venue owner account status is "${venueOwner.status}". Please wait for admin approval or contact support.`,
           variant: 'destructive',
         });
         navigate('/venue-owner/register');
@@ -452,7 +492,7 @@ const VenueOwnerSettings = () => {
         <TabsList className="bg-white p-2 rounded-lg border border-brand-burgundy/10 mb-6 grid grid-cols-4 w-full max-w-4xl mx-auto">
           <TabsTrigger 
             value="profile" 
-            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-2 p-3 sm:p-4 text-sm sm:text-base min-h-[70px] sm:min-h-[60px] transition-all duration-200 hover:bg-brand-gold/10"
+            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy data-[state=active]:border-brand-gold flex flex-col sm:flex-row items-center justify-center gap-2 p-3 sm:p-4 text-sm sm:text-base min-h-[70px] sm:min-h-[60px] transition-all duration-200 hover:bg-brand-gold/10 border border-brand-burgundy/20 rounded-md bg-white"
           >
             <Settings className="h-4 w-4 sm:h-5 sm:w-5" />
             <span className="hidden sm:inline">Venue Profile</span>
@@ -460,7 +500,7 @@ const VenueOwnerSettings = () => {
           </TabsTrigger>
           <TabsTrigger 
             value="staff" 
-            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-2 p-3 sm:p-4 text-sm sm:text-base min-h-[70px] sm:min-h-[60px] transition-all duration-200 hover:bg-brand-gold/10"
+            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy data-[state=active]:border-brand-gold flex flex-col sm:flex-row items-center justify-center gap-2 p-3 sm:p-4 text-sm sm:text-base min-h-[70px] sm:min-h-[60px] transition-all duration-200 hover:bg-brand-gold/10 border border-brand-burgundy/20 rounded-md bg-white"
           >
             <Users className="h-4 w-4 sm:h-5 sm:w-5" />
             <span className="hidden sm:inline">Staff Management</span>
@@ -468,7 +508,7 @@ const VenueOwnerSettings = () => {
           </TabsTrigger>
           <TabsTrigger 
             value="notifications" 
-            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-2 p-3 sm:p-4 text-sm sm:text-base min-h-[70px] sm:min-h-[60px] transition-all duration-200 hover:bg-brand-gold/10"
+            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy data-[state=active]:border-brand-gold flex flex-col sm:flex-row items-center justify-center gap-2 p-3 sm:p-4 text-sm sm:text-base min-h-[70px] sm:min-h-[60px] transition-all duration-200 hover:bg-brand-gold/10 border border-brand-burgundy/20 rounded-md bg-white"
           >
             <Bell className="h-4 w-4 sm:h-5 sm:w-5" />
             <span className="hidden sm:inline">Notifications</span>
@@ -476,7 +516,7 @@ const VenueOwnerSettings = () => {
           </TabsTrigger>
           <TabsTrigger 
             value="data" 
-            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy flex flex-col sm:flex-row items-center justify-center gap-2 p-3 sm:p-4 text-sm sm:text-base min-h-[70px] sm:min-h-[60px] transition-all duration-200 hover:bg-brand-gold/10"
+            className="data-[state=active]:bg-brand-gold data-[state=active]:text-brand-burgundy data-[state=active]:border-brand-gold flex flex-col sm:flex-row items-center justify-center gap-2 p-3 sm:p-4 text-sm sm:text-base min-h-[70px] sm:min-h-[60px] transition-all duration-200 hover:bg-brand-gold/10 border border-brand-burgundy/20 rounded-md bg-white"
           >
             <Database className="h-4 w-4 sm:h-5 sm:w-5" />
             <span className="hidden sm:inline">Delete Account</span>

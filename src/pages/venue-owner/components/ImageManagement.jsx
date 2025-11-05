@@ -195,12 +195,15 @@ const ImageManagement = ({ currentUser }) => {
         .from('venue-images')
         .getPublicUrl(fileName);
 
+      // Verify the URL is accessible
+      const imageUrl = publicUrl;
+      
       // Save to database
       const { data: imageData, error: dbError } = await supabase
         .from('venue_images')
         .insert([{
           venue_id: venue.id,
-          image_url: publicUrl,
+          image_url: imageUrl,
           is_primary: images.length === 0
         }])
         .select()
@@ -481,24 +484,58 @@ const ImageManagement = ({ currentUser }) => {
       {/* Images Grid */}
       {images.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {images.map((image) => (
-            <Card key={image.id} className="overflow-hidden">
-              <div className="relative aspect-video">
-                <img
-                  src={image.image_url}
-                  alt="Venue"
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.target.style.display = 'none';
-                    e.target.nextSibling.style.display = 'flex';
-                  }}
-                />
-                <div className="absolute inset-0 bg-gray-200 flex items-center justify-center text-gray-500 hidden">
-                  <div className="text-center">
-                    <ImageIcon className="h-8 w-8 mx-auto mb-2" />
-                    <p className="text-sm">Image failed to load</p>
+          {images.map((image) => {
+            // Check if this is a Supabase Storage URL and needs transformation
+            let imageSrc = image.image_url;
+            if (imageSrc && imageSrc.includes('supabase.co/storage/v1/object/public/venue-images/')) {
+              // URL is already in correct format, but might need query params for cache busting
+              const url = new URL(imageSrc);
+              url.searchParams.set('t', Date.now().toString()); // Cache busting
+              imageSrc = url.toString();
+            }
+            
+            return (
+              <Card key={image.id} className="overflow-hidden">
+                <div className="relative aspect-video">
+                  <img
+                    src={imageSrc}
+                    alt="Venue"
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                    onError={async (e) => {
+                      // Try to get a signed URL if public URL fails
+                      try {
+                        // Extract file path from Supabase Storage URL
+                        // Format: https://[project].supabase.co/storage/v1/object/public/venue-images/[venue_id]/[filename]
+                        const urlMatch = image.image_url.match(/\/venue-images\/(.+)/);
+                        if (urlMatch && urlMatch[1]) {
+                          const filePath = urlMatch[1].split('?')[0]; // Remove query params
+                          
+                          const { data: signedUrlData, error: signedError } = await supabase.storage
+                            .from('venue-images')
+                            .createSignedUrl(filePath, 3600);
+                          
+                          if (!signedError && signedUrlData?.signedUrl) {
+                            e.target.src = signedUrlData.signedUrl;
+                            return;
+                          }
+                        }
+                      } catch (err) {
+                        console.error('Error getting signed URL:', err);
+                      }
+                      
+                      // If signed URL also fails, show error
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'flex';
+                    }}
+                  />
+                  <div className="absolute inset-0 bg-gray-200 flex items-center justify-center text-gray-500 hidden">
+                    <div className="text-center">
+                      <ImageIcon className="h-8 w-8 mx-auto mb-2" />
+                      <p className="text-sm">Image failed to load</p>
+                      <p className="text-xs text-gray-400 mt-1">URL: {image.image_url?.substring(0, 50)}...</p>
+                    </div>
                   </div>
-                </div>
                 {image.is_primary && (
                   <div className="absolute top-2 left-2">
                     <span className="bg-brand-gold text-brand-burgundy px-2 py-1 rounded text-xs font-semibold">
@@ -551,7 +588,8 @@ const ImageManagement = ({ currentUser }) => {
                 </div>
               </div>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
 

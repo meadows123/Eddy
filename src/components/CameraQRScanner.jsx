@@ -688,33 +688,33 @@ const CameraQRScanner = ({ onMemberScanned }) => {
 
   return (
       <div className="venue-qr-scanner">
-      <div className="scanner-header p-6 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 text-white">
+      <div className="scanner-header p-6 bg-gradient-to-br from-brand-burgundy via-brand-burgundy/90 to-brand-burgundy/80 text-white">
         <div className="text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-white/20 backdrop-blur-sm rounded-full mb-4 shadow-lg">
-            <QrCode className="h-8 w-8 text-white" />
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-brand-gold/30 backdrop-blur-sm rounded-full mb-4 shadow-lg border border-brand-gold/40">
+            <QrCode className="h-8 w-8 text-brand-gold" />
           </div>
-          <h2 className="text-2xl font-bold mb-2">Venue Entry Scanner</h2>
-          <p className="text-white/90 text-sm">Scan customer QR codes to verify bookings and check them in</p>
+          <h2 className="text-2xl font-bold mb-2 text-white">Venue Entry Scanner</h2>
+          <p className="text-white/95 text-sm">Scan customer QR codes to verify bookings and check them in</p>
         </div>
         
-        <div className="mt-6 p-4 bg-white/10 backdrop-blur-sm border border-white/30 rounded-xl shadow-lg">
+        <div className="mt-6 p-4 bg-brand-gold/20 backdrop-blur-sm border border-brand-gold/40 rounded-xl shadow-lg">
           <h4 className="font-semibold text-white mb-3 flex items-center">
-            <div className="w-6 h-6 bg-cyan-400 rounded-full flex items-center justify-center mr-2 shadow-md">
-              <span className="text-indigo-700 text-xs font-bold">1</span>
+            <div className="w-6 h-6 bg-brand-gold rounded-full flex items-center justify-center mr-2 shadow-md">
+              <span className="text-brand-burgundy text-xs font-bold">1</span>
             </div>
             How to use:
           </h4>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm text-white/90">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm text-white">
             <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-cyan-300 rounded-full shadow-sm"></div>
+              <div className="w-2 h-2 bg-brand-gold rounded-full shadow-sm"></div>
               <span>Click "Start Camera" below</span>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-cyan-300 rounded-full shadow-sm"></div>
+              <div className="w-2 h-2 bg-brand-gold rounded-full shadow-sm"></div>
               <span>Point camera at QR code</span>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-cyan-300 rounded-full shadow-sm"></div>
+              <div className="w-2 h-2 bg-brand-gold rounded-full shadow-sm"></div>
               <span>Verification happens automatically</span>
             </div>
           </div>
@@ -722,20 +722,20 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       </div>
 
       {!scannerActive ? (
-        <div className="scanner-start p-8 bg-gradient-to-b from-white to-gray-50">
+        <div className="scanner-start p-8 bg-gradient-to-b from-brand-cream/50 to-white">
           <div className="text-center">
             <div className="mb-6">
-              <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500 rounded-full mb-4 shadow-2xl">
+              <div className="inline-flex items-center justify-center w-24 h-24 bg-brand-burgundy rounded-full mb-4 shadow-2xl border-4 border-brand-burgundy/50">
                 <QrCode className="h-12 w-12 text-white" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-800 mb-2">Ready to Scan</h3>
-              <p className="text-gray-600 text-sm">Tap the button below to activate your camera</p>
+              <h3 className="text-xl font-semibold text-brand-burgundy mb-2">Ready to Scan</h3>
+              <p className="text-brand-burgundy/80 text-sm">Tap the button below to activate your camera</p>
             </div>
             <button 
               onClick={startScanning}
-              className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 text-white px-8 py-4 rounded-xl text-lg font-semibold shadow-xl transition-all transform hover:scale-105 active:scale-95 flex items-center mx-auto space-x-2"
+              className="bg-brand-burgundy hover:bg-brand-burgundy/90 text-white px-8 py-4 rounded-xl text-lg font-semibold shadow-xl transition-all transform hover:scale-105 active:scale-95 flex items-center mx-auto space-x-2 border-2 border-brand-burgundy/50"
             >
-              <QrCode className="h-5 w-5" />
+              <QrCode className="h-5 w-5 text-white" />
               <span>Start Camera</span>
             </button>
           </div>
@@ -764,7 +764,7 @@ const CameraQRScanner = ({ onMemberScanned }) => {
             />
               <div className="scan-overlay">
               <div className="scan-frame"></div>
-              <div className="scan-instructions bg-black/80 backdrop-blur-sm border border-cyan-400/50 rounded-lg px-4 py-2 shadow-lg">
+              <div className="scan-instructions bg-brand-burgundy/90 backdrop-blur-sm border border-brand-gold/60 rounded-lg px-4 py-2 shadow-lg">
                 <p className="text-white font-medium text-sm">
                   Point camera at QR code
                 </p>
@@ -775,9 +775,9 @@ const CameraQRScanner = ({ onMemberScanned }) => {
           {/* Processing indicator */}
           {isProcessing && (
             <div className="processing-indicator mb-4">
-              <div className="flex items-center justify-center p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-300 rounded-xl shadow-md">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-3"></div>
-                <span className="text-blue-700 font-medium">Processing scan...</span>
+              <div className="flex items-center justify-center p-4 bg-gradient-to-r from-brand-cream/80 to-brand-gold/20 border border-brand-gold/40 rounded-xl shadow-md">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-burgundy mr-3"></div>
+                <span className="text-brand-burgundy font-medium">Processing scan...</span>
               </div>
             </div>
           )}
@@ -836,42 +836,42 @@ const CameraQRScanner = ({ onMemberScanned }) => {
 
       {/* Scan Result */}
       {scanResult && (
-        <div className="scan-result mt-6 p-6 bg-gradient-to-br from-white to-blue-50/30 border border-blue-200 rounded-2xl shadow-xl">
+        <div className="scan-result mt-6 p-6 bg-gradient-to-br from-white to-brand-cream/40 border border-brand-gold/30 rounded-2xl shadow-xl">
           {scanResult.type === 'eddys_member' ? (
             <>
               <div className="flex items-center mb-4">
-                <div className="w-10 h-10 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 rounded-full flex items-center justify-center mr-3 shadow-lg">
+                <div className="w-10 h-10 bg-gradient-to-r from-brand-burgundy to-brand-gold rounded-full flex items-center justify-center mr-3 shadow-lg border-2 border-brand-gold/40">
                   <span className="text-white font-bold">👑</span>
                 </div>
-                <h4 className="text-xl font-bold text-gray-800">Eddys Member Verified</h4>
+                <h4 className="text-xl font-bold text-brand-burgundy">Eddys Member Verified</h4>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="member-info bg-white/80 rounded-xl p-4 border border-blue-200 shadow-sm">
-                  <h5 className="font-semibold text-gray-800 mb-3 flex items-center">
-                    <span className="w-6 h-6 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full flex items-center justify-center mr-2 shadow-sm">
+                <div className="member-info bg-white/90 rounded-xl p-4 border border-brand-gold/30 shadow-sm">
+                  <h5 className="font-semibold text-brand-burgundy mb-3 flex items-center">
+                    <span className="w-6 h-6 bg-gradient-to-r from-brand-burgundy to-brand-gold rounded-full flex items-center justify-center mr-2 shadow-sm">
                       <span className="text-white text-xs">👑</span>
                     </span>
                     Member Information
                   </h5>
                   <div className="space-y-2 text-sm">
-                    <p><span className="font-medium text-gray-700">Name:</span> {scanResult.customerName}</p>
-                    <p><span className="font-medium text-gray-700">Email:</span> {scanResult.customerEmail}</p>
-                    <p><span className="font-medium text-gray-700">Member Tier:</span> {scanResult.memberTier}</p>
-                    <p><span className="font-medium text-gray-700">Member Since:</span> {new Date(scanResult.memberSince).toLocaleDateString()}</p>
+                    <p><span className="font-medium text-brand-burgundy">Name:</span> <span className="text-gray-700">{scanResult.customerName}</span></p>
+                    <p><span className="font-medium text-brand-burgundy">Email:</span> <span className="text-gray-700">{scanResult.customerEmail}</span></p>
+                    <p><span className="font-medium text-brand-burgundy">Member Tier:</span> <span className="text-gray-700">{scanResult.memberTier}</span></p>
+                    <p><span className="font-medium text-brand-burgundy">Member Since:</span> <span className="text-gray-700">{new Date(scanResult.memberSince).toLocaleDateString()}</span></p>
                   </div>
                 </div>
                 
-                <div className="venue-info bg-white/80 rounded-xl p-4 border border-purple-200 shadow-sm">
-                  <h5 className="font-semibold text-gray-800 mb-3 flex items-center">
-                    <span className="w-6 h-6 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full flex items-center justify-center mr-2 shadow-sm">
+                <div className="venue-info bg-white/90 rounded-xl p-4 border border-brand-gold/30 shadow-sm">
+                  <h5 className="font-semibold text-brand-burgundy mb-3 flex items-center">
+                    <span className="w-6 h-6 bg-gradient-to-r from-brand-gold to-brand-burgundy rounded-full flex items-center justify-center mr-2 shadow-sm">
                       <span className="text-white text-xs">🏢</span>
                     </span>
                     Venue Information
                   </h5>
                   <div className="space-y-2 text-sm">
-                    <p><span className="font-medium text-gray-700">Venue:</span> {scanResult.venueName}</p>
-                    <p><span className="font-medium text-gray-700">Available Credits:</span> ₦{scanResult.creditBalance?.toLocaleString()}</p>
-                    <p><span className="font-medium text-gray-700">Scanned at:</span> {scanResult.scanTime}</p>
+                    <p><span className="font-medium text-brand-burgundy">Venue:</span> <span className="text-gray-700">{scanResult.venueName}</span></p>
+                    <p><span className="font-medium text-brand-burgundy">Available Credits:</span> <span className="text-gray-700">₦{scanResult.creditBalance?.toLocaleString()}</span></p>
+                    <p><span className="font-medium text-brand-burgundy">Scanned at:</span> <span className="text-gray-700">{scanResult.scanTime}</span></p>
                   </div>
                 </div>
               </div>
@@ -879,49 +879,49 @@ const CameraQRScanner = ({ onMemberScanned }) => {
           ) : (
             <>
               <div className="flex items-center mb-4">
-                <div className="w-10 h-10 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full flex items-center justify-center mr-3 shadow-lg">
+                <div className="w-10 h-10 bg-gradient-to-r from-brand-gold to-brand-burgundy rounded-full flex items-center justify-center mr-3 shadow-lg border-2 border-brand-gold/40">
                   <span className="text-white font-bold">✓</span>
                 </div>
-                <h4 className="text-xl font-bold text-gray-800">Booking Verified</h4>
+                <h4 className="text-xl font-bold text-brand-burgundy">Booking Verified</h4>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="booking-info bg-white/80 rounded-xl p-4 border border-teal-200 shadow-sm">
-                  <h5 className="font-semibold text-gray-800 mb-3 flex items-center">
-                    <span className="w-6 h-6 bg-gradient-to-r from-emerald-500 to-teal-500 rounded-full flex items-center justify-center mr-2 shadow-sm">
+                <div className="booking-info bg-white/90 rounded-xl p-4 border border-brand-gold/30 shadow-sm">
+                  <h5 className="font-semibold text-brand-burgundy mb-3 flex items-center">
+                    <span className="w-6 h-6 bg-gradient-to-r from-brand-burgundy to-brand-gold rounded-full flex items-center justify-center mr-2 shadow-sm">
                       <span className="text-white text-xs">📋</span>
                     </span>
                     Booking Details
                   </h5>
                   <div className="space-y-2 text-sm">
-                    <p><span className="font-medium text-gray-700">Booking ID:</span> {scanResult.bookingId}</p>
-                    <p><span className="font-medium text-gray-700">Date:</span> {scanResult.bookingDate}</p>
-                    <p><span className="font-medium text-gray-700">Time:</span> {scanResult.startTime}</p>
-                    <p><span className="font-medium text-gray-700">Guests:</span> {scanResult.guestCount}</p>
+                    <p><span className="font-medium text-brand-burgundy">Booking ID:</span> <span className="text-gray-700">{scanResult.bookingId}</span></p>
+                    <p><span className="font-medium text-brand-burgundy">Date:</span> <span className="text-gray-700">{scanResult.bookingDate}</span></p>
+                    <p><span className="font-medium text-brand-burgundy">Time:</span> <span className="text-gray-700">{scanResult.startTime}</span></p>
+                    <p><span className="font-medium text-brand-burgundy">Guests:</span> <span className="text-gray-700">{scanResult.guestCount}</span></p>
                   </div>
                 </div>
                 
-                <div className="venue-info bg-white/80 rounded-xl p-4 border border-indigo-200 shadow-sm">
-                  <h5 className="font-semibold text-gray-800 mb-3 flex items-center">
-                    <span className="w-6 h-6 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full flex items-center justify-center mr-2 shadow-sm">
+                <div className="venue-info bg-white/90 rounded-xl p-4 border border-brand-gold/30 shadow-sm">
+                  <h5 className="font-semibold text-brand-burgundy mb-3 flex items-center">
+                    <span className="w-6 h-6 bg-gradient-to-r from-brand-gold to-brand-burgundy rounded-full flex items-center justify-center mr-2 shadow-sm">
                       <span className="text-white text-xs">🏢</span>
                     </span>
                     Venue Details
                   </h5>
                   <div className="space-y-2 text-sm">
-                    <p><span className="font-medium text-gray-700">Venue:</span> {scanResult.venueName}</p>
-                    <p><span className="font-medium text-gray-700">Table Type:</span> {scanResult.tableType}</p>
-                    <p><span className="font-medium text-gray-700">Table Number:</span> {scanResult.tableNumber}</p>
-                    <p><span className="font-medium text-gray-700">Scanned:</span> {scanResult.scanTime}</p>
+                    <p><span className="font-medium text-brand-burgundy">Venue:</span> <span className="text-gray-700">{scanResult.venueName}</span></p>
+                    <p><span className="font-medium text-brand-burgundy">Table Type:</span> <span className="text-gray-700">{scanResult.tableType}</span></p>
+                    <p><span className="font-medium text-brand-burgundy">Table Number:</span> <span className="text-gray-700">{scanResult.tableNumber}</span></p>
+                    <p><span className="font-medium text-brand-burgundy">Scanned:</span> <span className="text-gray-700">{scanResult.scanTime}</span></p>
                   </div>
                 </div>
               </div>
             </>
           )}
           
-          <div className="mt-6 pt-4 border-t border-gray-200 text-center">
+          <div className="mt-6 pt-4 border-t border-brand-gold/20 text-center">
             <button 
               onClick={clearResults}
-              className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 text-white px-6 py-2 rounded-xl font-semibold shadow-lg transition-all transform hover:scale-105 active:scale-95"
+              className="bg-gradient-to-r from-brand-burgundy to-brand-gold hover:from-brand-burgundy/90 hover:to-brand-gold/90 text-white px-6 py-2 rounded-xl font-semibold shadow-lg transition-all transform hover:scale-105 active:scale-95"
             >
               Clear Results
             </button>
@@ -966,11 +966,11 @@ const CameraQRScanner = ({ onMemberScanned }) => {
         .scan-frame {
           width: 280px;
           height: 280px;
-          border: 3px solid #06b6d4;
+          border: 3px solid #FFD700;
           border-radius: 20px;
           background: transparent;
           position: relative;
-          box-shadow: 0 0 0 4px rgba(6, 182, 212, 0.3);
+          box-shadow: 0 0 0 4px rgba(255, 215, 0, 0.4);
           animation: pulse 2s infinite;
         }
         
@@ -981,7 +981,7 @@ const CameraQRScanner = ({ onMemberScanned }) => {
           left: 0;
           right: 0;
           height: 3px;
-          background: linear-gradient(90deg, #06b6d4, #6366f1, #8b5cf6);
+          background: linear-gradient(90deg, #FFD700, #800020, #FFD700);
           animation: scan 2s infinite;
           border-radius: 20px;
         }
@@ -993,7 +993,7 @@ const CameraQRScanner = ({ onMemberScanned }) => {
           left: -10px;
           right: -10px;
           bottom: -10px;
-          border: 2px solid rgba(6, 182, 212, 0.5);
+          border: 2px solid rgba(255, 215, 0, 0.5);
           border-radius: 30px;
           animation: expand 3s infinite;
         }
@@ -1004,16 +1004,16 @@ const CameraQRScanner = ({ onMemberScanned }) => {
         
         @keyframes pulse {
           0% { 
-            border-color: #06b6d4; 
-            box-shadow: 0 0 0 4px rgba(6, 182, 212, 0.3);
+            border-color: #FFD700; 
+            box-shadow: 0 0 0 4px rgba(255, 215, 0, 0.4);
           }
           50% { 
-            border-color: #6366f1; 
-            box-shadow: 0 0 0 8px rgba(99, 102, 241, 0.3);
+            border-color: #800020; 
+            box-shadow: 0 0 0 8px rgba(128, 0, 32, 0.4);
           }
           100% { 
-            border-color: #06b6d4; 
-            box-shadow: 0 0 0 4px rgba(6, 182, 212, 0.3);
+            border-color: #FFD700; 
+            box-shadow: 0 0 0 4px rgba(255, 215, 0, 0.4);
           }
         }
         
