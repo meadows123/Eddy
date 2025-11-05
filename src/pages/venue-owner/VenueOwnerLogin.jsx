@@ -251,23 +251,44 @@ const VenueOwnerLogin = () => {
 
       // Try querying without .single() first to avoid 406 errors with RLS
       // If we get one result, we'll use it; if multiple, we'll pick the first
-      const { data: venueOwners, error: venueOwnerError } = await supabase
-        .from('venue_owners')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+      let finalVenueOwner = null;
+      let venueOwnerError = null;
       
-      // Get the first result if multiple found, or null if none
-      const venueOwner = venueOwners && venueOwners.length > 0 ? venueOwners[0] : null;
+      try {
+        const { data: venueOwners, error: error } = await supabase
+          .from('venue_owners')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+        
+        if (error) {
+          venueOwnerError = error;
+        } else if (venueOwners && venueOwners.length > 0) {
+          finalVenueOwner = venueOwners[0];
+        }
+      } catch (err) {
+        // Catch any network errors or other issues
+        venueOwnerError = err;
+        console.error('Error querying venue_owners:', err);
+      }
 
       // Handle 406/403 errors (Not Acceptable/Forbidden) - usually RLS policy issues
-      let finalVenueOwner = venueOwner;
       if (venueOwnerError) {
-        // Check if it's a 406 or 403 error
-        const isPolicyError = venueOwnerError.message?.includes('406') || 
-                              venueOwnerError.message?.includes('403') ||
-                              venueOwnerError.status === 406 || 
-                              venueOwnerError.status === 403 ||
+        // Check if it's a 406 or 403 error - check status code, message, and any nested properties
+        const errorStatus = venueOwnerError.status || venueOwnerError.statusCode || venueOwnerError.code || '';
+        const errorMessage = venueOwnerError.message || String(venueOwnerError) || '';
+        const errorString = JSON.stringify(venueOwnerError);
+        
+        const isPolicyError = errorMessage.includes('406') || 
+                              errorMessage.includes('403') ||
+                              errorMessage.includes('Not Acceptable') ||
+                              errorMessage.includes('Forbidden') ||
+                              errorString.includes('406') ||
+                              errorString.includes('403') ||
+                              errorStatus === 406 || 
+                              errorStatus === 403 ||
+                              errorStatus === '406' ||
+                              errorStatus === '403' ||
                               venueOwnerError.code === 'PGRST116' ||
                               venueOwnerError.code === '42501'; // Permission denied
         
