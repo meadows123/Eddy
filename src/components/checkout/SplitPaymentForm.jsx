@@ -327,7 +327,7 @@ const SplitPaymentForm = ({
 
 
           const mainBookerEmailData = {
-            template: 'split-payment-initiator',
+            template: 'split-payment-initiation',
             to: mainBookerProfile.email,
             subject: 'Split Payment Initiated',
             data: {
@@ -340,7 +340,9 @@ const SplitPaymentForm = ({
               endTime: formattedEndTime,
               bookingTime: `${formattedStartTime} - ${formattedEndTime}`,
               totalAmount: totalAmount,
+              initiatorAmount: myAmount,
               splitAmount: myAmount,
+              requestsCount: splitCount,
               numberOfSplits: splitCount,
               dashboardUrl: `${window.location.origin}/profile`
             }

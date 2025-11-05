@@ -18,7 +18,6 @@ const ImageManagement = ({ currentUser }) => {
   const [addingUrl, setAddingUrl] = useState(false);
 
   useEffect(() => {
-    console.log('ImageManagement currentUser:', currentUser);
     if (currentUser && currentUser.id) {
       fetchVenueAndImages();
     } else if (currentUser === null) {
@@ -33,8 +32,6 @@ const ImageManagement = ({ currentUser }) => {
   const fetchVenueAndImages = async () => {
     try {
       setLoading(true);
-      
-      console.log('Fetching venue for user:', currentUser?.id);
       
       const { data: venueData, error: venueError } = await supabase
         .from('venues')
@@ -60,7 +57,6 @@ const ImageManagement = ({ currentUser }) => {
         return;
       }
 
-      console.log('Venue data:', venueData);
       setVenue(venueData);
 
       const { data: imagesData, error: imagesError } = await supabase
@@ -80,39 +76,6 @@ const ImageManagement = ({ currentUser }) => {
         return;
       }
 
-      console.log('Images data:', imagesData);
-      
-      // Test if the first image URL is accessible
-      if (imagesData && imagesData.length > 0) {
-        const testUrl = imagesData[0].image_url;
-        console.log('🔍 Testing first image URL:', testUrl);
-        
-        // Test the URL with CORS to check actual status and content-type
-        fetch(testUrl, { method: 'GET', mode: 'cors' })
-          .then(async (response) => {
-            console.log('📊 Response status:', response.status);
-            console.log('📊 Content-Type:', response.headers.get('content-type'));
-            console.log('📊 Response headers:', Object.fromEntries(response.headers.entries()));
-            
-            if (response.ok) {
-              const contentType = response.headers.get('content-type');
-              if (contentType && contentType.startsWith('image/')) {
-                console.log('✅ URL is accessible and returns an image');
-              } else {
-                console.error('❌ URL returns non-image content-type:', contentType);
-                // Try to read the response to see what it actually is
-                const text = await response.text();
-                console.error('❌ Response body (first 200 chars):', text.substring(0, 200));
-              }
-            } else {
-              console.error('❌ URL returned status:', response.status);
-            }
-          })
-          .catch((err) => {
-            console.error('❌ URL test failed:', err);
-          });
-      }
-      
       setImages(imagesData || []);
     } catch (error) {
       console.error('Error in fetchVenueAndImages:', error);
@@ -231,9 +194,6 @@ const ImageManagement = ({ currentUser }) => {
       const encodedPath = encodeURIComponent(fileName);
       const uploadUrl = `${supabaseUrl}/storage/v1/object/venue-images/${encodedPath}`;
       
-      console.log('📤 Uploading to:', uploadUrl);
-      console.log('📊 File type:', file.type, 'Size:', file.size, 'bytes');
-      
       const uploadResponse = await fetch(uploadUrl, {
         method: 'POST',
         headers: {
@@ -245,18 +205,13 @@ const ImageManagement = ({ currentUser }) => {
         body: arrayBuffer
       });
 
-      console.log('📥 Upload response status:', uploadResponse.status);
-      console.log('📥 Upload response headers:', Object.fromEntries(uploadResponse.headers.entries()));
-
       if (!uploadResponse.ok) {
         const errorText = await uploadResponse.text();
-        console.error('❌ Upload error:', errorText);
         throw new Error(`Upload failed: ${uploadResponse.status} - ${errorText}`);
       }
 
       // The upload response should contain the path
-      const uploadResult = await uploadResponse.json();
-      console.log('✅ Upload successful:', uploadResult);
+      await uploadResponse.json();
       
       // Get public URL using Supabase client
       const { data: { publicUrl } } = supabase.storage
@@ -289,12 +244,6 @@ const ImageManagement = ({ currentUser }) => {
 
     } catch (error) {
       console.error('Error uploading image:', error);
-      console.error('Full error details:', {
-        message: error.message,
-        name: error.name,
-        stack: error.stack,
-        details: error
-      });
       
       let errorMessage = 'Failed to upload image. Please try again.';
       
@@ -565,12 +514,10 @@ const ImageManagement = ({ currentUser }) => {
                       alt="Venue"
                       className="w-full h-full object-cover"
                       onLoad={() => {
-                        console.log('✅ Image loaded successfully:', image.image_url);
                         setHasLoaded(true);
                         setHasError(false);
                       }}
-                      onError={(e) => {
-                        console.error('❌ Image failed to load:', image.image_url);
+                      onError={() => {
                         setHasError(true);
                         setHasLoaded(false);
                       }}
