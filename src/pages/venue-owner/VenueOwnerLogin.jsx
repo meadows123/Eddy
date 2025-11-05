@@ -41,19 +41,33 @@ const VenueOwnerLogin = () => {
         throw new Error('No user data returned from authentication');
       }
 
-      // Check if user is a venue owner
-      const { data: venueOwner, error: venueOwnerError } = await supabase
+      // Check if user is a venue owner (without .single() to avoid 406 errors)
+      const { data: venueOwners, error: venueOwnerError } = await supabase
         .from('venue_owners')
         .select('*')
         .eq('user_id', data.user.id)
-        .single();
+        .order('created_at', { ascending: false });
 
+      let venueOwner = null;
+      
       if (venueOwnerError) {
-        throw new Error(`Venue owner profile not found. Please ensure your account has been approved. Error: ${venueOwnerError.message}`);
-      }
-
-      if (!venueOwner) {
-        throw new Error(`No venue owner profile found for this user. Please contact support or ensure you have completed registration.`);
+        // If error, try email fallback
+        const { data: venueOwnersByEmail, error: emailError } = await supabase
+          .from('venue_owners')
+          .select('*')
+          .eq('owner_email', data.user.email)
+          .order('created_at', { ascending: false });
+        
+        if (!emailError && venueOwnersByEmail && venueOwnersByEmail.length > 0) {
+          venueOwner = venueOwnersByEmail[0];
+        } else {
+          throw new Error(`Venue owner profile not found. Please ensure your account has been approved. Error: ${venueOwnerError.message}`);
+        }
+      } else {
+        venueOwner = venueOwners && venueOwners.length > 0 ? venueOwners[0] : null;
+        if (!venueOwner) {
+          throw new Error(`No venue owner profile found for this user. Please contact support or ensure you have completed registration.`);
+        }
       }
 
       // Check if venue owner is active (allow both 'active' and 'approved' status)

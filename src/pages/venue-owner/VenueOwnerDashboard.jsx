@@ -94,16 +94,16 @@ const VenueOwnerDashboard = () => {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError) throw userError;
 
-      // Try to find venue owner by user_id first
+      // Try to find venue owner by user_id first (without .single() to avoid 406 errors)
       let venueOwner = null;
-      const { data: venueOwnerByUserId, error: errorByUserId } = await supabase
+      const { data: venueOwnersByUserId, error: errorByUserId } = await supabase
         .from('venue_owners')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .order('created_at', { ascending: false });
 
-      if (venueOwnerByUserId && !errorByUserId) {
-        venueOwner = venueOwnerByUserId;
+      if (venueOwnersByUserId && venueOwnersByUserId.length > 0 && !errorByUserId) {
+        venueOwner = venueOwnersByUserId[0]; // Use first result if multiple found
       } else {
         // Fallback: try by email
         const { data: venueOwnersByEmail, error: errorByEmail } = await supabase
