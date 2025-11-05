@@ -398,7 +398,7 @@ const SplitPaymentForm = ({
 
 
             const recipientEmailData = {
-              template: 'split-payment-initiation',
+              template: 'split-payment-request',
               to: recipientProfile.email,
               subject: 'Split Payment Request',
               data: {
@@ -412,8 +412,10 @@ const SplitPaymentForm = ({
                 endTime: formattedEndTime,
                 bookingTime: `${formattedStartTime} - ${formattedEndTime}`,
                 totalAmount: totalAmount,
+                amount: splitAmounts[splitRecipients.indexOf(recipient)],
                 splitAmount: splitAmounts[splitRecipients.indexOf(recipient)],
                 numberOfSplits: splitCount,
+                paymentUrl: `${window.location.origin}/split-payment/${bookingData.id}/${splitRecipients.indexOf(recipient)}`,
                 paymentLink: `${window.location.origin}/split-payment/${bookingData.id}/${splitRecipients.indexOf(recipient)}`,
                 dashboardUrl: `${window.location.origin}/profile`
               }
