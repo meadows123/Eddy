@@ -26,6 +26,7 @@ import BookingsPage from './pages/BookingsPage';
 import SettingsPage from './pages/SettingsPage';
 import ExplorePage from './pages/ExplorePage';
 import VenueCreditPurchase from './pages/VenueCreditPurchase';
+import CreditPurchaseCheckout from './pages/CreditPurchaseCheckout';
 // import SupabaseTest from './components/SupabaseTest';
 // import AuthTestPage from './pages/AuthTestPage';
 // import EmailTest from './components/EmailTest';
@@ -72,6 +73,7 @@ const App = () => {
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/reset-password" element={<VenueOwnerResetPassword />} />
             <Route path="/venue-credit-purchase" element={<VenueCreditPurchase />} />
+            <Route path="/credit-purchase-checkout" element={<CreditPurchaseCheckout />} />
 
             {/* Information Pages */}
             <Route path="/about" element={<AboutPage />} />

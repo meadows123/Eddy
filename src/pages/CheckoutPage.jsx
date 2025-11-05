@@ -407,6 +407,12 @@ useEffect(() => {
     // Get booking data from navigation state
     const incomingData = location.state;
     
+    // Check if this is a credit purchase flow
+    if (incomingData.creditPurchase) {
+      // Credit purchase flow - redirect to credit purchase checkout
+      navigate('/credit-purchase-checkout', { state: incomingData });
+      return;
+    }
     
     if (incomingData.venue && incomingData.date && incomingData.time) {
       // Regular booking flow

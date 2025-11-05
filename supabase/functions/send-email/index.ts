@@ -42,12 +42,22 @@ serve(async (req) => {
 
     let { to, subject, template, data } = body
 
+    // Validate required fields
+    if (!to || !subject || !template) {
+      throw new Error(`Missing required fields. Required: to, subject, template. Received: ${JSON.stringify({ to: !!to, subject: !!subject, template: !!template })}`);
+    }
+
     // Validate SendGrid API configuration
     const sendgridApiKey = Deno.env.get('SMTP_PASSWORD') || Deno.env.get('SENDGRID_API_KEY') || '';
     const smtpFrom = Deno.env.get('SMTP_FROM') || '';
 
     if (!sendgridApiKey || !smtpFrom) {
       throw new Error(`SendGrid configuration incomplete. Missing: ${!sendgridApiKey ? 'SMTP_PASSWORD or SENDGRID_API_KEY ' : ''}${!smtpFrom ? 'SMTP_FROM' : ''}`);
+    }
+
+    // Ensure data is an object
+    if (!data || typeof data !== 'object') {
+      data = {};
     }
 
     let html = ''
@@ -429,11 +439,11 @@ serve(async (req) => {
         <div class="details-grid">
           <div class="detail-item">
             <div class="detail-label">Your Payment</div>
-            <div class="detail-value">₦${(data.initiatorAmount || 0).toLocaleString()}</div>
+            <div class="detail-value">₦${Number(data.initiatorAmount || 0).toLocaleString()}</div>
           </div>
           <div class="detail-item">
             <div class="detail-label">Total Amount</div>
-            <div class="detail-value">₦${(data.totalAmount || 0).toLocaleString()}</div>
+            <div class="detail-value">₦${Number(data.totalAmount || 0).toLocaleString()}</div>
           </div>
           <div class="detail-item">
             <div class="detail-label">Date</div>
@@ -494,11 +504,11 @@ serve(async (req) => {
         <div class="details-grid">
           <div class="detail-item">
             <div class="detail-label">Your Share</div>
-            <div class="detail-value">₦${(data.amount || 0).toLocaleString()}</div>
+            <div class="detail-value">₦${Number(data.amount || 0).toLocaleString()}</div>
           </div>
           <div class="detail-item">
             <div class="detail-label">Total Amount</div>
-            <div class="detail-value">₦${(data.totalAmount || 0).toLocaleString()}</div>
+            <div class="detail-value">₦${Number(data.totalAmount || 0).toLocaleString()}</div>
           </div>
           <div class="detail-item">
             <div class="detail-label">Date</div>
@@ -511,7 +521,7 @@ serve(async (req) => {
         </div>
         <div style="background: rgba(255, 215, 0, 0.1); border: 2px solid #FFD700; border-radius: 10px; padding: 20px; margin: 20px 0; text-align: center;">
           <div style="color: #800020; font-size: 20px; font-weight: 700; margin-bottom: 8px;">Payment Request</div>
-          <div style="color: #666; font-size: 14px;"><strong>${data.initiatorName || 'Your friend'}</strong> has requested you to pay <strong>₦${(data.amount || 0).toLocaleString()}</strong> for this booking.</div>
+          <div style="color: #666; font-size: 14px;"><strong>${data.initiatorName || 'Your friend'}</strong> has requested you to pay <strong>₦${Number(data.amount || 0).toLocaleString()}</strong> for this booking.</div>
         </div>
       </div>
       <div style="text-align: center; margin: 24px 0;">
