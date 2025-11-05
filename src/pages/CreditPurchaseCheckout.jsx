@@ -56,8 +56,6 @@ const CreditPurchaseCheckout = () => {
   // Check for credit purchase data
   useEffect(() => {
     if (location.state?.creditPurchase) {
-      console.log('💰 Credit purchase flow detected:', location.state);
-      
       // Normalize the credit data structure
       const normalizedData = {
         ...location.state,
@@ -83,7 +81,6 @@ const CreditPurchaseCheckout = () => {
       
       setLoading(false);
     } else {
-      console.log('❌ No credit purchase data, redirecting to credit purchase page');
       navigate('/venue-credit-purchase');
     }
   }, [location.state, navigate, user]);
@@ -189,7 +186,6 @@ const CreditPurchaseCheckout = () => {
 
   // Handle form input changes
   const handleInputChange = (field, value) => {
-    console.log('🔍 Form input change:', field, value);
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -253,11 +249,8 @@ const CreditPurchaseCheckout = () => {
 
       if (existingUser?.user) {
         // User already exists, just sign them in
-        console.log('User already exists, signed in:', existingUser.user.id);
         return existingUser.user;
       }
-
-      console.log('Creating new user account for:', userData.email);
 
       // Create new user account
       const { data: newUser, error: signUpError } = await supabase.auth.signUp({
@@ -334,30 +327,20 @@ const CreditPurchaseCheckout = () => {
         throw new Error('Failed to create or authenticate user account');
       }
 
-      console.log('💰 Processing credit purchase for:', creditData);
-      console.log('🔍 Current user:', currentUser);
-      console.log('🔍 Venue data:', creditData.venue);
-      
       // For credit purchases, we need to process payment first
       // Since we have the paymentMethodId from the CheckoutForm, we can use it directly
-      console.log('💳 Processing payment with Stripe for credit purchase...');
       
       // For credit purchases, we'll use a simple approach
       // Since the CheckoutForm already created the payment method, we can just simulate a successful payment
       // In a real implementation, you would integrate with your payment processor here
       
-      console.log('💳 Simulating payment confirmation for credit purchase...');
-      
       // For now, let's simulate a successful payment
       // In production, you would integrate with your actual payment processor
-      console.log('✅ Payment confirmed successfully! (simulated)');
 
       // Payment successful! Now create the credit transaction
-      console.log('💾 Creating credit transaction in database...');
       
       // Use the venue_credits table which has the proper structure
-      console.log('💾 Storing credits in venue_credits table...');
-      console.log('🔍 Note: remaining_balance is a generated column, will be calculated automatically');
+      // Note: remaining_balance is a generated column, will be calculated automatically
       
       const creditDataToInsert = {
         user_id: currentUser.id,
@@ -367,8 +350,6 @@ const CreditPurchaseCheckout = () => {
         status: 'active',
         created_at: new Date().toISOString()
       };
-
-      console.log('📝 Credit data to insert:', creditDataToInsert);
 
       const { data: creditRecord, error: creditError } = await supabase
         .from('venue_credits')
@@ -387,13 +368,10 @@ const CreditPurchaseCheckout = () => {
         throw new Error(`Failed to create venue credit: ${creditError.message}`);
       }
 
-      console.log('✅ Venue credit created successfully:', creditRecord);
-
       // Generate QR code for Eddys Member
       let qrCodeImage = null;
       let qrData = null;
       try {
-        console.log('📱 Generating Eddys Member QR code...');
         const { generateEddysMemberQR } = await import('@/lib/qrCodeService.js');
         
         // Get user profile data for QR code
@@ -415,12 +393,6 @@ const CreditPurchaseCheckout = () => {
         };
 
         qrCodeImage = await generateEddysMemberQR(memberData);
-        console.log('✅ Eddys Member QR code generated successfully');
-        console.log('📱 Generated QR data:', {
-          externalUrl: qrCodeImage?.externalUrl,
-          hasBase64: !!qrCodeImage?.base64,
-          memberData: memberData
-        });
         
         // Store the QR data for email
         qrData = {
@@ -440,21 +412,9 @@ const CreditPurchaseCheckout = () => {
       try {
         const recipientEmail = formData.email || user?.email;
         if (!recipientEmail) {
-          console.error('❌ No email address found for credit purchase confirmation');
           throw new Error('Email address is required to send confirmation');
         }
         
-        console.log('📧 Sending credit purchase confirmation email...');
-        console.log('📮 Recipient email:', recipientEmail);
-        console.log('👤 Customer name:', formData.fullName);
-        console.log('📱 QR code structure being sent:', {
-          hasExternalUrl: !!(qrCodeImage?.externalUrl),
-          externalUrl: qrCodeImage?.externalUrl,
-          hasBase64: !!(qrCodeImage?.base64),
-          hasQrData: !!qrData,
-          qrData: qrData,
-          qrCodeUrl: qrCodeImage?.externalUrl || (qrData ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(JSON.stringify(qrData))}&color=800020&bgcolor=FFFFFF` : '')
-        });
         const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-email', {
           body: {
             to: recipientEmail,
@@ -473,17 +433,10 @@ const CreditPurchaseCheckout = () => {
         });
 
         if (emailError) {
-          console.error('❌ Error sending credit purchase confirmation email:', emailError);
-          console.error('📧 Email error details:', JSON.stringify(emailError, null, 2));
-        } else {
-          console.log('✅ Credit purchase confirmation email sent successfully');
-          console.log('📧 Email result:', emailResult);
-          console.log('📮 Email sent to:', recipientEmail);
-          console.log('📋 Email subject:', `Credit Purchase Confirmed - ${creditData.venue.name}`);
-          console.log('💡 Tip: Check your spam/junk folder if you don\'t see the email in your inbox');
+          console.error('Error sending credit purchase confirmation email:', emailError);
         }
       } catch (emailError) {
-        console.error('❌ Error sending email:', emailError);
+        console.error('Error sending email:', emailError);
         // Don't fail the process if email fails
       }
 

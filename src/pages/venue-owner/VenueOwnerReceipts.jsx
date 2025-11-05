@@ -254,20 +254,59 @@ const VenueOwnerReceipts = () => {
 
   const uploadReceiptImage = async (file) => {
     try {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        throw new Error('Please select an image file');
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        throw new Error('Image must be less than 5MB');
+      }
+
       const fileExt = file.name.split('.').pop();
-      const fileName = `receipt-${Date.now()}.${fileExt}`;
+      const fileName = `receipts/receipt-${Date.now()}.${fileExt}`;
       
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      // Upload using direct fetch to Supabase Storage REST API
+      // This bypasses the client library's FormData handling
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Not authenticated');
+      }
+
+      const arrayBuffer = await file.arrayBuffer();
+      
+      // Get Supabase project URL and anon key
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://agydpkzfucicraedllgl.supabase.co';
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      // Upload directly to Storage REST API
+      // Note: Supabase Storage API expects the path to be URL-encoded
+      const encodedPath = encodeURIComponent(fileName);
+      const uploadUrl = `${supabaseUrl}/storage/v1/object/venue-images/${encodedPath}`;
+      
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': file.type,
+          'x-upsert': 'false',
+          'apikey': supabaseKey
+        },
+        body: arrayBuffer
+      });
+
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        throw new Error(`Upload failed: ${uploadResponse.status} - ${errorText}`);
+      }
+
+      // Get public URL using Supabase client
+      const { data: { publicUrl } } = supabase.storage
         .from('venue-images')
-        .upload(`receipts/${fileName}`, file);
+        .getPublicUrl(fileName);
 
-      if (uploadError) throw uploadError;
-
-      const { data: urlData } = supabase.storage
-        .from('venue-images')
-        .getPublicUrl(`receipts/${fileName}`);
-
-      return urlData.publicUrl;
+      return publicUrl;
     } catch (error) {
       console.error('Error uploading receipt image:', error);
       throw error;

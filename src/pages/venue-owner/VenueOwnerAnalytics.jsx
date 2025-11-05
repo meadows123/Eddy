@@ -68,25 +68,14 @@ const VenueOwnerAnalytics = () => {
   useEffect(() => {
     if (currentUser) {
       if (bookings.length > 0) {
-        console.log('📊 Calculating analytics with', bookings.length, 'bookings');
         calculateAnalytics();
       } else {
-        console.log('📊 No bookings available, calculating analytics with empty data');
         // Calculate analytics even with no bookings to show empty chart
         calculateAnalytics();
       }
     }
   }, [bookings, timeRange, currentUser]);
 
-  // Debug: Log when analytics state changes
-  useEffect(() => {
-    console.log('📊 Analytics state changed:', {
-      hasAnalytics: !!analytics,
-      dailyRevenueLength: analytics?.dailyRevenue?.length || 0,
-      totalRevenue: analytics?.totalRevenue || 0,
-      totalBookings: analytics?.totalBookings || 0,
-      dailyRevenueSample: analytics?.dailyRevenue?.slice(0, 3) || []
-    });
   }, [analytics]);
 
   const cleanupSubscriptions = () => {
@@ -265,25 +254,8 @@ const VenueOwnerAnalytics = () => {
 
       setBookings(bookingsData || []);
 
-      if (bookingsData && bookingsData.length > 0) {
-        console.log('💰 Sample revenue data:', {
-          totalAmounts: bookingsData.map(b => b.total_amount).slice(0, 5),
-          statuses: bookingsData.map(b => b.status).slice(0, 5),
-          dates: bookingsData.map(b => b.booking_date || b.created_at).slice(0, 5)
-        });
-        
-        // Log all bookings with their amounts for debugging
-        console.log('📊 All bookings revenue summary:', bookingsData.map(b => ({
-          id: b.id,
-          total_amount: b.total_amount,
-          status: b.status,
-          date: b.booking_date || b.created_at,
-          venue_id: b.venue_id
-        })));
-      }
-
       if (!silentRefresh) {
-        console.log('Analytics data refreshed successfully');
+        // Analytics data refreshed
       }
     } catch (error) {
       console.error('Error fetching bookings:', error);
@@ -330,9 +302,6 @@ const VenueOwnerAnalytics = () => {
   const calculateAnalytics = () => {
     const { start, end } = getDateRange();
     
-    console.log('🔍 Calculating analytics for period:', { start, end });
-    console.log('📊 Total bookings available:', bookings.length);
-    
     // Filter bookings for current period
     const currentPeriodBookings = bookings.filter(booking => {
       // Use booking_date for revenue calculations, fallback to created_at for display
@@ -374,11 +343,6 @@ const VenueOwnerAnalytics = () => {
     const totalRevenue = currentPeriodBookings.reduce((sum, booking) => {
       // Only count revenue from confirmed or completed bookings
       if (booking.status !== 'confirmed' && booking.status !== 'completed') {
-        console.log('🚫 Skipping revenue from non-confirmed booking:', {
-          bookingId: booking.id,
-          status: booking.status,
-          totalAmount: booking.total_amount
-        });
         return sum;
       }
       
@@ -394,16 +358,6 @@ const VenueOwnerAnalytics = () => {
         amount = amount * 100; // Convert kobo to naira
       }
       
-      // Debug: Log each booking's revenue contribution
-      if (amount > 0) {
-        console.log('💰 Revenue contribution:', {
-          bookingId: booking.id,
-          totalAmount: booking.total_amount,
-          parsedAmount: amount,
-          status: booking.status,
-          date: booking.booking_date || booking.created_at
-        });
-      }
       return sum + amount;
     }, 0);
     
@@ -422,13 +376,6 @@ const VenueOwnerAnalytics = () => {
       
       return sum + amount;
     }, 0);
-
-    console.log('💰 Revenue calculation:', {
-      totalRevenue,
-      prevRevenue,
-      currentBookings: currentPeriodBookings.length,
-      prevBookings: prevPeriodBookings.length
-    });
 
     const totalBookings = currentPeriodBookings.length;
     const prevBookings = prevPeriodBookings.length;
@@ -458,46 +405,18 @@ const VenueOwnerAnalytics = () => {
       return date;
     });
 
-    console.log('📅 Date range for chart:', {
-      start: chartStart.toDateString(),
-      end: chartEnd.toDateString(),
-      daysInRange,
-      sampleDates: dateRange.slice(0, 5).map(d => d.toDateString())
-    });
-
     const dailyRevenue = dateRange.map(date => {
       const dayBookings = bookings.filter(booking => {
         const bookingDate = new Date(booking.booking_date || booking.created_at);
         // Compare dates by date string (ignoring time)
         const isMatch = bookingDate.toDateString() === date.toDateString();
         
-        // Debug: Log first few date comparisons
-        if (bookings.indexOf(booking) < 3) {
-          console.log('📅 Date comparison:', {
-            bookingId: booking.id,
-            bookingDate: booking.booking_date || booking.created_at,
-            parsedBookingDate: bookingDate.toDateString(),
-            targetDate: date.toDateString(),
-            isMatch,
-            status: booking.status,
-            totalAmount: booking.total_amount
-          });
-        }
-        
         return isMatch;
       });
-      
-      console.log(`📊 Day ${date.toDateString()}: Found ${dayBookings.length} bookings`);
       
       const dayRevenue = dayBookings.reduce((sum, booking) => {
         // Only count revenue from confirmed or completed bookings
         if (booking.status !== 'confirmed' && booking.status !== 'completed') {
-          console.log('🚫 Skipping non-confirmed booking for daily revenue:', {
-            date: date.toDateString(),
-            bookingId: booking.id,
-            status: booking.status,
-            totalAmount: booking.total_amount
-          });
           return sum;
         }
         
@@ -505,44 +424,11 @@ const VenueOwnerAnalytics = () => {
         
         // Check if total_amount is stored in kobo (very small values) and convert to naira
         if (amount > 0 && amount < 1000) {
-          console.log('⚠️ Converting kobo to naira for daily revenue:', {
-            date: date.toDateString(),
-            bookingId: booking.id,
-            originalAmount: amount,
-            convertedAmount: amount * 100
-          });
           amount = amount * 100; // Convert kobo to naira
         }
         
-        // Debug: Log each booking's daily revenue contribution
-        if (amount > 0) {
-          console.log('📈 Daily revenue contribution:', {
-            date: date.toDateString(),
-            bookingId: booking.id,
-            totalAmount: booking.total_amount,
-            parsedAmount: amount,
-            status: booking.status
-          });
-        }
         return sum + amount;
       }, 0);
-      
-      // Debug logging for days with revenue
-      if (dayRevenue > 0) {
-        console.log('📈 Day with revenue:', {
-          date: date.toDateString(),
-          revenue: dayRevenue,
-          bookings: dayBookings.length,
-          bookingIds: dayBookings.map(b => b.id)
-        });
-      } else {
-        console.log('📈 Day with no revenue:', {
-          date: date.toDateString(),
-          revenue: dayRevenue,
-          totalBookings: dayBookings.length,
-          confirmedBookings: dayBookings.filter(b => b.status === 'confirmed' || b.status === 'completed').length
-        });
-      }
       
       return {
         date: format(date, 'MMM dd'),
@@ -551,23 +437,11 @@ const VenueOwnerAnalytics = () => {
       };
     });
 
-    console.log('📊 Daily revenue data:', dailyRevenue);
-    
-    // Debug: Check if we have any confirmed/completed bookings at all
+    // Check if we have any confirmed/completed bookings at all
     const allConfirmedBookings = bookings.filter(b => b.status === 'confirmed' || b.status === 'completed');
-    console.log('🔍 All confirmed/completed bookings:', {
-      total: allConfirmedBookings.length,
-      sample: allConfirmedBookings.slice(0, 3).map(b => ({
-        id: b.id,
-        status: b.status,
-        total_amount: b.total_amount,
-        date: b.booking_date || b.created_at
-      }))
-    });
 
     // SIMPLE FIX: If no revenue in the 90-day range, create a chart with your actual confirmed bookings
     if (dailyRevenue.every(d => d.revenue === 0)) {
-      console.log('⚠️ No revenue in 90-day range, creating chart with actual confirmed bookings');
       
       if (allConfirmedBookings.length > 0) {
         // Create a simple chart showing your actual confirmed bookings by date
@@ -594,8 +468,6 @@ const VenueOwnerAnalytics = () => {
           return dateA - dateB;
         });
         
-        console.log('📊 Created chart with actual confirmed bookings:', actualRevenueData);
-        
         // Replace the daily revenue with actual data
         dailyRevenue.splice(0, dailyRevenue.length, ...actualRevenueData);
       }
@@ -611,25 +483,14 @@ const VenueOwnerAnalytics = () => {
       }
       confirmedBookingsByDate[dateKey].push(booking);
     });
-    
-    console.log('📅 Confirmed bookings by date:', {
-      totalDates: Object.keys(confirmedBookingsByDate).length,
-      sampleDates: Object.entries(confirmedBookingsByDate).slice(0, 5).map(([date, bookings]) => ({
-        date,
-        count: bookings.length,
-        totalRevenue: bookings.reduce((sum, b) => sum + (parseFloat(b.total_amount) || 0), 0)
-      }))
-    });
 
     // If no real data, generate sample data for testing
     if (dailyRevenue.every(d => d.revenue === 0 && d.bookings === 0)) {
-      console.log('⚠️ No real revenue data, generating sample data for testing');
       const sampleDailyRevenue = dateRange.map((date, index) => ({
         date: format(date, 'MMM dd'),
         revenue: Math.floor(Math.random() * 50000) + 10000, // Random 10k-60k revenue
         bookings: Math.floor(Math.random() * 5) + 1 // Random 1-5 bookings
       }));
-      console.log('📊 Generated sample daily revenue:', sampleDailyRevenue);
       dailyRevenue.splice(0, dailyRevenue.length, ...sampleDailyRevenue);
     }
 
@@ -658,12 +519,6 @@ const VenueOwnerAnalytics = () => {
       recentBookings
     };
 
-    console.log('📈 Final analytics:', newAnalytics);
-    console.log('📊 Daily revenue data being set:', {
-      length: newAnalytics.dailyRevenue.length,
-      sample: newAnalytics.dailyRevenue.slice(0, 5),
-      hasData: newAnalytics.dailyRevenue.some(d => d.revenue > 0)
-    });
     setAnalytics(newAnalytics);
   };
 
@@ -905,13 +760,6 @@ const VenueOwnerAnalytics = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-3 sm:p-6">
-              {/* Debug info for chart data */}
-              <div className="mb-4 p-3 bg-gray-50 rounded text-xs text-gray-600">
-                <strong>Chart Debug:</strong> {analytics.dailyRevenue.length} days, 
-                Max revenue: {Math.max(...analytics.dailyRevenue.map(d => d.revenue))}, 
-                Total days with revenue: {analytics.dailyRevenue.filter(d => d.revenue > 0).length}
-              </div>
-              
               <div className="h-64 sm:h-80">
                 {analytics.dailyRevenue && analytics.dailyRevenue.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
@@ -939,10 +787,22 @@ const VenueOwnerAnalytics = () => {
                           border: '1px solid #e5e7eb',
                           borderRadius: '8px'
                         }}
-                        formatter={(value, name) => [
-                          name === 'bookings' ? `${value} bookings` : `₦${value.toLocaleString()}`,
-                          name === 'bookings' ? 'Bookings' : 'Revenue'
-                        ]}
+                        formatter={(value, name, props) => {
+                          // Check if this is the bookings series
+                          // The name can be 'Bookings', 'bookings', or the dataKey
+                          // Also check the payload dataKey if available
+                          const dataKey = props?.payload?.dataKey || name;
+                          const isBookings = 
+                            name === 'bookings' || 
+                            name === 'Bookings' || 
+                            dataKey === 'bookings' ||
+                            (typeof name === 'string' && name.toLowerCase().includes('booking'));
+                          
+                          return [
+                            isBookings ? `${value} ${value === 1 ? 'booking' : 'bookings'}` : `₦${value.toLocaleString()}`,
+                            isBookings ? 'Bookings' : 'Revenue'
+                          ];
+                        }}
                       />
                       <Legend />
                       <Bar 
@@ -969,9 +829,6 @@ const VenueOwnerAnalytics = () => {
                       <div className="text-4xl mb-2">📊</div>
                       <p className="text-sm">No revenue data available</p>
                       <p className="text-xs text-gray-400">Check if you have any confirmed bookings</p>
-                      <div className="mt-2 p-2 bg-gray-100 rounded text-xs">
-                        <strong>Debug:</strong> analytics.dailyRevenue: {analytics.dailyRevenue ? analytics.dailyRevenue.length : 'undefined'}
-                      </div>
                     </div>
                   </div>
                 )}
