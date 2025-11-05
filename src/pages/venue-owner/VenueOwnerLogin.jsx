@@ -235,14 +235,71 @@ const VenueOwnerLogin = () => {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError) throw new Error('User error: ' + userError.message);
 
-      const { data: venueOwner, error: venueOwnerError } = await supabase
+      // Try querying without .single() first to avoid 406 errors with RLS
+      // If we get one result, we'll use it; if multiple, we'll pick the first
+      const { data: venueOwners, error: venueOwnerError } = await supabase
         .from('venue_owners')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .order('created_at', { ascending: false });
+      
+      // Get the first result if multiple found, or null if none
+      const venueOwner = venueOwners && venueOwners.length > 0 ? venueOwners[0] : null;
 
-      if (venueOwnerError) throw new Error('Venue owner error: ' + venueOwnerError.message);
-      if (!venueOwner) {
+      // Handle 406/403 errors (Not Acceptable/Forbidden) - usually RLS policy issues
+      let finalVenueOwner = venueOwner;
+      if (venueOwnerError) {
+        // Check if it's a 406 or 403 error
+        const isPolicyError = venueOwnerError.message?.includes('406') || 
+                              venueOwnerError.message?.includes('403') ||
+                              venueOwnerError.status === 406 || 
+                              venueOwnerError.status === 403 ||
+                              venueOwnerError.code === 'PGRST116' ||
+                              venueOwnerError.code === '42501'; // Permission denied
+        
+        if (isPolicyError) {
+          console.warn('⚠️ RLS policy error when querying venue_owners (status:', venueOwnerError.status, ')');
+          console.warn('⚠️ User ID:', user.id);
+          console.warn('⚠️ Error:', venueOwnerError);
+          
+          // Try querying by email as fallback (if user_id doesn't match or RLS blocks by user_id)
+          const { data: venueOwnersByEmail, error: emailError } = await supabase
+            .from('venue_owners')
+            .select('*')
+            .eq('owner_email', user.email)
+            .order('created_at', { ascending: false });
+          
+          if (!emailError && venueOwnersByEmail && venueOwnersByEmail.length > 0) {
+            // Use the first result if multiple found
+            finalVenueOwner = venueOwnersByEmail[0];
+            console.log('✅ Found venue owner by email fallback');
+            
+            // If found by email but user_id doesn't match, update it
+            if (finalVenueOwner.user_id !== user.id) {
+              console.warn('⚠️ user_id mismatch detected. Venue owner user_id:', finalVenueOwner.user_id, 'Auth user_id:', user.id);
+              // Update the user_id if it's NULL or different
+              if (finalVenueOwner.user_id === null || finalVenueOwner.user_id !== user.id) {
+                const { error: updateError } = await supabase
+                  .from('venue_owners')
+                  .update({ user_id: user.id })
+                  .eq('id', finalVenueOwner.id);
+                
+                if (updateError) {
+                  console.error('❌ Failed to update user_id:', updateError);
+                } else {
+                  console.log('✅ Updated user_id to match auth user');
+                  finalVenueOwner.user_id = user.id;
+                }
+              }
+            }
+          } else {
+            throw new Error('Venue owner not found. RLS policy may be blocking access. Error: ' + venueOwnerError.message);
+          }
+        } else {
+          throw new Error('Venue owner error: ' + venueOwnerError.message);
+        }
+      }
+      if (!finalVenueOwner) {
         toast({
           title: 'Venue Owner Account Required',
           description: 'No venue owner profile found. Please register as a venue owner.',
@@ -254,6 +311,7 @@ const VenueOwnerLogin = () => {
       }
 
       // If we get here, user is authenticated and is a venue owner
+      // Use finalVenueOwner instead of venueOwner
       fetchVenueData();
     } catch (error) {
       setError(error.message);
