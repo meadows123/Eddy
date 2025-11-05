@@ -8,140 +8,6 @@ import { toast } from '@/components/ui/use-toast';
 import { Upload, Star, StarOff, Image as ImageIcon, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
-// Image component with localhost handling - moved outside to avoid re-creation
-const ImageWithFallback = ({ image }) => {
-  const [imageSrc, setImageSrc] = useState(null);
-  const [imageError, setImageError] = useState(false);
-  
-  useEffect(() => {
-    const loadImage = async () => {
-      // Helper to extract file path from Supabase Storage URL
-      const extractFilePath = (url) => {
-        if (!url) return null;
-        const match = url.match(/\/venue-images\/(.+?)(?:\?|$)/);
-        return match ? match[1] : null;
-      };
-
-      console.log('🖼️ Loading image:', image.image_url);
-      
-      // Check if we're on localhost
-      const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-      const filePath = extractFilePath(image.image_url);
-      
-      console.log('📍 Is localhost:', isLocalhost, 'File path:', filePath);
-      
-      // On localhost, try signed URL first for Supabase Storage URLs
-      if (isLocalhost && filePath && image.image_url?.includes('supabase.co/storage/v1/object/public/venue-images/')) {
-        try {
-          console.log('🔐 Attempting to get signed URL for localhost...');
-          const { data: signedUrlData, error: signedError } = await supabase.storage
-            .from('venue-images')
-            .createSignedUrl(filePath, 3600);
-          
-          if (!signedError && signedUrlData?.signedUrl) {
-            console.log('✅ Got signed URL:', signedUrlData.signedUrl.substring(0, 50) + '...');
-            console.log('🔄 Setting imageSrc to signed URL');
-            setImageSrc(signedUrlData.signedUrl);
-            return;
-          } else {
-            console.error('❌ Signed URL error:', signedError);
-          }
-        } catch (err) {
-          console.error('❌ Error getting signed URL on localhost:', err);
-        }
-      }
-      
-      // Fallback to public URL with cache busting
-      if (image.image_url) {
-        try {
-          const url = new URL(image.image_url);
-          url.searchParams.set('t', Date.now().toString());
-          const finalUrl = url.toString();
-          console.log('🌐 Using public URL:', finalUrl.substring(0, 50) + '...');
-          setImageSrc(finalUrl);
-        } catch (e) {
-          console.error('❌ URL parsing error:', e);
-          setImageSrc(image.image_url);
-        }
-      } else {
-        console.error('❌ No image URL provided');
-        setImageError(true);
-      }
-    };
-    
-    loadImage();
-  }, [image.image_url]);
-  
-  const handleError = async () => {
-    // Try to get a signed URL if public URL fails
-    const extractFilePath = (url) => {
-      if (!url) return null;
-      const match = url.match(/\/venue-images\/(.+?)(?:\?|$)/);
-      return match ? match[1] : null;
-    };
-    
-    const filePath = extractFilePath(image.image_url);
-    if (filePath) {
-      try {
-        const { data: signedUrlData, error: signedError } = await supabase.storage
-          .from('venue-images')
-          .createSignedUrl(filePath, 3600);
-        
-        if (!signedError && signedUrlData?.signedUrl) {
-          setImageSrc(signedUrlData.signedUrl);
-          return;
-        }
-      } catch (err) {
-        console.error('Error getting signed URL on error:', err);
-      }
-    }
-    
-    setImageError(true);
-  };
-  
-  // Log when imageSrc changes
-  useEffect(() => {
-    if (imageSrc) {
-      console.log('🖼️ ImageSrc updated:', imageSrc.substring(0, 50) + '...');
-    }
-  }, [imageSrc]);
-  
-  if (!imageSrc) {
-    return (
-      <div className="absolute inset-0 bg-gray-200 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-burgundy"></div>
-      </div>
-    );
-  }
-  
-  return (
-    <>
-      <img
-        src={imageSrc}
-        alt="Venue"
-        className="w-full h-full object-cover"
-        loading="lazy"
-        onError={(e) => {
-          console.error('❌ Image failed to load:', imageSrc);
-          handleError();
-        }}
-        onLoad={() => {
-          console.log('✅ Image loaded successfully:', imageSrc.substring(0, 50) + '...');
-        }}
-      />
-      {imageError && (
-        <div className="absolute inset-0 bg-gray-200 flex items-center justify-center text-gray-500">
-          <div className="text-center">
-            <ImageIcon className="h-8 w-8 mx-auto mb-2" />
-            <p className="text-sm">Image failed to load</p>
-            <p className="text-xs text-gray-400 mt-1">URL: {image.image_url?.substring(0, 50)}...</p>
-          </div>
-        </div>
-      )}
-    </>
-  );
-};
-
 const ImageManagement = ({ currentUser }) => {
   const [venue, setVenue] = useState(null);
   const [images, setImages] = useState([]);
@@ -161,7 +27,8 @@ const ImageManagement = ({ currentUser }) => {
       // Still loading user data
       setLoading(true);
     }
-  }, [currentUser]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id]);
 
   const fetchVenueAndImages = async () => {
     try {
@@ -214,11 +81,38 @@ const ImageManagement = ({ currentUser }) => {
       }
 
       console.log('Images data:', imagesData);
-      console.log('📸 Image URLs:', imagesData?.map(img => ({
-        id: img.id,
-        url: img.image_url,
-        isPrimary: img.is_primary
-      })));
+      
+      // Test if the first image URL is accessible
+      if (imagesData && imagesData.length > 0) {
+        const testUrl = imagesData[0].image_url;
+        console.log('🔍 Testing first image URL:', testUrl);
+        
+        // Test the URL with CORS to check actual status and content-type
+        fetch(testUrl, { method: 'GET', mode: 'cors' })
+          .then(async (response) => {
+            console.log('📊 Response status:', response.status);
+            console.log('📊 Content-Type:', response.headers.get('content-type'));
+            console.log('📊 Response headers:', Object.fromEntries(response.headers.entries()));
+            
+            if (response.ok) {
+              const contentType = response.headers.get('content-type');
+              if (contentType && contentType.startsWith('image/')) {
+                console.log('✅ URL is accessible and returns an image');
+              } else {
+                console.error('❌ URL returns non-image content-type:', contentType);
+                // Try to read the response to see what it actually is
+                const text = await response.text();
+                console.error('❌ Response body (first 200 chars):', text.substring(0, 200));
+              }
+            } else {
+              console.error('❌ URL returned status:', response.status);
+            }
+          })
+          .catch((err) => {
+            console.error('❌ URL test failed:', err);
+          });
+      }
+      
       setImages(imagesData || []);
     } catch (error) {
       console.error('Error in fetchVenueAndImages:', error);
@@ -319,30 +213,62 @@ const ImageManagement = ({ currentUser }) => {
       const fileExt = file.name.split('.').pop();
       const fileName = `${venue.id}/${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
 
-      // Upload to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('venue-images')
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
+      // Upload using direct fetch to Supabase Storage REST API
+      // This bypasses the client library's FormData handling
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Not authenticated');
+      }
 
-      if (uploadError) throw uploadError;
+      const arrayBuffer = await file.arrayBuffer();
+      
+      // Get Supabase project URL and anon key
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://agydpkzfucicraedllgl.supabase.co';
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      // Upload directly to Storage REST API
+      // Note: Supabase Storage API expects the path to be URL-encoded
+      const encodedPath = encodeURIComponent(fileName);
+      const uploadUrl = `${supabaseUrl}/storage/v1/object/venue-images/${encodedPath}`;
+      
+      console.log('📤 Uploading to:', uploadUrl);
+      console.log('📊 File type:', file.type, 'Size:', file.size, 'bytes');
+      
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': file.type,
+          'x-upsert': 'false',
+          'apikey': supabaseKey
+        },
+        body: arrayBuffer
+      });
 
-      // Get public URL
+      console.log('📥 Upload response status:', uploadResponse.status);
+      console.log('📥 Upload response headers:', Object.fromEntries(uploadResponse.headers.entries()));
+
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        console.error('❌ Upload error:', errorText);
+        throw new Error(`Upload failed: ${uploadResponse.status} - ${errorText}`);
+      }
+
+      // The upload response should contain the path
+      const uploadResult = await uploadResponse.json();
+      console.log('✅ Upload successful:', uploadResult);
+      
+      // Get public URL using Supabase client
       const { data: { publicUrl } } = supabase.storage
         .from('venue-images')
         .getPublicUrl(fileName);
 
-      // Verify the URL is accessible
-      const imageUrl = publicUrl;
-      
       // Save to database
       const { data: imageData, error: dbError } = await supabase
         .from('venue_images')
         .insert([{
           venue_id: venue.id,
-          image_url: imageUrl,
+          image_url: publicUrl,
           is_primary: images.length === 0
         }])
         .select()
@@ -625,8 +551,27 @@ const ImageManagement = ({ currentUser }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {images.map((image) => (
             <Card key={image.id} className="overflow-hidden">
-              <div className="relative aspect-video">
-                <ImageWithFallback image={image} />
+              <div className="relative aspect-video overflow-hidden">
+                <img
+                  src={image.image_url}
+                  alt="Venue"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    console.error('❌ Image failed to load:', image.image_url);
+                    e.currentTarget.style.display = 'none';
+                    const errorDiv = e.currentTarget.nextElementSibling;
+                    if (errorDiv) {
+                      errorDiv.style.display = 'flex';
+                    }
+                  }}
+                />
+                <div className="absolute inset-0 bg-gray-200 flex items-center justify-center text-gray-500 hidden error-message">
+                  <div className="text-center">
+                    <ImageIcon className="h-8 w-8 mx-auto mb-2" />
+                    <p className="text-sm">Image failed to load</p>
+                    <p className="text-xs text-gray-400 mt-1 break-all">{image.image_url}</p>
+                  </div>
+                </div>
                 {image.is_primary && (
                   <div className="absolute top-2 left-2">
                     <span className="bg-brand-gold text-brand-burgundy px-2 py-1 rounded text-xs font-semibold">
@@ -679,8 +624,7 @@ const ImageManagement = ({ currentUser }) => {
                 </div>
               </div>
             </Card>
-            );
-          })}
+          ))}
         </div>
       )}
 
