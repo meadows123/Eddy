@@ -552,29 +552,38 @@ const ImageManagement = ({ currentUser }) => {
       {/* Images Grid */}
       {images.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {images.map((image) => (
-            <Card key={image.id} className="overflow-hidden">
-              <div className="relative aspect-video overflow-hidden">
-                <img
-                  src={image.image_url}
-                  alt="Venue"
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    console.error('❌ Image failed to load:', image.image_url);
-                    e.currentTarget.style.display = 'none';
-                    const errorDiv = e.currentTarget.nextElementSibling;
-                    if (errorDiv) {
-                      errorDiv.style.display = 'flex';
-                    }
-                  }}
-                />
-                <div className="absolute inset-0 bg-gray-200 flex items-center justify-center text-gray-500 hidden error-message">
-                  <div className="text-center">
-                    <ImageIcon className="h-8 w-8 mx-auto mb-2" />
-                    <p className="text-sm">Image failed to load</p>
-                    <p className="text-xs text-gray-400 mt-1 break-all">{image.image_url}</p>
-                  </div>
-                </div>
+          {images.map((image) => {
+            const ImageCard = ({ image }) => {
+              const [hasError, setHasError] = useState(false);
+              const [hasLoaded, setHasLoaded] = useState(false);
+              
+              return (
+                <Card key={image.id} className="overflow-hidden">
+                  <div className="relative aspect-video overflow-hidden">
+                    <img
+                      src={image.image_url}
+                      alt="Venue"
+                      className="w-full h-full object-cover"
+                      onLoad={() => {
+                        console.log('✅ Image loaded successfully:', image.image_url);
+                        setHasLoaded(true);
+                        setHasError(false);
+                      }}
+                      onError={(e) => {
+                        console.error('❌ Image failed to load:', image.image_url);
+                        setHasError(true);
+                        setHasLoaded(false);
+                      }}
+                    />
+                    {hasError && (
+                      <div className="absolute inset-0 bg-gray-200 flex items-center justify-center text-gray-500 error-message">
+                        <div className="text-center">
+                          <ImageIcon className="h-8 w-8 mx-auto mb-2" />
+                          <p className="text-sm">Image failed to load</p>
+                          <p className="text-xs text-gray-400 mt-1 break-all">{image.image_url}</p>
+                        </div>
+                      </div>
+                    )}
                 {image.is_primary && (
                   <div className="absolute top-2 left-2">
                     <span className="bg-brand-gold text-brand-burgundy px-2 py-1 rounded text-xs font-semibold">
@@ -626,8 +635,12 @@ const ImageManagement = ({ currentUser }) => {
                   </Dialog>
                 </div>
               </div>
-            </Card>
-          ))}
+                </Card>
+              );
+            };
+            
+            return <ImageCard key={image.id} image={image} />;
+          })}
         </div>
       )}
 
