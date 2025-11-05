@@ -287,11 +287,11 @@ const VenueCreditPurchase = () => {
                           {option.bonus > 0 && (
                             <div className="text-sm text-green-600 flex items-center justify-center">
                               <Gift className="h-3 w-3 mr-1" />
-                              +₦{option.bonus.toLocaleString()} bonus
+                              +₦{(option.bonus * 1000).toLocaleString()} bonus
                             </div>
                           )}
                           <div className="text-xs text-brand-burgundy/60 mt-1">
-                            Total: ₦{(option.amount + option.bonus).toLocaleString()}
+                            Total: ₦{((option.amount + option.bonus) * 1000).toLocaleString()}
                           </div>
                         </CardContent>
                       </Card>
@@ -329,11 +329,11 @@ const VenueCreditPurchase = () => {
                     <div className="flex justify-between items-center">
                       <span className="text-brand-burgundy">Total Credits:</span>
                       <span className="text-xl font-bold text-brand-burgundy">
-                        ₦{getTotalAmount().toLocaleString()}
+                        ₦{(getTotalAmount() * 1000).toLocaleString()}
                       </span>
                     </div>
                     <div className="text-sm text-brand-burgundy/70 mt-1">
-                      Purchase amount: ₦{getPurchaseAmount().toLocaleString()}
+                      Purchase amount: ₦{(getPurchaseAmount() * 1000).toLocaleString()}
                     </div>
                   </motion.div>
                 )}
@@ -357,7 +357,7 @@ const VenueCreditPurchase = () => {
                   ) : (
                     <>
                       <CreditCard className="h-4 w-4 mr-2" />
-                      Purchase Credits - ₦{getPurchaseAmount().toLocaleString()}
+                      Purchase Credits - ₦{(getPurchaseAmount() * 1000).toLocaleString()}
                     </>
                   )}
                 </Button>
