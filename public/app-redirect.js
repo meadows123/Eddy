@@ -9,6 +9,18 @@
   // Wait for DOM to be ready
   function initAppRedirect() {
     try {
+      // Don't run on localhost or during development
+      const isLocalhost = window.location.hostname === 'localhost' || 
+                         window.location.hostname === '127.0.0.1' || 
+                         window.location.hostname === '0.0.0.0' ||
+                         window.location.hostname.includes('localhost') ||
+                         window.location.protocol === 'file:';
+      
+      if (isLocalhost) {
+        // Skip redirect on localhost for development
+        return;
+      }
+
       // Only run on mobile devices
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
       
@@ -20,6 +32,7 @@
       // 2. Not already in the app
       // 3. This is the first visit (not a redirect)
       // 4. DOM is ready (document.body exists)
+      // 5. Not on localhost
       const shouldRedirect = isMobile && !isInApp && !sessionStorage.getItem('appRedirectAttempted') && document.body;
 
       if (!shouldRedirect) {
@@ -77,17 +90,14 @@
           sessionStorage.removeItem('appRedirectAttempted');
         }
       } else if (isAndroid) {
-        // For Android, use universal link first, then fallback to intent
-        // Universal links are more reliable and don't cause errors if app isn't installed
+        // For Android, we'll let the universal link handle it naturally
+        // Don't force redirect - let the app intercept if installed
+        // This prevents breaking the web app if the app isn't installed
         try {
-          // Try universal link first (better for web compatibility)
-          window.location.href = universalLink;
-          
-          // If app is installed, it will intercept. Otherwise, web app loads normally
-          setTimeout(function() {
-            clearTimeout(timeout);
-            sessionStorage.removeItem('appRedirectAttempted');
-          }, 1000);
+          // Just set a flag - the app will intercept if installed via universal links
+          // Otherwise, the web app continues normally
+          clearTimeout(timeout);
+          sessionStorage.removeItem('appRedirectAttempted');
         } catch (e) {
           // Silently fail - user will continue on web
           console.debug('App redirect failed:', e);
