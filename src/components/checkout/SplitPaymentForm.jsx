@@ -31,6 +31,8 @@ const SplitPaymentForm = ({
   createBookingIfNeeded // Function to create booking if needed
 }) => {
   const { toast } = useToast();
+  const stripe = useStripe();
+  const elements = useElements();
   const [splitCount, setSplitCount] = useState(2);
   const [splitAmounts, setSplitAmounts] = useState([]);
   const [splitRecipients, setSplitRecipients] = useState([]);
@@ -40,6 +42,16 @@ const SplitPaymentForm = ({
   const [showSearchDialog, setShowSearchDialog] = useState(false);
   const [currentSplitIndex, setCurrentSplitIndex] = useState(0);
   const [isCreating, setIsCreating] = useState(false);
+  const [stripeReady, setStripeReady] = useState(false);
+
+  // Check if Stripe is ready
+  useEffect(() => {
+    if (stripe && elements) {
+      setStripeReady(true);
+    } else {
+      setStripeReady(false);
+    }
+  }, [stripe, elements]);
 
   // Initialize split amounts when count changes
   useEffect(() => {
@@ -627,36 +639,43 @@ const SplitPaymentForm = ({
         </CardHeader>
         <CardContent>
           <div className="p-4 border rounded-lg bg-white">
-            <CardElement 
-              options={{
-                style: {
-                  base: {
-                    fontSize: '16px',
-                    color: '#800020',
-                    fontFamily: 'system-ui, -apple-system, sans-serif',
-                    lineHeight: '1.5',
-                    '::placeholder': {
+            {!stripeReady ? (
+              <div className="w-full text-center text-gray-500">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-burgundy mx-auto mb-2"></div>
+                <p className="text-sm">Loading payment form...</p>
+              </div>
+            ) : (
+              <CardElement 
+                options={{
+                  style: {
+                    base: {
+                      fontSize: '16px',
                       color: '#800020',
+                      fontFamily: 'system-ui, -apple-system, sans-serif',
+                      lineHeight: '1.5',
+                      '::placeholder': {
+                        color: '#800020',
+                      },
+                    },
+                    invalid: {
+                      color: '#e53e3e',
                     },
                   },
-                  invalid: {
-                    color: '#e53e3e',
-                  },
-                },
-                hidePostalCode: true,
-                // Mobile-specific options
-                supportedNetworks: ['visa', 'mastercard', 'amex', 'discover'],
-                // Simple placeholder text
-                placeholder: 'Card number',
-                // Disable autofill for better mobile compatibility
-                disableLink: false,
-                // Ensure proper focus handling on mobile
-                classes: {
-                  focus: 'is-focused',
-                  invalid: 'is-invalid',
-                }
-              }}
-            />
+                  hidePostalCode: true,
+                  // Mobile-specific options
+                  supportedNetworks: ['visa', 'mastercard', 'amex', 'discover'],
+                  // Simple placeholder text
+                  placeholder: 'Card number',
+                  // Disable autofill for better mobile compatibility
+                  disableLink: false,
+                  // Ensure proper focus handling on mobile
+                  classes: {
+                    focus: 'is-focused',
+                    invalid: 'is-invalid',
+                  }
+                }}
+              />
+            )}
           </div>
         </CardContent>
       </Card>

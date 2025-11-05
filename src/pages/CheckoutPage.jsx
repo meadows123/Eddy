@@ -1145,31 +1145,45 @@ setShowShareDialog(true);
                 </TabsList>
 
                 <TabsContent value="single">
-                  <Elements stripe={stripePromise}>
-                  <CheckoutForm 
-                    formData={formData}
-                    errors={errors}
-                    handleInputChange={handleInputChange}
-                    handleSubmit={handleSubmit}
-                    isSubmitting={isSubmitting}
-                    totalAmount={calculateTotal()}
-                    isAuthenticated={!!user}
-                    icons={{
-                      user: <User className="h-5 w-5 mr-2" />
-                    }}
-                  />
-                  </Elements>
+                  {stripePromise ? (
+                    <Elements stripe={stripePromise}>
+                      <CheckoutForm 
+                        formData={formData}
+                        errors={errors}
+                        handleInputChange={handleInputChange}
+                        handleSubmit={handleSubmit}
+                        isSubmitting={isSubmitting}
+                        totalAmount={calculateTotal()}
+                        isAuthenticated={!!user}
+                        icons={{
+                          user: <User className="h-5 w-5 mr-2" />
+                        }}
+                      />
+                    </Elements>
+                  ) : (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
+                      <p className="text-yellow-800 mb-2">⚠️ Stripe payment is not configured</p>
+                      <p className="text-sm text-yellow-700">Please set VITE_STRIPE_TEST_PUBLISHABLE_KEY in your environment variables.</p>
+                    </div>
+                  )}
                 </TabsContent>
 
                 <TabsContent value="split">
-                  <Elements stripe={stripePromise}>
-                    <SplitPaymentForm
-                      totalAmount={parseFloat(calculateTotal())}
-                      user={user}
-                      bookingId={null}
-                      createBookingIfNeeded={createBooking}
-                    />
-                  </Elements>
+                  {stripePromise ? (
+                    <Elements stripe={stripePromise}>
+                      <SplitPaymentForm
+                        totalAmount={parseFloat(calculateTotal())}
+                        user={user}
+                        bookingId={null}
+                        createBookingIfNeeded={createBooking}
+                      />
+                    </Elements>
+                  ) : (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
+                      <p className="text-yellow-800 mb-2">⚠️ Stripe payment is not configured</p>
+                      <p className="text-sm text-yellow-700">Please set VITE_STRIPE_TEST_PUBLISHABLE_KEY in your environment variables.</p>
+                    </div>
+                  )}
                 </TabsContent>
               </Tabs>
             </motion.div>

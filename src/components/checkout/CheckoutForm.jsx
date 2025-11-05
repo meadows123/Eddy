@@ -20,6 +20,16 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
     }
   }, [stripe, elements]);
 
+  // Add timeout to show error if Stripe doesn't load within 10 seconds
+  React.useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (!stripeReady && (!stripe || !elements)) {
+        console.error('Stripe Elements failed to load. Please check your Stripe configuration.');
+      }
+    }, 10000);
+    return () => clearTimeout(timeout);
+  }, [stripeReady, stripe, elements]);
+
   const handlePaymentSubmit = async (e) => {
     e.preventDefault();
     e.stopPropagation();

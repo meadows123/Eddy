@@ -76,8 +76,6 @@ const VenueOwnerAnalytics = () => {
     }
   }, [bookings, timeRange, currentUser]);
 
-  }, [analytics]);
-
   const cleanupSubscriptions = () => {
     if (subscriptionRef.current) {
       console.log('Cleaning up real-time subscription...');
