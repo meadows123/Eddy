@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
@@ -405,7 +406,7 @@ const createBooking = async () => {
 const { user: sessionUser, signIn, signUp } = useAuth();
 const [loginOpen, setLoginOpen] = useState(false);
 const [authMode, setAuthMode] = useState('login'); // 'login' | 'signup'
-const [authForm, setAuthForm] = useState({ email: '', password: '', fullName: '', phone: '' });
+const [authForm, setAuthForm] = useState({ email: '', password: '', fullName: '', phone: '', dataConsent: false });
 const [authLoading, setAuthLoading] = useState(false);
 const [authError, setAuthError] = useState('');
 const [awaitingConfirm, setAwaitingConfirm] = useState(false);
@@ -1377,14 +1378,31 @@ setShowShareDialog(true);
                   <Input id="auth-pass" type="password" value={authForm.password} onChange={(e) => setAuthForm(f => ({ ...f, password: e.target.value }))} required />
                 </div>
                 {authError && <div className="text-red-600 text-sm">{authError}</div>}
-                <Button type="submit" disabled={authLoading} className="w-full bg-brand-burgundy text-brand-cream hover:bg-brand-burgundy/90">
+                
+                <div className="flex items-start gap-3 bg-brand-gold/10 border border-brand-gold rounded-lg p-4">
+                  <Checkbox 
+                    id="data-consent"
+                    checked={authForm.dataConsent}
+                    onCheckedChange={(checked) => setAuthForm(f => ({ ...f, dataConsent: checked }))}
+                    className="mt-1"
+                  />
+                  <Label htmlFor="data-consent" className="text-sm text-brand-burgundy cursor-pointer leading-relaxed">
+                    I agree to Eddy collecting and using my personal information (name, email, phone, payment details) for making bookings, processing payments, and managing my account. See our <Link to="/privacy" className="underline font-semibold hover:text-brand-burgundy/80">Privacy Policy</Link> for more details.
+                  </Label>
+                </div>
+
+                <Button 
+                  type="submit" 
+                  disabled={authLoading || !authForm.dataConsent} 
+                  className="w-full bg-brand-burgundy text-brand-cream hover:bg-brand-burgundy/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
                   {authLoading ? 'Please wait...' : (authMode === 'login' ? 'Login' : 'Sign Up')}
                 </Button>
                 <div className="text-center text-sm">
                   {authMode === 'login' ? (
-                    <button type="button" className="text-brand-gold" onClick={() => setAuthMode('signup')}>New here? Create an account</button>
+                    <button type="button" className="text-brand-gold" onClick={() => { setAuthMode('signup'); setAuthForm(f => ({ ...f, dataConsent: false })); }}>New here? Create an account</button>
                   ) : (
-                    <button type="button" className="text-brand-gold" onClick={() => setAuthMode('login')}>Already have an account? Login</button>
+                    <button type="button" className="text-brand-gold" onClick={() => { setAuthMode('login'); setAuthForm(f => ({ ...f, dataConsent: false })); }}>Already have an account? Login</button>
                   )}
                 </div>
               </form>
