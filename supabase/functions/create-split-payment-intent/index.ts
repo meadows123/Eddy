@@ -1,6 +1,11 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { stripe } from '../_shared/stripe.ts'
-import { corsHeaders } from '../_shared/cors.ts'
+import Stripe from 'stripe'
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS'
+}
 
 serve(async (req) => {
   // Handle CORS
@@ -9,7 +14,26 @@ serve(async (req) => {
   }
 
   try {
-    const { amount, paymentMethodId, bookingId, splitRequests } = await req.json()
+    const body = await req.json()
+    const amount = Number(body?.amount)
+    const paymentMethodId = body?.paymentMethodId
+    const bookingId = body?.bookingId
+    const splitRequests = body?.splitRequests
+
+    console.log('📥 create-split-payment-intent payload:', {
+      amount,
+      paymentMethodId,
+      bookingId,
+      splitRequestsCount: Array.isArray(splitRequests) ? splitRequests.length : 'n/a'
+    })
+
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new Error('Invalid amount provided to create-split-payment-intent')
+    }
+
+    if (!paymentMethodId || typeof paymentMethodId !== 'string') {
+      throw new Error('Payment method ID is required')
+    }
 
     // Log the Stripe key mode for debugging (without exposing the actual key)
     // Check both test and live keys (prefer test key if available and non-empty)
@@ -22,14 +46,25 @@ serve(async (req) => {
     console.log(`Stripe mode: ${isTestMode ? 'TEST' : isLiveMode ? 'LIVE' : 'UNKNOWN'} (using ${keySource})`)
     console.log(`Key prefix: ${stripeKey.length > 0 ? stripeKey.substring(0, 7) : 'NONE'}`)
 
+    if (!stripeKey) {
+      throw new Error('Stripe secret key is not configured')
+    }
+
+    const stripe = new Stripe(stripeKey, {
+      apiVersion: '2023-10-16',
+      httpClient: Stripe.createFetchHttpClient(),
+    })
+
     // Create payment intent
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // convert to cents
+      amount: Math.round(amount * 100), // convert to kobo
       currency: 'ngn',
-      payment_method: paymentMethodId,
+      payment_method_types: ['card'],
       metadata: {
         bookingId,
-        splitPayment: 'true'
+        splitPayment: 'true',
+        originatingPaymentMethod: paymentMethodId,
+        bookingType: body?.bookingType || 'unknown'
       }
     })
 
@@ -45,6 +80,7 @@ serve(async (req) => {
       }
     )
   } catch (error) {
+    console.error('create-split-payment-intent error:', error);
     // Return error as JSON
     return new Response(
       JSON.stringify({ error: error.message }),

@@ -823,6 +823,17 @@ if (!venueId) {
     // For single payments, we'll use a different approach - create a PaymentIntent directly
     // We need to use the Edge Function after all, but with the correct parameters
     
+    const paymentPayload = {
+      amount: parseFloat(calculateTotal()),
+      paymentMethodId,
+      email: formData.email,
+      bookingId: pendingBooking.id,
+      bookingType: 'single',
+      splitRequests: []
+    };
+
+    console.log('📤 Sending create-split-payment-intent payload:', paymentPayload);
+
     const response = await fetch(
       'https://agydpkzfucicraedllgl.supabase.co/functions/v1/create-split-payment-intent',
       {
@@ -831,14 +842,7 @@ if (!venueId) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
         },
-        body: JSON.stringify({
-          amount: Math.round(parseFloat(calculateTotal()) * 100),
-          paymentMethodId,
-          email: formData.email,
-          bookingId: pendingBooking.id, // Now we have the booking ID
-          bookingType: 'single', // Specify this is a single payment
-          splitRequests: [] // Empty array for single payments
-        })
+        body: JSON.stringify(paymentPayload)
       }
     );
 
@@ -850,6 +854,7 @@ if (!venueId) {
         .eq('id', pendingBooking.id);
 
       const errorData = await response.json();
+      console.error('❌ create-split-payment-intent failed:', response.status, errorData);
       throw new Error(errorData.error || 'Failed to create payment intent');
     }
 
@@ -867,7 +872,9 @@ if (!venueId) {
       throw new Error('Stripe instance is not available for payment confirmation');
     }
     
-    const { paymentIntent, error: confirmError } = await stripe.confirmCardPayment(clientSecret);
+    const { paymentIntent, error: confirmError } = await stripe.confirmCardPayment(clientSecret, {
+      payment_method: paymentMethodId
+    });
     
     if (confirmError) {
       // If payment fails, send admin notification and mark payment as failed
