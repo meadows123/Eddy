@@ -117,12 +117,24 @@ serve(async (req) => {
               <div style="background: rgba(255, 215, 0, 0.1); border: 2px solid #FFD700; padding: 20px; border-radius: 8px; margin: 20px 0;">
                 <h2 style="color: #800020; margin-top: 0; font-size: 20px; font-weight: bold;">Booking Details</h2>
                 <p style="color: #800020; margin: 8px 0;"><strong style="color: #800020;">Venue:</strong> ${data.venueName}</p>
+                ${data.venueAddress ? `<p style="color: #800020; margin: 8px 0;"><strong style="color: #800020;">Address:</strong> ${data.venueAddress}</p>` : ''}
+                ${data.venuePhone ? `<p style="color: #800020; margin: 8px 0;"><strong style="color: #800020;">Contact:</strong> ${data.venuePhone}</p>` : ''}
                 <p style="color: #800020; margin: 8px 0;"><strong style="color: #800020;">Booking Date:</strong> ${data.bookingDate}</p>
                 <p style="color: #800020; margin: 8px 0;"><strong style="color: #800020;">Booking ID:</strong> #${data.bookingId}</p>
                 ${data.ticketInfo ? `<p style="color: #800020; margin: 8px 0;"><strong style="color: #800020;">Ticket:</strong> ${data.ticketInfo}</p>` : ''}
                 ${data.tableInfo ? `<p style="color: #800020; margin: 8px 0;"><strong style="color: #800020;">Table:</strong> ${data.tableInfo}</p>` : ''}
                 <p style="color: #800020; margin: 8px 0;"><strong style="color: #800020;">Total Amount:</strong> ₦${data.totalAmount}</p>
               </div>
+
+              ${data.qrCodeImage ? `
+              <div style="text-align: center; margin: 30px 0;">
+                <div style="display: inline-block; background: rgba(255,215,0,0.1); border: 2px solid #FFD700; padding: 16px; border-radius: 12px;">
+                  <p style="color: #800020; font-size: 16px; font-weight: bold; margin-bottom: 12px;">Your Entry QR Code</p>
+                  <img src="${data.qrCodeImage}" alt="Booking QR Code" style="width: 180px; height: 180px; display: block; margin: 0 auto;" />
+                  <p style="color: #800020; font-size: 13px; margin-top: 12px;">Present this QR code at the venue entrance for swift access.</p>
+                </div>
+              </div>
+              ` : ''}
               
               <div style="background: rgba(255, 215, 0, 0.15); border: 2px solid #FFD700; padding: 15px; border-radius: 8px; margin: 20px 0;">
                 <h3 style="color: #800020; margin-top: 0; font-size: 18px; font-weight: bold;">What's Next?</h3>
@@ -390,6 +402,15 @@ serve(async (req) => {
           </div>
         </div>
       </div>
+      ${data.qrCodeImage ? `
+      <div style="text-align:center;margin-top:28px">
+        <div style="display:inline-block;background:rgba(255,215,0,0.1);border:2px solid #FFD700;padding:18px 20px;border-radius:14px;">
+          <div style="color:#800020;font-size:16px;font-weight:700;margin-bottom:12px">Your Member QR Code</div>
+          <img src="${data.qrCodeImage}" alt="Member QR Code" style="width:200px;height:200px;display:block;margin:0 auto;border-radius:12px;border:2px solid #800020;">
+          <p style="color:#800020;font-size:13px;margin-top:12px;font-weight:bold">Present this QR code at the venue to access your member benefits.</p>
+        </div>
+      </div>
+      ` : ''}
       <div style="text-align:center;margin-top:32px">
         <a href="${data.dashboardUrl}" style="display:inline-block;background:#FFD700;color:#800020;text-decoration:none;padding:12px 24px;border-radius:6px;font-weight:600;border:2px solid #800020">View Your Credits</a>
       </div>
@@ -459,6 +480,15 @@ serve(async (req) => {
           <div style="color: #800020; font-size: 14px; font-weight: bold;">${data.requestsCount || 0} payment requests have been sent to your friends.</div>
         </div>
       </div>
+    ${data.qrCodeImage ? `
+    <div style="text-align: center; margin: 24px 0;">
+      <div style="display: inline-block; background: rgba(255, 215, 0, 0.1); border: 2px solid #FFD700; border-radius: 12px; padding: 18px 20px;">
+        <div style="color: #800020; font-size: 16px; font-weight: 700; margin-bottom: 12px;">Your Booking QR Code</div>
+        <img src="${data.qrCodeImage}" alt="Booking QR Code" style="width: 200px; height: 200px; display: block; margin: 0 auto; border-radius: 12px; border: 2px solid #800020;">
+        <p style="color: #800020; font-size: 13px; margin-top: 12px; font-weight: bold;">Show this QR code at the venue to access your booking.</p>
+      </div>
+    </div>
+    ` : ''}
       <div style="text-align: center; margin: 24px 0;">
         <a href="${data.dashboardUrl || (Deno.env.get('APP_URL') || '') + '/profile'}" class="btn">📊 View Booking Details</a>
       </div>
@@ -524,6 +554,15 @@ serve(async (req) => {
           <div style="color: #800020; font-size: 14px; font-weight: bold;"><strong>${data.initiatorName || 'Your friend'}</strong> has requested you to pay <strong>₦${Number(data.amount || 0).toLocaleString()}</strong> for this booking.</div>
         </div>
       </div>
+      ${data.qrCodeImage ? `
+      <div style="text-align: center; margin: 24px 0;">
+        <div style="display: inline-block; background: rgba(255, 215, 0, 0.1); border: 2px solid #FFD700; border-radius: 12px; padding: 18px 20px;">
+          <div style="color: #800020; font-size: 16px; font-weight: 700; margin-bottom: 12px;">Booking QR Code</div>
+          <img src="${data.qrCodeImage}" alt="Booking QR Code" style="width: 200px; height: 200px; display: block; margin: 0 auto; border-radius: 12px; border: 2px solid #800020;">
+          <p style="color: #800020; font-size: 13px; margin-top: 12px; font-weight: bold;">You can present this QR code at the venue once your payment is confirmed.</p>
+        </div>
+      </div>
+      ` : ''}
       <div style="text-align: center; margin: 24px 0;">
         <a href="${data.paymentUrl || (Deno.env.get('APP_URL') || '') + '/split-payment/' + (data.requestId || '')}" class="btn">💳 Pay Your Share</a>
       </div>
@@ -664,6 +703,15 @@ serve(async (req) => {
           <div style="color: #800020; font-size: 14px; font-weight: bold;">Your payment has been successfully processed. The booking will be fully confirmed once all split payments are completed.</div>
         </div>
       </div>
+    ${data.qrCodeImage ? `
+    <div style="text-align: center; margin: 24px 0;">
+      <div style="display: inline-block; background: rgba(255, 215, 0, 0.1); border: 2px solid #FFD700; border-radius: 12px; padding: 18px 20px;">
+        <div style="color: #800020; font-size: 16px; font-weight: 700; margin-bottom: 12px;">Your Booking QR Code</div>
+        <img src="${data.qrCodeImage}" alt="Booking QR Code" style="width: 200px; height: 200px; display: block; margin: 0 auto; border-radius: 12px; border: 2px solid #800020;">
+        <p style="color: #800020; font-size: 13px; margin-top: 12px; font-weight: bold;">Present this QR code at the venue when you arrive.</p>
+      </div>
+    </div>
+    ` : ''}
       <div style="text-align: center; margin: 24px 0;">
         <a href="${data.dashboardUrl || (Deno.env.get('APP_URL') || '') + '/profile'}" class="btn">📊 View Booking Details</a>
       </div>

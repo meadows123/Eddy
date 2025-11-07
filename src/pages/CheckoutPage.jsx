@@ -17,7 +17,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
-import { sendBookingConfirmation, sendVenueOwnerNotification, debugBookingEmail } from '../lib/emailService.js';
+import { sendVenueOwnerNotification, debugBookingEmail } from '../lib/emailService.js';
 import { checkTableAvailability } from '../lib/api.jsx';
 import { Elements, CardElement } from '@stripe/react-stripe-js';
 import { stripePromise } from '@/lib/stripe';
@@ -588,8 +588,7 @@ email: bookingData.customerEmail || formData.email,
 phone: bookingData.customerPhone || formData.phone
 };
 
-// Send customer confirmation email using EmailJS with QR code
-const customerEmailResult = await sendBookingConfirmation(booking, venue, customer, bookingData.qrCodeImage);
+// Customer email will be sent after payment confirmation
 
 // Get venue owner info if available for notification
 const dataSource = selection || bookingData;
@@ -735,7 +734,8 @@ throw error;
 };
 
 const handleSubmit = async (paymentMethodId) => {
-  
+  let customerEmailResult = false;
+
   if (!paymentMethodId) {
     console.error('Payment method ID is missing');
     toast({
@@ -929,39 +929,56 @@ if (!venueId) {
     if (venueError) {
     }
 
-    // Get venue owner information separately
+    // Venue owner data will be handled by the edge function with service role
     let venueOwnerData = null;
-    
-    if (venueData?.owner_id) {
-      const { data: ownerData, error: ownerError } = await supabase
-        .from('venue_owners')
-        .select('owner_email, owner_name, email')
-        .eq('user_id', venueData.owner_id)
-        .single();
-      
-      
-      if (!ownerError && ownerData) {
-        venueOwnerData = ownerData;
-      } else {
-        
-        // Try alternative query - maybe the venue_owners table has different structure
-        const { data: altOwnerData, error: altOwnerError } = await supabase
-          .from('venue_owners')
-          .select('*')
-          .eq('user_id', venueData.owner_id);
-        
-        
-        // Also try to see what's in the venue_owners table for this venue
-        const { data: allOwners, error: allOwnersError } = await supabase
-          .from('venue_owners')
-          .select('*')
-          .limit(5);
-        
+
+    // Send customer confirmation email now that payment is confirmed
+    try {
+      console.log('📧 Sending customer confirmation email after payment confirmation:', {
+        customerEmail: formData.email,
+        customerName: formData.fullName,
+        bookingId: updatedBooking.id,
+        venueName: venueData?.name
+      });
+
+      // Use Supabase Edge Function instead of EmailJS for customer confirmation
+      const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
+        body: {
+          to: formData.email,
+          subject: `Booking Confirmed - ${venueData?.name || 'VIPClub'}`,
+          template: 'booking-confirmation',
+          data: {
+            customerName: formData.fullName,
+            venueName: venueData?.name || 'Venue',
+            bookingDate: new Date(updatedBooking.booking_date).toLocaleDateString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric'
+            }),
+            bookingId: updatedBooking.id,
+            tableInfo: updatedBooking.table_number || `Table ${updatedBooking.table?.table_number || 'N/A'}`,
+            totalAmount: Number(updatedBooking.total_amount || 0),
+            ticketInfo: `VIP Experience - ${updatedBooking.number_of_guests || 1} guests`,
+            qrCodeImage: qrCodeImage,
+            venueAddress: venueData?.address || 'Lagos, Nigeria',
+            venuePhone: venueData?.contact_phone || '+234 XXX XXX XXXX'
+          }
+        }
+      });
+
+      if (emailError) {
+        throw emailError;
       }
-    } else {
+
+      customerEmailResult = true;
+      console.log('✅ Customer confirmation email sent successfully after payment');
+    } catch (customerEmailError) {
+      console.error('❌ Customer confirmation email failed after payment:', customerEmailError);
+      customerEmailResult = false;
     }
 
-    // Send confirmation email with complete data
+    // Send confirmation email with complete data (venue owner notifications)
     try {
       const dataSource = selection || bookingData;
       const emailResult = await sendBookingConfirmationEmail({
@@ -1232,20 +1249,20 @@ setShowShareDialog(true);
                     <Check className="h-8 w-8 text-primary" />
                   </div>
                 </div>
-                <p className="mb-2">
+                <div className="mb-2">
                   Your booking at <span className="font-bold">{(selection || bookingData)?.venue?.name}</span> has been confirmed.
-                </p>
+                </div>
                 {vipPerks.length > 0 && (
                   <div className="my-2 text-sm text-green-400">
-                    <p className="font-semibold">VIP Perks Applied:</p>
+                    <div className="font-semibold">VIP Perks Applied:</div>
                     <ul className="list-disc list-inside">
                       {vipPerks.map(perk => <li key={perk}>{perk}</li>)}
                     </ul>
                   </div>
                 )}
-                <p className="text-sm">
+                <div className="text-sm">
                   A confirmation email has been sent to {formData.email}. You can show this email or your ID at the entrance.
-                </p>
+                </div>
               </DialogDescription>
             </DialogHeader>
             <div className="flex justify-center mt-4">

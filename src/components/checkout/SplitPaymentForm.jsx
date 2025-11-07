@@ -9,6 +9,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabase';
 import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { sendBookingConfirmation, sendVenueOwnerNotification } from '@/lib/emailService.js';
+import { generateVenueEntryQR } from '@/lib/qrCodeService';
 import { 
   Plus, 
   Minus, 
@@ -319,6 +320,14 @@ const SplitPaymentForm = ({
           throw bookingError;
         }
 
+        let qrCodeImage = null;
+        try {
+          const qrResult = await generateVenueEntryQR(bookingData);
+          qrCodeImage = qrResult?.externalUrl || qrResult?.base64 || null;
+        } catch (qrError) {
+          console.error('Error generating split payment QR code:', qrError);
+        }
+
 
         // Get main booker's profile data
         const { data: mainBookerProfile, error: mainBookerError } = await supabase
@@ -368,7 +377,9 @@ const SplitPaymentForm = ({
               splitAmount: myAmount,
               requestsCount: splitCount,
               numberOfSplits: splitCount,
-              dashboardUrl: `${window.location.origin}/profile`
+              dashboardUrl: `${window.location.origin}/profile`,
+              qrCodeImage,
+              qrCodeUrl: qrCodeImage
             }
           };
 
@@ -441,7 +452,9 @@ const SplitPaymentForm = ({
                 numberOfSplits: splitCount,
                 paymentUrl: `${window.location.origin}/split-payment/${bookingData.id}/${splitRecipients.indexOf(recipient)}`,
                 paymentLink: `${window.location.origin}/split-payment/${bookingData.id}/${splitRecipients.indexOf(recipient)}`,
-                dashboardUrl: `${window.location.origin}/profile`
+                dashboardUrl: `${window.location.origin}/profile`,
+                qrCodeImage,
+                qrCodeUrl: qrCodeImage
               }
             };
 
