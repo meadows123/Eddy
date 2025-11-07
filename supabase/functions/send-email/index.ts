@@ -93,7 +93,7 @@ serve(async (req) => {
 
       case 'welcome':
         html = `
-          <h1>Welcome to VIPClub!</h1>
+          <h1>Welcome to Eddy!</h1>
           <p>Hi${data?.email ? `, ${data.email}` : ''}!</p>
           <p>Thank you for signing up. We're excited to have you join our community.</p>
           <p>Start exploring and booking your favorite venues today!</p>
@@ -106,13 +106,13 @@ serve(async (req) => {
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #FFF5E6;">
             <div style="background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
               <h1 style="color: #FFF5E6; margin: 0; font-size: 28px; font-weight: bold;">Booking Confirmed!</h1>
-              <p style="color: #FFF5E6; margin: 10px 0 0 0; font-size: 16px;">Your VIPClub experience awaits</p>
+              <p style="color: #FFF5E6; margin: 10px 0 0 0; font-size: 16px;">Your Eddy experience awaits</p>
             </div>
             
             <div style="background: #FFF5E6; padding: 30px; border: 2px solid #800020; border-top: none;">
               <p style="font-size: 18px; color: #800020; margin-bottom: 20px; font-weight: bold;">Dear ${data.customerName},</p>
               
-              <p style="color: #800020; line-height: 1.6; font-size: 16px;">Thank you for choosing VIPClub! Your booking has been confirmed and we're excited to welcome you.</p>
+              <p style="color: #800020; line-height: 1.6; font-size: 16px;">Thank you for choosing Eddy! Your booking has been confirmed and we're excited to welcome you.</p>
               
               <div style="background: rgba(255, 215, 0, 0.1); border: 2px solid #FFD700; padding: 20px; border-radius: 8px; margin: 20px 0;">
                 <h2 style="color: #800020; margin-top: 0; font-size: 20px; font-weight: bold;">Booking Details</h2>
@@ -156,8 +156,8 @@ serve(async (req) => {
                 <a href="https://oneeddy.com/profile" style="background: #FFD700; color: #800020; padding: 14px 32px; text-decoration: none; border-radius: 25px; font-weight: bold; font-size: 16px; display: inline-block; border: 2px solid #800020;">View My Bookings</a>
               </div>
               
-              <p style="color: #800020; font-size: 16px; font-weight: bold;">Thank you for choosing VIPClub!</p>
-              <p style="color: #800020; font-size: 14px;">Best regards,<br>The VIPClub Team</p>
+              <p style="color: #800020; font-size: 16px; font-weight: bold;">Thank you for choosing Eddy!</p>
+              <p style="color: #800020; font-size: 14px;">Best regards,<br>The Eddy Team</p>
             </div>
             
             <div style="background: rgba(255, 215, 0, 0.1); border: 2px solid #800020; padding: 20px; text-align: center; border-radius: 0 0 10px 10px; border-top: none;">

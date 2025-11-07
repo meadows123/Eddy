@@ -906,7 +906,7 @@ if (!venueId) {
         table_id: tableId,
         table: { table_number: selection?.table?.name || selection?.table?.table_number || 'N/A' }
       });
-      qrCodeImage = qrCodeData;
+      qrCodeImage = qrCodeData?.externalUrl || qrCodeData?.base64 || qrCodeData;
     } catch (qrError) {
       console.error('❌ Failed to generate QR code:', qrError);
       // Continue without QR code - booking is still valid
@@ -945,7 +945,7 @@ if (!venueId) {
       const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
         body: {
           to: formData.email,
-          subject: `Booking Confirmed - ${venueData?.name || 'VIPClub'}`,
+          subject: `Booking Confirmed - ${venueData?.name || 'Eddy'}`,
           template: 'booking-confirmation',
           data: {
             customerName: formData.fullName,
@@ -959,7 +959,7 @@ if (!venueId) {
             bookingId: updatedBooking.id,
             tableInfo: updatedBooking.table_number || `Table ${updatedBooking.table?.table_number || 'N/A'}`,
             totalAmount: Number(updatedBooking.total_amount || 0),
-            ticketInfo: `VIP Experience - ${updatedBooking.number_of_guests || 1} guests`,
+            ticketInfo: `Eddy Experience - ${updatedBooking.number_of_guests || 1} guests`,
             qrCodeImage: qrCodeImage?.externalUrl || qrCodeImage?.base64 || qrCodeImage,
             venueAddress: venueData?.address || 'Lagos, Nigeria',
             venuePhone: venueData?.contact_phone || '+234 XXX XXX XXXX'
