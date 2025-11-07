@@ -878,9 +878,7 @@ if (!venueId) {
     });
     
     if (confirmError) {
-      // If payment fails, send admin notification and mark payment as failed
-      
-      // Update booking with payment failure
+      // If payment fails, mark booking as failed and surface error
       await supabase
         .from('bookings')
         .update({ 
@@ -888,16 +886,6 @@ if (!venueId) {
           payment_error: confirmError.message
         })
         .eq('id', pendingBooking.id);
-
-      // Send admin notification email
-      await sendAdminNotificationEmail({
-        type: 'payment_failed',
-        bookingId: pendingBooking.id,
-        error: confirmError.message,
-        amount: calculateTotal(),
-        customerEmail: formData.email,
-        customerName: formData.fullName
-      });
 
       throw new Error(`Payment failed: ${confirmError.message}`);
     }

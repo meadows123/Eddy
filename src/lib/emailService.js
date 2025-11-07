@@ -144,28 +144,29 @@ export const sendVenueOwnerNotification = async (booking, venue, customer, venue
     });
     
     // Use Supabase Edge Function for venue owner notifications
+    const tableInfo = booking.table_number
+      ? `Table ${booking.table_number}`
+      : (booking.table?.table_number ? `Table ${booking.table.table_number}` : 'Table not specified');
+
     const { data, error } = await supabase.functions.invoke('send-email', {
       body: {
         to: ownerData.email,
         subject: `New Booking - ${venue.name}`,
-        template: 'venue-owner-notification',
+        template: 'venue-owner-booking-notification',
         data: {
           venueName: venue.name || 'Venue',
-          venueAddress: venue.address || 'Lagos, Nigeria',
-          venuePhone: venue.contact_phone || '+234 XXX XXX XXXX',
-          venueEmail: venue.contact_email || 'info@oneeddy.com',
-          venueOwnerName: ownerData.name,
-          venueOwnerEmail: ownerData.email,
+          bookingId: booking.id,
+          bookingDate: booking.booking_date,
+          bookingTime: booking.start_time,
+          endTime: booking.end_time,
+          guestCount: booking.number_of_guests || 1,
+          totalAmount: Number(booking.total_amount || 0),
+          tableInfo,
           customerName: customer.full_name || customer.name || 'Guest',
           customerEmail: customer.email || 'guest@example.com',
           customerPhone: customer.phone || 'N/A',
-          bookingId: booking.id,
-          bookingDate: booking.booking_date,
-          bookingTime: `${booking.start_time} - ${booking.end_time}`,
-          numberOfGuests: booking.number_of_guests || 1,
-          tableNumber: booking.table_number || 'N/A',
-          totalAmount: booking.total_amount || 'N/A',
-          bookingStatus: booking.status || 'confirmed'
+          specialRequests: booking.special_requests || 'None specified',
+          ownerUrl: `${window.location.origin}/venue-owner/dashboard`
         }
       }
     });
