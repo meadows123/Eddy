@@ -960,7 +960,7 @@ if (!venueId) {
             tableInfo: updatedBooking.table_number || `Table ${updatedBooking.table?.table_number || 'N/A'}`,
             totalAmount: Number(updatedBooking.total_amount || 0),
             ticketInfo: `VIP Experience - ${updatedBooking.number_of_guests || 1} guests`,
-            qrCodeImage: qrCodeImage,
+            qrCodeImage: qrCodeImage?.externalUrl || qrCodeImage?.base64 || qrCodeImage,
             venueAddress: venueData?.address || 'Lagos, Nigeria',
             venuePhone: venueData?.contact_phone || '+234 XXX XXX XXXX'
           }
