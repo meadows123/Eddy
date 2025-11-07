@@ -11,6 +11,17 @@ serve(async (req) => {
   try {
     const { amount, paymentMethodId, bookingId, splitRequests } = await req.json()
 
+    // Log the Stripe key mode for debugging (without exposing the actual key)
+    // Check both test and live keys (prefer test key if available and non-empty)
+    const testKey = Deno.env.get('STRIPE_TEST_SECRET_KEY')?.trim() ?? ''
+    const liveKey = Deno.env.get('STRIPE_SECRET_KEY')?.trim() ?? ''
+    const stripeKey = (testKey && testKey.length > 0) ? testKey : liveKey
+    const isTestMode = stripeKey.startsWith('sk_test_')
+    const isLiveMode = stripeKey.startsWith('sk_live_')
+    const keySource = (testKey && testKey.length > 0) ? 'STRIPE_TEST_SECRET_KEY' : (liveKey && liveKey.length > 0 ? 'STRIPE_SECRET_KEY' : 'NONE')
+    console.log(`Stripe mode: ${isTestMode ? 'TEST' : isLiveMode ? 'LIVE' : 'UNKNOWN'} (using ${keySource})`)
+    console.log(`Key prefix: ${stripeKey.length > 0 ? stripeKey.substring(0, 7) : 'NONE'}`)
+
     // Create payment intent
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100), // convert to cents

@@ -45,13 +45,26 @@ const SplitPaymentForm = ({
   const [stripeReady, setStripeReady] = useState(false);
 
   // Check if Stripe is ready
+  const [stripeLoadError, setStripeLoadError] = useState(false);
   useEffect(() => {
     if (stripe && elements) {
       setStripeReady(true);
+      setStripeLoadError(false);
     } else {
       setStripeReady(false);
     }
   }, [stripe, elements]);
+
+  // Add timeout to show error if Stripe doesn't load within 15 seconds
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (!stripeReady && (!stripe || !elements)) {
+        console.error('Stripe Elements failed to load. Please check your Stripe configuration.');
+        setStripeLoadError(true);
+      }
+    }, 15000);
+    return () => clearTimeout(timeout);
+  }, [stripeReady, stripe, elements]);
 
   // Initialize split amounts when count changes
   useEffect(() => {
@@ -641,8 +654,17 @@ const SplitPaymentForm = ({
           <div className="p-4 border rounded-lg bg-white">
             {!stripeReady ? (
               <div className="w-full text-center text-gray-500">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-burgundy mx-auto mb-2"></div>
-                <p className="text-sm">Loading payment form...</p>
+                {stripeLoadError ? (
+                  <>
+                    <p className="text-sm text-red-600 mb-2">⚠️ Payment form failed to load</p>
+                    <p className="text-xs text-gray-500">Please refresh the page or check your connection.</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-burgundy mx-auto mb-2"></div>
+                    <p className="text-sm">Loading payment form...</p>
+                  </>
+                )}
               </div>
             ) : (
               <CardElement 

@@ -103,30 +103,30 @@ serve(async (req) => {
 
       case 'booking-confirmation':
         html = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="background: linear-gradient(135deg, #8B1538, #D4AF37); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-              <h1 style="color: white; margin: 0; font-size: 28px;">Booking Confirmed!</h1>
-              <p style="color: #F5F5DC; margin: 10px 0 0 0; font-size: 16px;">Your VIPClub experience awaits</p>
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #FFF5E6;">
+            <div style="background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+              <h1 style="color: #FFF5E6; margin: 0; font-size: 28px; font-weight: bold;">Booking Confirmed!</h1>
+              <p style="color: #FFF5E6; margin: 10px 0 0 0; font-size: 16px;">Your VIPClub experience awaits</p>
             </div>
             
-            <div style="background: white; padding: 30px; border: 1px solid #ddd; border-top: none;">
-              <p style="font-size: 18px; color: #333; margin-bottom: 20px;">Dear ${data.customerName},</p>
+            <div style="background: #FFF5E6; padding: 30px; border: 2px solid #800020; border-top: none;">
+              <p style="font-size: 18px; color: #800020; margin-bottom: 20px; font-weight: bold;">Dear ${data.customerName},</p>
               
-              <p style="color: #333; line-height: 1.6;">Thank you for choosing VIPClub! Your booking has been confirmed and we're excited to welcome you.</p>
+              <p style="color: #800020; line-height: 1.6; font-size: 16px;">Thank you for choosing VIPClub! Your booking has been confirmed and we're excited to welcome you.</p>
               
-              <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                <h2 style="color: #8B1538; margin-top: 0;">Booking Details</h2>
-                <p><strong>Venue:</strong> ${data.venueName}</p>
-                <p><strong>Booking Date:</strong> ${data.bookingDate}</p>
-                <p><strong>Booking ID:</strong> #${data.bookingId}</p>
-                ${data.ticketInfo ? `<p><strong>Ticket:</strong> ${data.ticketInfo}</p>` : ''}
-                ${data.tableInfo ? `<p><strong>Table:</strong> ${data.tableInfo}</p>` : ''}
-                <p><strong>Total Amount:</strong> ₦${data.totalAmount}</p>
+              <div style="background: rgba(255, 215, 0, 0.1); border: 2px solid #FFD700; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h2 style="color: #800020; margin-top: 0; font-size: 20px; font-weight: bold;">Booking Details</h2>
+                <p style="color: #800020; margin: 8px 0;"><strong style="color: #800020;">Venue:</strong> ${data.venueName}</p>
+                <p style="color: #800020; margin: 8px 0;"><strong style="color: #800020;">Booking Date:</strong> ${data.bookingDate}</p>
+                <p style="color: #800020; margin: 8px 0;"><strong style="color: #800020;">Booking ID:</strong> #${data.bookingId}</p>
+                ${data.ticketInfo ? `<p style="color: #800020; margin: 8px 0;"><strong style="color: #800020;">Ticket:</strong> ${data.ticketInfo}</p>` : ''}
+                ${data.tableInfo ? `<p style="color: #800020; margin: 8px 0;"><strong style="color: #800020;">Table:</strong> ${data.tableInfo}</p>` : ''}
+                <p style="color: #800020; margin: 8px 0;"><strong style="color: #800020;">Total Amount:</strong> ₦${data.totalAmount}</p>
               </div>
               
-              <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                <h3 style="color: #2e7d32; margin-top: 0;">What's Next?</h3>
-                <ul style="color: #333; margin: 0; padding-left: 20px;">
+              <div style="background: rgba(255, 215, 0, 0.15); border: 2px solid #FFD700; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="color: #800020; margin-top: 0; font-size: 18px; font-weight: bold;">What's Next?</h3>
+                <ul style="color: #800020; margin: 0; padding-left: 20px; font-size: 15px;">
                   <li>Arrive at the venue on your booking date</li>
                   <li>Show this email or your booking ID at the entrance</li>
                   <li>Present a valid ID for verification</li>
@@ -134,22 +134,22 @@ serve(async (req) => {
                 </ul>
               </div>
               
-              <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #D4AF37;">
-                <p style="margin: 0; color: #856404;"><strong>Important:</strong> Please save this email as your booking confirmation. You may be asked to present it at the venue.</p>
+              <div style="background: rgba(255, 215, 0, 0.2); border: 2px solid #FFD700; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #FFD700;">
+                <p style="margin: 0; color: #800020; font-size: 15px; font-weight: bold;"><strong>Important:</strong> Please save this email as your booking confirmation. You may be asked to present it at the venue.</p>
               </div>
               
-              <p style="color: #333; line-height: 1.6;">If you have any questions or need to make changes to your booking, please contact our support team.</p>
+              <p style="color: #800020; line-height: 1.6; font-size: 16px;">If you have any questions or need to make changes to your booking, please contact our support team.</p>
               
               <div style="text-align: center; margin: 30px 0;">
-                <a href="https://oneeddy.com/profile" style="background: linear-gradient(135deg, #8B1538, #D4AF37); color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-weight: bold;">View My Bookings</a>
+                <a href="https://oneeddy.com/profile" style="background: #FFD700; color: #800020; padding: 14px 32px; text-decoration: none; border-radius: 25px; font-weight: bold; font-size: 16px; display: inline-block; border: 2px solid #800020;">View My Bookings</a>
               </div>
               
-              <p style="color: #333;">Thank you for choosing VIPClub!</p>
-              <p style="color: #666; font-size: 14px;">Best regards,<br>The VIPClub Team</p>
+              <p style="color: #800020; font-size: 16px; font-weight: bold;">Thank you for choosing VIPClub!</p>
+              <p style="color: #800020; font-size: 14px;">Best regards,<br>The VIPClub Team</p>
             </div>
             
-            <div style="background: #f8f9fa; padding: 20px; text-align: center; border-radius: 0 0 10px 10px; border: 1px solid #ddd; border-top: none;">
-              <p style="color: #666; font-size: 12px; margin: 0;">This is an automated message. Please do not reply to this email.</p>
+            <div style="background: rgba(255, 215, 0, 0.1); border: 2px solid #800020; padding: 20px; text-align: center; border-radius: 0 0 10px 10px; border-top: none;">
+              <p style="color: #800020; font-size: 12px; margin: 0;">This is an automated message. Please do not reply to this email.</p>
             </div>
           </div>
         `
@@ -169,37 +169,37 @@ serve(async (req) => {
         to = data.adminEmail || 'info@oneeddy.com'
         subject = 'New Venue Owner Registration - Action Required'
         html = `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="background: linear-gradient(135deg, #8B1538, #D4AF37); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-              <h1 style="color: white; margin: 0; font-size: 28px;">New Venue Owner Registration</h1>
-              <p style="color: #F5F5DC; margin: 10px 0 0 0; font-size: 16px;">Action Required</p>
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #FFF5E6;">
+            <div style="background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+              <h1 style="color: #FFF5E6; margin: 0; font-size: 28px; font-weight: bold;">New Venue Owner Registration</h1>
+              <p style="color: #FFF5E6; margin: 10px 0 0 0; font-size: 16px;">Action Required</p>
             </div>
             
-            <div style="background: white; padding: 30px; border: 1px solid #ddd; border-top: none;">
-              <p style="font-size: 18px; color: #333; margin-bottom: 20px;">A new venue owner has completed their registration:</p>
+            <div style="background: #FFF5E6; padding: 30px; border: 2px solid #800020; border-top: none;">
+              <p style="font-size: 18px; color: #800020; margin-bottom: 20px; font-weight: bold;">A new venue owner has completed their registration:</p>
               
-              <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
-                <h3 style="color: #8B1538; margin-top: 0;">Venue Owner Details</h3>
-                <p><strong>Name:</strong> ${data.ownerName}</p>
-                <p><strong>Email:</strong> ${data.email}</p>
-                <p><strong>Phone:</strong> ${data.phone || 'Not provided'}</p>
-                <p><strong>Venue:</strong> ${data.venueName}</p>
-                <p><strong>Venue Type:</strong> ${data.venueType || 'Not specified'}</p>
-                <p><strong>Address:</strong> ${data.venueAddress}</p>
-                <p><strong>City:</strong> ${data.venueCity}</p>
+              <div style="background: rgba(255, 215, 0, 0.1); border: 2px solid #FFD700; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="color: #800020; margin-top: 0; font-size: 20px; font-weight: bold;">Venue Owner Details</h3>
+                <p style="color: #800020; margin: 8px 0;"><strong style="color: #800020;">Name:</strong> ${data.ownerName}</p>
+                <p style="color: #800020; margin: 8px 0;"><strong style="color: #800020;">Email:</strong> ${data.email}</p>
+                <p style="color: #800020; margin: 8px 0;"><strong style="color: #800020;">Phone:</strong> ${data.phone || 'Not provided'}</p>
+                <p style="color: #800020; margin: 8px 0;"><strong style="color: #800020;">Venue:</strong> ${data.venueName}</p>
+                <p style="color: #800020; margin: 8px 0;"><strong style="color: #800020;">Venue Type:</strong> ${data.venueType || 'Not specified'}</p>
+                <p style="color: #800020; margin: 8px 0;"><strong style="color: #800020;">Address:</strong> ${data.venueAddress}</p>
+                <p style="color: #800020; margin: 8px 0;"><strong style="color: #800020;">City:</strong> ${data.venueCity}</p>
               </div>
               
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${data.adminUrl || 'https://oneeddy.com/admin/venue-approvals'}" style="background: linear-gradient(135deg, #8B1538, #D4AF37); color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; display: inline-block;">Review Registration</a>
+                <a href="${data.adminUrl || 'https://oneeddy.com/admin/venue-approvals'}" style="background: #FFD700; color: #800020; padding: 14px 32px; text-decoration: none; border-radius: 25px; font-weight: bold; font-size: 16px; display: inline-block; border: 2px solid #800020;">Review Registration</a>
               </div>
               
-              <p style="color: #333; line-height: 1.6;">Please review this registration in the admin dashboard and approve or reject the venue owner.</p>
+              <p style="color: #800020; line-height: 1.6; font-size: 16px;">Please review this registration in the admin dashboard and approve or reject the venue owner.</p>
               
-              <p style="color: #666; font-size: 14px;">Best regards,<br>The Eddy Team</p>
+              <p style="color: #800020; font-size: 14px;">Best regards,<br>The Eddy Team</p>
             </div>
             
-            <div style="background: #f8f9fa; padding: 20px; text-align: center; border-radius: 0 0 10px 10px; border: 1px solid #ddd; border-top: none;">
-              <p style="color: #666; font-size: 12px; margin: 0;">This is an automated message. Please do not reply to this email.</p>
+            <div style="background: rgba(255, 215, 0, 0.1); border: 2px solid #800020; padding: 20px; text-align: center; border-radius: 0 0 10px 10px; border-top: none;">
+              <p style="color: #800020; font-size: 12px; margin: 0;">This is an automated message. Please do not reply to this email.</p>
             </div>
           </div>
         `
@@ -274,16 +274,16 @@ serve(async (req) => {
                 </a>
             </div>
             
-            <div style="background: #fff3cd; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #D4AF37;">
-                <p style="margin: 0; color: #856404;"><strong>Important:</strong> This link will take you directly to your venue dashboard. If you haven't set up your password yet, you'll be prompted to do so on first login.</p>
+            <div style="background: rgba(255, 215, 0, 0.2); border: 2px solid #FFD700; padding: 15px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #FFD700;">
+                <p style="margin: 0; color: #800020; font-weight: bold;"><strong>Important:</strong> This link will take you directly to your venue dashboard. If you haven't set up your password yet, you'll be prompted to do so on first login.</p>
             </div>
             
-            <p style="color: #333;">If you have any questions, please contact our support team.</p>
-            <p style="color: #666; font-size: 14px;">Best regards,<br>The Eddys Members Team</p>
+            <p style="color: #800020; font-size: 16px;">If you have any questions, please contact our support team.</p>
+            <p style="color: #800020; font-size: 14px;">Best regards,<br>The Eddys Members Team</p>
         </div>
         
         <div class="footer">
-            <p style="color: #666; font-size: 12px; margin: 0;">&copy; 2025 Eddys Members. All rights reserved. Built in memory of Eddy.</p>
+            <p style="color: #800020; font-size: 12px; margin: 0;">&copy; 2025 Eddys Members. All rights reserved. Built in memory of Eddy.</p>
         </div>
     </div>
 </body>
@@ -330,30 +330,30 @@ serve(async (req) => {
         html = `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Join Eddy - Special Invitation</title></head>
-<body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;color:#333">
-  <div style="max-width:600px;margin:0 auto;background:#fff;box-shadow:0 10px 30px rgba(128,0,32,0.08)">
+<body style="margin:0;padding:0;background:#FFF5E6;font-family:Arial,sans-serif;color:#800020">
+  <div style="max-width:600px;margin:0 auto;background:#FFF5E6;box-shadow:0 10px 30px rgba(128,0,32,0.08);border:2px solid #800020">
     <div style="background:linear-gradient(135deg,#800020 0%,#A71D2A 100%);padding:36px 28px;text-align:center;position:relative">
       <img src="https://res.cloudinary.com/dq1l3wltu/image/upload/v1753338476/Eddy_Logo-07_vagzzy.jpg" alt="Eddy" style="width:110px;height:110px;border-radius:50%;border:3px solid #FFD700;box-shadow:0 8px 20px rgba(255,215,0,.28);margin-bottom:12px">
       <div style="color:#FFF5E6;font-size:26px;font-weight:700;letter-spacing:1.5px">SPECIAL INVITATION</div>
     </div>
-    <div style="padding:40px 32px">
-      <h2 style="color:#800020;text-align:center;margin:0 0 14px 0">You're Invited to Join Eddy!</h2>
-      <p style="text-align:center;color:#555;margin:0 0 24px 0">Hi there! ${data.senderName} thinks you'd love being part of Eddy.</p>
-      <div style="background:linear-gradient(135deg,#FFF5E6 0%,#ffffff 100%);border:2px solid #FFD700;border-radius:14px;padding:24px;margin:18px 0">
+    <div style="padding:40px 32px;background:#FFF5E6">
+      <h2 style="color:#800020;text-align:center;margin:0 0 14px 0;font-weight:bold">You're Invited to Join Eddy!</h2>
+      <p style="text-align:center;color:#800020;margin:0 0 24px 0;font-size:16px;font-weight:bold">Hi there! ${data.senderName} thinks you'd love being part of Eddy.</p>
+      <div style="background:rgba(255,215,0,0.1);border:2px solid #FFD700;border-radius:14px;padding:24px;margin:18px 0">
         <div style="color:#800020;font-weight:700;font-size:14px;margin-bottom:12px;text-transform:uppercase">Personal Message</div>
-        <div style="color:#666;font-style:italic;font-size:16px;line-height:1.5">"${data.personalMessage || 'Join me on Eddy and discover the best venues in town!'}"</div>
+        <div style="color:#800020;font-style:italic;font-size:16px;line-height:1.5;font-weight:bold">"${data.personalMessage || 'Join me on Eddy and discover the best venues in town!'}"</div>
       </div>
-      <div style="background:#f8f9fa;padding:20px;border-radius:10px;margin:24px 0">
-        <h3 style="color:#800020;font-size:18px;margin:0 0 12px 0">Your Special Referral Code</h3>
-        <div style="background:#800020;color:#FFD700;font-size:24px;font-weight:bold;text-align:center;padding:12px;border-radius:6px;letter-spacing:2px">${data.referralCode}</div>
-        <p style="color:#666;font-size:14px;text-align:center;margin:12px 0 0 0">Use this code when signing up to receive special benefits!</p>
+      <div style="background:rgba(255,215,0,0.15);border:2px solid #FFD700;padding:20px;border-radius:10px;margin:24px 0">
+        <h3 style="color:#800020;font-size:18px;margin:0 0 12px 0;font-weight:bold">Your Special Referral Code</h3>
+        <div style="background:#800020;color:#FFD700;font-size:24px;font-weight:bold;text-align:center;padding:12px;border-radius:6px;letter-spacing:2px;border:2px solid #FFD700">${data.referralCode}</div>
+        <p style="color:#800020;font-size:14px;text-align:center;margin:12px 0 0 0;font-weight:bold">Use this code when signing up to receive special benefits!</p>
       </div>
       <div style="text-align:center;margin-top:32px">
-        <a href="${data.signupUrl}" style="display:inline-block;background:#800020;color:#fff;text-decoration:none;padding:14px 28px;border-radius:6px;font-weight:600;font-size:16px">Join Eddy Now</a>
+        <a href="${data.signupUrl}" style="display:inline-block;background:#FFD700;color:#800020;text-decoration:none;padding:14px 28px;border-radius:6px;font-weight:600;font-size:16px;border:2px solid #800020">Join Eddy Now</a>
       </div>
     </div>
-    <div style="background:#f8f9fa;padding:24px;text-align:center;border-top:1px solid #eee">
-      <p style="color:#666;font-size:12px;margin:0">This invitation was sent to you by ${data.senderName} via Eddy.<br>If you don't want to receive these emails, you can ignore this message.</p>
+    <div style="background:rgba(255,215,0,0.1);border:2px solid #800020;padding:24px;text-align:center;border-top:2px solid #800020">
+      <p style="color:#800020;font-size:12px;margin:0">This invitation was sent to you by ${data.senderName} via Eddy.<br>If you don't want to receive these emails, you can ignore this message.</p>
     </div>
   </div>
 </body>
@@ -364,39 +364,39 @@ serve(async (req) => {
         html = `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Credit Purchase Confirmation</title></head>
-<body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;color:#333">
-  <div style="max-width:600px;margin:0 auto;background:#fff;box-shadow:0 10px 30px rgba(128,0,32,0.08)">
+<body style="margin:0;padding:0;background:#FFF5E6;font-family:Arial,sans-serif;color:#800020">
+  <div style="max-width:600px;margin:0 auto;background:#FFF5E6;box-shadow:0 10px 30px rgba(128,0,32,0.08);border:2px solid #800020">
     <div style="background:linear-gradient(135deg,#800020 0%,#A71D2A 100%);padding:36px 28px;text-align:center;position:relative">
       <img src="https://res.cloudinary.com/dq1l3wltu/image/upload/v1753338476/Eddy_Logo-07_vagzzy.jpg" alt="Eddy" style="width:110px;height:110px;border-radius:50%;border:3px solid #FFD700;box-shadow:0 8px 20px rgba(255,215,0,.28);margin-bottom:12px">
       <div style="color:#FFF5E6;font-size:26px;font-weight:700;letter-spacing:1.5px">CREDIT PURCHASE CONFIRMATION</div>
     </div>
-    <div style="padding:40px 32px">
-      <h2 style="color:#800020;text-align:center;margin:0 0 14px 0">Credit Purchase Successful!</h2>
-      <p style="text-align:center;color:#555;margin:0 0 24px 0">Hi ${data.customerName || 'there'}, your credit purchase has been confirmed.</p>
-      <div style="background:linear-gradient(135deg,#FFF5E6 0%,#ffffff 100%);border:2px solid #FFD700;border-radius:14px;padding:24px;margin:18px 0">
+    <div style="padding:40px 32px;background:#FFF5E6">
+      <h2 style="color:#800020;text-align:center;margin:0 0 14px 0;font-weight:bold">Credit Purchase Successful!</h2>
+      <p style="text-align:center;color:#800020;margin:0 0 24px 0;font-size:16px;font-weight:bold">Hi ${data.customerName || 'there'}, your credit purchase has been confirmed.</p>
+      <div style="background:rgba(255,215,0,0.1);border:2px solid #FFD700;border-radius:14px;padding:24px;margin:18px 0">
         <div style="color:#800020;font-weight:700;font-size:14px;margin-bottom:12px;text-transform:uppercase">Purchase Details</div>
         <div style="display:grid;grid-template-columns:1fr;gap:14px">
-          <div style="background:#f8f9fa;padding:12px;border-radius:8px;border-left:4px solid #FFD700">
+          <div style="background:rgba(255,215,0,0.15);border:1px solid #FFD700;padding:12px;border-radius:8px;border-left:4px solid #FFD700">
             <div style="color:#800020;font-weight:700;font-size:11px;margin-bottom:4px;text-transform:uppercase">Amount</div>
-            <div style="color:#666;font-size:16px;font-weight:bold">₦${data.amount.toLocaleString()}</div>
+            <div style="color:#800020;font-size:16px;font-weight:bold">₦${data.amount.toLocaleString()}</div>
           </div>
-          <div style="background:#f8f9fa;padding:12px;border-radius:8px;border-left:4px solid #FFD700">
+          <div style="background:rgba(255,215,0,0.15);border:1px solid #FFD700;padding:12px;border-radius:8px;border-left:4px solid #FFD700">
             <div style="color:#800020;font-weight:700;font-size:11px;margin-bottom:4px;text-transform:uppercase">Venue</div>
-            <div style="color:#666;font-size:16px">${data.venueName}</div>
+            <div style="color:#800020;font-size:16px;font-weight:bold">${data.venueName}</div>
           </div>
-          <div style="background:#f8f9fa;padding:12px;border-radius:8px;border-left:4px solid #FFD700">
+          <div style="background:rgba(255,215,0,0.15);border:1px solid #FFD700;padding:12px;border-radius:8px;border-left:4px solid #FFD700">
             <div style="color:#800020;font-weight:700;font-size:11px;margin-bottom:4px;text-transform:uppercase">Transaction Date</div>
-            <div style="color:#666;font-size:13px">${new Date().toLocaleDateString()}</div>
+            <div style="color:#800020;font-size:13px;font-weight:bold">${new Date().toLocaleDateString()}</div>
           </div>
         </div>
       </div>
       <div style="text-align:center;margin-top:32px">
-        <a href="${data.dashboardUrl}" style="display:inline-block;background:#800020;color:#fff;text-decoration:none;padding:12px 24px;border-radius:6px;font-weight:600">View Your Credits</a>
+        <a href="${data.dashboardUrl}" style="display:inline-block;background:#FFD700;color:#800020;text-decoration:none;padding:12px 24px;border-radius:6px;font-weight:600;border:2px solid #800020">View Your Credits</a>
       </div>
-      <p style="text-align:center;color:#666;margin-top:32px;font-size:13px">Thank you for choosing Eddy. Your credits are now available in your account.</p>
+      <p style="text-align:center;color:#800020;margin-top:32px;font-size:13px;font-weight:bold">Thank you for choosing Eddy. Your credits are now available in your account.</p>
     </div>
-    <div style="background:#f8f9fa;padding:24px;text-align:center;border-top:1px solid #eee">
-      <p style="color:#666;font-size:12px;margin:0">If you have any questions, please contact our support team.</p>
+    <div style="background:rgba(255,215,0,0.1);border:2px solid #800020;padding:24px;text-align:center;border-top:2px solid #800020">
+      <p style="color:#800020;font-size:12px;margin:0">If you have any questions, please contact our support team.</p>
     </div>
   </div>
 </body>
@@ -412,19 +412,19 @@ serve(async (req) => {
   <title>Eddys Members – Split Payment Initiated</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: Arial, sans-serif; background: #f5f5f5; color: #333; line-height: 1.6; }
-    .email-container { max-width: 600px; margin: 0 auto; background: #fff; box-shadow: 0 10px 30px rgba(128,0,32,0.08); }
+    body { font-family: Arial, sans-serif; background: #FFF5E6; color: #800020; line-height: 1.6; }
+    .email-container { max-width: 600px; margin: 0 auto; background: #FFF5E6; box-shadow: 0 10px 30px rgba(128,0,32,0.08); border: 2px solid #800020; }
     .header { background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); padding: 32px 24px; text-align: center; position: relative; }
     .logo-image { width: 80px; height: 80px; border-radius: 50%; border: 2px solid #FFD700; box-shadow: 0 6px 16px rgba(255,215,0,.25); margin-bottom: 10px; }
     .brand { color: #FFF5E6; font-size: 24px; font-weight: 700; letter-spacing: 1.5px; }
-    .content { padding: 32px 24px; }
+    .content { padding: 32px 24px; background: #FFF5E6; }
     .title { color: #800020; font-size: 24px; font-weight: 700; text-align: center; margin-bottom: 16px; }
-    .payment-card { background: linear-gradient(135deg, #FFF5E6 0%, #ffffff 100%); border: 2px solid #FFD700; border-radius: 12px; padding: 24px; margin: 20px 0; }
+    .payment-card { background: rgba(255, 215, 0, 0.1); border: 2px solid #FFD700; border-radius: 12px; padding: 24px; margin: 20px 0; }
     .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
-    .detail-item { background: #f8f9fa; padding: 12px; border-radius: 8px; border-left: 4px solid #FFD700; }
+    .detail-item { background: rgba(255, 215, 0, 0.15); border: 1px solid #FFD700; padding: 12px; border-radius: 8px; border-left: 4px solid #FFD700; }
     .detail-label { color: #800020; font-weight: 700; font-size: 11px; text-transform: uppercase; margin-bottom: 4px; }
-    .detail-value { color: #666; font-size: 14px; }
-    .btn { display: inline-block; text-decoration: none; padding: 14px 28px; border-radius: 28px; font-weight: 700; font-size: 14px; background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); color: #FFF5E6; }
+    .detail-value { color: #800020; font-size: 14px; font-weight: bold; }
+    .btn { display: inline-block; text-decoration: none; padding: 14px 28px; border-radius: 28px; font-weight: 700; font-size: 14px; background: #FFD700; color: #800020; border: 2px solid #800020; }
   </style>
 </head>
 <body>
@@ -454,9 +454,9 @@ serve(async (req) => {
             <div class="detail-value">${data.bookingTime || 'N/A'}</div>
           </div>
         </div>
-        <div style="background: rgba(255, 215, 0, 0.1); border: 2px solid #FFD700; border-radius: 10px; padding: 20px; margin: 20px 0; text-align: center;">
+        <div style="background: rgba(255, 215, 0, 0.2); border: 2px solid #FFD700; border-radius: 10px; padding: 20px; margin: 20px 0; text-align: center;">
           <div style="color: #800020; font-size: 20px; font-weight: 700; margin-bottom: 8px;">Split Payment Requests Sent</div>
-          <div style="color: #666; font-size: 14px;">${data.requestsCount || 0} payment requests have been sent to your friends.</div>
+          <div style="color: #800020; font-size: 14px; font-weight: bold;">${data.requestsCount || 0} payment requests have been sent to your friends.</div>
         </div>
       </div>
       <div style="text-align: center; margin: 24px 0;">
@@ -477,19 +477,19 @@ serve(async (req) => {
   <title>Eddys Members – Split Payment Request</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: Arial, sans-serif; background: #f5f5f5; color: #333; line-height: 1.6; }
-    .email-container { max-width: 600px; margin: 0 auto; background: #fff; box-shadow: 0 10px 30px rgba(128,0,32,0.08); }
+    body { font-family: Arial, sans-serif; background: #FFF5E6; color: #800020; line-height: 1.6; }
+    .email-container { max-width: 600px; margin: 0 auto; background: #FFF5E6; box-shadow: 0 10px 30px rgba(128,0,32,0.08); border: 2px solid #800020; }
     .header { background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); padding: 32px 24px; text-align: center; }
     .logo-image { width: 80px; height: 80px; border-radius: 50%; border: 2px solid #FFD700; box-shadow: 0 6px 16px rgba(255,215,0,.25); margin-bottom: 10px; }
     .brand { color: #FFF5E6; font-size: 24px; font-weight: 700; letter-spacing: 1.5px; }
-    .content { padding: 32px 24px; }
+    .content { padding: 32px 24px; background: #FFF5E6; }
     .title { color: #800020; font-size: 24px; font-weight: 700; text-align: center; margin-bottom: 16px; }
-    .request-card { background: linear-gradient(135deg, #FFF5E6 0%, #ffffff 100%); border: 2px solid #FFD700; border-radius: 12px; padding: 24px; margin: 20px 0; }
+    .request-card { background: rgba(255, 215, 0, 0.1); border: 2px solid #FFD700; border-radius: 12px; padding: 24px; margin: 20px 0; }
     .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
-    .detail-item { background: #f8f9fa; padding: 12px; border-radius: 8px; border-left: 4px solid #FFD700; }
+    .detail-item { background: rgba(255, 215, 0, 0.15); border: 1px solid #FFD700; padding: 12px; border-radius: 8px; border-left: 4px solid #FFD700; }
     .detail-label { color: #800020; font-weight: 700; font-size: 11px; text-transform: uppercase; margin-bottom: 4px; }
-    .detail-value { color: #666; font-size: 14px; }
-    .btn { display: inline-block; text-decoration: none; padding: 14px 28px; border-radius: 28px; font-weight: 700; font-size: 14px; background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); color: #FFF5E6; }
+    .detail-value { color: #800020; font-size: 14px; font-weight: bold; }
+    .btn { display: inline-block; text-decoration: none; padding: 14px 28px; border-radius: 28px; font-weight: 700; font-size: 14px; background: #FFD700; color: #800020; border: 2px solid #800020; }
   </style>
 </head>
 <body>
@@ -519,9 +519,9 @@ serve(async (req) => {
             <div class="detail-value">${data.bookingTime || 'N/A'}</div>
           </div>
         </div>
-        <div style="background: rgba(255, 215, 0, 0.1); border: 2px solid #FFD700; border-radius: 10px; padding: 20px; margin: 20px 0; text-align: center;">
+        <div style="background: rgba(255, 215, 0, 0.2); border: 2px solid #FFD700; border-radius: 10px; padding: 20px; margin: 20px 0; text-align: center;">
           <div style="color: #800020; font-size: 20px; font-weight: 700; margin-bottom: 8px;">Payment Request</div>
-          <div style="color: #666; font-size: 14px;"><strong>${data.initiatorName || 'Your friend'}</strong> has requested you to pay <strong>₦${Number(data.amount || 0).toLocaleString()}</strong> for this booking.</div>
+          <div style="color: #800020; font-size: 14px; font-weight: bold;"><strong>${data.initiatorName || 'Your friend'}</strong> has requested you to pay <strong>₦${Number(data.amount || 0).toLocaleString()}</strong> for this booking.</div>
         </div>
       </div>
       <div style="text-align: center; margin: 24px 0;">
@@ -543,21 +543,21 @@ serve(async (req) => {
   <title>Eddys Members – Booking Confirmed!</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: Arial, sans-serif; background: #f5f5f5; color: #333; line-height: 1.6; }
-    .email-container { max-width: 600px; margin: 0 auto; background: #fff; box-shadow: 0 10px 30px rgba(128,0,32,0.08); }
+    body { font-family: Arial, sans-serif; background: #FFF5E6; color: #800020; line-height: 1.6; }
+    .email-container { max-width: 600px; margin: 0 auto; background: #FFF5E6; box-shadow: 0 10px 30px rgba(128,0,32,0.08); border: 2px solid #800020; }
     .header { background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); padding: 32px 24px; text-align: center; }
     .logo-image { width: 80px; height: 80px; border-radius: 50%; border: 2px solid #FFD700; box-shadow: 0 6px 16px rgba(255,215,0,.25); margin-bottom: 10px; }
     .brand { color: #FFF5E6; font-size: 24px; font-weight: 700; letter-spacing: 1.5px; }
-    .content { padding: 32px 24px; }
+    .content { padding: 32px 24px; background: #FFF5E6; }
     .title { color: #800020; font-size: 24px; font-weight: 700; text-align: center; margin-bottom: 16px; }
-    .booking-card { background: linear-gradient(135deg, #FFF5E6 0%, #ffffff 100%); border: 2px solid #FFD700; border-radius: 12px; padding: 24px; margin: 20px 0; }
+    .booking-card { background: rgba(255, 215, 0, 0.1); border: 2px solid #FFD700; border-radius: 12px; padding: 24px; margin: 20px 0; }
     .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
-    .detail-item { background: #f8f9fa; padding: 12px; border-radius: 8px; border-left: 4px solid #FFD700; }
+    .detail-item { background: rgba(255, 215, 0, 0.15); border: 1px solid #FFD700; padding: 12px; border-radius: 8px; border-left: 4px solid #FFD700; }
     .detail-label { color: #800020; font-weight: 700; font-size: 11px; text-transform: uppercase; margin-bottom: 4px; }
-    .detail-value { color: #666; font-size: 14px; }
-    .qr-section { background: linear-gradient(135deg, #FFF5E6 0%, #ffffff 100%); border: 2px solid #FFD700; border-radius: 15px; padding: 30px; margin: 30px 0; text-align: center; }
+    .detail-value { color: #800020; font-size: 14px; font-weight: bold; }
+    .qr-section { background: rgba(255, 215, 0, 0.1); border: 2px solid #FFD700; border-radius: 15px; padding: 30px; margin: 30px 0; text-align: center; }
     .qr-image { width: 200px; height: 200px; display: block; margin: 0 auto; }
-    .btn { display: inline-block; text-decoration: none; padding: 14px 28px; border-radius: 28px; font-weight: 700; font-size: 14px; background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); color: #FFF5E6; }
+    .btn { display: inline-block; text-decoration: none; padding: 14px 28px; border-radius: 28px; font-weight: 700; font-size: 14px; background: #FFD700; color: #800020; border: 2px solid #800020; }
   </style>
 </head>
 <body>
@@ -589,14 +589,14 @@ serve(async (req) => {
         </div>
         <div style="background: rgba(0, 128, 0, 0.1); border: 2px solid #00AA00; border-radius: 10px; padding: 20px; margin: 20px 0; text-align: center;">
           <div style="color: #00AA00; font-size: 20px; font-weight: 700; margin-bottom: 8px;">Booking Status: Fully Confirmed</div>
-          <div style="color: #666; font-size: 14px;">All split payments have been completed successfully!</div>
+          <div style="color: #800020; font-size: 14px; font-weight: bold;">All split payments have been completed successfully!</div>
         </div>
       </div>
       ${data.qrCodeImage ? `
       <div class="qr-section">
         <h4 style="color: #800020; font-size: 20px; font-weight: bold; margin-bottom: 20px;">📱 Your Entry QR Code</h4>
         <img src="${data.qrCodeImage}" alt="Venue Entry QR Code" class="qr-image">
-        <p style="color: #333; font-size: 14px; margin-top: 15px;"><strong>Present this QR code at the venue for entry verification.</strong></p>
+        <p style="color: #800020; font-size: 14px; margin-top: 15px; font-weight: bold;"><strong>Present this QR code at the venue for entry verification.</strong></p>
       </div>
       ` : ''}
       <div style="text-align: center; margin: 24px 0;">
@@ -624,7 +624,7 @@ serve(async (req) => {
     .brand { color: #FFF5E6; font-size: 24px; font-weight: 700; letter-spacing: 1.5px; }
     .content { padding: 32px 24px; }
     .title { color: #800020; font-size: 24px; font-weight: 700; text-align: center; margin-bottom: 16px; }
-    .payment-card { background: linear-gradient(135deg, #FFF5E6 0%, #ffffff 100%); border: 2px solid #FFD700; border-radius: 12px; padding: 24px; margin: 20px 0; }
+    .payment-card { background: rgba(255, 215, 0, 0.1); border: 2px solid #FFD700; border-radius: 12px; padding: 24px; margin: 20px 0; }
     .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
     .detail-item { background: #f8f9fa; padding: 12px; border-radius: 8px; border-left: 4px solid #FFD700; }
     .detail-label { color: #800020; font-weight: 700; font-size: 11px; text-transform: uppercase; margin-bottom: 4px; }
@@ -661,7 +661,7 @@ serve(async (req) => {
         </div>
         <div style="background: rgba(255, 165, 0, 0.1); border: 2px solid #FF8C00; border-radius: 10px; padding: 20px; margin: 20px 0; text-align: center;">
           <div style="color: #FF8C00; font-size: 20px; font-weight: 700; margin-bottom: 8px;">Payment Status: Confirmed</div>
-          <div style="color: #666; font-size: 14px;">Your payment has been successfully processed. The booking will be fully confirmed once all split payments are completed.</div>
+          <div style="color: #800020; font-size: 14px; font-weight: bold;">Your payment has been successfully processed. The booking will be fully confirmed once all split payments are completed.</div>
         </div>
       </div>
       <div style="text-align: center; margin: 24px 0;">
@@ -689,13 +689,13 @@ serve(async (req) => {
     .brand { color: #FFF5E6; font-size: 24px; font-weight: 700; letter-spacing: 1.5px; }
     .content { padding: 32px 24px; }
     .title { color: #800020; font-size: 24px; font-weight: 700; text-align: center; margin-bottom: 16px; }
-    .booking-card { background: linear-gradient(135deg, #FFF5E6 0%, #ffffff 100%); border: 2px solid #FFD700; border-radius: 12px; padding: 24px; margin: 20px 0; }
+    .booking-card { background: rgba(255, 215, 0, 0.1); border: 2px solid #FFD700; border-radius: 12px; padding: 24px; margin: 20px 0; }
     .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
     .detail-item { background: #f8f9fa; padding: 12px; border-radius: 8px; border-left: 4px solid #FFD700; }
     .detail-label { color: #800020; font-weight: 700; font-size: 11px; text-transform: uppercase; margin-bottom: 4px; }
     .detail-value { color: #666; font-size: 14px; }
-    .customer-section { background: #f8f9fa; border-left: 4px solid #FFD700; padding: 20px; margin: 20px 0; border-radius: 8px; }
-    .btn { display: inline-block; text-decoration: none; padding: 14px 28px; border-radius: 28px; font-weight: 700; font-size: 14px; background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); color: #FFF5E6; }
+    .customer-section { background: rgba(255, 215, 0, 0.15); border: 2px solid #FFD700; border-left: 4px solid #FFD700; padding: 20px; margin: 20px 0; border-radius: 8px; }
+    .btn { display: inline-block; text-decoration: none; padding: 14px 28px; border-radius: 28px; font-weight: 700; font-size: 14px; background: #FFD700; color: #800020; border: 2px solid #800020; }
   </style>
 </head>
 <body>
@@ -725,24 +725,24 @@ serve(async (req) => {
             <div class="detail-value">₦${(data.totalAmount || 0).toLocaleString()}</div>
           </div>
         </div>
-        <div style="background: rgba(255, 215, 0, 0.1); border: 2px solid #FFD700; border-radius: 10px; padding: 20px; margin: 20px 0; text-align: center;">
+        <div style="background: rgba(255, 215, 0, 0.2); border: 2px solid #FFD700; border-radius: 10px; padding: 20px; margin: 20px 0; text-align: center;">
           <div style="color: #800020; font-size: 20px; font-weight: 700; margin-bottom: 8px;">${data.tableInfo || 'Table not specified'}</div>
-          <div style="color: #666; font-size: 14px;">Please prepare this table for your guests</div>
+          <div style="color: #800020; font-size: 14px; font-weight: bold;">Please prepare this table for your guests</div>
         </div>
       </div>
       <div class="customer-section">
         <h4 style="color: #800020; font-weight: 700; font-size: 16px; margin-bottom: 12px;">Customer Information</h4>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 14px;">
-          <div style="color: #666;"><span style="color: #800020; font-weight: 700;">Name:</span> ${data.customerName || 'N/A'}</div>
-          <div style="color: #666;"><span style="color: #800020; font-weight: 700;">Email:</span> ${data.customerEmail || 'N/A'}</div>
-          <div style="color: #666;"><span style="color: #800020; font-weight: 700;">Phone:</span> ${data.customerPhone || 'N/A'}</div>
-          <div style="color: #666;"><span style="color: #800020; font-weight: 700;">Venue:</span> ${data.venueName || 'N/A'}</div>
+          <div style="color: #800020;"><span style="color: #800020; font-weight: 700;">Name:</span> ${data.customerName || 'N/A'}</div>
+          <div style="color: #800020;"><span style="color: #800020; font-weight: 700;">Email:</span> ${data.customerEmail || 'N/A'}</div>
+          <div style="color: #800020;"><span style="color: #800020; font-weight: 700;">Phone:</span> ${data.customerPhone || 'N/A'}</div>
+          <div style="color: #800020;"><span style="color: #800020; font-weight: 700;">Venue:</span> ${data.venueName || 'N/A'}</div>
         </div>
       </div>
       ${data.specialRequests && data.specialRequests !== 'None specified' ? `
       <div style="background: rgba(128, 0, 32, 0.05); border: 1px solid rgba(128, 0, 32, 0.2); border-radius: 8px; padding: 16px; margin: 20px 0;">
         <div style="color: #800020; font-weight: 700; font-size: 14px; margin-bottom: 8px;">Special Requests</div>
-        <div style="color: #666; font-size: 14px; line-height: 1.6;">${data.specialRequests}</div>
+        <div style="color: #800020; font-size: 14px; line-height: 1.6; font-weight: bold;">${data.specialRequests}</div>
       </div>
       ` : ''}
       <div style="text-align: center; margin: 24px 0;">
@@ -763,21 +763,21 @@ serve(async (req) => {
     <title>Eddys Members - Booking Cancelled</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Arial', sans-serif; background-color: #f5f5f5; color: #333; line-height: 1.6; }
-        .email-container { max-width: 600px; margin: 0 auto; background-color: #ffffff; box-shadow: 0 10px 30px rgba(128, 0, 32, 0.1); }
+        body { font-family: 'Arial', sans-serif; background-color: #FFF5E6; color: #800020; line-height: 1.6; }
+        .email-container { max-width: 600px; margin: 0 auto; background-color: #FFF5E6; box-shadow: 0 10px 30px rgba(128, 0, 32, 0.1); border: 2px solid #800020; }
         .header { background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); padding: 40px 30px; text-align: center; }
         .logo-image { width: 120px; height: 120px; border-radius: 50%; margin-bottom: 15px; box-shadow: 0 8px 20px rgba(255, 215, 0, 0.3); border: 3px solid #FFD700; }
         .brand-name { color: #FFF5E6; font-size: 32px; font-weight: bold; letter-spacing: 2px; margin: 0; }
-        .content { padding: 50px 40px; background-color: #ffffff; }
+        .content { padding: 50px 40px; background-color: #FFF5E6; }
         .title { color: #800020; font-size: 28px; font-weight: bold; margin-bottom: 20px; text-align: center; }
-        .cancellation-section { background: linear-gradient(135deg, #FFF5E6 0%, #ffffff 100%); border: 2px solid #FFD700; border-radius: 15px; padding: 35px; margin: 35px 0; }
+        .cancellation-section { background: rgba(255, 215, 0, 0.1); border: 2px solid #FFD700; border-radius: 15px; padding: 35px; margin: 35px 0; }
         .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px; }
-        .detail-item { background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #FFD700; }
+        .detail-item { background: rgba(255, 215, 0, 0.15); border: 1px solid #FFD700; padding: 15px; border-radius: 8px; border-left: 4px solid #FFD700; }
         .detail-label { color: #800020; font-weight: bold; font-size: 12px; text-transform: uppercase; margin-bottom: 5px; }
-        .detail-value { color: #666; font-size: 14px; }
+        .detail-value { color: #800020; font-size: 14px; font-weight: bold; }
         .refund-notice { background: rgba(34, 197, 94, 0.1); border: 2px solid #22c55e; border-radius: 12px; padding: 25px; margin: 25px 0; text-align: center; }
         .refund-amount { color: #22c55e; font-size: 24px; font-weight: bold; margin-bottom: 10px; }
-        .action-button { display: inline-block; text-decoration: none; padding: 16px 30px; border-radius: 50px; font-weight: bold; font-size: 16px; background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); color: #FFF5E6; margin: 10px; }
+        .action-button { display: inline-block; text-decoration: none; padding: 16px 30px; border-radius: 50px; font-weight: bold; font-size: 16px; background: #FFD700; color: #800020; border: 2px solid #800020; margin: 10px; }
     </style>
 </head>
 <body>
@@ -812,7 +812,7 @@ serve(async (req) => {
             ${data.isRefunded ? `
             <div class="refund-notice">
                 <div class="refund-amount">₦${(data.refundAmount || 0).toLocaleString()} Refund Processed</div>
-                <div style="color: #666; font-size: 14px;">Your refund has been processed and will appear in your account within 5-10 business days.</div>
+                <div style="color: #800020; font-size: 14px; font-weight: bold;">Your refund has been processed and will appear in your account within 5-10 business days.</div>
             </div>
             ` : ''}
             <div style="text-align: center; margin: 30px 0;">
@@ -888,7 +888,7 @@ serve(async (req) => {
                 ${data.isRefunded ? `
                 <div class="refund-notice">
                     <div style="color: #22c55e; font-size: 24px; font-weight: bold; margin-bottom: 10px;">₦${(data.refundAmount || 0).toLocaleString()} Refunded</div>
-                    <div style="color: #666; font-size: 14px;">The customer's payment has been automatically refunded through Stripe.</div>
+                    <div style="color: #800020; font-size: 14px; font-weight: bold;">The customer's payment has been automatically refunded through Stripe.</div>
                 </div>
                 ` : ''}
             </div>
@@ -906,21 +906,21 @@ serve(async (req) => {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>New Venue Owner Application</title>
     <style>
-        body { font-family: 'Arial', sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f5f5f5; }
-        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(128, 0, 32, 0.1); }
+        body { font-family: 'Arial', sans-serif; line-height: 1.6; color: #800020; margin: 0; padding: 0; background-color: #FFF5E6; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #FFF5E6; border-radius: 12px; overflow: hidden; box-shadow: 0 10px 30px rgba(128, 0, 32, 0.1); border: 2px solid #800020; }
         .header { background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); color: #FFF5E6; padding: 40px 30px; text-align: center; }
         .logo-image { width: 120px; height: 120px; border-radius: 50%; margin-bottom: 15px; box-shadow: 0 8px 20px rgba(255, 215, 0, 0.3); border: 3px solid #FFD700; }
         .brand-name { color: #FFF5E6; font-size: 32px; font-weight: bold; letter-spacing: 2px; margin: 0; }
-        .content { padding: 40px 30px; }
+        .content { padding: 40px 30px; background-color: #FFF5E6; }
         .section { margin-bottom: 30px; }
         .section-title { color: #800020; font-size: 20px; font-weight: bold; margin-bottom: 15px; border-bottom: 2px solid #FFD700; padding-bottom: 8px; }
         .detail-row { display: flex; margin-bottom: 12px; align-items: center; }
         .detail-label { font-weight: 600; color: #800020; min-width: 120px; margin-right: 15px; }
-        .detail-value { color: #333; flex: 1; }
-        .venue-card { background-color: #f8f9fa; border: 2px solid #FFD700; border-radius: 8px; padding: 20px; margin: 20px 0; }
+        .detail-value { color: #800020; flex: 1; font-weight: bold; }
+        .venue-card { background-color: rgba(255, 215, 0, 0.1); border: 2px solid #FFD700; border-radius: 8px; padding: 20px; margin: 20px 0; }
         .venue-name { font-size: 18px; font-weight: bold; color: #800020; margin-bottom: 10px; }
         .venue-details { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
-        .cta-button { display: inline-block; background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); color: #FFF5E6; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; margin: 20px 0; border: 2px solid #FFD700; }
+        .cta-button { display: inline-block; background: #FFD700; color: #800020; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; margin: 20px 0; border: 2px solid #800020; }
         .footer { background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); color: #FFF5E6; padding: 40px 30px; text-align: center; }
     </style>
 </head>
@@ -957,21 +957,21 @@ serve(async (req) => {
             </div>
             <div class="venue-card">
                 <div class="venue-name">🏛️ ${data.venueName || 'Venue Name'}</div>
-                <p style="margin: 10px 0; color: #666;">${data.venueDescription || 'No description provided'}</p>
+                <p style="margin: 10px 0; color: #800020; font-weight: bold;">${data.venueDescription || 'No description provided'}</p>
                 <div class="venue-details">
-                    <div style="font-size: 14px;"><strong>Type:</strong> ${data.venueType || 'Not specified'}</div>
-                    <div style="font-size: 14px;"><strong>Capacity:</strong> ${data.venueCapacity || 'Not specified'} guests</div>
-                    <div style="font-size: 14px;"><strong>Location:</strong> ${data.venueAddress || 'Not provided'}</div>
-                    <div style="font-size: 14px;"><strong>Price Range:</strong> ${data.priceRange || 'Not specified'}</div>
-                    <div style="font-size: 14px;"><strong>Hours:</strong> ${data.openingHours || 'Not provided'}</div>
-                    <div style="font-size: 14px;"><strong>Contact:</strong> ${data.venuePhone || 'Not provided'}</div>
+                    <div style="font-size: 14px; color: #800020; font-weight: bold;"><strong>Type:</strong> ${data.venueType || 'Not specified'}</div>
+                    <div style="font-size: 14px; color: #800020; font-weight: bold;"><strong>Capacity:</strong> ${data.venueCapacity || 'Not specified'} guests</div>
+                    <div style="font-size: 14px; color: #800020; font-weight: bold;"><strong>Location:</strong> ${data.venueAddress || 'Not provided'}</div>
+                    <div style="font-size: 14px; color: #800020; font-weight: bold;"><strong>Price Range:</strong> ${data.priceRange || 'Not specified'}</div>
+                    <div style="font-size: 14px; color: #800020; font-weight: bold;"><strong>Hours:</strong> ${data.openingHours || 'Not provided'}</div>
+                    <div style="font-size: 14px; color: #800020; font-weight: bold;"><strong>Contact:</strong> ${data.venuePhone || 'Not provided'}</div>
                 </div>
             </div>
             <div style="text-align: center;">
                 <a href="${data.viewUrl || (Deno.env.get('APP_URL') || 'https://oneeddy.com') + '/admin/venue-approvals'}" class="cta-button">VIEW FULL DETAILS</a>
             </div>
-            <div style="background-color: #fff3cd; border: 1px solid #ffeaa7; border-radius: 6px; padding: 15px; margin: 20px 0; color: #856404;">
-                <strong>⏰ Please review and respond to this application within 48 hours</strong>
+            <div style="background-color: rgba(255, 215, 0, 0.2); border: 2px solid #FFD700; border-radius: 6px; padding: 15px; margin: 20px 0; color: #800020;">
+                <strong style="font-weight: bold;">⏰ Please review and respond to this application within 48 hours</strong>
             </div>
         </div>
         <div class="footer">

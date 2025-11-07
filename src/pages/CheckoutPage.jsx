@@ -70,8 +70,24 @@ const [stripe, setStripe] = useState(null);
 // Initialize Stripe
 useEffect(() => {
   const initStripe = async () => {
-    const stripeInstance = await stripePromise;
-    setStripe(stripeInstance);
+    if (!stripePromise) {
+      console.warn('Stripe promise is null - Stripe key not configured');
+      setStripe(null);
+      return;
+    }
+    try {
+      const stripeInstance = await stripePromise;
+      if (stripeInstance) {
+        console.log('Stripe initialized successfully');
+        setStripe(stripeInstance);
+      } else {
+        console.error('Stripe instance is null after promise resolution');
+        setStripe(null);
+      }
+    } catch (error) {
+      console.error('Failed to initialize Stripe:', error);
+      setStripe(null);
+    }
   };
   initStripe();
 }, []);
@@ -722,15 +738,30 @@ throw error;
 };
 
 const handleSubmit = async (paymentMethodId) => {
+  console.log('handleSubmit called with paymentMethodId:', paymentMethodId);
+  
   if (!paymentMethodId) {
+    console.error('Payment method ID is missing');
+    toast({
+      title: "Payment Error",
+      description: "Payment method is missing. Please try again.",
+      variant: "destructive"
+    });
     return;
   }
 
   if (!stripe) {
+    console.error('Stripe instance is not available');
+    toast({
+      title: "Payment Error",
+      description: "Payment system is not ready. Please refresh the page and try again.",
+      variant: "destructive"
+    });
     return;
   }
 
-setIsSubmitting(true);
+  console.log('Starting payment submission...');
+  setIsSubmitting(true);
 
 try {
     // Create or update user account first
@@ -822,9 +853,20 @@ if (!venueId) {
       throw new Error(errorData.error || 'Failed to create payment intent');
     }
 
-    const { clientSecret } = await response.json();
+    const responseData = await response.json();
+    
+    if (!responseData.clientSecret) {
+      throw new Error('Payment intent creation failed - no client secret received');
+    }
+
+    const { clientSecret } = responseData;
+    console.log('Payment intent created, confirming payment...');
 
     // Confirm the payment
+    if (!stripe) {
+      throw new Error('Stripe instance is not available for payment confirmation');
+    }
+    
     const { paymentIntent, error: confirmError } = await stripe.confirmCardPayment(clientSecret);
     
     if (confirmError) {
@@ -1145,8 +1187,8 @@ setShowShareDialog(true);
                 </TabsList>
 
                 <TabsContent value="single">
-                  {stripePromise ? (
-                    <Elements stripe={stripePromise}>
+                  {stripePromise !== null ? (
+                    <Elements stripe={stripePromise} options={{ locale: 'en' }}>
                       <CheckoutForm 
                         formData={formData}
                         errors={errors}
@@ -1169,8 +1211,8 @@ setShowShareDialog(true);
                 </TabsContent>
 
                 <TabsContent value="split">
-                  {stripePromise ? (
-                    <Elements stripe={stripePromise}>
+                  {stripePromise !== null ? (
+                    <Elements stripe={stripePromise} options={{ locale: 'en' }}>
                       <SplitPaymentForm
                         totalAmount={parseFloat(calculateTotal())}
                         user={user}
