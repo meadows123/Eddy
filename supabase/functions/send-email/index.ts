@@ -728,27 +728,50 @@ serve(async (req) => {
 
         if (!ownerEmail || ownerEmail.toLowerCase() === placeholderEmail) {
           if (venueId) {
+            // Try to get venue owner email from venues table first
             const { data: venueRow, error: venueFetchError } = await supabaseClient
               .from('venues')
-              .select(`
-                contact_email,
-                contact_name,
-                venue_owners!inner(owner_email, owner_name, email)
-              `)
+              .select('contact_email, contact_name, owner_id')
               .eq('id', venueId)
               .maybeSingle();
 
             if (!venueFetchError && venueRow) {
-              const ownerRecord = Array.isArray(venueRow.venue_owners) ? venueRow.venue_owners[0] : venueRow.venue_owners;
-              ownerEmail = ownerRecord?.owner_email || ownerRecord?.email || venueRow.contact_email;
-              data.venueOwnerName = data.venueOwnerName || ownerRecord?.owner_name || venueRow.contact_name;
-              data.venueEmail = data.venueEmail || venueRow.contact_email || ownerEmail;
+              // Try to get venue owner using the owner_id
+              if (venueRow.owner_id) {
+                const { data: ownerData, error: ownerError } = await supabaseClient
+                  .from('venue_owners')
+                  .select('owner_email, owner_name, email')
+                  .eq('user_id', venueRow.owner_id)
+                  .maybeSingle();
+
+                if (!ownerError && ownerData) {
+                  ownerEmail = ownerData.owner_email || ownerData.email || venueRow.contact_email;
+                  data.venueOwnerName = data.venueOwnerName || ownerData.owner_name;
+                  data.venueEmail = data.venueEmail || venueRow.contact_email || ownerEmail;
+                } else {
+                  // Fallback to venue contact email
+                  ownerEmail = venueRow.contact_email;
+                  data.venueEmail = data.venueEmail || venueRow.contact_email;
+                }
+              } else {
+                // No owner_id, use venue contact email
+                ownerEmail = venueRow.contact_email;
+                data.venueEmail = data.venueEmail || venueRow.contact_email;
+              }
             }
           }
         }
 
+        // If still no owner email or it's the placeholder, skip sending but don't error
         if (!ownerEmail || ownerEmail.toLowerCase() === placeholderEmail) {
-          throw new Error('No venue owner email available for notification');
+          return new Response(
+            JSON.stringify({ 
+              success: true, 
+              message: 'Skipped venue owner notification - no venue owner email available',
+              skipped: true 
+            }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          );
         }
 
         to = ownerEmail;

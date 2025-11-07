@@ -895,7 +895,9 @@ const SplitPaymentPage = () => {
                       throw new Error('Failed to load Stripe');
                     }
 
-                    const { error: confirmError } = await stripe.confirmCardPayment(clientSecret);
+                    const { error: confirmError } = await stripe.confirmCardPayment(clientSecret, {
+                      payment_method: paymentMethodId
+                    });
                     if (confirmError) {
                       throw new Error(`Payment failed: ${confirmError.message}`);
                     }
