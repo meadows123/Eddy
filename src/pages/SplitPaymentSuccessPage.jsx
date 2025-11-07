@@ -855,24 +855,28 @@ const SplitPaymentSuccessPage = () => {
           
           console.log('📧 Final venue owner email:', venueOwnerEmail);
           
-          // Prepare email data
+          // Prepare email data for venue owner notification
           const emailData = {
             to: venueOwnerEmail,
-            subject: `New Split Payment Booking - ${bookingData.venues?.name || 'Venue'}`,
-            template: 'split-payment-venue-notification',
+            subject: `New Booking - ${bookingData.venues?.name || 'Venue'}`,
+            template: 'venue-owner-booking-notification',
             data: {
               venueName: bookingData.venues?.name || 'Venue',
-              venueContactEmail: bookingData.venues?.contact_email || 'info@oneeddy.com',
+              venueAddress: bookingData.venues?.address || 'Lagos, Nigeria',
+              venuePhone: bookingData.venues?.contact_phone || '+234 XXX XXX XXXX',
+              venueEmail: bookingData.venues?.contact_email || 'info@oneeddy.com',
               bookingId: bookingData.id,
               bookingDate: bookingData.booking_date,
-              startTime: bookingData.start_time,
+              bookingTime: bookingData.start_time,
               endTime: bookingData.end_time,
               guestCount: bookingData.number_of_guests,
+              tableInfo: `Table ${bookingData.venue_tables?.table_number || 'N/A'} (${requests.length} split payments)`,
               customerName: `${bookingData.profiles?.first_name || ''} ${bookingData.profiles?.last_name || ''}`.trim() || 'Guest',
               customerEmail: bookingData.profiles?.email || 'guest@example.com',
+              customerPhone: bookingData.profiles?.phone || 'N/A',
               totalAmount: bookingData.total_amount,
-              splitPaymentCount: requests.length,
-              venueAddress: bookingData.venues?.address || 'Lagos, Nigeria'
+              specialRequests: bookingData.special_requests || 'Split payment booking',
+              ownerUrl: window.location.origin + '/venue-owner/dashboard'
             }
           };
           
