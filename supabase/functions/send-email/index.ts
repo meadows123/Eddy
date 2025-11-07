@@ -673,7 +673,39 @@ serve(async (req) => {
 </html>`
         break
 
-      case 'venue-owner-booking-notification':
+      case 'venue-owner-booking-notification': {
+        const placeholderEmail = 'info@oneeddy.com';
+        let ownerEmail = data.ownerEmail;
+        const venueId = data.venueId || data.venue_id;
+
+        if (!ownerEmail || ownerEmail.toLowerCase() === placeholderEmail) {
+          if (venueId) {
+            const { data: venueRow, error: venueFetchError } = await supabaseClient
+              .from('venues')
+              .select(`
+                contact_email,
+                contact_name,
+                venue_owners!inner(owner_email, owner_name, email)
+              `)
+              .eq('id', venueId)
+              .maybeSingle();
+
+            if (!venueFetchError && venueRow) {
+              const ownerRecord = Array.isArray(venueRow.venue_owners) ? venueRow.venue_owners[0] : venueRow.venue_owners;
+              ownerEmail = ownerRecord?.owner_email || ownerRecord?.email || venueRow.contact_email;
+              data.venueOwnerName = data.venueOwnerName || ownerRecord?.owner_name || venueRow.contact_name;
+              data.venueEmail = data.venueEmail || venueRow.contact_email || ownerEmail;
+            }
+          }
+        }
+
+        if (!ownerEmail || ownerEmail.toLowerCase() === placeholderEmail) {
+          throw new Error('No venue owner email available for notification');
+        }
+
+        to = ownerEmail;
+        subject = data.subject || `New Booking - ${data.venueName || 'Venue'}`;
+
         html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -753,6 +785,7 @@ serve(async (req) => {
 </body>
 </html>`
         break
+      }
 
       case 'booking-cancellation-customer':
         html = `<!DOCTYPE html>

@@ -126,7 +126,7 @@ export const sendBookingConfirmation = async (booking, venue, customer, qrCodeIm
   }
 };
 
-export const sendVenueOwnerNotification = async (booking, venue, customer, venueOwnerData = null) => {
+export const sendVenueOwnerNotification = async (booking, venue, customer, venueOwnerData = null, venueIdOverride = null) => {
   try {
     // Create venue owner data with fallbacks
     const ownerData = {
@@ -143,6 +143,9 @@ export const sendVenueOwnerNotification = async (booking, venue, customer, venue
       emailIsValid: ownerData.email && ownerData.email.includes('@')
     });
     
+    const venueId = venue?.id || booking?.venue_id || venueIdOverride;
+    const normalizedOwnerEmail = ownerData.email?.toLowerCase() === 'info@oneeddy.com' ? undefined : ownerData.email;
+
     // Use Supabase Edge Function for venue owner notifications
     const tableInfo = booking.table_number
       ? `Table ${booking.table_number}`
@@ -150,10 +153,11 @@ export const sendVenueOwnerNotification = async (booking, venue, customer, venue
 
     const { data, error } = await supabase.functions.invoke('send-email', {
       body: {
-        to: ownerData.email,
+        to: normalizedOwnerEmail || 'info@oneeddy.com',
         subject: `New Booking - ${venue.name}`,
         template: 'venue-owner-booking-notification',
         data: {
+          venueId,
           venueName: venue.name || 'Venue',
           bookingId: booking.id,
           bookingDate: booking.booking_date,
@@ -166,7 +170,9 @@ export const sendVenueOwnerNotification = async (booking, venue, customer, venue
           customerEmail: customer.email || 'guest@example.com',
           customerPhone: customer.phone || 'N/A',
           specialRequests: booking.special_requests || 'None specified',
-          ownerUrl: `${window.location.origin}/venue-owner/dashboard`
+          ownerUrl: `${window.location.origin}/venue-owner/dashboard`,
+          ownerEmail: normalizedOwnerEmail,
+          venueOwnerName: ownerData.name
         }
       }
     });

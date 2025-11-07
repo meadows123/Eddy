@@ -621,7 +621,7 @@ if (venueOwnerEmail && venueOwnerEmail.includes('@')) {
 
   // Send venue owner notification (blocking to ensure it's sent)
   try {
-    const venueOwnerResult = await sendVenueOwnerNotification(booking, venue, customer, venueOwner);
+    const venueOwnerResult = await sendVenueOwnerNotification(booking, venue, customer, venueOwner, venueId);
   } catch (venueOwnerError) {
     console.error('❌ Venue owner notification failed:', venueOwnerError);
     // Don't fail the entire process if venue owner email fails
@@ -1009,7 +1009,8 @@ if (!venueId) {
               updatedBooking,
               venueData,
               { full_name: formData.fullName, email: formData.email, phone: formData.phone },
-              venueOwner
+              venueOwner,
+              venueId
             );
           } catch (venueOwnerError) {
             console.error('❌ Venue owner notification failed:', venueOwnerError);
