@@ -397,6 +397,7 @@ const createBooking = async () => {
       .single();
 
     if (bookingError) {
+      console.error('bookingError details:', bookingError);
       throw new Error(`Failed to create booking: ${bookingError.message}`);
     }
 
