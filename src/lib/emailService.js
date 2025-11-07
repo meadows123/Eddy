@@ -134,15 +134,6 @@ export const sendVenueOwnerNotification = async (booking, venue, customer, venue
       email: venueOwnerData?.owner_email || venueOwnerData?.email || venue.contact_email || 'info@oneeddy.com'
     };
     
-    // Debug logging
-    console.log('🔍 Venue owner notification data:', {
-      venueOwnerData,
-      ownerData,
-      venueContactEmail: venue.contact_email,
-      finalEmail: ownerData.email,
-      emailIsValid: ownerData.email && ownerData.email.includes('@')
-    });
-    
     const venueId = venue?.id || booking?.venue_id || venueIdOverride;
     const normalizedOwnerEmail = ownerData.email?.toLowerCase() === 'info@oneeddy.com' ? undefined : ownerData.email;
 
@@ -626,9 +617,7 @@ export const sendSplitPaymentVenueOwnerNotification = async (bookingData, venueD
   try {
     // Determine venue owner email
     const venueOwnerEmail = venueData.contact_email || venueData.owner_email || 'info@oneeddy.com';
-    
-    console.log('📧 Sending venue owner notification to:', venueOwnerEmail);
-    
+
     // Use Supabase Edge Function to send the split payment venue notification
     const { data, error } = await supabase.functions.invoke('send-email', {
       body: {

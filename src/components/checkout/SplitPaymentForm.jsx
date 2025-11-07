@@ -90,7 +90,6 @@ const SplitPaymentForm = ({
       return;
     }
 
-    console.log('Searching users with user object:', user);
     setIsSearching(true);
     try {
       // Validate user exists and is authenticated

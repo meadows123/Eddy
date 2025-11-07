@@ -78,7 +78,6 @@ useEffect(() => {
     try {
       const stripeInstance = await stripePromise;
       if (stripeInstance) {
-        console.log('Stripe initialized successfully');
         setStripe(stripeInstance);
       } else {
         console.error('Stripe instance is null after promise resolution');
@@ -307,11 +306,6 @@ const createBooking = async () => {
     bookingDataToInsert.start_time = startTime;
     bookingDataToInsert.end_time = endTime;
 
-    console.log('�� Attempting booking with data:', {
-      ...bookingDataToInsert,
-      crossesMidnight: endTime.includes('+1')
-    });
-
     // Validate the times are in order
     if (!bookingDataToInsert.start_time || !bookingDataToInsert.end_time) {
       throw new Error('Start time and end time are required');
@@ -362,7 +356,6 @@ const createBooking = async () => {
       
       retryCount++;
       if (retryCount <= maxRetries) {
-        console.log(`Availability check failed, retrying (${retryCount}/${maxRetries})...`);
         await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
       }
     }
@@ -602,17 +595,6 @@ const customerEmailResult = await sendBookingConfirmation(booking, venue, custom
 const dataSource = selection || bookingData;
 const venueOwnerEmail = bookingData?.venueOwnerEmail || venue?.venue_owners?.owner_email || venue?.venue_owners?.email || venue?.contact_email || dataSource?.ownerEmail || venue?.owner_email;
 
-// Debug logging for venue owner email
-console.log('🔍 Venue owner email sources:', {
-  bookingDataVenueOwnerEmail: bookingData?.venueOwnerEmail,
-  venueOwnersOwnerEmail: venue?.venue_owners?.owner_email,
-  venueOwnersEmail: venue?.venue_owners?.email,
-  venueContactEmail: venue?.contact_email,
-  dataSourceOwnerEmail: dataSource?.ownerEmail,
-  venueOwnerEmail: venue?.owner_email,
-  finalVenueOwnerEmail: venueOwnerEmail
-});
-
 if (venueOwnerEmail && venueOwnerEmail.includes('@')) {
   const venueOwner = {
     name: bookingData?.venueOwnerName || venue?.venue_owners?.owner_name || 'Venue Owner',
@@ -621,7 +603,21 @@ if (venueOwnerEmail && venueOwnerEmail.includes('@')) {
 
   // Send venue owner notification (blocking to ensure it's sent)
   try {
-    const venueOwnerResult = await sendVenueOwnerNotification(booking, venue, customer, venueOwner, venueId);
+    const venueIdForNotification =
+      booking?.venue_id ||
+      venue?.id ||
+      bookingData?.venue?.id ||
+      selection?.venue?.id ||
+      selection?.venueId ||
+      selection?.id;
+
+    const venueOwnerResult = await sendVenueOwnerNotification(
+      booking,
+      { ...venue, id: venue?.id || venueIdForNotification },
+      customer,
+      venueOwner,
+      venueIdForNotification
+    );
   } catch (venueOwnerError) {
     console.error('❌ Venue owner notification failed:', venueOwnerError);
     // Don't fail the entire process if venue owner email fails
@@ -739,7 +735,6 @@ throw error;
 };
 
 const handleSubmit = async (paymentMethodId) => {
-  console.log('handleSubmit called with paymentMethodId:', paymentMethodId);
   
   if (!paymentMethodId) {
     console.error('Payment method ID is missing');
@@ -761,7 +756,6 @@ const handleSubmit = async (paymentMethodId) => {
     return;
   }
 
-  console.log('Starting payment submission...');
   setIsSubmitting(true);
 
 try {
@@ -833,8 +827,6 @@ if (!venueId) {
       splitRequests: []
     };
 
-    console.log('📤 Sending create-split-payment-intent payload:', paymentPayload);
-
     const response = await fetch(
       'https://agydpkzfucicraedllgl.supabase.co/functions/v1/create-split-payment-intent',
       {
@@ -866,7 +858,6 @@ if (!venueId) {
     }
 
     const { clientSecret } = responseData;
-    console.log('Payment intent created, confirming payment...');
 
     // Confirm the payment
     if (!stripe) {
@@ -991,13 +982,6 @@ if (!venueId) {
 
       if (emailResult) {
         // Send venue owner notification after successful booking confirmation
-        console.log('🔍 Second path venue owner data:', {
-          venueOwnerData,
-          ownerEmail: venueOwnerData?.owner_email,
-          email: venueOwnerData?.email,
-          hasValidEmail: venueOwnerData?.owner_email || venueOwnerData?.email
-        });
-        
         if (venueOwnerData?.owner_email || venueOwnerData?.email) {
           try {
             const venueOwner = {

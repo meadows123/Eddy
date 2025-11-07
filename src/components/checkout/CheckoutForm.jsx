@@ -64,7 +64,6 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
     setIsProcessingPayment(true);
 
     try {
-      console.log('Creating payment method...');
       const { error: stripeError, paymentMethod } = await stripe.createPaymentMethod({
         type: 'card',
         card: cardElement,
@@ -95,7 +94,6 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
         throw new Error('Payment method creation failed');
       }
 
-      console.log('Payment method created:', paymentMethod.id);
       // Only pass the payment method ID
       await handleSubmit(paymentMethod.id);
     } catch (err) {

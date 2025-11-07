@@ -20,13 +20,6 @@ serve(async (req) => {
     const bookingId = body?.bookingId
     const splitRequests = body?.splitRequests
 
-    console.log('📥 create-split-payment-intent payload:', {
-      amount,
-      paymentMethodId,
-      bookingId,
-      splitRequestsCount: Array.isArray(splitRequests) ? splitRequests.length : 'n/a'
-    })
-
     if (!Number.isFinite(amount) || amount <= 0) {
       throw new Error('Invalid amount provided to create-split-payment-intent')
     }
@@ -42,9 +35,6 @@ serve(async (req) => {
     const stripeKey = (testKey && testKey.length > 0) ? testKey : liveKey
     const isTestMode = stripeKey.startsWith('sk_test_')
     const isLiveMode = stripeKey.startsWith('sk_live_')
-    const keySource = (testKey && testKey.length > 0) ? 'STRIPE_TEST_SECRET_KEY' : (liveKey && liveKey.length > 0 ? 'STRIPE_SECRET_KEY' : 'NONE')
-    console.log(`Stripe mode: ${isTestMode ? 'TEST' : isLiveMode ? 'LIVE' : 'UNKNOWN'} (using ${keySource})`)
-    console.log(`Key prefix: ${stripeKey.length > 0 ? stripeKey.substring(0, 7) : 'NONE'}`)
 
     if (!stripeKey) {
       throw new Error('Stripe secret key is not configured')

@@ -12,10 +12,6 @@ const isValidStripeKey = stripeKey && typeof stripeKey === 'string' && stripeKey
 const isLiveKey = isValidStripeKey && stripeKey.trim().startsWith('pk_live_');
 const isTestKey = isValidStripeKey && stripeKey.trim().startsWith('pk_test_');
 
-if (isValidStripeKey) {
-  console.log(`🔑 Frontend Stripe Key Mode: ${isTestKey ? 'TEST' : isLiveKey ? 'LIVE' : 'UNKNOWN'} (${stripeKey.substring(0, 12)}...)`);
-}
-
 if (isLiveKey) {
   console.warn('⚠️ WARNING: Frontend is using a LIVE Stripe publishable key! This will charge real money. Make sure this is intentional.');
   console.warn('⚠️ For testing, use a TEST key that starts with pk_test_');
