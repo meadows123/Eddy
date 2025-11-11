@@ -858,6 +858,8 @@ const SplitPaymentSuccessPage = () => {
             subject: `New Booking - ${bookingData.venues?.name || 'Venue'}`,
             template: 'venue-owner-booking-notification',
             data: {
+              ownerEmail: venueOwnerEmail,  // Add ownerEmail field for Edge Function lookup
+              venueId: bookingData.venue_id,  // Add venueId for Edge Function lookup
               venueName: bookingData.venues?.name || 'Venue',
               venueAddress: bookingData.venues?.address || 'Lagos, Nigeria',
               venuePhone: bookingData.venues?.contact_phone || '+234 XXX XXX XXXX',
@@ -883,6 +885,8 @@ const SplitPaymentSuccessPage = () => {
             template: emailData.template,
             dataKeys: Object.keys(emailData.data),
             venueOwnerEmail,
+            ownerEmailInData: emailData.data.ownerEmail,
+            venueIdInData: emailData.data.venueId,
             bookingDataVenues: bookingData.venues
           });
           

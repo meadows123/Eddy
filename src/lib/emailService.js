@@ -142,12 +142,21 @@ export const sendVenueOwnerNotification = async (booking, venue, customer, venue
       ? `Table ${booking.table_number}`
       : (booking.table?.table_number ? `Table ${booking.table.table_number}` : 'Table not specified');
 
+    console.log('📧 Sending single payment venue owner notification:', {
+      to: normalizedOwnerEmail || 'info@oneeddy.com',
+      ownerEmail: ownerData.email,
+      normalizedOwnerEmail,
+      venueId,
+      venueName: venue.name
+    });
+
     const { data, error } = await supabase.functions.invoke('send-email', {
       body: {
         to: normalizedOwnerEmail || 'info@oneeddy.com',
         subject: `New Booking - ${venue.name}`,
         template: 'venue-owner-booking-notification',
         data: {
+          ownerEmail: ownerData.email,  // Pass the actual owner email to Edge Function
           venueId,
           venueName: venue.name || 'Venue',
           bookingId: booking.id,
@@ -162,7 +171,6 @@ export const sendVenueOwnerNotification = async (booking, venue, customer, venue
           customerPhone: customer.phone || 'N/A',
           specialRequests: booking.special_requests || 'None specified',
           ownerUrl: `${window.location.origin}/venue-owner/dashboard`,
-          ownerEmail: normalizedOwnerEmail,
           venueOwnerName: ownerData.name
         }
       }

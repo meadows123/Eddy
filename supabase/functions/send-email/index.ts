@@ -723,7 +723,7 @@ serve(async (req) => {
 
       case 'venue-owner-booking-notification': {
         const placeholderEmail = 'info@oneeddy.com';
-        let ownerEmail = data.ownerEmail;
+        let ownerEmail = data.ownerEmail?.trim() || '';
         const venueId = data.venueId || data.venue_id;
 
         if (!ownerEmail || ownerEmail.toLowerCase() === placeholderEmail) {
