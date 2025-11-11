@@ -183,8 +183,13 @@ const SplitPaymentSuccessPage = () => {
 
             // Generate QR code for this individual payment confirmation
             console.log('📱 Generating QR code for individual split payment confirmation:', bookingData.id);
-            const individualQrCodeImage = await generateVenueEntryQR(bookingData);
-            console.log('📱 Individual QR code generated successfully:', individualQrCodeImage ? 'Yes' : 'No');
+            const individualQrCodeImageData = await generateVenueEntryQR(bookingData);
+            console.log('📱 Individual QR code generated successfully:', individualQrCodeImageData ? 'Yes' : 'No');
+            
+            // Extract QR code as string
+            const individualQrCodeImage = typeof individualQrCodeImageData === 'string' 
+              ? individualQrCodeImageData 
+              : (individualQrCodeImageData?.externalUrl || individualQrCodeImageData?.base64 || individualQrCodeImageData);
 
             // Debug: Log the email data being sent
             const emailData = {
@@ -210,29 +215,21 @@ const SplitPaymentSuccessPage = () => {
               venuePhone: bookingData.venues?.contact_phone,
               
               // QR Code for venue entry
-              qrCodeImage: individualQrCodeImage?.externalUrl || individualQrCodeImage,
-              qrCodeUrl: individualQrCodeImage?.externalUrl || (individualQrCodeImage?.base64 ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(JSON.stringify({
-                type: 'venue-entry',
-                bookingId: bookingData.id,
-                venueId: bookingData.venue_id,
-                securityCode: 'GENERATED',
-                bookingDate: bookingData.booking_date,
-                startTime: bookingData.start_time,
-                tableNumber: bookingData.venue_tables?.table_type || bookingData.table?.table_number || 'N/A',
-                guestCount: bookingData.number_of_guests,
-                status: 'confirmed',
-                timestamp: new Date().toISOString()
-              }))}&color=800020&bgcolor=FFFFFF&format=png` : ''),
+              qrCodeImage: individualQrCodeImage,
+              qrCodeUrl: individualQrCodeImage,
               
               // Dashboard URL
               dashboardUrl: `${window.location.origin}/profile`
             };
             
             console.log('📧 Individual split payment email data being sent:', emailData);
+            const qrCodeString = typeof individualQrCodeImage === 'string' 
+              ? individualQrCodeImage 
+              : (individualQrCodeImage?.externalUrl || individualQrCodeImage?.base64 || '');
             console.log('📱 Individual QR Code in email data:', {
               hasQrCodeImage: !!individualQrCodeImage,
-              qrCodeImageLength: individualQrCodeImage?.length || 0,
-              qrCodeImageStart: individualQrCodeImage?.substring(0, 50) || 'N/A'
+              qrCodeImageLength: qrCodeString?.length || 0,
+              qrCodeImageStart: qrCodeString?.substring(0, 50) || 'N/A'
             });
 
             console.log('📧 SENDING INDIVIDUAL CONFIRMATION EMAIL NOW:', {

@@ -459,12 +459,20 @@ const SplitPaymentForm = ({
             };
 
 
+            console.log('📧 Sending split payment request email to recipient:', {
+              to: recipientEmailData.to,
+              template: recipientEmailData.template,
+              recipientName: recipientEmailData.data.recipientName
+            });
+
             const { error: emailError } = await supabase.functions.invoke('send-email', {
               body: recipientEmailData
             });
 
             if (emailError) {
-              console.error('Failed to send split payment request email:', emailError);
+              console.error('❌ Failed to send split payment request email to', recipientEmailData.to, ':', emailError);
+            } else {
+              console.log('✅ Split payment request email sent successfully to', recipientEmailData.to);
             }
           } else {
             console.warn('No email found for recipient:', recipient.displayName);
