@@ -930,8 +930,28 @@ if (!venueId) {
     if (venueError) {
     }
 
-    // Venue owner data will be handled by the edge function with service role
+    // Fetch venue owner data for notification
     let venueOwnerData = null;
+    if (venueData?.owner_id) {
+      const { data: ownerData, error: ownerError } = await supabase
+        .from('venue_owners')
+        .select('owner_email, owner_name, email')
+        .eq('user_id', venueData.owner_id)
+        .single();
+      
+      if (!ownerError && ownerData) {
+        venueOwnerData = ownerData;
+        console.log('✅ Venue owner data fetched:', {
+          owner_email: ownerData.owner_email,
+          email: ownerData.email,
+          owner_name: ownerData.owner_name
+        });
+      } else {
+        console.log('⚠️ Could not fetch venue owner data:', ownerError);
+      }
+    } else {
+      console.log('⚠️ Venue has no owner_id field');
+    }
 
     // Send customer confirmation email now that payment is confirmed
     try {
