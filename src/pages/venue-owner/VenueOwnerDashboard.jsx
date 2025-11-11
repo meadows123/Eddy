@@ -11,7 +11,8 @@ import {
   Table2,
   Users,
   Wallet,
-  Receipt
+  Receipt,
+  Zap
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -441,6 +442,15 @@ const VenueOwnerDashboard = () => {
               <Receipt className="h-4 w-4 mr-2" />
               <span className="hidden sm:inline">Receipt Management</span>
               <span className="sm:hidden">Receipts</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              className="border-yellow-500 text-yellow-600 hover:bg-yellow-50 w-full sm:w-auto text-sm sm:text-base py-2 sm:py-2"
+              onClick={() => navigate('/venue-owner/stripe-setup')}
+            >
+              <Zap className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Stripe Setup</span>
+              <span className="sm:hidden">Stripe</span>
             </Button>
             <Button 
               className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90 w-full sm:w-auto text-sm sm:text-base py-2 sm:py-2"

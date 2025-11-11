@@ -20,6 +20,7 @@ import VenueOwnerSettings from './pages/venue-owner/VenueOwnerSettings';
 import VenueOwnerCredits from './pages/venue-owner/VenueOwnerCredits';
 import VenueOwnerReceipts from './pages/venue-owner/VenueOwnerReceipts';
 import QRScannerPage from './pages/venue-owner/QRScannerPage';
+import VenueOwnerStripeSetup from './pages/venue-owner/VenueOwnerStripeSetup';
 import VenueApprovalsPage from './pages/admin/VenueApprovalsPage';
 import ProfilePage from './pages/ProfilePage';
 import BookingsPage from './pages/BookingsPage';
@@ -96,6 +97,7 @@ const App = () => {
             <Route path="/venue-owner/credits" element={<VenueOwnerCredits />} />
             <Route path="/venue-owner/receipts" element={<VenueOwnerReceipts />} />
             <Route path="/venue-owner/qr-scanner" element={<QRScannerPage />} />
+            <Route path="/venue-owner/stripe-setup" element={<VenueOwnerStripeSetup />} />
             <Route path="/venue-owner/credits/purchase" element={<VenueCreditPurchase />} />
 
             {/* Admin Routes */}

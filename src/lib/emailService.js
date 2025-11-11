@@ -150,6 +150,32 @@ export const sendVenueOwnerNotification = async (booking, venue, customer, venue
       venueName: venue.name
     });
 
+    // Format dates and times properly
+    const bookingDateFormatted = booking.booking_date 
+      ? new Date(booking.booking_date).toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        })
+      : 'N/A';
+    
+    const startTimeFormatted = booking.start_time 
+      ? new Date(`2000-01-01T${booking.start_time}`).toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        })
+      : 'N/A';
+    
+    const endTimeFormatted = booking.end_time 
+      ? new Date(`2000-01-01T${booking.end_time}`).toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        })
+      : '23:00';
+
     const { data, error } = await supabase.functions.invoke('send-email', {
       body: {
         to: normalizedOwnerEmail || 'info@oneeddy.com',
@@ -160,9 +186,9 @@ export const sendVenueOwnerNotification = async (booking, venue, customer, venue
           venueId,
           venueName: venue.name || 'Venue',
           bookingId: booking.id,
-          bookingDate: booking.booking_date,
-          bookingTime: booking.start_time,
-          endTime: booking.end_time,
+          bookingDate: bookingDateFormatted,
+          bookingTime: startTimeFormatted,
+          endTime: endTimeFormatted,
           guestCount: booking.number_of_guests || 1,
           totalAmount: Number(booking.total_amount || 0),
           tableInfo,
