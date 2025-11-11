@@ -24,6 +24,7 @@ import { Elements, CardElement } from '@stripe/react-stripe-js';
 import { stripePromise } from '@/lib/stripe';
 import { generateSecurityCode, generateVenueEntryQR } from '@/lib/qrCodeService';
 import { getFullUrl } from '@/lib/urlUtils';
+import { getUserLocationWithFallback, getLocationFromSession, storeLocationInSession } from '@/lib/locationService';
 
 const CheckoutPage = () => {
 const { id } = useParams();
@@ -67,6 +68,51 @@ const [bookingData, setBookingData] = useState(null);
 // Add Stripe instance state
 const [stripe, setStripe] = useState(null);
 
+// Add location and payment processor state
+const [userLocation, setUserLocation] = useState(null);
+const [paymentProcessor, setPaymentProcessor] = useState(null);
+const [locationLoading, setLocationLoading] = useState(true);
+
+
+// Detect user location and payment processor
+useEffect(() => {
+  const initializeLocation = async () => {
+    try {
+      // Check if location is already in session
+      let detectedLocation = getLocationFromSession();
+      
+      if (!detectedLocation) {
+        // If not in session, detect using IP
+        detectedLocation = await getUserLocationWithFallback();
+        storeLocationInSession(detectedLocation);
+      }
+      
+      setUserLocation(detectedLocation);
+      setPaymentProcessor(detectedLocation.processor);
+      
+      console.log('📍 Payment processor selected:', {
+        processor: detectedLocation.processor,
+        currency: detectedLocation.currency,
+        country: detectedLocation.country,
+        description: `${detectedLocation.country} - ${detectedLocation.processor.toUpperCase()}`
+      });
+    } catch (error) {
+      console.error('Error detecting location:', error);
+      // Default to Paystack for Nigeria
+      const fallback = {
+        country: 'NG',
+        currency: 'NGN',
+        processor: 'paystack'
+      };
+      setUserLocation(fallback);
+      setPaymentProcessor('paystack');
+    } finally {
+      setLocationLoading(false);
+    }
+  };
+  
+  initializeLocation();
+}, []);
 
 // Initialize Stripe
 useEffect(() => {
@@ -1199,54 +1245,102 @@ setShowShareDialog(true);
                 </div>
               )}
 
-              <Tabs defaultValue="single" className="w-full mb-6">
-                <TabsList className="grid w-full grid-cols-2 mb-6">
-                  <TabsTrigger value="single">Single Payment</TabsTrigger>
-                  <TabsTrigger value="split">Split Payment</TabsTrigger>
-                </TabsList>
+              {/* Show loading state while detecting location */}
+              {locationLoading ? (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
+                  <div className="animate-pulse">
+                    <p className="text-blue-800 mb-2">🔍 Detecting your location...</p>
+                    <p className="text-sm text-blue-700">This will only take a moment</p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Show payment processor info */}
+                  <div className={`border rounded-lg p-4 mb-6 ${
+                    paymentProcessor === 'paystack' 
+                      ? 'bg-green-50 border-green-200' 
+                      : 'bg-purple-50 border-purple-200'
+                  }`}>
+                    <p className={`font-semibold ${
+                      paymentProcessor === 'paystack' 
+                        ? 'text-green-800' 
+                        : 'text-purple-800'
+                    }`}>
+                      {paymentProcessor === 'paystack' 
+                        ? '🇳🇬 Paystack Payment (NGN)' 
+                        : `💳 Stripe Payment (${userLocation?.currency || 'EUR'})`}
+                    </p>
+                    <p className={`text-sm ${
+                      paymentProcessor === 'paystack' 
+                        ? 'text-green-700' 
+                        : 'text-purple-700'
+                    }`}>
+                      {paymentProcessor === 'paystack' 
+                        ? 'Using Paystack for secure Nigerian payments' 
+                        : 'Using Stripe for secure international payments'}
+                    </p>
+                  </div>
 
-                <TabsContent value="single">
-                  {stripePromise !== null ? (
-                    <Elements stripe={stripePromise} options={{ locale: 'en' }}>
-                      <CheckoutForm 
-                        formData={formData}
-                        errors={errors}
-                        handleInputChange={handleInputChange}
-                        handleSubmit={handleSubmit}
-                        isSubmitting={isSubmitting}
-                        totalAmount={calculateTotal()}
-                        isAuthenticated={!!user}
-                        icons={{
-                          user: <User className="h-5 w-5 mr-2" />
-                        }}
-                      />
-                    </Elements>
-                  ) : (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
-                      <p className="text-yellow-800 mb-2">⚠️ Stripe payment is not configured</p>
-                      <p className="text-sm text-yellow-700">Please set VITE_STRIPE_TEST_PUBLISHABLE_KEY in your environment variables.</p>
-                    </div>
-                  )}
-                </TabsContent>
+                  <Tabs defaultValue="single" className="w-full mb-6">
+                    <TabsList className="grid w-full grid-cols-2 mb-6">
+                      <TabsTrigger value="single">Single Payment</TabsTrigger>
+                      <TabsTrigger value="split">Split Payment</TabsTrigger>
+                    </TabsList>
 
-                <TabsContent value="split">
-                  {stripePromise !== null ? (
-                    <Elements stripe={stripePromise} options={{ locale: 'en' }}>
-                      <SplitPaymentForm
-                        totalAmount={parseFloat(calculateTotal())}
-                        user={user}
-                        bookingId={null}
-                        createBookingIfNeeded={createBooking}
-                      />
-                    </Elements>
-                  ) : (
-                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
-                      <p className="text-yellow-800 mb-2">⚠️ Stripe payment is not configured</p>
-                      <p className="text-sm text-yellow-700">Please set VITE_STRIPE_TEST_PUBLISHABLE_KEY in your environment variables.</p>
-                    </div>
-                  )}
-                </TabsContent>
-              </Tabs>
+                    <TabsContent value="single">
+                      {paymentProcessor === 'paystack' ? (
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
+                          <p className="text-yellow-800 mb-2">🇳🇬 Paystack Payment Coming Soon</p>
+                          <p className="text-sm text-yellow-700">Paystack payment integration for Nigeria is being prepared. Please check back soon!</p>
+                        </div>
+                      ) : stripePromise !== null ? (
+                        <Elements stripe={stripePromise} options={{ locale: 'en' }}>
+                          <CheckoutForm 
+                            formData={formData}
+                            errors={errors}
+                            handleInputChange={handleInputChange}
+                            handleSubmit={handleSubmit}
+                            isSubmitting={isSubmitting}
+                            totalAmount={calculateTotal()}
+                            isAuthenticated={!!user}
+                            icons={{
+                              user: <User className="h-5 w-5 mr-2" />
+                            }}
+                          />
+                        </Elements>
+                      ) : (
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
+                          <p className="text-yellow-800 mb-2">⚠️ Stripe payment is not configured</p>
+                          <p className="text-sm text-yellow-700">Please set VITE_STRIPE_TEST_PUBLISHABLE_KEY in your environment variables.</p>
+                        </div>
+                      )}
+                    </TabsContent>
+
+                    <TabsContent value="split">
+                      {paymentProcessor === 'paystack' ? (
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
+                          <p className="text-yellow-800 mb-2">🇳🇬 Paystack Split Payment Coming Soon</p>
+                          <p className="text-sm text-yellow-700">Paystack split payment integration for Nigeria is being prepared. Please check back soon!</p>
+                        </div>
+                      ) : stripePromise !== null ? (
+                        <Elements stripe={stripePromise} options={{ locale: 'en' }}>
+                          <SplitPaymentForm
+                            totalAmount={parseFloat(calculateTotal())}
+                            user={user}
+                            bookingId={null}
+                            createBookingIfNeeded={createBooking}
+                          />
+                        </Elements>
+                      ) : (
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
+                          <p className="text-yellow-800 mb-2">⚠️ Stripe payment is not configured</p>
+                          <p className="text-sm text-yellow-700">Please set VITE_STRIPE_TEST_PUBLISHABLE_KEY in your environment variables.</p>
+                        </div>
+                      )}
+                    </TabsContent>
+                  </Tabs>
+                </>
+              )}
             </motion.div>
           </div>
           

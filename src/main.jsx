@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import './index.css';
 import 'mapbox-gl/dist/mapbox-gl.css'; // Temporarily disabled - install mapbox-gl package to enable
+import './lib/testLocationOverride'; // Load test location override utility
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
