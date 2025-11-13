@@ -15,6 +15,8 @@ const PaystackCallbackPage = () => {
   const [bookingDetails, setBookingDetails] = useState(null);
   const [error, setError] = useState(null);
 
+  console.log('🔄 PaystackCallbackPage Component Mounted');
+
   useEffect(() => {
     const verifyPayment = async () => {
       try {
