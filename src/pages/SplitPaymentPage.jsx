@@ -19,6 +19,7 @@ import { getUserLocationWithFallback, getLocationFromSession, storeLocationInSes
 import { initiateSplitPaystackPayment } from '@/lib/paystackSplitPaymentHandler';
 import PaystackSplitPaymentForm from '@/components/checkout/PaystackSplitPaymentForm';
 import UserSearchForm from '@/components/split-payment/UserSearchForm';
+import SplitPaymentSearch from '@/components/split-payment/SplitPaymentSearch';
 
 // Payment form component
 const PaymentForm = ({ amount, onSuccess, recipientEmail = '', recipientName = '', recipientPhone = '' }) => {
@@ -235,6 +236,7 @@ const SplitPaymentPage = () => {
   const [locationLoading, setLocationLoading] = useState(true);
   const [selectedSplitUser, setSelectedSplitUser] = useState(null);
   const [pageMode, setPageMode] = useState(null); // 'search', 'payment', or null for loading
+  const [searchMode, setSearchMode] = useState('new'); // 'new' for new split, 'existing' for finding existing
 
   // Add debug logs to trace the auth state
 
@@ -919,7 +921,7 @@ const SplitPaymentPage = () => {
             <div className="lg:col-span-2 space-y-6">
               <h1 className="text-3xl font-bold mb-6 flex items-center">
                 <CreditCard className="h-8 w-8 mr-2 text-brand-burgundy" />
-                Initiate Split Payment
+                Split Payments
               </h1>
 
               {/* Signed In Status */}
@@ -935,8 +937,45 @@ const SplitPaymentPage = () => {
                 </Card>
               )}
 
-              {/* User Search Form */}
-              <UserSearchForm
+              {/* Mode Selection Tabs */}
+              <div className="flex gap-2 mb-4">
+                <Button
+                  onClick={() => setSearchMode('new')}
+                  className={`flex-1 ${
+                    searchMode === 'new'
+                      ? 'bg-brand-burgundy text-white'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  Create New Split Payment
+                </Button>
+                <Button
+                  onClick={() => setSearchMode('existing')}
+                  className={`flex-1 ${
+                    searchMode === 'existing'
+                      ? 'bg-brand-burgundy text-white'
+                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  }`}
+                >
+                  Find Existing Split Payment
+                </Button>
+              </div>
+
+              {/* Search for Existing Split Payments */}
+              {searchMode === 'existing' ? (
+                <SplitPaymentSearch
+                  currentUserId={user?.id}
+                  onPaymentSelected={(selectedPayment) => {
+                    console.log('✅ Existing split payment selected:', selectedPayment);
+                    // Navigate to the split payment page with the selected payment
+                    navigate(`/split-payment/${selectedPayment.booking_id}/${selectedPayment.id}`);
+                  }}
+                  isLoading={processing}
+                />
+              ) : (
+                <>
+                  {/* User Search Form */}
+                  <UserSearchForm
                 currentUserId={user?.id}
                 onUserSelected={(selectedUser) => {
                   console.log('✅ User selected for split payment:', selectedUser);
@@ -978,29 +1017,33 @@ const SplitPaymentPage = () => {
                   </div>
                 </Card>
               )}
+                </>
+              )}
             </div>
 
             {/* Sidebar - User Info */}
-            <div>
-              <Card className="p-6 bg-blue-50 border-blue-200 sticky top-4">
-                <h3 className="font-semibold text-blue-900 mb-4">Your Account</h3>
-                <div className="space-y-3 text-sm">
-                  <div>
-                    <p className="text-blue-700 font-medium">Name</p>
-                    <p className="text-blue-600">{user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Loading...'}</p>
+            {searchMode === 'new' && (
+              <div>
+                <Card className="p-6 bg-blue-50 border-blue-200 sticky top-4">
+                  <h3 className="font-semibold text-blue-900 mb-4">Your Account</h3>
+                  <div className="space-y-3 text-sm">
+                    <div>
+                      <p className="text-blue-700 font-medium">Name</p>
+                      <p className="text-blue-600">{user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Loading...'}</p>
+                    </div>
+                    <div>
+                      <p className="text-blue-700 font-medium">Email</p>
+                      <p className="text-blue-600 break-all">{user?.email || 'Loading...'}</p>
+                    </div>
+                    <div className="pt-3 border-t border-blue-200">
+                      <p className="text-xs text-blue-600">
+                        ✅ Your details will be used as the primary payer for this split payment
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-blue-700 font-medium">Email</p>
-                    <p className="text-blue-600 break-all">{user?.email || 'Loading...'}</p>
-                  </div>
-                  <div className="pt-3 border-t border-blue-200">
-                    <p className="text-xs text-blue-600">
-                      ✅ Your details will be used as the primary payer for this split payment
-                    </p>
-                  </div>
-                </div>
-              </Card>
-            </div>
+                </Card>
+              </div>
+            )}
           </div>
         </motion.div>
       </div>
