@@ -269,68 +269,91 @@ async function sendBookingConfirmationEmails(bookingId: string) {
         })
       : '23:00'
 
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+
     // Send customer confirmation email
     console.log('📧 Sending customer confirmation email to:', customer.email)
-    const { error: customerEmailError } = await supabase.functions.invoke('send-email', {
-      body: {
-        to: customer.email,
-        subject: `Booking Confirmed! - ${venue.name || 'Your Venue'}`,
-        template: 'booking-confirmation',
-        data: {
-          email: customer.email,
-          customerName: customer.full_name || customer.name || 'Guest',
-          bookingId: booking.id,
-          bookingDate: bookingDateFormatted,
-          bookingTime: startTimeFormatted,
-          endTime: endTimeFormatted,
-          guestCount: booking.number_of_guests || 1,
-          totalAmount: booking.total_amount,
-          venueName: venue.name,
-          venueAddress: venue.address,
-          venuePhone: venue.contact_phone,
-          specialRequests: booking.special_requests || 'None specified'
-        }
-      }
-    })
+    try {
+      const customerResponse = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${serviceRoleKey}`,
+        },
+        body: JSON.stringify({
+          to: customer.email,
+          subject: `Booking Confirmed! - ${venue.name || 'Your Venue'}`,
+          template: 'booking-confirmation',
+          data: {
+            email: customer.email,
+            customerName: customer.full_name || customer.name || 'Guest',
+            bookingId: booking.id,
+            bookingDate: bookingDateFormatted,
+            bookingTime: startTimeFormatted,
+            endTime: endTimeFormatted,
+            guestCount: booking.number_of_guests || 1,
+            totalAmount: booking.total_amount,
+            venueName: venue.name,
+            venueAddress: venue.address,
+            venuePhone: venue.contact_phone,
+            specialRequests: booking.special_requests || 'None specified'
+          }
+        }),
+      })
 
-    if (customerEmailError) {
-      console.error('❌ Error sending customer confirmation email:', customerEmailError)
-    } else {
-      console.log('✅ Customer confirmation email sent successfully')
+      if (customerResponse.ok) {
+        console.log('✅ Customer confirmation email sent successfully')
+      } else {
+        const error = await customerResponse.json()
+        console.error('❌ Error sending customer confirmation email:', error)
+      }
+    } catch (error) {
+      console.error('❌ Error in customer email request:', error)
     }
 
     // Send venue owner notification email
     console.log('📧 Sending venue owner notification email')
     const venueOwnerEmail = venueOwner?.email || venue.contact_email || 'info@oneeddy.com'
-    const { error: venueEmailError } = await supabase.functions.invoke('send-email', {
-      body: {
-        to: venueOwnerEmail,
-        subject: `New Booking - ${venue.name}`,
-        template: 'venue-owner-booking-notification',
-        data: {
-          ownerEmail: venueOwnerEmail,
-          venueId: venue.id,
-          venueName: venue.name || 'Venue',
-          bookingId: booking.id,
-          bookingDate: bookingDateFormatted,
-          bookingTime: startTimeFormatted,
-          endTime: endTimeFormatted,
-          guestCount: booking.number_of_guests || 1,
-          totalAmount: booking.total_amount,
-          customerName: customer.full_name || customer.name || 'Guest',
-          customerEmail: customer.email || 'guest@example.com',
-          customerPhone: customer.phone || 'N/A',
-          specialRequests: booking.special_requests || 'None specified',
-          ownerUrl: `https://www.oneeddy.com/venue-owner/dashboard`,
-          venueOwnerName: venueOwner?.name || 'Venue Manager'
-        }
-      }
-    })
+    try {
+      const venueResponse = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${serviceRoleKey}`,
+        },
+        body: JSON.stringify({
+          to: venueOwnerEmail,
+          subject: `New Booking - ${venue.name}`,
+          template: 'venue-owner-booking-notification',
+          data: {
+            ownerEmail: venueOwnerEmail,
+            venueId: venue.id,
+            venueName: venue.name || 'Venue',
+            bookingId: booking.id,
+            bookingDate: bookingDateFormatted,
+            bookingTime: startTimeFormatted,
+            endTime: endTimeFormatted,
+            guestCount: booking.number_of_guests || 1,
+            totalAmount: booking.total_amount,
+            customerName: customer.full_name || customer.name || 'Guest',
+            customerEmail: customer.email || 'guest@example.com',
+            customerPhone: customer.phone || 'N/A',
+            specialRequests: booking.special_requests || 'None specified',
+            ownerUrl: `https://www.oneeddy.com/venue-owner/dashboard`,
+            venueOwnerName: venueOwner?.name || 'Venue Manager'
+          }
+        }),
+      })
 
-    if (venueEmailError) {
-      console.error('❌ Error sending venue owner notification email:', venueEmailError)
-    } else {
-      console.log('✅ Venue owner notification email sent successfully')
+      if (venueResponse.ok) {
+        console.log('✅ Venue owner notification email sent successfully')
+      } else {
+        const error = await venueResponse.json()
+        console.error('❌ Error sending venue owner notification email:', error)
+      }
+    } catch (error) {
+      console.error('❌ Error in venue owner email request:', error)
     }
 
     console.log('✅ All confirmation emails sent successfully')

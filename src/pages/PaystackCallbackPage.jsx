@@ -122,119 +122,19 @@ const PaystackCallbackPage = () => {
         console.log('✅ Booking updated:', bookingData);
         setBookingDetails(bookingData);
 
-        // Send confirmation emails via Supabase Edge Function
-        try {
-          console.log('📧 STARTING EMAIL PROCESS...');
-          console.log('📧 Booking data available:', !!bookingData);
-          console.log('📧 Customer email:', bookingData.profiles?.email);
-          console.log('📧 Venue contact email:', bookingData.venues?.contact_email);
-          
-          const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://agydpkzfucicraedllgl.supabase.co';
-          const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-          
-          console.log('🔗 Supabase URL:', SUPABASE_URL);
-          console.log('🔑 Supabase key available:', !!SUPABASE_ANON_KEY);
-
-          // Call Edge Function to send customer confirmation
-          try {
-            console.log('📧 Sending customer confirmation email...');
-            const customerUrl = `${SUPABASE_URL}/functions/v1/send-email`;
-            console.log('🔗 Calling:', customerUrl);
-            
-            const customerPayload = {
-              to: bookingData.profiles?.email,
-              template: 'booking-confirmation',
-              data: {
-                customerName: bookingData.profiles?.full_name,
-                customerEmail: bookingData.profiles?.email,
-                bookingId: bookingData.id,
-                venueName: bookingData.venues?.name,
-                venueAddress: bookingData.venues?.address,
-                bookingDate: new Date(bookingData.booking_date).toLocaleDateString(),
-                startTime: bookingData.start_time,
-                endTime: bookingData.end_time,
-                guestCount: bookingData.guest_count,
-                totalAmount: bookingData.total_amount,
-                paymentReference: reference
-              }
-            };
-            console.log('📦 Payload:', customerPayload);
-            
-            const customerResponse = await fetch(customerUrl, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-              },
-              body: JSON.stringify(customerPayload),
-            });
-            
-            console.log('📊 Response status:', customerResponse.status);
-            
-            if (customerResponse.ok) {
-              const result = await customerResponse.json();
-              console.log('✅ Customer confirmation email sent:', result);
-            } else {
-              const error = await customerResponse.json();
-              console.error('⚠️ Customer email failed:', error);
-            }
-          } catch (customerError) {
-            console.error('⚠️ CUSTOMER EMAIL ERROR:', customerError);
-          }
-
-          // Send venue owner notification
-          try {
-            console.log('📧 Sending venue owner notification...');
-            const venueResponse = await fetch(
-              `${SUPABASE_URL}/functions/v1/send-email`,
-              {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                },
-                body: JSON.stringify({
-                  to: bookingData.venues?.contact_email,
-                  template: 'venue-owner-booking-notification',
-                  data: {
-                    venueId: bookingData.venue_id,
-                    venueName: bookingData.venues?.name,
-                    ownerEmail: bookingData.venues?.contact_email,
-                    customerName: bookingData.profiles?.full_name,
-                    customerEmail: bookingData.profiles?.email,
-                    customerPhone: bookingData.profiles?.phone,
-                    bookingId: bookingData.id,
-                    bookingDate: new Date(bookingData.booking_date).toLocaleDateString(),
-                    startTime: bookingData.start_time,
-                    endTime: bookingData.end_time,
-                    guestCount: bookingData.guest_count,
-                    totalAmount: bookingData.total_amount
-                  }
-                }),
-              }
-            );
-            
-            if (venueResponse.ok) {
-              console.log('✅ Venue owner notification sent');
-            } else {
-              const error = await venueResponse.json();
-              console.error('⚠️ Venue owner email failed:', error);
-            }
-          } catch (venueError) {
-            console.error('⚠️ Venue owner email error:', venueError);
-          }
-        } catch (emailError) {
-          console.error('⚠️ Email service error:', emailError);
-          // Don't fail the booking if email fails
-        }
-
         // Clear session data
         clearPaymentFromSession();
 
-        // Set success status
+        // Set success status immediately (emails will be sent via webhook)
         setStatus('success');
         setMessage('Payment verified successfully! Your booking is confirmed.');
         console.log('✅ Booking confirmation complete');
+        console.log('📧 Emails will be sent via Paystack webhook handler');
+
+        // Redirect to bookings page after 2 seconds
+        setTimeout(() => {
+          navigate('/bookings');
+        }, 2000);
 
       } catch (error) {
         console.error('❌ Callback verification error:', error);
