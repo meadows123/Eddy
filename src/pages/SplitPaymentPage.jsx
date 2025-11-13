@@ -768,7 +768,7 @@ const SplitPaymentPage = () => {
   // Show user search form for initiating new split payments
   if (pageMode === 'search') {
     return (
-      <div className="container py-10 max-w-2xl mx-auto">
+      <div className="container py-10 max-w-4xl mx-auto">
         <Button
           variant="ghost"
           onClick={() => navigate('/')}
@@ -783,21 +783,94 @@ const SplitPaymentPage = () => {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <UserSearchForm
-            currentUserId={user?.id}
-            onUserSelected={(selectedUser) => {
-              console.log('✅ User selected, moving to payment setup:', selectedUser);
-              setSelectedSplitUser(selectedUser);
-              // Navigate to checkout with the selected user
-              // We'll need to implement this flow next
-              toast({
-                title: 'Next Step',
-                description: 'Setting up split payment details with ' + selectedUser.first_name,
-                className: 'bg-green-500 text-white'
-              });
-            }}
-            isLoading={processing}
-          />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Main Content */}
+            <div className="lg:col-span-2 space-y-6">
+              <h1 className="text-3xl font-bold mb-6 flex items-center">
+                <CreditCard className="h-8 w-8 mr-2 text-brand-burgundy" />
+                Initiate Split Payment
+              </h1>
+
+              {/* Signed In Status */}
+              {user && (
+                <Card className="p-4 bg-green-50 border-green-200">
+                  <div className="flex items-start gap-3">
+                    <Check className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="font-semibold text-green-800">Signed in as {user.email}</p>
+                      <p className="text-sm text-green-700">Your account details will be auto-populated</p>
+                    </div>
+                  </div>
+                </Card>
+              )}
+
+              {/* User Search Form */}
+              <UserSearchForm
+                currentUserId={user?.id}
+                onUserSelected={(selectedUser) => {
+                  console.log('✅ User selected for split payment:', selectedUser);
+                  setSelectedSplitUser(selectedUser);
+                  toast({
+                    title: 'User Selected',
+                    description: `Ready to split payment with ${selectedUser.first_name} ${selectedUser.last_name}`,
+                    className: 'bg-green-500 text-white'
+                  });
+                }}
+                isLoading={processing}
+              />
+
+              {/* Selected User Details */}
+              {selectedSplitUser && (
+                <Card className="p-6 border-brand-burgundy/30 bg-brand-cream/30">
+                  <h3 className="text-lg font-semibold text-brand-burgundy mb-4">
+                    Splitting with: {selectedSplitUser.first_name} {selectedSplitUser.last_name}
+                  </h3>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-600">Email:</span>
+                      <span className="font-medium">{selectedSplitUser.email}</span>
+                    </div>
+                    {selectedSplitUser.phone && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600">Phone:</span>
+                        <span className="font-medium">{selectedSplitUser.phone}</span>
+                      </div>
+                    )}
+                    {(selectedSplitUser.city || selectedSplitUser.country) && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-600">Location:</span>
+                        <span className="font-medium">
+                          {[selectedSplitUser.city, selectedSplitUser.country].filter(Boolean).join(', ')}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </Card>
+              )}
+            </div>
+
+            {/* Sidebar - User Info */}
+            <div>
+              <Card className="p-6 bg-blue-50 border-blue-200 sticky top-4">
+                <h3 className="font-semibold text-blue-900 mb-4">Your Account</h3>
+                <div className="space-y-3 text-sm">
+                  <div>
+                    <p className="text-blue-700 font-medium">Name</p>
+                    <p className="text-blue-600">{user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Loading...'}</p>
+                  </div>
+                  <div>
+                    <p className="text-blue-700 font-medium">Email</p>
+                    <p className="text-blue-600 break-all">{user?.email || 'Loading...'}</p>
+                  </div>
+                  <div className="pt-3 border-t border-blue-200">
+                    <p className="text-xs text-blue-600">
+                      ✅ Your details will be used as the primary payer for this split payment
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          </div>
         </motion.div>
       </div>
     );
