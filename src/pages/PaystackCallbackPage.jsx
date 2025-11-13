@@ -104,7 +104,7 @@ const PaystackCallbackPage = () => {
             updated_at: new Date().toISOString()
           })
           .eq('id', bookingId)
-          .select('id, booking_date, start_time, end_time, guest_count, total_amount, venue_id, user_id')
+          .select('id, booking_date, start_time, end_time, number_of_guests, total_amount, venue_id, user_id')
           .single();
 
         console.log('📝 Database update result:', { bookingData, updateError });
