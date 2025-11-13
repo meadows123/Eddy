@@ -5,7 +5,6 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader, CheckCircle, AlertCircle, Home } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { sendBookingConfirmation } from '@/lib/emailService';
 import { getPaymentFromSession, clearPaymentFromSession } from '@/lib/paystackCheckoutHandler';
 
 const PaystackCallbackPage = () => {
@@ -118,17 +117,76 @@ const PaystackCallbackPage = () => {
         console.log('✅ Booking updated:', bookingData);
         setBookingDetails(bookingData);
 
-        // Send confirmation email
+        // Send confirmation emails via Supabase Edge Function
         try {
-          console.log('📧 Sending confirmation email...');
-          await sendBookingConfirmation(
-            bookingData, // booking
-            bookingData.venues, // venue
-            bookingData.profiles // customer
+          console.log('📧 Sending confirmation emails...');
+          
+          // Call Edge Function to send customer confirmation
+          const { data: emailResult, error: emailError } = await supabase.functions.invoke(
+            'send-email',
+            {
+              body: {
+                to: bookingData.profiles?.email,
+                template: 'booking-confirmation',
+                data: {
+                  customerName: bookingData.profiles?.full_name,
+                  customerEmail: bookingData.profiles?.email,
+                  bookingId: bookingData.id,
+                  venueName: bookingData.venues?.name,
+                  venueAddress: bookingData.venues?.address,
+                  bookingDate: new Date(bookingData.booking_date).toLocaleDateString(),
+                  startTime: bookingData.start_time,
+                  endTime: bookingData.end_time,
+                  guestCount: bookingData.guest_count,
+                  totalAmount: bookingData.total_amount,
+                  paymentReference: reference
+                }
+              }
+            }
           );
-          console.log('✅ Confirmation email sent');
+          
+          if (emailError) {
+            console.error('⚠️ Customer email failed:', emailError);
+          } else {
+            console.log('✅ Customer confirmation email sent');
+          }
+
+          // Send venue owner notification
+          try {
+            const { data: venueEmailResult, error: venueEmailError } = await supabase.functions.invoke(
+              'send-email',
+              {
+                body: {
+                  to: bookingData.venues?.contact_email,
+                  template: 'venue-owner-booking-notification',
+                  data: {
+                    venueId: bookingData.venue_id,
+                    venueName: bookingData.venues?.name,
+                    ownerEmail: bookingData.venues?.contact_email,
+                    customerName: bookingData.profiles?.full_name,
+                    customerEmail: bookingData.profiles?.email,
+                    customerPhone: bookingData.profiles?.phone,
+                    bookingId: bookingData.id,
+                    bookingDate: new Date(bookingData.booking_date).toLocaleDateString(),
+                    startTime: bookingData.start_time,
+                    endTime: bookingData.end_time,
+                    guestCount: bookingData.guest_count,
+                    totalAmount: bookingData.total_amount
+                  }
+                }
+              }
+            );
+            
+            if (venueEmailError) {
+              console.error('⚠️ Venue owner email failed:', venueEmailError);
+            } else {
+              console.log('✅ Venue owner notification sent');
+            }
+          } catch (venueError) {
+            console.error('⚠️ Venue owner email error:', venueError);
+          }
         } catch (emailError) {
-          console.error('⚠️ Email sending failed (non-blocking):', emailError);
+          console.error('⚠️ Email service error:', emailError);
           // Don't fail the booking if email fails
         }
 
