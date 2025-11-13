@@ -26,6 +26,7 @@ import { generateSecurityCode, generateVenueEntryQR } from '@/lib/qrCodeService'
 import { getFullUrl } from '@/lib/urlUtils';
 import { getUserLocationWithFallback, getLocationFromSession, storeLocationInSession } from '@/lib/locationService';
 import PaystackCheckoutForm from '@/components/checkout/PaystackCheckoutForm';
+import SplitPaymentCheckoutForm from '@/components/checkout/SplitPaymentCheckoutForm';
 import { initiatePaystackPayment } from '@/lib/paystackCheckoutHandler';
 
 const CheckoutPage = () => {
@@ -1398,10 +1399,89 @@ setShowShareDialog(true);
 
                     <TabsContent value="split">
                       {paymentProcessor === 'paystack' ? (
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
-                          <p className="text-blue-800 mb-2">🇳🇬 Paystack Split Payment</p>
-                          <p className="text-sm text-blue-700">Split payment feature with Paystack is coming soon. For now, please use single payment.</p>
-                        </div>
+                        <SplitPaymentCheckoutForm
+                          totalAmount={calculateTotal()}
+                          venueId={selection?.venue?.id || selection?.venueId || selection?.id}
+                          venueName={selection?.venue?.name || 'Venue'}
+                          bookingData={selection || bookingData}
+                          onPaymentInitiate={async (paymentData) => {
+                            console.log('🇳🇬 Paystack split payment initiated from CheckoutPage:', paymentData);
+                            setIsSubmitting(true);
+                            try {
+                              // Create a pending booking first
+                              console.log('📝 Creating pending booking for Paystack split payment...');
+                              const venueId = selection?.venue?.id || selection?.venueId || selection?.id;
+                              const tableId = selection?.table?.id || selection?.selectedTable?.id || selection?.tableId;
+                              
+                              if (!venueId) {
+                                throw new Error('Venue ID is required');
+                              }
+
+                              const { data: pendingBooking, error: bookingError } = await supabase
+                                .from('bookings')
+                                .insert([{
+                                  user_id: user?.id,
+                                  venue_id: venueId,
+                                  table_id: tableId,
+                                  booking_date: selection?.date || new Date().toISOString().split('T')[0],
+                                  start_time: selection?.time || '19:00',
+                                  end_time: selection?.endTime || '23:00',
+                                  number_of_guests: parseInt(selection?.guests) || 2,
+                                  status: 'pending',
+                                  total_amount: paymentData.amount
+                                }])
+                                .select('id')
+                                .single();
+
+                              if (bookingError || !pendingBooking) {
+                                throw new Error(`Failed to create booking: ${bookingError?.message}`);
+                              }
+
+                              console.log('✅ Pending booking created:', pendingBooking.id);
+
+                              // Prepare booking data with the created booking ID
+                              const bookingDataForPaystack = {
+                                ...(selection || bookingData),
+                                bookingId: pendingBooking.id,
+                                venueId: venueId,
+                                venueName: selection?.venue?.name || 'Venue',
+                                bookingDate: selection?.date,
+                                startTime: selection?.time,
+                                endTime: selection?.endTime,
+                                guestCount: selection?.guests || 2,
+                                splitRecipients: paymentData.splitRecipients
+                              };
+
+                              // Initiate Paystack payment for initiator
+                              const result = await initiatePaystackPayment({
+                                email: paymentData.email,
+                                fullName: paymentData.fullName,
+                                phone: paymentData.phone,
+                                amount: paymentData.amount,
+                                bookingData: bookingDataForPaystack,
+                                userId: user?.id
+                              });
+
+                              console.log('✅ Split payment initiated successfully, redirecting to Paystack...');
+
+                              // Redirect to Paystack authorization URL
+                              if (result.authorizationUrl) {
+                                window.location.href = result.authorizationUrl;
+                              } else {
+                                throw new Error('No authorization URL returned from Paystack');
+                              }
+                            } catch (error) {
+                              console.error('❌ Paystack split payment initiation error:', error);
+                              setIsSubmitting(false);
+                              toast({
+                                title: 'Payment Error',
+                                description: error instanceof Error ? error.message : 'Failed to initiate payment',
+                                variant: 'destructive'
+                              });
+                            }
+                          }}
+                          isLoading={isSubmitting}
+                        />
                       ) : stripePromise !== null ? (
                         <Elements stripe={stripePromise} options={{ locale: 'en' }}>
                           <SplitPaymentForm

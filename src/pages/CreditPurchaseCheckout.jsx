@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Wallet, Check, CreditCard, User } from 'lucide-react';
+import { ArrowLeft, Wallet, Check, CreditCard, User, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -12,6 +12,9 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { Elements, CardElement } from '@stripe/react-stripe-js';
 import { stripePromise } from '@/lib/stripe';
+import { getUserLocationWithFallback, storeLocationInSession } from '@/lib/locationService';
+import { initiateCreditPurchasePayment } from '@/lib/paystackCreditPurchaseHandler';
+import PaystackCreditPurchaseForm from '@/components/checkout/PaystackCreditPurchaseForm';
 
 const CreditPurchaseCheckout = () => {
   const navigate = useNavigate();
@@ -24,6 +27,9 @@ const CreditPurchaseCheckout = () => {
   const [showConfirmation, setShowConfirmation] = useState(false);
   const [creditData, setCreditData] = useState(null);
   const [stripe, setStripe] = useState(null);
+  const [userLocation, setUserLocation] = useState(null);
+  const [paymentProcessor, setPaymentProcessor] = useState(null);
+  const [locationLoading, setLocationLoading] = useState(true);
 
   // Authentication states
   const [loginOpen, setLoginOpen] = useState(false);
@@ -51,6 +57,39 @@ const CreditPurchaseCheckout = () => {
       setStripe(stripeInstance);
     };
     initStripe();
+  }, []);
+
+  // Location detection for payment processor
+  useEffect(() => {
+    const detectLocation = async () => {
+      try {
+        setLocationLoading(true);
+        console.log('Getting user location for credit purchase...');
+        
+        const locationData = await getUserLocationWithFallback();
+        console.log('User location detected:', locationData);
+        
+        setUserLocation(locationData);
+        storeLocationInSession(locationData);
+        
+        // Determine processor: Nigeria = Paystack, Others = Stripe
+        if (locationData.country?.toLowerCase() === 'ng' || locationData.currency === 'NGN') {
+          console.log('🇳🇬 Nigeria detected - using Paystack');
+          setPaymentProcessor('paystack');
+        } else {
+          console.log('🌍 Non-Nigeria location - using Stripe');
+          setPaymentProcessor('stripe');
+        }
+      } catch (error) {
+        console.error('Location detection failed:', error);
+        console.log('Defaulting to Stripe');
+        setPaymentProcessor('stripe'); // Default to Stripe
+      } finally {
+        setLocationLoading(false);
+      }
+    };
+
+    detectLocation();
   }, []);
 
   // Check for credit purchase data
@@ -622,63 +661,114 @@ const CreditPurchaseCheckout = () => {
                       <p className="text-red-500 text-sm mt-1">{errors.agreeToTerms}</p>
                     )}
 
-                    {/* Card Details Section */}
-                    <div className="border-t pt-4">
-                      <h4 className="text-md font-medium text-gray-700 mb-3">Card Details</h4>
-                      <div className="space-y-3">
-                        {/* Card Number */}
-                        <div>
-                          <label htmlFor="cardNumber" className="block text-sm font-medium text-gray-700 mb-1">
-                            Card Number *
-                          </label>
-                          <input
-                            type="text"
-                            id="cardNumber"
-                            placeholder="1234 5678 9012 3456"
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          />
-                        </div>
-
-                        {/* Expiry and CVC */}
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label htmlFor="expiry" className="block text-sm font-medium text-gray-700 mb-1">
-                              Expiry Date *
-                            </label>
-                            <input
-                              type="text"
-                              id="expiry"
-                              placeholder="MM/YY"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                          </div>
-                          <div>
-                            <label htmlFor="cvc" className="block text-sm font-medium text-gray-700 mb-1">
-                              CVC *
-                            </label>
-                            <input
-                              type="text"
-                              id="cvc"
-                              placeholder="123"
-                              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            />
-                          </div>
-                        </div>
+                    {/* Payment Processor Selection */}
+                    {locationLoading ? (
+                      <div className="border-t pt-4 text-center py-8">
+                        <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-brand-burgundy" />
+                        <p>Loading payment method...</p>
                       </div>
-                    </div>
+                    ) : paymentProcessor === 'paystack' ? (
+                      <PaystackCreditPurchaseForm
+                        amount={creditData.purchaseAmount * 1000}
+                        venueName={creditData.venueName}
+                        formData={formData}
+                        setFormData={setFormData}
+                        errors={errors}
+                        onSubmit={async (paymentData) => {
+                          try {
+                            setIsSubmitting(true);
+                            console.log('🇳🇬 Paystack credit purchase initiated:', paymentData);
 
-                    {/* Submit Button */}
-                    <button
-                      onClick={() => handleSubmit('simulated-payment-method')}
-                      disabled={isSubmitting}
-                      className={`w-full py-3 px-4 rounded-md font-medium text-white ${
-                        isSubmitting 
-                          ? 'bg-gray-400 cursor-not-allowed' 
-                          : 'bg-brand-burgundy hover:bg-brand-burgundy/90 focus:ring-2 focus:ring-brand-burgundy/50'
-                      }`}
-                    >
-                      {isSubmitting ? 'Processing...' : `Purchase Credits - ₦${(creditData.purchaseAmount * 1000).toLocaleString()}`}
-                    </button>
+                            const result = await initiateCreditPurchasePayment({
+                              email: paymentData.email,
+                              fullName: paymentData.fullName,
+                              phone: paymentData.phone,
+                              amount: creditData.purchaseAmount * 1000,
+                              venueId: creditData.venue.id,
+                              venueName: creditData.venueName,
+                              userId: user?.id
+                            });
+
+                            console.log('✅ Payment initiated, redirecting to Paystack...');
+
+                            if (result.authorizationUrl) {
+                              window.location.href = result.authorizationUrl;
+                            } else {
+                              throw new Error('No authorization URL returned');
+                            }
+                          } catch (error) {
+                            console.error('❌ Paystack payment error:', error);
+                            setIsSubmitting(false);
+                            toast({
+                              title: 'Payment Error',
+                              description: error.message || 'Failed to initiate payment',
+                              variant: 'destructive'
+                            });
+                          }
+                        }}
+                        isLoading={isSubmitting}
+                      />
+                    ) : (
+                      <>
+                        {/* Card Details Section for Stripe */}
+                        <div className="border-t pt-4">
+                          <h4 className="text-md font-medium text-gray-700 mb-3">Card Details</h4>
+                          <div className="space-y-3">
+                            {/* Card Number */}
+                            <div>
+                              <label htmlFor="cardNumber" className="block text-sm font-medium text-gray-700 mb-1">
+                                Card Number *
+                              </label>
+                              <input
+                                type="text"
+                                id="cardNumber"
+                                placeholder="1234 5678 9012 3456"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              />
+                            </div>
+
+                            {/* Expiry and CVC */}
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label htmlFor="expiry" className="block text-sm font-medium text-gray-700 mb-1">
+                                  Expiry Date *
+                                </label>
+                                <input
+                                  type="text"
+                                  id="expiry"
+                                  placeholder="MM/YY"
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                              </div>
+                              <div>
+                                <label htmlFor="cvc" className="block text-sm font-medium text-gray-700 mb-1">
+                                  CVC *
+                                </label>
+                                <input
+                                  type="text"
+                                  id="cvc"
+                                  placeholder="123"
+                                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Submit Button for Stripe */}
+                        <button
+                          onClick={() => handleSubmit('simulated-payment-method')}
+                          disabled={isSubmitting}
+                          className={`w-full py-3 px-4 rounded-md font-medium text-white ${
+                            isSubmitting 
+                              ? 'bg-gray-400 cursor-not-allowed' 
+                              : 'bg-brand-burgundy hover:bg-brand-burgundy/90 focus:ring-2 focus:ring-brand-burgundy/50'
+                          }`}
+                        >
+                          {isSubmitting ? 'Processing...' : `Purchase Credits - ₦${(creditData.purchaseAmount * 1000).toLocaleString()}`}
+                        </button>
+                      </>
+                    )}
                   </div>
                 )}
               </div>

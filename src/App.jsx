@@ -37,6 +37,7 @@ import SplitPaymentPage from './pages/SplitPaymentPage';
 import SplitPaymentSuccessPage from './pages/SplitPaymentSuccessPage';
 import SplitPaymentCallbackPage from './pages/SplitPaymentCallbackPage';
 import PaystackCallbackPage from './pages/PaystackCallbackPage';
+import CreditPurchaseCallbackPage from './pages/CreditPurchaseCallbackPage';
 import { AuthProvider } from './contexts/AuthContext';
 import HomePage from './pages/HomePage';
 import RegisterPage from './pages/RegisterPage';
@@ -70,6 +71,7 @@ const App = () => {
             <Route path="/split-payment-callback" element={<SplitPaymentCallbackPage />} />
             <Route path="/split-payment-success" element={<SplitPaymentSuccessPage />} />
             <Route path="/paystack-callback" element={<PaystackCallbackPage />} />
+            <Route path="/credit-purchase-callback" element={<CreditPurchaseCallbackPage />} />
             <Route path="/explore" element={<ExplorePage />} />
 
             {/* Customer Routes */}
