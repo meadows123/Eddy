@@ -14,6 +14,9 @@ import { Input } from '@/components/ui/input';
 import { stripePromise } from '@/lib/stripe';
 import { useAuth } from '@/contexts/AuthContext';
 import { getBaseUrl } from '@/lib/urlUtils';
+import { getUserLocationWithFallback, getLocationFromSession, storeLocationInSession } from '@/lib/locationService';
+import { initiateSplitPaystackPayment } from '@/lib/paystackSplitPaymentHandler';
+import PaystackSplitPaymentForm from '@/components/checkout/PaystackSplitPaymentForm';
 
 // Payment form component
 const PaymentForm = ({ amount, onSuccess }) => {
@@ -95,6 +98,9 @@ const SplitPaymentPage = () => {
   const [venue, setVenue] = useState(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
+  const [userLocation, setUserLocation] = useState(null);
+  const [paymentProcessor, setPaymentProcessor] = useState(null);
+  const [locationLoading, setLocationLoading] = useState(true);
 
   // Add debug logs to trace the auth state
 
@@ -113,6 +119,39 @@ const SplitPaymentPage = () => {
       return;
     }
   }, [user, authLoading, navigate, toast]);
+
+  // Location detection for payment processor
+  useEffect(() => {
+    const detectLocation = async () => {
+      try {
+        setLocationLoading(true);
+        console.log('Getting user location for split payment...');
+        
+        const location = await getUserLocationWithFallback();
+        console.log('User location detected:', location);
+        
+        setUserLocation(location);
+        storeLocationInSession(location);
+        
+        // Determine processor: Nigeria = Paystack, Others = Stripe
+        if (location.country?.toLowerCase() === 'ng' || location.currency === 'NGN') {
+          console.log('🇳🇬 Nigeria detected - using Paystack');
+          setPaymentProcessor('paystack');
+        } else {
+          console.log('🌍 Non-Nigeria location - using Stripe');
+          setPaymentProcessor('stripe');
+        }
+      } catch (error) {
+        console.error('Location detection failed:', error);
+        console.log('Defaulting to Stripe');
+        setPaymentProcessor('stripe'); // Default to Stripe
+      } finally {
+        setLocationLoading(false);
+      }
+    };
+
+    detectLocation();
+  }, []);
 
   useEffect(() => {
     if (bookingId && requestId && user) {
@@ -854,110 +893,159 @@ const SplitPaymentPage = () => {
             <CardTitle>Payment Details</CardTitle>
           </CardHeader>
           <CardContent>
-            <Elements stripe={stripePromise}>
-              <PaymentForm 
-                amount={paymentRequest.amount} 
-                onSuccess={async (paymentMethodId) => {
+            {locationLoading ? (
+              <div className="p-8 text-center">
+                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-2 text-brand-burgundy" />
+                <p>Loading payment method...</p>
+              </div>
+            ) : paymentProcessor === 'paystack' ? (
+              <PaystackSplitPaymentForm
+                amount={paymentRequest.amount}
+                recipientEmail={paymentRequest.recipient_email}
+                recipientName={paymentRequest.recipient_name}
+                recipientPhone={paymentRequest.recipient_phone}
+                requestId={paymentRequest.id}
+                bookingId={paymentRequest.booking_id}
+                onSubmit={async (paymentData) => {
                   try {
                     setProcessing(true);
-                    
-                    // Create payment intent using the Edge Function
-                    const response = await fetch(
-                      'https://agydpkzfucicraedllgl.supabase.co/functions/v1/create-split-payment-intent',
-                      {
-                        method: 'POST',
-                        headers: {
-                          'Content-Type': 'application/json',
-                          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
-                        },
-                        body: JSON.stringify({
-                          amount: paymentRequest.amount,
-                          paymentMethodId,
-                          bookingId: paymentRequest.booking_id,
-                          splitRequests: [paymentRequest],
-                          email: paymentRequest.recipient_email || user?.email || '',
-                          bookingType: 'split',
-                          isInitiatorPayment: false
-                        })
-                      }
-                    );
+                    console.log('🇳🇬 Paystack split payment initiated:', paymentData);
 
-                    if (!response.ok) {
-                      const errorData = await response.json();
-                      throw new Error(errorData.error || 'Failed to create payment intent');
-                    }
-
-                    const { clientSecret, paymentIntentId } = await response.json();
-
-                    // Load Stripe and confirm payment
-                    const stripe = await loadStripe(import.meta.env.VITE_STRIPE_TEST_PUBLISHABLE_KEY);
-                    if (!stripe) {
-                      throw new Error('Failed to load Stripe');
-                    }
-
-                    const { error: confirmError } = await stripe.confirmCardPayment(clientSecret, {
-                      payment_method: paymentMethodId
-                    });
-                    if (confirmError) {
-                      throw new Error(`Payment failed: ${confirmError.message}`);
-                    }
-
-                    // Payment successful - update the payment request status
-                    const { error: updateError } = await supabase
-                      .from('split_payment_requests')
-                      .update({ 
-                        status: 'paid',
-                        paid_at: new Date().toISOString(),
-                        stripe_payment_id: paymentIntentId || 'manual_payment'
-                      })
-                      .eq('id', paymentRequest.id);
-
-                    if (updateError) {
-                      console.error('Error updating payment status:', updateError);
-                    }
-
-                    // Check if all split payments for this booking are now paid
-                    const { data: allRequests, error: checkError } = await supabase
-                      .from('split_payment_requests')
-                      .select('status')
-                      .eq('booking_id', paymentRequest.booking_id);
-
-                    if (!checkError && allRequests) {
-                      // Check if all requests are paid
-                      const allRequestsPaid = allRequests.every(req => req.status === 'paid');
-                      
-                      if (allRequestsPaid) {
-                        // Update booking status to confirmed when all split payments are complete
-                        await supabase
-                          .from('bookings')
-                          .update({ status: 'confirmed' })
-                          .eq('id', paymentRequest.booking_id);
-                      }
-                    }
-
-                    // Show success message and redirect
-                    toast({
-                      title: "Payment Successful!",
-                      description: `Your portion (₦${paymentRequest.amount.toLocaleString()}) has been paid successfully. The booking will be confirmed once all split payments are complete.`,
-                      className: "bg-green-500 text-white"
+                    const result = await initiateSplitPaystackPayment({
+                      email: paymentData.email,
+                      fullName: paymentData.fullName,
+                      phone: paymentData.phone,
+                      amount: paymentData.amount,
+                      requestId: paymentData.requestId,
+                      bookingId: paymentData.bookingId,
+                      userId: user?.id
                     });
 
-                    // Navigate to success page
-                    navigate(`/split-payment-success?payment_intent=success&request_id=${paymentRequest.id}`);
+                    console.log('✅ Payment initiated, redirecting to Paystack...');
 
+                    if (result.authorizationUrl) {
+                      window.location.href = result.authorizationUrl;
+                    } else {
+                      throw new Error('No authorization URL returned');
+                    }
                   } catch (error) {
-                    console.error('Payment error:', error);
-                    toast({
-                      title: "Payment Failed",
-                      description: error.message || "Failed to process payment. Please try again.",
-                      variant: "destructive"
-                    });
-                  } finally {
+                    console.error('❌ Paystack payment error:', error);
                     setProcessing(false);
+                    toast({
+                      title: 'Payment Error',
+                      description: error.message || 'Failed to initiate payment',
+                      variant: 'destructive'
+                    });
                   }
-                }} 
+                }}
+                isLoading={processing}
               />
-            </Elements>
+            ) : (
+              <Elements stripe={stripePromise}>
+                <PaymentForm 
+                  amount={paymentRequest.amount} 
+                  onSuccess={async (paymentMethodId) => {
+                    try {
+                      setProcessing(true);
+                      
+                      // Create payment intent using the Edge Function
+                      const response = await fetch(
+                        'https://agydpkzfucicraedllgl.supabase.co/functions/v1/create-split-payment-intent',
+                        {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+                          },
+                          body: JSON.stringify({
+                            amount: paymentRequest.amount,
+                            paymentMethodId,
+                            bookingId: paymentRequest.booking_id,
+                            splitRequests: [paymentRequest],
+                            email: paymentRequest.recipient_email || user?.email || '',
+                            bookingType: 'split',
+                            isInitiatorPayment: false
+                          })
+                        }
+                      );
+
+                      if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(errorData.error || 'Failed to create payment intent');
+                      }
+
+                      const { clientSecret, paymentIntentId } = await response.json();
+
+                      // Load Stripe and confirm payment
+                      const stripe = await loadStripe(import.meta.env.VITE_STRIPE_TEST_PUBLISHABLE_KEY);
+                      if (!stripe) {
+                        throw new Error('Failed to load Stripe');
+                      }
+
+                      const { error: confirmError } = await stripe.confirmCardPayment(clientSecret, {
+                        payment_method: paymentMethodId
+                      });
+                      if (confirmError) {
+                        throw new Error(`Payment failed: ${confirmError.message}`);
+                      }
+
+                      // Payment successful - update the payment request status
+                      const { error: updateError } = await supabase
+                        .from('split_payment_requests')
+                        .update({ 
+                          status: 'paid',
+                          paid_at: new Date().toISOString(),
+                          stripe_payment_id: paymentIntentId || 'manual_payment'
+                        })
+                        .eq('id', paymentRequest.id);
+
+                      if (updateError) {
+                        console.error('Error updating payment status:', updateError);
+                      }
+
+                      // Check if all split payments for this booking are now paid
+                      const { data: allRequests, error: checkError } = await supabase
+                        .from('split_payment_requests')
+                        .select('status')
+                        .eq('booking_id', paymentRequest.booking_id);
+
+                      if (!checkError && allRequests) {
+                        // Check if all requests are paid
+                        const allRequestsPaid = allRequests.every(req => req.status === 'paid');
+                        
+                        if (allRequestsPaid) {
+                          // Update booking status to confirmed when all split payments are complete
+                          await supabase
+                            .from('bookings')
+                            .update({ status: 'confirmed' })
+                            .eq('id', paymentRequest.booking_id);
+                        }
+                      }
+
+                      // Show success message and redirect
+                      toast({
+                        title: "Payment Successful!",
+                        description: `Your portion (₦${paymentRequest.amount.toLocaleString()}) has been paid successfully. The booking will be confirmed once all split payments are complete.`,
+                        className: "bg-green-500 text-white"
+                      });
+
+                      // Navigate to success page
+                      navigate(`/split-payment-success?payment_intent=success&request_id=${paymentRequest.id}`);
+
+                    } catch (error) {
+                      console.error('Payment error:', error);
+                      toast({
+                        title: "Payment Failed",
+                        description: error.message || "Failed to process payment. Please try again.",
+                        variant: "destructive"
+                      });
+                    } finally {
+                      setProcessing(false);
+                    }
+                  }} 
+                />
+              </Elements>
+            )}
           </CardContent>
         </Card>
       </motion.div>
