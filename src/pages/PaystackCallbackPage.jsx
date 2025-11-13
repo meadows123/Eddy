@@ -46,22 +46,11 @@ const PaystackCallbackPage = () => {
 
         console.log('🔍 Verifying payment with reference:', reference);
 
-        // Call backend to verify payment
-        const verifyResponse = await fetch(
-          `/api/paystack/verify`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reference })
-          }
-        );
+        // Import Supabase function caller
+        const { verifyPaystackPayment: callVerify } = await import('@/lib/api.jsx');
 
-        if (!verifyResponse.ok) {
-          const errorData = await verifyResponse.json();
-          throw new Error(errorData.message || 'Payment verification failed');
-        }
-
-        const verifyData = await verifyResponse.json();
+        // Call Supabase Edge Function to verify payment
+        const verifyData = await callVerify(reference);
         console.log('✅ Payment verification response:', {
           status: verifyData.data?.status,
           amount: verifyData.data?.amount,

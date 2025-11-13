@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -27,8 +26,6 @@ serve(async (req) => {
 
     // Get environment variables
     const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY");
-    const PAYSTACK_CALLBACK_URL = Deno.env.get("PAYSTACK_CALLBACK_URL") ||
-      "https://www.oneeddy.com/paystack-callback";
 
     if (!PAYSTACK_SECRET_KEY) {
       throw new Error("PAYSTACK_SECRET_KEY not configured");
@@ -36,58 +33,28 @@ serve(async (req) => {
 
     // Parse request body
     const body = await req.json();
-    const {
-      email,
-      amount, // in kobo
-      firstName,
-      lastName,
-      phone,
-      metadata
-    } = body;
+    const { reference } = body;
 
-    console.log("🇳🇬 Paystack Initialize Request:", {
-      email,
-      amount,
-      firstName,
-      lastName,
-      phone,
-      metadataKeys: Object.keys(metadata || {})
+    console.log("🔍 Paystack Verify Request:", {
+      reference,
     });
 
     // Validate required fields
-    if (!email || !amount || amount <= 0) {
-      throw new Error("Missing or invalid: email, amount (must be > 0)");
+    if (!reference) {
+      throw new Error("Missing required field: reference");
     }
 
-    if (!phone) {
-      throw new Error("Phone number is required");
-    }
+    console.log("📞 Calling Paystack API to verify payment...");
 
-    // Prepare Paystack request
-    const paystackPayload = {
-      email,
-      amount, // must be in kobo
-      first_name: firstName || "",
-      last_name: lastName || "",
-      mobile_number: phone,
-      metadata: {
-        ...metadata,
-        cancel_action: `${PAYSTACK_CALLBACK_URL}?status=cancelled`
-      }
-    };
-
-    console.log("📞 Calling Paystack API...");
-
-    // Call Paystack API
+    // Call Paystack API to verify payment
     const paystackResponse = await fetch(
-      "https://api.paystack.co/transaction/initialize",
+      `https://api.paystack.co/transaction/verify/${reference}`,
       {
-        method: "POST",
+        method: "GET",
         headers: {
           "Authorization": `Bearer ${PAYSTACK_SECRET_KEY}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(paystackPayload),
       }
     );
 
@@ -101,10 +68,10 @@ serve(async (req) => {
 
     const paystackData = await paystackResponse.json();
 
-    console.log("✅ Paystack Payment Initialized:", {
-      status: paystackData.status,
+    console.log("✅ Paystack Verification Response:", {
+      status: paystackData.data?.status,
+      amount: paystackData.data?.amount,
       reference: paystackData.data?.reference,
-      authUrl: paystackData.data?.authorization_url ? "✅" : "❌"
     });
 
     // Return success response
@@ -112,12 +79,7 @@ serve(async (req) => {
       JSON.stringify({
         status: paystackData.status,
         message: paystackData.message,
-        data: {
-          reference: paystackData.data?.reference,
-          authorization_url: paystackData.data?.authorization_url,
-          access_code: paystackData.data?.access_code,
-          authorization_url_formatted: paystackData.data?.authorization_url
-        }
+        data: paystackData.data
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -125,7 +87,7 @@ serve(async (req) => {
       }
     );
   } catch (error) {
-    console.error("❌ Paystack Initialize Error:", error);
+    console.error("❌ Paystack Verify Error:", error);
 
     const errorMessage = error instanceof Error ? error.message : String(error);
 

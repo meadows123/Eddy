@@ -627,3 +627,49 @@ export const getAvailableTables = async (venueId) => {
     return { data: null, error };
   }
 };
+
+/**
+ * Call Paystack initialize Edge Function
+ */
+export const initializePaystackPayment = async (paymentData) => {
+  try {
+    console.log('🔗 Calling Supabase Edge Function: paystack-initialize');
+    
+    const response = await supabase.functions.invoke('paystack-initialize', {
+      body: paymentData
+    });
+
+    if (response.error) {
+      throw new Error(response.error.message || 'Failed to initialize payment');
+    }
+
+    console.log('✅ Edge Function response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('❌ Paystack initialize error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Call Paystack verify Edge Function
+ */
+export const verifyPaystackPayment = async (reference) => {
+  try {
+    console.log('🔗 Calling Supabase Edge Function: paystack-verify with reference:', reference);
+    
+    const response = await supabase.functions.invoke('paystack-verify', {
+      body: { reference }
+    });
+
+    if (response.error) {
+      throw new Error(response.error.message || 'Failed to verify payment');
+    }
+
+    console.log('✅ Verification response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('❌ Paystack verify error:', error);
+    throw error;
+  }
+};

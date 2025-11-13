@@ -76,30 +76,20 @@ export const initiatePaystackPayment = async ({
       timestamp: new Date().toISOString()
     };
 
-    console.log('📞 Calling backend to initialize Paystack payment...');
+    console.log('📞 Calling Supabase Edge Function: paystack-initialize...');
 
-    // Call your backend endpoint (or Edge Function)
-    const response = await fetch('/api/paystack/initialize', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        email,
-        amount: amountInKobo, // Send in kobo
-        firstName: fullName.split(' ')[0],
-        lastName: fullName.split(' ').slice(1).join(' ') || '',
-        phone,
-        metadata
-      })
+    // Import the Supabase function caller
+    const { initializePaystackPayment: callInitialize } = await import('./api.jsx');
+
+    // Call Supabase Edge Function
+    const data = await callInitialize({
+      email,
+      amount: amountInKobo, // Send in kobo
+      firstName: fullName.split(' ')[0],
+      lastName: fullName.split(' ').slice(1).join(' ') || '',
+      phone,
+      metadata
     });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Failed to initialize payment');
-    }
-
-    const data = await response.json();
 
     console.log('✅ Paystack payment initialized:', {
       reference: data.data?.reference,
@@ -140,22 +130,11 @@ export const verifyPaystackPayment = async (reference) => {
       throw new Error('No payment reference provided');
     }
 
-    // Call your backend to verify payment
-    // This should use the Paystack secret key on the backend
-    const response = await fetch(`/api/paystack/verify`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ reference })
-    });
+    // Import the Supabase function caller
+    const { verifyPaystackPayment: callVerify } = await import('./api.jsx');
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Payment verification failed');
-    }
-
-    const data = await response.json();
+    // Call Supabase Edge Function to verify payment
+    const data = await callVerify(reference);
 
     console.log('✅ Payment verified:', {
       status: data.data?.status,
