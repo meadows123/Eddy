@@ -738,13 +738,13 @@ serve(async (req) => {
             if (!venueFetchError && venueRow) {
               // Try to get venue owner using the owner_id
               if (venueRow.owner_id) {
-                const { data: ownerData, error: ownerError } = await supabaseClient
+                const { data: ownerDataList, error: ownerError } = await supabaseClient
                   .from('venue_owners')
                   .select('owner_email, owner_name, email')
-                  .eq('user_id', venueRow.owner_id)
-                  .maybeSingle();
+                  .eq('user_id', venueRow.owner_id);
 
-                if (!ownerError && ownerData) {
+                if (!ownerError && ownerDataList && ownerDataList.length > 0) {
+                  const ownerData = ownerDataList[0];
                   ownerEmail = ownerData.owner_email || ownerData.email || venueRow.contact_email;
                   data.venueOwnerName = data.venueOwnerName || ownerData.owner_name;
                   data.venueEmail = data.venueEmail || venueRow.contact_email || ownerEmail;
@@ -1089,6 +1089,19 @@ serve(async (req) => {
 
       default:
         throw new Error('Invalid template')
+    }
+
+    console.log('📧 Email template processed', { 
+      template: body.template, 
+      to: to, 
+      subject: subject,
+      htmlLength: html?.length || 0,
+      hasRecipient: !!to
+    });
+    
+    if (!to) {
+      console.error('❌ No recipient email address found!');
+      throw new Error('No recipient email address provided');
     }
 
     console.log('Sending email via SendGrid API...', { from: smtpFrom, to: to, subject: subject });
