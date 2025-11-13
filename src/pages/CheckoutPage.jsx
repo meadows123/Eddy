@@ -25,6 +25,8 @@ import { stripePromise } from '@/lib/stripe';
 import { generateSecurityCode, generateVenueEntryQR } from '@/lib/qrCodeService';
 import { getFullUrl } from '@/lib/urlUtils';
 import { getUserLocationWithFallback, getLocationFromSession, storeLocationInSession } from '@/lib/locationService';
+import PaystackCheckoutForm from '@/components/checkout/PaystackCheckoutForm';
+import { initiatePaystackPayment } from '@/lib/paystackCheckoutHandler';
 
 const CheckoutPage = () => {
 const { id } = useParams();
@@ -1289,10 +1291,46 @@ setShowShareDialog(true);
 
                     <TabsContent value="single">
                       {paymentProcessor === 'paystack' ? (
-                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
-                          <p className="text-yellow-800 mb-2">🇳🇬 Paystack Payment Coming Soon</p>
-                          <p className="text-sm text-yellow-700">Paystack payment integration for Nigeria is being prepared. Please check back soon!</p>
-                        </div>
+                        <PaystackCheckoutForm
+                          formData={formData}
+                          handleInputChange={handleInputChange}
+                          isSubmitting={isSubmitting}
+                          totalAmount={calculateTotal()}
+                          isAuthenticated={!!user}
+                          errors={errors}
+                          onPaymentInitiate={async (paymentData) => {
+                            console.log('🇳🇬 Paystack payment initiated from CheckoutPage:', paymentData);
+                            setIsSubmitting(true);
+                            try {
+                              // Initiate Paystack payment
+                              const result = await initiatePaystackPayment({
+                                email: paymentData.email,
+                                fullName: paymentData.fullName,
+                                phone: paymentData.phone,
+                                amount: paymentData.amount,
+                                bookingData: selection || bookingData,
+                                userId: user?.id
+                              });
+
+                              console.log('✅ Payment initiated successfully, redirecting to Paystack...');
+
+                              // Redirect to Paystack authorization URL
+                              if (result.authorizationUrl) {
+                                window.location.href = result.authorizationUrl;
+                              } else {
+                                throw new Error('No authorization URL returned from Paystack');
+                              }
+                            } catch (error) {
+                              console.error('❌ Paystack payment initiation error:', error);
+                              setIsSubmitting(false);
+                              toast({
+                                title: 'Payment Error',
+                                description: error instanceof Error ? error.message : 'Failed to initiate payment',
+                                variant: 'destructive'
+                              });
+                            }
+                          }}
+                        />
                       ) : stripePromise !== null ? (
                         <Elements stripe={stripePromise} options={{ locale: 'en' }}>
                           <CheckoutForm 
@@ -1318,9 +1356,9 @@ setShowShareDialog(true);
 
                     <TabsContent value="split">
                       {paymentProcessor === 'paystack' ? (
-                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
-                          <p className="text-yellow-800 mb-2">🇳🇬 Paystack Split Payment Coming Soon</p>
-                          <p className="text-sm text-yellow-700">Paystack split payment integration for Nigeria is being prepared. Please check back soon!</p>
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 text-center">
+                          <p className="text-blue-800 mb-2">🇳🇬 Paystack Split Payment</p>
+                          <p className="text-sm text-blue-700">Split payment feature with Paystack is coming soon. For now, please use single payment.</p>
                         </div>
                       ) : stripePromise !== null ? (
                         <Elements stripe={stripePromise} options={{ locale: 'en' }}>
