@@ -205,7 +205,7 @@ const PaystackCallbackPage = () => {
               console.log('📧 No contact email, fetching from venue_owners with owner_id:', venueData.owner_id);
               const { data: ownerData, error: ownerError } = await supabase
                 .from('venue_owners')
-                .select('email')
+                .select('owner_email')
                 .eq('user_id', venueData.owner_id)
                 .single();
               
@@ -213,8 +213,8 @@ const PaystackCallbackPage = () => {
               
               if (ownerError) {
                 console.warn('⚠️ Error fetching venue owner:', ownerError);
-              } else if (ownerData?.email) {
-                venueOwnerEmail = ownerData.email;
+              } else if (ownerData?.owner_email) {
+                venueOwnerEmail = ownerData.owner_email;
                 console.log('✅ Found venue owner email:', venueOwnerEmail);
               }
             } else {
