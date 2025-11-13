@@ -635,16 +635,30 @@ export const initializePaystackPayment = async (paymentData) => {
   try {
     console.log('🔗 Calling Supabase Edge Function: paystack-initialize');
     
-    const response = await supabase.functions.invoke('paystack-initialize', {
-      body: paymentData
-    });
+    // Get Supabase URL from environment or client
+    const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://agydpkzfucicraedllgl.supabase.co';
+    const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-    if (response.error) {
-      throw new Error(response.error.message || 'Failed to initialize payment');
+    const response = await fetch(
+      `${SUPABASE_URL}/functions/v1/paystack-initialize`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify(paymentData),
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
     }
 
-    console.log('✅ Edge Function response:', response.data);
-    return response.data;
+    const data = await response.json();
+    console.log('✅ Edge Function response:', data);
+    return data;
   } catch (error) {
     console.error('❌ Paystack initialize error:', error);
     throw error;
@@ -658,16 +672,30 @@ export const verifyPaystackPayment = async (reference) => {
   try {
     console.log('🔗 Calling Supabase Edge Function: paystack-verify with reference:', reference);
     
-    const response = await supabase.functions.invoke('paystack-verify', {
-      body: { reference }
-    });
+    // Get Supabase URL from environment or client
+    const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://agydpkzfucicraedllgl.supabase.co';
+    const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-    if (response.error) {
-      throw new Error(response.error.message || 'Failed to verify payment');
+    const response = await fetch(
+      `${SUPABASE_URL}/functions/v1/paystack-verify`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({ reference }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
     }
 
-    console.log('✅ Verification response:', response.data);
-    return response.data;
+    const data = await response.json();
+    console.log('✅ Verification response:', data);
+    return data;
   } catch (error) {
     console.error('❌ Paystack verify error:', error);
     throw error;
