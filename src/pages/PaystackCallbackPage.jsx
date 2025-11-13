@@ -76,8 +76,10 @@ const PaystackCallbackPage = () => {
         }
 
         console.log('📝 Updating booking:', bookingId);
+        console.log('🔍 Session payment data:', paymentData);
 
         // Update booking in database
+        console.log('📊 About to update booking in database...');
         const { data: bookingData, error: updateError } = await supabase
           .from('bookings')
           .update({
@@ -110,7 +112,10 @@ const PaystackCallbackPage = () => {
           `)
           .single();
 
+        console.log('📝 Database update result:', { bookingData, updateError });
+
         if (updateError) {
+          console.error('❌ UPDATE ERROR:', updateError);
           throw new Error(`Failed to update booking: ${updateError.message}`);
         }
 
