@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader, CheckCircle, AlertCircle, Home } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
-import { sendBookingConfirmationEmail } from '@/lib/emailService';
+import { sendBookingConfirmation } from '@/lib/emailService';
 import { getPaymentFromSession, clearPaymentFromSession } from '@/lib/paystackCheckoutHandler';
 
 const PaystackCallbackPage = () => {
@@ -132,18 +132,11 @@ const PaystackCallbackPage = () => {
         // Send confirmation email
         try {
           console.log('📧 Sending confirmation email...');
-          await sendBookingConfirmationEmail({
-            customerEmail: bookingData.profiles?.email || email,
-            customerName: bookingData.profiles?.full_name || 'Guest',
-            bookingId: bookingData.id,
-            venueName: bookingData.venues?.name,
-            venueAddress: bookingData.venues?.address,
-            bookingDate: bookingData.booking_date,
-            startTime: bookingData.start_time,
-            endTime: bookingData.end_time,
-            guestCount: bookingData.guest_count,
-            totalAmount: bookingData.total_amount
-          });
+          await sendBookingConfirmation(
+            bookingData, // booking
+            bookingData.venues, // venue
+            bookingData.profiles // customer
+          );
           console.log('✅ Confirmation email sent');
         } catch (emailError) {
           console.error('⚠️ Email sending failed (non-blocking):', emailError);
