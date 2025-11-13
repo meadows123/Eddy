@@ -316,16 +316,8 @@ const adjustTimeForMidnight = (startTime, endTime) => {
   return { startTime, endTime };
 };
 
-const createBooking = async () => {
-  try {
-    // Prepare booking data for database - use the correct data structure
-    const venueId = selection?.venue?.id || bookingData?.venue?.id || selection?.venueId || selection?.id;
-    const tableId = selection?.table?.id || bookingData?.table?.id || selection?.selectedTable?.id || selection?.tableId || null;
-
-
-    // Validate required fields
-    if (!venueId) {
-      throw new Error('Venue ID is required for booking');
+// Move createBooking inside CheckoutPage component so it can access state
+// (we'll do this by copying the content into the component)
     }
 
     const sessionCheckUser = await ensureSession();
@@ -1302,24 +1294,20 @@ setShowShareDialog(true);
                             console.log('🇳🇬 Paystack payment initiated from CheckoutPage:', paymentData);
                             setIsSubmitting(true);
                             try {
-                              // First, create the booking in the database
-                              console.log('📝 Creating booking before initiating Paystack payment...');
-                              const bookingId = await createBooking(formData);
-                              console.log('✅ Booking created with ID:', bookingId);
+                              // Prepare booking data for Paystack
+                              const bookingDataForPaystack = selection || bookingData;
+                              
+                              if (!bookingDataForPaystack?.bookingId) {
+                                console.warn('⚠️ No bookingId in selection/bookingData, will create on callback');
+                              }
 
-                              // Prepare booking data with the created booking ID
-                              const bookingDataWithId = {
-                                ...(selection || bookingData),
-                                bookingId
-                              };
-
-                              // Initiate Paystack payment with the booking ID
+                              // Initiate Paystack payment
                               const result = await initiatePaystackPayment({
                                 email: paymentData.email,
                                 fullName: paymentData.fullName,
                                 phone: paymentData.phone,
                                 amount: paymentData.amount,
-                                bookingData: bookingDataWithId,
+                                bookingData: bookingDataForPaystack,
                                 userId: user?.id
                               });
 

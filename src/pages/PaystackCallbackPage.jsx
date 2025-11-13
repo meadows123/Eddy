@@ -56,7 +56,8 @@ const PaystackCallbackPage = () => {
         console.log('✅ Payment verification response:', {
           status: verifyData.data?.status,
           amount: verifyData.data?.amount,
-          customer: verifyData.data?.customer?.email
+          customer: verifyData.data?.customer?.email,
+          metadata: verifyData.data?.metadata
         });
 
         // Check if payment was successful
@@ -68,18 +69,29 @@ const PaystackCallbackPage = () => {
           return;
         }
 
-        console.log('✅ Payment successful! Creating booking...');
+        console.log('✅ Payment successful! Extracting booking data...');
 
-        // Get booking data from session
+        // Get booking data from Paystack metadata (sent during initialization)
+        const paystackMetadata = verifyData.data?.metadata || {};
         const paymentData = getPaymentFromSession();
-        const { bookingId, email } = paymentData;
+        
+        // Booking ID comes from Paystack metadata first, then session storage
+        const bookingId = paystackMetadata.bookingId || paymentData?.bookingId;
+        const email = verifyData.data?.customer?.email || paymentData?.email;
+
+        console.log('🔍 Extracted booking data:', {
+          bookingId,
+          email,
+          fromMetadata: !!paystackMetadata.bookingId,
+          metadata: paystackMetadata
+        });
 
         if (!bookingId) {
-          throw new Error('Booking ID not found in session');
+          throw new Error('Booking ID not found in payment verification or session');
         }
 
         console.log('📝 Updating booking:', bookingId);
-        console.log('🔍 Session payment data:', paymentData);
+        console.log('🔍 Paystack metadata:', paystackMetadata);
 
         // Update booking payment status in database
         console.log('📊 About to update booking payment status...');
