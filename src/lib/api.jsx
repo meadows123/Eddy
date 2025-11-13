@@ -174,8 +174,9 @@ export const bookingsApi = {
   }
 }
 
-// Stripe Elements setup (frontend only)
-export const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+// Stripe Elements setup (frontend only) - only if key is configured
+const stripeKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || import.meta.env.VITE_STRIPE_TEST_PUBLISHABLE_KEY;
+export const stripePromise = stripeKey ? loadStripe(stripeKey) : null;
 
 // Get authentication header for API calls
 const getAuthHeaders = async () => {
