@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { CreditCard, User, Check, AlertCircle, ArrowLeft, Loader2 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -20,14 +21,48 @@ import PaystackSplitPaymentForm from '@/components/checkout/PaystackSplitPayment
 import UserSearchForm from '@/components/split-payment/UserSearchForm';
 
 // Payment form component
-const PaymentForm = ({ amount, onSuccess }) => {
+const PaymentForm = ({ amount, onSuccess, recipientEmail = '', recipientName = '', recipientPhone = '' }) => {
   const stripe = useStripe();
   const elements = useElements();
   const [processing, setProcessing] = useState(false);
   const [error, setError] = useState(null);
+  const [email, setEmail] = useState(recipientEmail);
+  const [fullName, setFullName] = useState(recipientName);
+  const [phone, setPhone] = useState(recipientPhone);
+  const [dataConsent, setDataConsent] = useState(false);
+
+  const validateForm = () => {
+    if (!email || !email.includes('@')) {
+      setError('Please enter a valid email address');
+      return false;
+    }
+
+    if (!fullName || fullName.trim().length < 2) {
+      setError('Please enter your full name');
+      return false;
+    }
+
+    if (!phone || phone.length < 10) {
+      setError('Please enter a valid phone number');
+      return false;
+    }
+
+    if (!dataConsent) {
+      setError('Please consent to data processing to proceed');
+      return false;
+    }
+
+    return true;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError(null);
+    
+    if (!validateForm()) {
+      return;
+    }
+
     setProcessing(true);
 
     try {
@@ -50,38 +85,134 @@ const PaymentForm = ({ amount, onSuccess }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="p-4 border rounded-lg">
-        <CardElement 
-          options={{
-            style: {
-              base: {
-                fontSize: '16px',
-                color: '#800020',
-                '::placeholder': {
-                  color: '#800020',
-                },
-              },
-            },
-          }}
-        />
+    <Card className="w-full">
+      <div className="p-6">
+        <h3 className="text-lg font-semibold mb-6 text-brand-burgundy">Complete Your Split Payment</h3>
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Payment Amount Display */}
+          <div className="bg-brand-gold/10 border-2 border-brand-gold rounded-lg p-4 mb-6">
+            <p className="text-sm text-gray-600 mb-1">Amount to Pay</p>
+            <p className="text-3xl font-bold text-brand-burgundy">
+              ₦{amount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </p>
+          </div>
+
+          {/* Email */}
+          <div>
+            <Label htmlFor="stripe-email" className="text-brand-burgundy font-semibold">
+              Email Address
+            </Label>
+            <Input
+              id="stripe-email"
+              type="email"
+              placeholder="your.email@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={processing}
+              className="mt-2 border-brand-burgundy/30 focus:border-brand-burgundy"
+              required
+            />
+          </div>
+
+          {/* Full Name */}
+          <div>
+            <Label htmlFor="stripe-name" className="text-brand-burgundy font-semibold">
+              Full Name
+            </Label>
+            <Input
+              id="stripe-name"
+              type="text"
+              placeholder="John Doe"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              disabled={processing}
+              className="mt-2 border-brand-burgundy/30 focus:border-brand-burgundy"
+              required
+            />
+          </div>
+
+          {/* Phone */}
+          <div>
+            <Label htmlFor="stripe-phone" className="text-brand-burgundy font-semibold">
+              Phone Number
+            </Label>
+            <Input
+              id="stripe-phone"
+              type="tel"
+              placeholder="+234 123 456 7890"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              disabled={processing}
+              className="mt-2 border-brand-burgundy/30 focus:border-brand-burgundy"
+              required
+            />
+          </div>
+
+          {/* Card Details */}
+          <div>
+            <Label htmlFor="card-element" className="text-brand-burgundy font-semibold">
+              Card Details
+            </Label>
+            <div className="p-4 border border-brand-burgundy/30 rounded-lg mt-2">
+              <CardElement 
+                options={{
+                  style: {
+                    base: {
+                      fontSize: '16px',
+                      color: '#800020',
+                      '::placeholder': {
+                        color: '#800020',
+                      },
+                    },
+                  },
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Data Consent Checkbox */}
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="stripe-consent"
+              checked={dataConsent}
+              onCheckedChange={setDataConsent}
+              disabled={processing}
+            />
+            <Label htmlFor="stripe-consent" className="text-sm cursor-pointer">
+              I agree to the{' '}
+              <Link to="/privacy-policy" className="text-brand-burgundy hover:underline">
+                data privacy policy
+              </Link>
+            </Label>
+          </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+              <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+          )}
+
+          {/* Submit Button */}
+          <Button 
+            type="submit" 
+            disabled={processing || !stripe}
+            className="w-full bg-brand-burgundy text-white hover:bg-brand-burgundy/90"
+          >
+            {processing ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Processing...
+              </>
+            ) : (
+              `Pay ₦${amount.toLocaleString()}`
+            )}
+          </Button>
+        </form>
       </div>
-      <Button 
-        type="submit" 
-        disabled={processing || !stripe}
-        className="w-full bg-brand-burgundy text-white"
-      >
-        {processing ? (
-          <>
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            Processing...
-          </>
-        ) : (
-          `Pay ₦${amount.toLocaleString()}`
-        )}
-      </Button>
-      {error && <div className="text-red-500">{error}</div>}
-    </form>
+    </Card>
   );
 };
 
@@ -1082,7 +1213,10 @@ const SplitPaymentPage = () => {
             ) : (
               <Elements stripe={stripePromise}>
                 <PaymentForm 
-                  amount={paymentRequest.amount} 
+                  amount={paymentRequest.amount}
+                  recipientEmail={paymentRequest.recipient_email}
+                  recipientName={paymentRequest.recipient_name}
+                  recipientPhone={paymentRequest.recipient_phone}
                   onSuccess={async (paymentMethodId) => {
                     try {
                       setProcessing(true);
