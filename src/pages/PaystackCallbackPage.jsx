@@ -180,10 +180,11 @@ const PaystackCallbackPage = () => {
           const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
           console.log('📧 Sending venue owner notification...');
+          console.log('📊 Booking data available:', bookingData);
           
           // Fetch venue contact email
           let venueOwnerEmail = 'info@oneeddy.com'; // Fallback
-          console.log('🔍 Looking up venue with ID:', bookingData.venue_id);
+          console.log('🔍 Looking up venue with ID:', bookingData?.venue_id);
           try {
             const { data: venueData, error: venueError } = await supabase
               .from('venues')
