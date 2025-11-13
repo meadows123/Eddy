@@ -5,7 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useToast } from '@/components/ui/use-toast';
+import { Link } from 'react-router-dom';
 
 /**
  * Paystack Split Payment Form
@@ -21,47 +21,33 @@ export const PaystackSplitPaymentForm = ({
   requestId,
   bookingId,
 }) => {
-  const { toast } = useToast();
   const [email, setEmail] = useState(recipientEmail || '');
   const [fullName, setFullName] = useState(recipientName || '');
   const [phone, setPhone] = useState(recipientPhone || '');
   const [dataConsent, setDataConsent] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState(null);
 
   const validateForm = () => {
+    setError(null);
+
     if (!email || !email.includes('@')) {
-      toast({
-        title: 'Invalid Email',
-        description: 'Please enter a valid email address',
-        variant: 'destructive'
-      });
+      setError('Please enter a valid email address');
       return false;
     }
 
     if (!fullName || fullName.trim().length < 2) {
-      toast({
-        title: 'Invalid Name',
-        description: 'Please enter your full name',
-        variant: 'destructive'
-      });
+      setError('Please enter your full name');
       return false;
     }
 
     if (!phone || phone.length < 10) {
-      toast({
-        title: 'Invalid Phone',
-        description: 'Please enter a valid phone number',
-        variant: 'destructive'
-      });
+      setError('Please enter a valid phone number');
       return false;
     }
 
     if (!dataConsent) {
-      toast({
-        title: 'Data Consent Required',
-        description: 'Please consent to data processing to proceed',
-        variant: 'destructive'
-      });
+      setError('Please consent to data processing to proceed');
       return false;
     }
 
@@ -88,11 +74,7 @@ export const PaystackSplitPaymentForm = ({
       });
     } catch (error) {
       console.error('Form submission error:', error);
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to process payment',
-        variant: 'destructive'
-      });
+      setError(error.message || 'Failed to process payment');
     } finally {
       setIsSubmitting(false);
     }
@@ -163,30 +145,35 @@ export const PaystackSplitPaymentForm = ({
             />
           </div>
 
-          {/* Data Consent */}
-          <div className="flex items-start space-x-2 bg-brand-gold/5 p-4 rounded-lg">
+          {/* Data Consent Checkbox */}
+          <div className="flex items-center gap-2">
             <Checkbox
               id="paystack-consent"
               checked={dataConsent}
               onCheckedChange={setDataConsent}
               disabled={isSubmitting || isLoading}
-              className="mt-1"
             />
-            <div className="flex-1">
-              <Label
-                htmlFor="paystack-consent"
-                className="text-sm text-brand-burgundy font-medium cursor-pointer"
-              >
-                I consent to Eddy Members processing my personal information for booking and payment purposes
-              </Label>
-            </div>
+            <Label htmlFor="paystack-consent" className="text-sm cursor-pointer">
+              I agree to the{' '}
+              <Link to="/privacy-policy" className="text-brand-burgundy hover:underline">
+                data privacy policy
+              </Link>
+            </Label>
           </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
+              <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-red-700">{error}</p>
+            </div>
+          )}
 
           {/* Submit Button */}
           <Button
             type="submit"
-            disabled={isSubmitting || isLoading || !dataConsent}
-            className="w-full bg-brand-burgundy hover:bg-brand-burgundy/90 text-white font-semibold py-3 rounded-lg"
+            disabled={isSubmitting || isLoading}
+            className="w-full bg-brand-burgundy text-white hover:bg-brand-burgundy/90"
           >
             {isSubmitting || isLoading ? (
               <>
@@ -197,12 +184,6 @@ export const PaystackSplitPaymentForm = ({
               `Pay ₦${amount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
             )}
           </Button>
-
-          {/* Info Message */}
-          <div className="flex gap-2 text-xs text-gray-600 bg-blue-50 p-3 rounded-lg">
-            <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0 text-blue-600" />
-            <p>Your payment will be processed securely through Paystack</p>
-          </div>
         </form>
       </div>
     </Card>
