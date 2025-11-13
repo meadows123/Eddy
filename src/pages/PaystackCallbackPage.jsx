@@ -203,18 +203,17 @@ const PaystackCallbackPage = () => {
             } else if (venueData?.owner_id) {
               // If no contact email, try to get from venue_owners table
               console.log('📧 No contact email, fetching from venue_owners with owner_id:', venueData.owner_id);
-              const { data: ownerData, error: ownerError } = await supabase
+              const { data: ownerDataList, error: ownerError } = await supabase
                 .from('venue_owners')
                 .select('owner_email')
-                .eq('user_id', venueData.owner_id)
-                .single();
+                .eq('user_id', venueData.owner_id);
               
-              console.log('📍 Venue owner fetch result:', { ownerData, ownerError });
+              console.log('📍 Venue owner fetch result:', { ownerDataList, ownerError });
               
               if (ownerError) {
                 console.warn('⚠️ Error fetching venue owner:', ownerError);
-              } else if (ownerData?.owner_email) {
-                venueOwnerEmail = ownerData.owner_email;
+              } else if (ownerDataList && ownerDataList.length > 0 && ownerDataList[0]?.owner_email) {
+                venueOwnerEmail = ownerDataList[0].owner_email;
                 console.log('✅ Found venue owner email:', venueOwnerEmail);
               }
             } else {
