@@ -17,6 +17,7 @@ import { getBaseUrl } from '@/lib/urlUtils';
 import { getUserLocationWithFallback, getLocationFromSession, storeLocationInSession } from '@/lib/locationService';
 import { initiateSplitPaystackPayment } from '@/lib/paystackSplitPaymentHandler';
 import PaystackSplitPaymentForm from '@/components/checkout/PaystackSplitPaymentForm';
+import UserSearchForm from '@/components/split-payment/UserSearchForm';
 
 // Payment form component
 const PaymentForm = ({ amount, onSuccess }) => {
@@ -101,6 +102,8 @@ const SplitPaymentPage = () => {
   const [userLocation, setUserLocation] = useState(null);
   const [paymentProcessor, setPaymentProcessor] = useState(null);
   const [locationLoading, setLocationLoading] = useState(true);
+  const [selectedSplitUser, setSelectedSplitUser] = useState(null);
+  const [pageMode, setPageMode] = useState(null); // 'search', 'payment', or null for loading
 
   // Add debug logs to trace the auth state
 
@@ -112,13 +115,26 @@ const SplitPaymentPage = () => {
     if (!user) {
       toast({
         title: "Authentication Required",
-        description: "Please log in to complete this payment.",
+        description: "Please log in to initiate or complete a split payment.",
         variant: "destructive"
       });
       navigate('/login');
       return;
     }
-  }, [user, authLoading, navigate, toast]);
+
+    // Determine page mode based on URL parameters
+    if (bookingId && requestId) {
+      // User received a split payment request
+      console.log('📋 Viewing existing split payment request');
+      setPageMode('payment');
+    } else {
+      // User is initiating a new split payment
+      console.log('🔍 User initiating new split payment - showing user search');
+      setPageMode('search');
+    }
+
+    setLoading(false);
+  }, [user, authLoading, navigate, toast, bookingId, requestId]);
 
   // Location detection for payment processor
   useEffect(() => {
@@ -733,6 +749,56 @@ const SplitPaymentPage = () => {
             </motion.div>
           </div>
         </div>
+      </div>
+    );
+  }
+
+  // Show loading state
+  if (pageMode === null || locationLoading) {
+    return (
+      <div className="container py-20 max-w-2xl mx-auto">
+        <div className="flex flex-col items-center justify-center gap-4">
+          <Loader2 className="h-8 w-8 text-brand-burgundy animate-spin" />
+          <p className="text-gray-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show user search form for initiating new split payments
+  if (pageMode === 'search') {
+    return (
+      <div className="container py-10 max-w-2xl mx-auto">
+        <Button
+          variant="ghost"
+          onClick={() => navigate('/')}
+          className="mb-6"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Home
+        </Button>
+
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <UserSearchForm
+            currentUserId={user?.id}
+            onUserSelected={(selectedUser) => {
+              console.log('✅ User selected, moving to payment setup:', selectedUser);
+              setSelectedSplitUser(selectedUser);
+              // Navigate to checkout with the selected user
+              // We'll need to implement this flow next
+              toast({
+                title: 'Next Step',
+                description: 'Setting up split payment details with ' + selectedUser.first_name,
+                className: 'bg-green-500 text-white'
+              });
+            }}
+            isLoading={processing}
+          />
+        </motion.div>
       </div>
     );
   }
