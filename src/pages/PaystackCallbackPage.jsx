@@ -20,7 +20,8 @@ const PaystackCallbackPage = () => {
   useEffect(() => {
     const verifyPayment = async () => {
       try {
-        const reference = searchParams.get('reference');
+        // Paystack sends the reference as 'reference' OR 'trxref' parameter
+        const reference = searchParams.get('reference') || searchParams.get('trxref');
         const cancelled = searchParams.get('status') === 'cancelled';
 
         console.log('🔄 Paystack Callback Page Loaded:', {

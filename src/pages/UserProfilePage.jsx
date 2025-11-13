@@ -7,14 +7,12 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs'
 import { Heart, Calendar, Settings, Clipboard, XCircle, CheckCircle, Send, Link as LinkIcon, Wallet, User, Eye, EyeOff, Clock, Copy, Database, Trash2, AlertTriangle } from 'lucide-react';
 import { supabase } from '../lib/supabase.js';
 import { Elements, useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
-import { loadStripe } from '@stripe/stripe-js';
 import { Input } from "../components/ui/input";
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Badge } from '../components/ui/badge';
 import { useToast } from "@/components/ui/use-toast";
 import { getFullUrl } from '@/lib/urlUtils';
-
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+import { stripePromise } from '@/lib/stripe';
 
 const UserProfilePage = () => {
   const { toast } = useToast();

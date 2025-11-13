@@ -70,7 +70,7 @@ serve(async (req) => {
       first_name: firstName || "",
       last_name: lastName || "",
       mobile_number: phone,
-      callback_url: `${PAYSTACK_CALLBACK_URL}?reference={REFERENCE}`,
+      callback_url: `${PAYSTACK_CALLBACK_URL}`,
       metadata: {
         ...metadata,
         cancel_action: `${PAYSTACK_CALLBACK_URL}?status=cancelled`
