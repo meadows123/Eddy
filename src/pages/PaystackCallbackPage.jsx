@@ -125,16 +125,11 @@ const PaystackCallbackPage = () => {
         // Clear session data
         clearPaymentFromSession();
 
-        // Set success status immediately (emails will be sent via webhook)
+        // Set success status (show success page, emails will be sent via webhook)
         setStatus('success');
         setMessage('Payment verified successfully! Your booking is confirmed.');
         console.log('✅ Booking confirmation complete');
         console.log('📧 Emails will be sent via Paystack webhook handler');
-
-        // Redirect to bookings page after 2 seconds
-        setTimeout(() => {
-          navigate('/bookings');
-        }, 2000);
 
       } catch (error) {
         console.error('❌ Callback verification error:', error);
