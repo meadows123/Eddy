@@ -76,6 +76,10 @@ export const initiatePaystackPayment = async ({
       timestamp: new Date().toISOString()
     };
 
+    console.log('📦 Paystack metadata being sent:', metadata);
+    console.log('   bookingId:', bookingData.bookingId);
+    console.log('   venueId:', bookingData.venueId);
+
     console.log('📞 Calling Supabase Edge Function: paystack-initialize...');
 
     // Import the Supabase function caller
