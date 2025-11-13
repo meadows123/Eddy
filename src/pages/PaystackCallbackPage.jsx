@@ -183,19 +183,26 @@ const PaystackCallbackPage = () => {
           
           // Fetch venue contact email
           let venueOwnerEmail = 'info@oneeddy.com'; // Fallback
+          console.log('🔍 Looking up venue with ID:', bookingData.venue_id);
           try {
-            const venueResponse = await supabase
+            const { data: venueData, error: venueError } = await supabase
               .from('venues')
               .select('contact_email')
               .eq('id', bookingData.venue_id)
               .single();
             
-            if (venueResponse.data?.contact_email) {
-              venueOwnerEmail = venueResponse.data.contact_email;
+            console.log('📍 Venue fetch result:', { venueData, venueError });
+            
+            if (venueError) {
+              console.warn('⚠️ Error fetching venue:', venueError);
+            } else if (venueData?.contact_email) {
+              venueOwnerEmail = venueData.contact_email;
               console.log('✅ Found venue contact email:', venueOwnerEmail);
+            } else {
+              console.warn('⚠️ Venue found but no contact_email field');
             }
           } catch (venueError) {
-            console.warn('⚠️ Could not fetch venue email, using fallback:', venueError);
+            console.error('❌ Exception fetching venue email:', venueError);
           }
 
           console.log('📧 Sending to venue owner:', venueOwnerEmail);
