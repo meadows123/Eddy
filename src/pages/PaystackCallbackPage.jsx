@@ -182,13 +182,14 @@ const PaystackCallbackPage = () => {
           console.log('📧 Sending venue owner notification...');
           console.log('📊 Booking data available:', bookingData);
           
-          // Fetch venue contact email
+          // Fetch venue owner email
           let venueOwnerEmail = 'info@oneeddy.com'; // Fallback
           console.log('🔍 Looking up venue with ID:', bookingData?.venue_id);
           try {
+            // First try to get venue contact email
             const { data: venueData, error: venueError } = await supabase
               .from('venues')
-              .select('contact_email')
+              .select('contact_email, owner_id')
               .eq('id', bookingData.venue_id)
               .single();
             
@@ -199,8 +200,25 @@ const PaystackCallbackPage = () => {
             } else if (venueData?.contact_email) {
               venueOwnerEmail = venueData.contact_email;
               console.log('✅ Found venue contact email:', venueOwnerEmail);
+            } else if (venueData?.owner_id) {
+              // If no contact email, try to get from venue_owners table
+              console.log('📧 No contact email, fetching from venue_owners with owner_id:', venueData.owner_id);
+              const { data: ownerData, error: ownerError } = await supabase
+                .from('venue_owners')
+                .select('email')
+                .eq('user_id', venueData.owner_id)
+                .single();
+              
+              console.log('📍 Venue owner fetch result:', { ownerData, ownerError });
+              
+              if (ownerError) {
+                console.warn('⚠️ Error fetching venue owner:', ownerError);
+              } else if (ownerData?.email) {
+                venueOwnerEmail = ownerData.email;
+                console.log('✅ Found venue owner email:', venueOwnerEmail);
+              }
             } else {
-              console.warn('⚠️ Venue found but no contact_email field');
+              console.warn('⚠️ Venue found but no contact_email or owner_id');
             }
           } catch (venueError) {
             console.error('❌ Exception fetching venue email:', venueError);
