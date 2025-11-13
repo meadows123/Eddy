@@ -1301,12 +1301,48 @@ setShowShareDialog(true);
                             console.log('🇳🇬 Paystack payment initiated from CheckoutPage:', paymentData);
                             setIsSubmitting(true);
                             try {
-                              // Prepare booking data for Paystack
-                              const bookingDataForPaystack = selection || bookingData;
+                              // Create a pending booking first
+                              console.log('📝 Creating pending booking for Paystack payment...');
+                              const venueId = selection?.venue?.id || selection?.venueId || selection?.id;
+                              const tableId = selection?.table?.id || selection?.selectedTable?.id || selection?.tableId;
                               
-                              if (!bookingDataForPaystack?.bookingId) {
-                                console.warn('⚠️ No bookingId in selection/bookingData, will create on callback');
+                              if (!venueId) {
+                                throw new Error('Venue ID is required');
                               }
+
+                              const { data: pendingBooking, error: bookingError } = await supabase
+                                .from('bookings')
+                                .insert([{
+                                  user_id: user?.id,
+                                  venue_id: venueId,
+                                  table_id: tableId,
+                                  booking_date: selection?.date || new Date().toISOString().split('T')[0],
+                                  start_time: selection?.time || '19:00',
+                                  end_time: selection?.endTime || '23:00',
+                                  number_of_guests: parseInt(selection?.guests) || 2,
+                                  status: 'pending',
+                                  total_amount: paymentData.amount
+                                }])
+                                .select('id')
+                                .single();
+
+                              if (bookingError || !pendingBooking) {
+                                throw new Error(`Failed to create booking: ${bookingError?.message}`);
+                              }
+
+                              console.log('✅ Pending booking created:', pendingBooking.id);
+
+                              // Prepare booking data with the created booking ID
+                              const bookingDataForPaystack = {
+                                ...(selection || bookingData),
+                                bookingId: pendingBooking.id,
+                                venueId: venueId,
+                                venueName: selection?.venue?.name || 'Venue',
+                                bookingDate: selection?.date,
+                                startTime: selection?.time,
+                                endTime: selection?.endTime,
+                                guestCount: selection?.guests || 2
+                              };
 
                               // Initiate Paystack payment
                               const result = await initiatePaystackPayment({
