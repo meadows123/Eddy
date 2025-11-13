@@ -72,7 +72,7 @@ const TEST_LOCATIONS = {
  * Set test location override
  * @param {string} countryCode - NG, GB, EU, US, CA, AU
  */
-window.setTestLocation = function(countryCode) {
+const setTestLocation = function(countryCode) {
   const location = TEST_LOCATIONS[countryCode.toUpperCase()];
   
   if (!location) {
@@ -95,7 +95,7 @@ window.setTestLocation = function(countryCode) {
 /**
  * Show current test location
  */
-window.showTestLocation = function() {
+const showTestLocation = function() {
   const stored = sessionStorage.getItem('userLocation');
   
   if (!stored) {
@@ -113,7 +113,7 @@ window.showTestLocation = function() {
 /**
  * Clear test location override and use real IP detection
  */
-window.clearTestLocation = function() {
+const clearTestLocation = function() {
   sessionStorage.removeItem('userLocation');
   console.log('✅ Test location cleared - will use real IP detection');
   console.log('🔄 Refreshing page...');
@@ -126,7 +126,7 @@ window.clearTestLocation = function() {
 /**
  * Show all available test locations
  */
-window.listTestLocations = function() {
+const listTestLocations = function() {
   console.log('📋 Available test locations:');
   console.log('='.repeat(50));
   Object.entries(TEST_LOCATIONS).forEach(([code, location]) => {
@@ -141,8 +141,14 @@ window.listTestLocations = function() {
   console.log('  window.listTestLocations()       // Show all options');
 };
 
-// Print help message on load
+// Expose globally
 if (typeof window !== 'undefined') {
+  window.setTestLocation = setTestLocation;
+  window.showTestLocation = showTestLocation;
+  window.clearTestLocation = clearTestLocation;
+  window.listTestLocations = listTestLocations;
+  
+  // Print help message on load
   console.log('%c🧪 Test Location Override Ready!', 'color: #4CAF50; font-size: 14px; font-weight: bold;');
   console.log('%cType window.listTestLocations() to see all options', 'color: #2196F3; font-size: 12px;');
 }
