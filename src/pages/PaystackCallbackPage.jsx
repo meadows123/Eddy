@@ -81,8 +81,8 @@ const PaystackCallbackPage = () => {
         console.log('📝 Updating booking:', bookingId);
         console.log('🔍 Session payment data:', paymentData);
 
-        // Update booking in database
-        console.log('📊 About to update booking in database...');
+        // Update booking payment status in database
+        console.log('📊 About to update booking payment status...');
         const { data: bookingData, error: updateError } = await supabase
           .from('bookings')
           .update({
@@ -92,27 +92,7 @@ const PaystackCallbackPage = () => {
             updated_at: new Date().toISOString()
           })
           .eq('id', bookingId)
-          .select(`
-            id,
-            user_id,
-            venue_id,
-            booking_date,
-            start_time,
-            end_time,
-            guest_count,
-            total_amount,
-            venues (
-              id,
-              name,
-              address,
-              city
-            ),
-            profiles (
-              id,
-              full_name,
-              email
-            )
-          `)
+          .select('id, booking_date, start_time, end_time, guest_count, total_amount, venue_id, user_id')
           .single();
 
         console.log('📝 Database update result:', { bookingData, updateError });
@@ -122,7 +102,7 @@ const PaystackCallbackPage = () => {
           throw new Error(`Failed to update booking: ${updateError.message}`);
         }
 
-        console.log('✅ Booking updated:', bookingData);
+        console.log('✅ Booking payment status updated:', bookingData);
         setBookingDetails(bookingData);
 
         // Clear session data

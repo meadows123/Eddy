@@ -1302,13 +1302,24 @@ setShowShareDialog(true);
                             console.log('🇳🇬 Paystack payment initiated from CheckoutPage:', paymentData);
                             setIsSubmitting(true);
                             try {
-                              // Initiate Paystack payment
+                              // First, create the booking in the database
+                              console.log('📝 Creating booking before initiating Paystack payment...');
+                              const bookingId = await createBooking(formData);
+                              console.log('✅ Booking created with ID:', bookingId);
+
+                              // Prepare booking data with the created booking ID
+                              const bookingDataWithId = {
+                                ...(selection || bookingData),
+                                bookingId
+                              };
+
+                              // Initiate Paystack payment with the booking ID
                               const result = await initiatePaystackPayment({
                                 email: paymentData.email,
                                 fullName: paymentData.fullName,
                                 phone: paymentData.phone,
                                 amount: paymentData.amount,
-                                bookingData: selection || bookingData,
+                                bookingData: bookingDataWithId,
                                 userId: user?.id
                               });
 
