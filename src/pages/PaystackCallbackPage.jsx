@@ -131,6 +131,11 @@ const PaystackCallbackPage = () => {
           const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://agydpkzfucicraedllgl.supabase.co';
           const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+          // Generate QR code for the booking
+          console.log('📱 Generating QR code for booking:', bookingId);
+          const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(bookingId)}`;
+          console.log('📱 QR code URL:', qrCodeUrl);
+
           // Send customer confirmation email
           console.log('📧 Sending customer confirmation email to:', email);
           const customerResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
@@ -153,7 +158,8 @@ const PaystackCallbackPage = () => {
                 guestCount: bookingData.number_of_guests,
                 totalAmount: bookingData.total_amount,
                 venueName: paystackMetadata.venueName,
-                venueAddress: paystackMetadata.venueAddress
+                venueAddress: paystackMetadata.venueAddress,
+                qrCodeImage: qrCodeUrl
               }
             }),
           });
@@ -174,14 +180,33 @@ const PaystackCallbackPage = () => {
           const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
           console.log('📧 Sending venue owner notification...');
-          const venueResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+          
+          // Fetch venue contact email
+          let venueOwnerEmail = 'info@oneeddy.com'; // Fallback
+          try {
+            const venueResponse = await supabase
+              .from('venues')
+              .select('contact_email')
+              .eq('id', bookingData.venue_id)
+              .single();
+            
+            if (venueResponse.data?.contact_email) {
+              venueOwnerEmail = venueResponse.data.contact_email;
+              console.log('✅ Found venue contact email:', venueOwnerEmail);
+            }
+          } catch (venueError) {
+            console.warn('⚠️ Could not fetch venue email, using fallback:', venueError);
+          }
+
+          console.log('📧 Sending to venue owner:', venueOwnerEmail);
+          const venueEmailResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
             },
             body: JSON.stringify({
-              to: 'info@oneeddy.com', // Default for now, can be updated to fetch from venues table
+              to: venueOwnerEmail,
               template: 'venue-owner-booking-notification',
               subject: `New Booking - ${paystackMetadata.venueName}`,
               data: {
@@ -198,10 +223,10 @@ const PaystackCallbackPage = () => {
             }),
           });
 
-          if (venueResponse.ok) {
+          if (venueEmailResponse.ok) {
             console.log('✅ Venue owner notification sent successfully');
           } else {
-            const error = await venueResponse.json();
+            const error = await venueEmailResponse.json();
             console.error('⚠️ Venue owner email failed:', error);
           }
         } catch (error) {
