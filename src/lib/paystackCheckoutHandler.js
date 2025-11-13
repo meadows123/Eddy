@@ -76,17 +76,6 @@ export const initiatePaystackPayment = async ({
       timestamp: new Date().toISOString()
     };
 
-    // Call Paystack API directly from frontend (if secret key is exposed)
-    // OR call your backend API endpoint
-    // For security, we should call a backend endpoint instead
-
-    // Get the public key from environment
-    const PAYSTACK_PUBLIC_KEY = import.meta.env.VITE_PAYSTACK_PUBLIC_KEY;
-    
-    if (!PAYSTACK_PUBLIC_KEY) {
-      throw new Error('Paystack public key not configured');
-    }
-
     console.log('📞 Calling backend to initialize Paystack payment...');
 
     // Call your backend endpoint (or Edge Function)
