@@ -192,7 +192,7 @@ const PaystackCheckoutForm = ({
           {/* Amount Display */}
           <div className="bg-gradient-to-r from-green-50 to-green-100 border border-green-300 p-4 rounded-lg">
             <p className="text-sm text-gray-600 mb-1">Total Amount to Pay</p>
-            <p className="text-3xl font-bold text-green-700">₦{(totalAmount * 100).toLocaleString()}</p>
+            <p className="text-3xl font-bold text-green-700">₦{totalAmount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
             <p className="text-xs text-gray-500 mt-2">All prices include fees</p>
           </div>
 
@@ -245,7 +245,7 @@ const PaystackCheckoutForm = ({
               </>
             ) : (
               <>
-                Pay ₦{(totalAmount * 100).toLocaleString()}
+                Pay ₦{totalAmount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </>
             )}
           </Button>

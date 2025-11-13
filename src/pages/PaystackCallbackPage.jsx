@@ -119,50 +119,62 @@ const PaystackCallbackPage = () => {
 
         // Send confirmation emails via Supabase Edge Function
         try {
-          console.log('📧 Sending confirmation emails...');
+          console.log('📧 STARTING EMAIL PROCESS...');
+          console.log('📧 Booking data available:', !!bookingData);
+          console.log('📧 Customer email:', bookingData.profiles?.email);
+          console.log('📧 Venue contact email:', bookingData.venues?.contact_email);
           
           const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://agydpkzfucicraedllgl.supabase.co';
           const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+          
+          console.log('🔗 Supabase URL:', SUPABASE_URL);
+          console.log('🔑 Supabase key available:', !!SUPABASE_ANON_KEY);
 
           // Call Edge Function to send customer confirmation
           try {
             console.log('📧 Sending customer confirmation email...');
-            const customerResponse = await fetch(
-              `${SUPABASE_URL}/functions/v1/send-email`,
-              {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                },
-                body: JSON.stringify({
-                  to: bookingData.profiles?.email,
-                  template: 'booking-confirmation',
-                  data: {
-                    customerName: bookingData.profiles?.full_name,
-                    customerEmail: bookingData.profiles?.email,
-                    bookingId: bookingData.id,
-                    venueName: bookingData.venues?.name,
-                    venueAddress: bookingData.venues?.address,
-                    bookingDate: new Date(bookingData.booking_date).toLocaleDateString(),
-                    startTime: bookingData.start_time,
-                    endTime: bookingData.end_time,
-                    guestCount: bookingData.guest_count,
-                    totalAmount: bookingData.total_amount,
-                    paymentReference: reference
-                  }
-                }),
+            const customerUrl = `${SUPABASE_URL}/functions/v1/send-email`;
+            console.log('🔗 Calling:', customerUrl);
+            
+            const customerPayload = {
+              to: bookingData.profiles?.email,
+              template: 'booking-confirmation',
+              data: {
+                customerName: bookingData.profiles?.full_name,
+                customerEmail: bookingData.profiles?.email,
+                bookingId: bookingData.id,
+                venueName: bookingData.venues?.name,
+                venueAddress: bookingData.venues?.address,
+                bookingDate: new Date(bookingData.booking_date).toLocaleDateString(),
+                startTime: bookingData.start_time,
+                endTime: bookingData.end_time,
+                guestCount: bookingData.guest_count,
+                totalAmount: bookingData.total_amount,
+                paymentReference: reference
               }
-            );
+            };
+            console.log('📦 Payload:', customerPayload);
+            
+            const customerResponse = await fetch(customerUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+              },
+              body: JSON.stringify(customerPayload),
+            });
+            
+            console.log('📊 Response status:', customerResponse.status);
             
             if (customerResponse.ok) {
-              console.log('✅ Customer confirmation email sent');
+              const result = await customerResponse.json();
+              console.log('✅ Customer confirmation email sent:', result);
             } else {
               const error = await customerResponse.json();
               console.error('⚠️ Customer email failed:', error);
             }
           } catch (customerError) {
-            console.error('⚠️ Customer email error:', customerError);
+            console.error('⚠️ CUSTOMER EMAIL ERROR:', customerError);
           }
 
           // Send venue owner notification
