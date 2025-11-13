@@ -120,11 +120,93 @@ const PaystackCallbackPage = () => {
         // Clear session data
         clearPaymentFromSession();
 
-        // Set success status (show success page, emails will be sent via webhook)
+        // Set success status (show success page)
         setStatus('success');
         setMessage('Payment verified successfully! Your booking is confirmed.');
         console.log('✅ Booking confirmation complete');
-        console.log('📧 Emails will be sent via Paystack webhook handler');
+
+        // Send emails as fallback (webhook might not fire reliably)
+        console.log('📧 Sending emails as fallback from callback page...');
+        try {
+          const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://agydpkzfucicraedllgl.supabase.co';
+          const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+          // Send customer confirmation email
+          console.log('📧 Sending customer confirmation email to:', email);
+          const customerResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            },
+            body: JSON.stringify({
+              to: email,
+              template: 'booking-confirmation',
+              subject: `Booking Confirmed! - ${paystackMetadata.venueName}`,
+              data: {
+                email: email,
+                customerName: paystackMetadata.customerName,
+                bookingId: bookingId,
+                bookingDate: new Date(bookingData.booking_date).toLocaleDateString(),
+                bookingTime: bookingData.start_time,
+                endTime: bookingData.end_time,
+                guestCount: bookingData.number_of_guests,
+                totalAmount: bookingData.total_amount,
+                venueName: paystackMetadata.venueName,
+                venueAddress: paystackMetadata.venueAddress
+              }
+            }),
+          });
+
+          if (customerResponse.ok) {
+            console.log('✅ Customer confirmation email sent successfully');
+          } else {
+            const error = await customerResponse.json();
+            console.error('⚠️ Customer email failed:', error);
+          }
+        } catch (error) {
+          console.error('⚠️ Error sending customer email:', error);
+        }
+
+        // Send venue owner notification email
+        try {
+          const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://agydpkzfucicraedllgl.supabase.co';
+          const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+          console.log('📧 Sending venue owner notification...');
+          const venueResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+            },
+            body: JSON.stringify({
+              to: 'info@oneeddy.com', // Default for now, can be updated to fetch from venues table
+              template: 'venue-owner-booking-notification',
+              subject: `New Booking - ${paystackMetadata.venueName}`,
+              data: {
+                venueName: paystackMetadata.venueName,
+                customerName: paystackMetadata.customerName,
+                customerEmail: email,
+                customerPhone: paystackMetadata.customerPhone,
+                bookingDate: new Date(bookingData.booking_date).toLocaleDateString(),
+                bookingTime: bookingData.start_time,
+                guestCount: bookingData.number_of_guests,
+                totalAmount: bookingData.total_amount,
+                bookingId: bookingId
+              }
+            }),
+          });
+
+          if (venueResponse.ok) {
+            console.log('✅ Venue owner notification sent successfully');
+          } else {
+            const error = await venueResponse.json();
+            console.error('⚠️ Venue owner email failed:', error);
+          }
+        } catch (error) {
+          console.error('⚠️ Error sending venue owner email:', error);
+        }
 
       } catch (error) {
         console.error('❌ Callback verification error:', error);

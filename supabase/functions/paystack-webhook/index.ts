@@ -211,21 +211,10 @@ async function sendBookingConfirmationEmails(bookingId: string) {
   try {
     console.log('📧 Sending booking confirmation emails for:', bookingId)
 
-    // Get booking details with venue and customer info
+    // Get booking details
     const { data: booking, error: bookingError } = await supabase
       .from('bookings')
-      .select(`
-        *,
-        venues:venue_id (
-          *,
-          venue_owners:user_id (
-            *
-          )
-        ),
-        profiles:user_id (
-          *
-        )
-      `)
+      .select('*')
       .eq('id', bookingId)
       .single()
 
@@ -234,14 +223,33 @@ async function sendBookingConfirmationEmails(bookingId: string) {
       return
     }
 
-    const venue = booking.venues
-    const customer = booking.profiles
-    const venueOwner = venue?.venue_owners
+    console.log('✅ Booking fetched:', { bookingId, venue_id: booking.venue_id, user_id: booking.user_id })
 
-    if (!venue || !customer) {
-      console.error('❌ Missing venue or customer data')
+    // Get venue details
+    const { data: venue, error: venueError } = await supabase
+      .from('venues')
+      .select('*')
+      .eq('id', booking.venue_id)
+      .single()
+
+    if (venueError || !venue) {
+      console.error('❌ Error fetching venue details:', venueError)
       return
     }
+
+    // Get customer profile
+    const { data: customer, error: customerError } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('id', booking.user_id)
+      .single()
+
+    if (customerError || !customer) {
+      console.error('❌ Error fetching customer details:', customerError)
+      return
+    }
+
+    console.log('✅ All booking data fetched successfully')
 
     // Format dates and times
     const bookingDateFormatted = booking.booking_date
@@ -314,7 +322,8 @@ async function sendBookingConfirmationEmails(bookingId: string) {
 
     // Send venue owner notification email
     console.log('📧 Sending venue owner notification email')
-    const venueOwnerEmail = venueOwner?.email || venue.contact_email || 'info@oneeddy.com'
+    const venueOwnerEmail = venue.contact_email || 'info@oneeddy.com'
+    console.log('📧 Venue owner email:', venueOwnerEmail)
     try {
       const venueResponse = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
         method: 'POST',
@@ -341,7 +350,7 @@ async function sendBookingConfirmationEmails(bookingId: string) {
             customerPhone: customer.phone || 'N/A',
             specialRequests: booking.special_requests || 'None specified',
             ownerUrl: `https://www.oneeddy.com/venue-owner/dashboard`,
-            venueOwnerName: venueOwner?.name || 'Venue Manager'
+            venueOwnerName: 'Venue Manager'
           }
         }),
       })
