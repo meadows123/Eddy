@@ -316,8 +316,15 @@ const adjustTimeForMidnight = (startTime, endTime) => {
   return { startTime, endTime };
 };
 
-// Move createBooking inside CheckoutPage component so it can access state
-// (we'll do this by copying the content into the component)
+const createBooking = async () => {
+  try {
+    // Prepare booking data for database - use the correct data structure
+    const venueId = selection?.venue?.id || bookingData?.venue?.id || selection?.venueId || selection?.id;
+    const tableId = selection?.table?.id || bookingData?.table?.id || selection?.selectedTable?.id || selection?.tableId || null;
+
+    // Validate required fields
+    if (!venueId) {
+      throw new Error('Venue ID is required for booking');
     }
 
     const sessionCheckUser = await ensureSession();
