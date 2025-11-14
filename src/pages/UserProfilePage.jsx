@@ -140,18 +140,44 @@ const UserProfilePage = () => {
         
         // Received requests - join with requester profiles
         // Query by both recipient_id (if user has been linked) AND recipient_email (for new requests)
-        const { data: received, error: receivedError } = await supabase
-          .from('split_payment_requests')
-          .select(`
-            *,
-            profiles!split_payment_requests_requester_id_fkey (
-              first_name,
-              last_name,
-              phone
-            )
-          `)
-          .or(`recipient_id.eq.${user.id},recipient_email.eq.${user.email}`)
-          .order('created_at', { ascending: false });
+        // We need to query both conditions separately since OR with joins can be problematic
+        const [receivedByIdResult, receivedByEmailResult] = await Promise.all([
+          // Query by recipient_id
+          supabase
+            .from('split_payment_requests')
+            .select(`
+              *,
+              profiles!split_payment_requests_requester_id_fkey (
+                first_name,
+                last_name,
+                phone
+              )
+            `)
+            .eq('recipient_id', user.id)
+            .order('created_at', { ascending: false }),
+          // Query by recipient_email
+          supabase
+            .from('split_payment_requests')
+            .select(`
+              *,
+              profiles!split_payment_requests_requester_id_fkey (
+                first_name,
+                last_name,
+                phone
+              )
+            `)
+            .eq('recipient_email', user.email)
+            .order('created_at', { ascending: false })
+        ]);
+        
+        const receivedError = receivedByIdResult.error || receivedByEmailResult.error;
+        // Merge both results, avoiding duplicates
+        const received = [
+          ...(receivedByIdResult.data || []),
+          ...(receivedByEmailResult.data || []).filter(item => 
+            !(receivedByIdResult.data || []).some(existing => existing.id === item.id)
+          )
+        ];
           
           
         if (sentError || receivedError) throw sentError || receivedError;
