@@ -52,7 +52,7 @@ export const initiateSplitPaystackPayment = async ({
     // Call Paystack initialization
     const response = await initializePaystackPayment({
       email,
-      amount: amount, // Paystack expects total amount
+      amount: Math.round(amount * 100), // Convert to kobo (Paystack requires amount in kobo)
       metadata,
       firstName: fullName.split(' ')[0],
       lastName: fullName.split(' ').slice(1).join(' ') || '',

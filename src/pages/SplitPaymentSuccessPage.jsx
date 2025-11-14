@@ -502,25 +502,6 @@ const SplitPaymentSuccessPage = () => {
                 }
               }
             }
-          } else {
-            console.log('❌ No venue ID available for owner lookup');
-            
-            // Fallback: Try to find venue owner by venue name even without venue ID
-            if (completionBookingData?.venues?.name) {
-              console.log('🔄 Trying fallback lookup by venue name (no venue ID):', completionBookingData.venues.name);
-              const { data: ownersByName, error: nameError } = await supabase
-                .from('venue_owners')
-                .select('owner_email, owner_name, user_id, venue_name')
-                .ilike('venue_name', `%${completionBookingData.venues.name}%`);
-              
-              if (ownersByName?.length > 0 && !nameError) {
-                if (!completionBookingData.venues) completionBookingData.venues = {};
-                completionBookingData.venues.venue_owners = ownersByName[0];
-                console.log('✅ Venue owner found by name (no venue ID):', ownersByName[0]);
-              } else {
-                console.log('❌ No venue owner found by name (no venue ID):', nameError);
-              }
-            }
           }
         }
 

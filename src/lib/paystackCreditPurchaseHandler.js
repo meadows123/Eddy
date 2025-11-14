@@ -51,7 +51,7 @@ export const initiateCreditPurchasePayment = async ({
     // Call Paystack initialization
     const result = await initializePaystackPayment({
       email,
-      amount: amount, // Paystack expects total amount
+      amount: Math.round(amount * 100), // Convert to kobo (Paystack requires amount in kobo)
       metadata,
       fullName,
       phone,
