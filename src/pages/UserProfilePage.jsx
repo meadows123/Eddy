@@ -187,11 +187,20 @@ const UserProfilePage = () => {
         }
         
         // Merge both results, avoiding duplicates
+        const receivedByIdIds = (receivedByIdResult.data || []).map(item => item.id);
+        console.log('🔍 IDs from recipient_id query:', receivedByIdIds);
+        
+        const emailOnlyRequests = (receivedByEmailResult.data || []).filter(item => {
+          const isDuplicate = receivedByIdIds.includes(item.id);
+          console.log(`  Checking email request ${item.id}: isDuplicate=${isDuplicate}`);
+          return !isDuplicate;
+        });
+        
+        console.log('🔍 Email-only requests (after dedup):', emailOnlyRequests.length);
+        
         const received = [
           ...(receivedByIdResult.data || []),
-          ...(receivedByEmailResult.data || []).filter(item => 
-            !(receivedByIdResult.data || []).some(existing => existing.id === item.id)
-          )
+          ...emailOnlyRequests
         ];
         
         console.log('✅ Final merged received requests:', received.length);
