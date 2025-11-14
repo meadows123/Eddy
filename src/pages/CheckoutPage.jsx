@@ -1448,18 +1448,21 @@ setShowShareDialog(true);
                               const splitRequests = [];
                               for (const recipient of paymentData.splitRecipients) {
                                 // Look up recipient's user ID from their email
+                                console.log(`🔍 Looking up recipient with email: ${recipient.email}`);
                                 let recipientUserId = null;
                                 try {
                                   const { data: recipientProfile, error: profileError } = await supabase
-                                    .from('user_profiles')
-                                    .select('user_id')
+                                    .from('profiles')
+                                    .select('id')
                                     .eq('email', recipient.email)
                                     .single();
+                                  
+                                  console.log(`📋 Lookup result for ${recipient.email}:`, { recipientProfile, profileError });
                                   
                                   if (profileError) {
                                     console.warn(`⚠️ Could not find user for email ${recipient.email}:`, profileError);
                                   } else if (recipientProfile) {
-                                    recipientUserId = recipientProfile.user_id;
+                                    recipientUserId = recipientProfile.id;
                                     console.log(`✅ Found recipient ID for ${recipient.email}:`, recipientUserId);
                                   }
                                 } catch (err) {
