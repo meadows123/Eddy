@@ -184,6 +184,24 @@ const UserProfilePage = () => {
         
         if (receivedByEmailResult.data?.length > 0) {
           console.log('📧 Split payment requests by email:', receivedByEmailResult.data);
+          receivedByEmailResult.data.forEach(req => {
+            console.log(`  Request ${req.id}:`, {
+              recipient_id: req.recipient_id,
+              recipient_email: req.recipient_email,
+              requester_id: req.requester_id
+            });
+          });
+        }
+        
+        if (receivedByIdResult.data?.length > 0) {
+          console.log('📧 Split payment requests by ID:', receivedByIdResult.data);
+          receivedByIdResult.data.forEach(req => {
+            console.log(`  Request ${req.id}:`, {
+              recipient_id: req.recipient_id,
+              recipient_email: req.recipient_email,
+              requester_id: req.requester_id
+            });
+          });
         }
         
         // Merge both results, avoiding duplicates
