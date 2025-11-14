@@ -20,7 +20,9 @@ const SplitPaymentSuccessPage = () => {
   const [paymentDetails, setPaymentDetails] = useState(null);
 
   const paymentIntentId = searchParams.get('payment_intent');
+  const paystackReference = searchParams.get('reference');
   const requestId = searchParams.get('request_id');
+  const bookingId = searchParams.get('booking_id');
 
   useEffect(() => {
     handlePaymentSuccess();
@@ -28,10 +30,12 @@ const SplitPaymentSuccessPage = () => {
 
   const handlePaymentSuccess = async () => {
     try {
-      console.log('🚀 Starting handlePaymentSuccess with:', { paymentIntentId, requestId });
+      console.log('🚀 Starting handlePaymentSuccess with:', { paymentIntentId, paystackReference, requestId, bookingId });
       setLoading(true);
 
-      if (!paymentIntentId || !requestId) {
+      // For Paystack: require reference and request_id
+      // For Stripe: require payment_intent and request_id
+      if (!requestId || (!paymentIntentId && !paystackReference)) {
         throw new Error('Missing payment information');
       }
 
