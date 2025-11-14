@@ -1404,6 +1404,8 @@ setShowShareDialog(true);
                           venueId={selection?.venue?.id || selection?.venueId || selection?.id}
                           venueName={selection?.venue?.name || 'Venue'}
                           bookingData={selection || bookingData}
+                          userEmail={user?.email}
+                          userPhone={formData.phone}
                           onPaymentInitiate={async (paymentData) => {
                             console.log('🇳🇬 Paystack split payment initiated from CheckoutPage:', paymentData);
                             setIsSubmitting(true);

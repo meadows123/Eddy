@@ -22,6 +22,7 @@ export const SplitPaymentCheckoutForm = ({
   isLoading = false,
   errors = {},
   userEmail,
+  userPhone,
 }) => {
   const { toast } = useToast();
   const [splitCount, setSplitCount] = useState(2); // Number of people to split with
@@ -195,7 +196,7 @@ export const SplitPaymentCheckoutForm = ({
       await onPaymentInitiate({
         email: userEmail,
         fullName: userEmail?.split('@')[0] || 'User',
-        phone: '',
+        phone: userPhone || '+234000000000',
         amount: yourAmount,
         venueId,
         venueName,
