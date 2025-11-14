@@ -124,6 +124,14 @@ function mapLocationToProcessor(ipinfoData) {
  */
 export async function getUserLocationWithFallback() {
   return new Promise((resolve) => {
+    // Check if test location is set first
+    const testLocation = getLocationFromSession();
+    if (testLocation && testLocation.processor) {
+      console.log('🧪 Using test location override:', testLocation);
+      resolve(testLocation);
+      return;
+    }
+
     if (!navigator.geolocation) {
       console.log('❌ Geolocation not supported, using IP detection');
       detectUserLocationByIP().then(resolve);
