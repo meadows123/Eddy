@@ -49,23 +49,24 @@ export const initiateSplitPaystackPayment = async ({
     console.log('📦 Split payment metadata:', metadata);
 
     // Call Paystack initialization
-    const result = await initializePaystackPayment({
+    const response = await initializePaystackPayment({
       email,
       amount: amount, // Paystack expects total amount
       metadata,
-      fullName,
+      firstName: fullName.split(' ')[0],
+      lastName: fullName.split(' ').slice(1).join(' ') || '',
       phone,
       userId
     });
 
     console.log('✅ Split payment initialized:', {
-      hasAuthUrl: !!result.authorizationUrl,
-      reference: result.reference
+      hasAuthUrl: !!response.data?.authorization_url,
+      reference: response.data?.reference
     });
 
     // Store payment details in session for later verification
     const paymentData = {
-      reference: result.reference,
+      reference: response.data?.reference,
       email,
       amount,
       requestId,
@@ -78,7 +79,14 @@ export const initiateSplitPaystackPayment = async ({
     sessionStorage.setItem('paystack_split_payment', JSON.stringify(paymentData));
     console.log('💾 Split payment data stored in session');
 
-    return result;
+    // Return in the format expected by the caller
+    return {
+      status: response.status,
+      message: response.message,
+      reference: response.data?.reference,
+      authorizationUrl: response.data?.authorization_url,
+      accessCode: response.data?.access_code
+    };
   } catch (error) {
     console.error('❌ Split payment initialization error:', error);
     throw error;
