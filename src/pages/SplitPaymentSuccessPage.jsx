@@ -524,17 +524,8 @@ const SplitPaymentSuccessPage = () => {
           }
         }
 
-        console.log('✅ Booking data fetched:', {
-          bookingId: completionBookingData?.id,
-          venueName: completionBookingData?.venues?.name,
-          initiatorEmail: completionBookingData?.profiles?.email,
-          hasVenue: !!completionBookingData?.venues,
-          hasProfile: !!completionBookingData?.profiles,
-          venueData: completionBookingData?.venues,
-          venueId: completionBookingData?.venues?.id,
-          venueUserId: completionBookingData?.venues?.user_id,
-          venueOwnerId: completionBookingData?.venues?.owner_id
-        });
+        // This logging is inside checkAllPaymentsComplete, completionBookingData is defined locally there
+        // No need to log again as it's already logged at line 430
 
         // DEBUG: Let's check what's actually in the database
         console.log('🔍 DEBUG: Checking database for venue owner...');
