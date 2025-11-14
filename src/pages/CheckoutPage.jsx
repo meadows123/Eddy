@@ -1447,6 +1447,25 @@ setShowShareDialog(true);
                               console.log('📝 Creating split payment requests for recipients...');
                               const splitRequests = [];
                               for (const recipient of paymentData.splitRecipients) {
+                                // Look up recipient's user ID from their email
+                                let recipientUserId = null;
+                                try {
+                                  const { data: recipientProfile, error: profileError } = await supabase
+                                    .from('user_profiles')
+                                    .select('user_id')
+                                    .eq('email', recipient.email)
+                                    .single();
+                                  
+                                  if (profileError) {
+                                    console.warn(`⚠️ Could not find user for email ${recipient.email}:`, profileError);
+                                  } else if (recipientProfile) {
+                                    recipientUserId = recipientProfile.user_id;
+                                    console.log(`✅ Found recipient ID for ${recipient.email}:`, recipientUserId);
+                                  }
+                                } catch (err) {
+                                  console.warn(`⚠️ Error looking up recipient:`, err);
+                                }
+                                
                                 const { data: splitRequest, error: splitError } = await supabase
                                   .from('split_payment_requests')
                                   .insert([{
@@ -1456,7 +1475,7 @@ setShowShareDialog(true);
                                     amount: recipient.amount,
                                     status: 'pending',
                                     requester_id: user?.id,
-                                    recipient_id: null // Will be resolved when recipient joins
+                                    recipient_id: recipientUserId // Populate if found, otherwise null
                                   }])
                                   .select('id')
                                   .single();

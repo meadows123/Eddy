@@ -124,25 +124,22 @@ const UserProfilePage = () => {
     setSplitPaymentsLoading(true);
     const fetchSplitPayments = async () => {
       try {
-        // Sent requests - join with recipient profiles
-        const { data: sent, error: sentError } = await supabase
-          .from('split_payment_requests')
-          .select(`
-            *,
-            profiles!split_payment_requests_recipient_id_fkey (
-              first_name,
-              last_name,
-              phone
-            )
-          `)
-          .eq('requester_id', user.id)
-          .order('created_at', { ascending: false });
-        
-        // Received requests - join with requester profiles
-        // Query by both recipient_id (if user has been linked) AND recipient_email (for new requests)
-        // We need to query both conditions separately since OR with joins can be problematic
-        const [receivedByIdResult, receivedByEmailResult] = await Promise.all([
-          // Query by recipient_id
+        // Sent and Received requests - query in parallel
+        // Now that recipient_id is populated when split requests are created,
+        // we only need to query by recipient_id for received requests
+        const [sentResult, receivedResult] = await Promise.all([
+          supabase
+            .from('split_payment_requests')
+            .select(`
+              *,
+              profiles!split_payment_requests_recipient_id_fkey (
+                first_name,
+                last_name,
+                phone
+              )
+            `)
+            .eq('requester_id', user.id)
+            .order('created_at', { ascending: false }),
           supabase
             .from('split_payment_requests')
             .select(`
@@ -154,76 +151,24 @@ const UserProfilePage = () => {
               )
             `)
             .eq('recipient_id', user.id)
-            .order('created_at', { ascending: false }),
-          // Query by recipient_email
-          supabase
-            .from('split_payment_requests')
-            .select(`
-              *,
-              profiles!split_payment_requests_requester_id_fkey (
-                first_name,
-                last_name,
-                phone
-              )
-            `)
-            .eq('recipient_email', user.email)
             .order('created_at', { ascending: false })
         ]);
         
-        const receivedError = receivedByIdResult.error || receivedByEmailResult.error;
+        const sentError = sentResult.error;
+        const receivedError = receivedResult.error;
         
         // Debug logging
         console.log('🔍 Split payment query debug:', {
           userId: user.id,
           userEmail: user.email,
-          receivedByIdData: receivedByIdResult.data?.length || 0,
-          receivedByIdError: receivedByIdResult.error,
-          receivedByEmailData: receivedByEmailResult.data?.length || 0,
-          receivedByEmailError: receivedByEmailResult.error
+          sentData: sentResult.data?.length || 0,
+          receivedData: receivedResult.data?.length || 0,
+          errors: { sentError, receivedError }
         });
         
-        if (receivedByEmailResult.data?.length > 0) {
-          console.log('📧 Split payment requests by email:', receivedByEmailResult.data);
-          receivedByEmailResult.data.forEach(req => {
-            console.log(`  Request ${req.id}:`, {
-              recipient_id: req.recipient_id,
-              recipient_email: req.recipient_email,
-              requester_id: req.requester_id
-            });
-          });
-        }
+        const sent = sentResult.data || [];
+        const received = receivedResult.data || [];
         
-        if (receivedByIdResult.data?.length > 0) {
-          console.log('📧 Split payment requests by ID:', receivedByIdResult.data);
-          receivedByIdResult.data.forEach(req => {
-            console.log(`  Request ${req.id}:`, {
-              recipient_id: req.recipient_id,
-              recipient_email: req.recipient_email,
-              requester_id: req.requester_id
-            });
-          });
-        }
-        
-        // Merge both results, avoiding duplicates
-        const receivedByIdIds = (receivedByIdResult.data || []).map(item => item.id);
-        console.log('🔍 IDs from recipient_id query:', receivedByIdIds);
-        
-        const emailOnlyRequests = (receivedByEmailResult.data || []).filter(item => {
-          const isDuplicate = receivedByIdIds.includes(item.id);
-          console.log(`  Checking email request ${item.id}: isDuplicate=${isDuplicate}`);
-          return !isDuplicate;
-        });
-        
-        console.log('🔍 Email-only requests (after dedup):', emailOnlyRequests.length);
-        
-        const received = [
-          ...(receivedByIdResult.data || []),
-          ...emailOnlyRequests
-        ];
-        
-        console.log('✅ Final merged received requests:', received.length);
-          
-          
         if (sentError || receivedError) throw sentError || receivedError;
         
         // Map the joined data to the expected format
