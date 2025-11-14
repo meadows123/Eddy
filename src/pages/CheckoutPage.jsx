@@ -1452,11 +1452,10 @@ setShowShareDialog(true);
                                   .insert([{
                                     booking_id: pendingBooking.id,
                                     recipient_email: recipient.email,
-                                    recipient_name: recipient.name,
                                     recipient_phone: recipient.phone,
                                     amount: recipient.amount,
                                     status: 'pending',
-                                    initiator_id: user?.id,
+                                    requester_id: user?.id,
                                     recipient_id: null // Will be resolved when recipient joins
                                   }])
                                   .select('id')
