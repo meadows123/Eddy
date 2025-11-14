@@ -374,7 +374,7 @@ const SplitPaymentSuccessPage = () => {
 
         // Get booking and venue data for emails
         console.log('📚 Fetching booking data for completion email...');
-        let bookingData = null;
+        let completionBookingData = null;
         
         // Fetch booking data separately to avoid join issues
         const { data: simpleBooking, error: bookingError } = await supabase
@@ -393,16 +393,21 @@ const SplitPaymentSuccessPage = () => {
         let profileData = null;
         
         if (simpleBooking?.venue_id) {
-          const { data: venue, error: venueError } = await supabase
-            .from('venues')
-            .select('*')
-            .eq('id', simpleBooking.venue_id)
-            .single();
-          
-          if (venueError) {
-            console.error('❌ Error fetching venue:', venueError);
-          } else {
-            venueData = venue;
+          try {
+            const { data: venue, error: venueError } = await supabase
+              .from('venues')
+              .select('*')
+              .eq('id', simpleBooking.venue_id)
+              .single();
+            
+            if (venueError) {
+              console.error('❌ Error fetching venue:', venueError);
+            } else {
+              venueData = venue;
+              console.log('✅ Venue fetched successfully:', venueData?.id);
+            }
+          } catch (err) {
+            console.error('❌ Exception fetching venue:', err);
           }
         }
         
@@ -416,16 +421,16 @@ const SplitPaymentSuccessPage = () => {
         }
         
         // Create booking data object with separately fetched data
-        bookingData = {
+        completionBookingData = {
           ...simpleBooking,
           venues: venueData,
           profiles: profileData
         };
         
-        console.log('✅ Booking data for completion email:', bookingData);
+        console.log('✅ Booking data for completion email:', completionBookingData);
         
         // Fetch venue owner data separately (only if we have venue data)
-        if (bookingData && bookingData.venues?.id) {
+        if (completionBookingData && completionBookingData.venues?.id) {
           // Try multiple approaches to find venue owner
           let venueOwner = null;
           
@@ -433,7 +438,7 @@ const SplitPaymentSuccessPage = () => {
           const { data: ownerByVenueId, error: venueIdError } = await supabase
             .from('venue_owners')
             .select('owner_email, owner_name, user_id, venue_name')
-            .eq('venue_id', bookingData.venues.id)
+            .eq('venue_id', completionBookingData.venues.id)
             .single();
           
           if (ownerByVenueId && !venueIdError) {
@@ -443,11 +448,11 @@ const SplitPaymentSuccessPage = () => {
             console.log('❌ No venue owner found by venue_id:', venueIdError);
             
             // Approach 2: Try owner_id in venues table
-            if (bookingData.venues.owner_id) {
+            if (completionBookingData.venues.owner_id) {
               const { data: ownerByOwnerId, error: ownerIdError } = await supabase
                   .from('venue_owners')
                   .select('owner_email, owner_name, user_id, venue_name')
-                  .eq('user_id', bookingData.venues.owner_id)
+                  .eq('user_id', completionBookingData.venues.owner_id)
                   .single();
                 
                 if (ownerByOwnerId && !ownerIdError) {
@@ -459,11 +464,11 @@ const SplitPaymentSuccessPage = () => {
               }
               
               // Approach 3: Try user_id in venues table
-              if (!venueOwner && bookingData.venues.user_id) {
+              if (!venueOwner && completionBookingData.venues.user_id) {
                 const { data: ownerByUserId, error: userIdError } = await supabase
                   .from('venue_owners')
                   .select('owner_email, owner_name, user_id, venue_name')
-                  .eq('user_id', bookingData.venues.user_id)
+                  .eq('user_id', completionBookingData.venues.user_id)
                   .single();
                 
                 if (ownerByUserId && !userIdError) {
@@ -476,21 +481,21 @@ const SplitPaymentSuccessPage = () => {
             }
             
             if (venueOwner) {
-              bookingData.venues.venue_owners = venueOwner;
+              completionBookingData.venues.venue_owners = venueOwner;
               console.log('✅ Final venue owner data set:', venueOwner);
             } else {
               console.log('❌ No venue owner found with any approach');
               
               // Fallback: Try to find venue owner by venue name
-              if (bookingData.venues?.name) {
-                console.log('🔄 Trying fallback lookup by venue name:', bookingData.venues.name);
+              if (completionBookingData.venues?.name) {
+                console.log('🔄 Trying fallback lookup by venue name:', completionBookingData.venues.name);
                 const { data: ownersByName, error: nameError } = await supabase
                   .from('venue_owners')
                   .select('owner_email, owner_name, user_id, venue_name')
-                  .ilike('venue_name', `%${bookingData.venues.name}%`);
+                  .ilike('venue_name', `%${completionBookingData.venues.name}%`);
                 
                 if (ownersByName?.length > 0 && !nameError) {
-                  bookingData.venues.venue_owners = ownersByName[0];
+                  completionBookingData.venues.venue_owners = ownersByName[0];
                   console.log('✅ Venue owner found by name (fallback):', ownersByName[0]);
                 } else {
                   console.log('❌ No venue owner found by name either:', nameError);
@@ -501,15 +506,16 @@ const SplitPaymentSuccessPage = () => {
             console.log('❌ No venue ID available for owner lookup');
             
             // Fallback: Try to find venue owner by venue name even without venue ID
-            if (bookingData.venues?.name) {
-              console.log('🔄 Trying fallback lookup by venue name (no venue ID):', bookingData.venues.name);
+            if (completionBookingData?.venues?.name) {
+              console.log('🔄 Trying fallback lookup by venue name (no venue ID):', completionBookingData.venues.name);
               const { data: ownersByName, error: nameError } = await supabase
                 .from('venue_owners')
                 .select('owner_email, owner_name, user_id, venue_name')
-                .ilike('venue_name', `%${bookingData.venues.name}%`);
+                .ilike('venue_name', `%${completionBookingData.venues.name}%`);
               
               if (ownersByName?.length > 0 && !nameError) {
-                bookingData.venues.venue_owners = ownersByName[0];
+                if (!completionBookingData.venues) completionBookingData.venues = {};
+                completionBookingData.venues.venue_owners = ownersByName[0];
                 console.log('✅ Venue owner found by name (no venue ID):', ownersByName[0]);
               } else {
                 console.log('❌ No venue owner found by name (no venue ID):', nameError);
@@ -542,41 +548,41 @@ const SplitPaymentSuccessPage = () => {
         console.log('🔍 All venue owners in database:', { allVenueOwners, allOwnersError });
         
         // Check if there's a venue with this name
-        if (bookingData?.venues?.name) {
+        if (completionBookingData?.venues?.name) {
           const { data: venueByName, error: venueByNameError } = await supabase
             .from('venues')
             .select('*')
-            .ilike('name', `%${bookingData.venues.name}%`)
+            .ilike('name', `%${completionBookingData.venues.name}%`)
             .limit(3);
           
           console.log('🔍 Venues with similar name:', { venueByName, venueByNameError });
         }
         
         // Check if there's a venue owner with this venue name
-        if (bookingData?.venues?.name) {
+        if (completionBookingData?.venues?.name) {
           const { data: ownerByVenueName, error: ownerByVenueNameError } = await supabase
             .from('venue_owners')
             .select('*')
-            .ilike('venue_name', `%${bookingData.venues.name}%`)
+            .ilike('venue_name', `%${completionBookingData.venues.name}%`)
             .limit(3);
           
           console.log('🔍 Venue owners with similar venue name:', { ownerByVenueName, ownerByVenueNameError });
         }
 
-        if (bookingData) {
+        if (completionBookingData) {
           console.log('📧 Preparing to send completion email to initiator:', {
-            to: bookingData.profiles?.email,
-            subject: `Booking Confirmed! - ${bookingData.venues?.name || 'Your Venue'}`,
+            to: completionBookingData.profiles?.email,
+            subject: `Booking Confirmed! - ${completionBookingData.venues?.name || 'Your Venue'}`,
             template: 'booking-confirmation'
           });
 
           // Get table information for the initiator
           let tableInfo = { table_name: 'Table not specified', table_number: 'N/A' };
-          if (bookingData.table_id) {
+          if (completionBookingData.table_id) {
             const { data: tableData } = await supabase
               .from('venue_tables')
               .select('table_type, table_number')
-              .eq('id', bookingData.table_id)
+              .eq('id', completionBookingData.table_id)
               .single();
             if (tableData) {
               tableInfo = { table_name: tableData.table_type, table_number: tableData.table_number };
@@ -584,55 +590,55 @@ const SplitPaymentSuccessPage = () => {
           }
 
           // Generate QR code for the booking
-          console.log('📱 Generating QR code for split payment booking:', bookingData.id);
-          const qrCodeImage = await generateVenueEntryQR(bookingData);
+          console.log('📱 Generating QR code for split payment booking:', completionBookingData.id);
+          const qrCodeImage = await generateVenueEntryQR(completionBookingData);
           console.log('📱 QR code generated successfully:', qrCodeImage ? 'Yes' : 'No');
 
           // Prepare email data
           const emailData = {
             // Recipient info
-            email: bookingData.profiles?.email || 'initiator@example.com',
-            customerName: `${bookingData.profiles?.first_name || ''} ${bookingData.profiles?.last_name || ''}`.trim() || 'Guest',
-            customerEmail: bookingData.profiles?.email || 'Not provided',
-            customerPhone: bookingData.profiles?.phone || 'N/A',
+            email: completionBookingData.profiles?.email || 'initiator@example.com',
+            customerName: `${completionBookingData.profiles?.first_name || ''} ${completionBookingData.profiles?.last_name || ''}`.trim() || 'Guest',
+            customerEmail: completionBookingData.profiles?.email || 'Not provided',
+            customerPhone: completionBookingData.profiles?.phone || 'N/A',
             
             // Booking details
-            bookingId: bookingData.id,
-            bookingReference: bookingData.id, // Template expects bookingReference
-            bookingDate: bookingData.booking_date || bookingData.bookingDate,
-            bookingTime: bookingData.start_time || bookingData.booking_time,
-            partySize: bookingData.number_of_guests || bookingData.guest_count || 1, // Template expects partySize
-            guestCount: bookingData.number_of_guests || bookingData.guest_count,
-            totalAmount: bookingData.total_amount || bookingData.totalAmount,
-            initiatorAmount: bookingData.total_amount || bookingData.totalAmount, // For split-payment-complete template
+            bookingId: completionBookingData.id,
+            bookingReference: completionBookingData.id, // Template expects bookingReference
+            bookingDate: completionBookingData.booking_date || completionBookingData.bookingDate,
+            bookingTime: completionBookingData.start_time || completionBookingData.booking_time,
+            partySize: completionBookingData.number_of_guests || completionBookingData.guest_count || 1, // Template expects partySize
+            guestCount: completionBookingData.number_of_guests || completionBookingData.guest_count,
+            totalAmount: completionBookingData.total_amount || completionBookingData.totalAmount,
+            initiatorAmount: completionBookingData.total_amount || completionBookingData.totalAmount, // For split-payment-complete template
             
             // Table details
             tableName: tableInfo.table_name,
             tableNumber: tableInfo.table_number,
             tableType: tableInfo.table_name || 'VIP Table',
-            tableCapacity: bookingData.number_of_guests || 4,
+            tableCapacity: completionBookingData.number_of_guests || 4,
             tableLocation: 'Prime location',
             tableFeatures: 'Premium features',
             
             // Venue details
-            venueName: bookingData.venues?.name,
-            venueAddress: bookingData.venues?.address,
-            venuePhone: bookingData.venues?.contact_phone,
+            venueName: completionBookingData.venues?.name,
+            venueAddress: completionBookingData.venues?.address,
+            venuePhone: completionBookingData.venues?.contact_phone,
             
             // Special requests
-            specialRequests: bookingData.special_requests || 'None specified',
+            specialRequests: completionBookingData.special_requests || 'None specified',
             
             // QR Code for venue entry
             qrCodeImage: qrCodeImage?.externalUrl || qrCodeImage,
             qrCodeUrl: qrCodeImage?.externalUrl || (qrCodeImage?.base64 ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(JSON.stringify({
               type: 'venue-entry',
-              bookingId: bookingData.id,
-              venueId: bookingData.venue_id,
+              bookingId: completionBookingData.id,
+              venueId: completionBookingData.venue_id,
               securityCode: 'GENERATED',
-              bookingDate: bookingData.booking_date,
-              startTime: bookingData.start_time,
-              tableNumber: bookingData.venue_tables?.table_type || bookingData.table?.table_number || 'N/A',
-              guestCount: bookingData.number_of_guests,
+              bookingDate: completionBookingData.booking_date,
+              startTime: completionBookingData.start_time,
+              tableNumber: completionBookingData.venue_tables?.table_type || completionBookingData.table?.table_number || 'N/A',
+              guestCount: completionBookingData.number_of_guests,
               status: 'confirmed',
               timestamp: new Date().toISOString()
             }))}&color=800020&bgcolor=FFFFFF&format=png` : '')
@@ -648,8 +654,8 @@ const SplitPaymentSuccessPage = () => {
           // Send completion email to initiator via Edge Function
           const { data: completionEmailResult, error: completionEmailError } = await supabase.functions.invoke('send-email', {
             body: {
-              to: bookingData.profiles?.email || 'initiator@example.com',
-              subject: `Booking Confirmed! - ${bookingData.venues?.name || 'Your Venue'}`,
+              to: completionBookingData.profiles?.email || 'initiator@example.com',
+              subject: `Booking Confirmed! - ${completionBookingData.venues?.name || 'Your Venue'}`,
               template: 'split-payment-complete',
               data: emailData
             }
