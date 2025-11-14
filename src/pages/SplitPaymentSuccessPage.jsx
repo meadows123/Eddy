@@ -955,7 +955,6 @@ const SplitPaymentSuccessPage = () => {
           description: "All split payments have been received. Your booking is now confirmed.",
           className: "bg-green-500 text-white"
         });
-      }
     } catch (error) {
       console.error('Error checking payment completion:', error);
     }
