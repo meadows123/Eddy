@@ -395,7 +395,7 @@ const SplitPaymentSuccessPage = () => {
         if (simpleBooking?.venue_id) {
           const { data: venue } = await supabase
             .from('venues')
-            .select('name, address, city, contact_email, contact_phone')
+            .select('id, name, address, city, contact_email, contact_phone, owner_id, user_id')
             .eq('id', simpleBooking.venue_id)
             .single();
           venueData = venue;
@@ -479,15 +479,14 @@ const SplitPaymentSuccessPage = () => {
               // Fallback: Try to find venue owner by venue name
               if (bookingData.venues?.name) {
                 console.log('🔄 Trying fallback lookup by venue name:', bookingData.venues.name);
-                const { data: ownerByName, error: nameError } = await supabase
+                const { data: ownersByName, error: nameError } = await supabase
                   .from('venue_owners')
                   .select('owner_email, owner_name, user_id, venue_name')
-                  .ilike('venue_name', `%${bookingData.venues.name}%`)
-                  .single();
+                  .ilike('venue_name', `%${bookingData.venues.name}%`);
                 
-                if (ownerByName && !nameError) {
-                  bookingData.venues.venue_owners = ownerByName;
-                  console.log('✅ Venue owner found by name (fallback):', ownerByName);
+                if (ownersByName?.length > 0 && !nameError) {
+                  bookingData.venues.venue_owners = ownersByName[0];
+                  console.log('✅ Venue owner found by name (fallback):', ownersByName[0]);
                 } else {
                   console.log('❌ No venue owner found by name either:', nameError);
                 }
@@ -499,15 +498,14 @@ const SplitPaymentSuccessPage = () => {
             // Fallback: Try to find venue owner by venue name even without venue ID
             if (bookingData.venues?.name) {
               console.log('🔄 Trying fallback lookup by venue name (no venue ID):', bookingData.venues.name);
-              const { data: ownerByName, error: nameError } = await supabase
+              const { data: ownersByName, error: nameError } = await supabase
                 .from('venue_owners')
                 .select('owner_email, owner_name, user_id, venue_name')
-                .ilike('venue_name', `%${bookingData.venues.name}%`)
-                .single();
+                .ilike('venue_name', `%${bookingData.venues.name}%`);
               
-              if (ownerByName && !nameError) {
-                bookingData.venues.venue_owners = ownerByName;
-                console.log('✅ Venue owner found by name (no venue ID):', ownerByName);
+              if (ownersByName?.length > 0 && !nameError) {
+                bookingData.venues.venue_owners = ownersByName[0];
+                console.log('✅ Venue owner found by name (no venue ID):', ownersByName[0]);
               } else {
                 console.log('❌ No venue owner found by name (no venue ID):', nameError);
               }
