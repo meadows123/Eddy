@@ -525,15 +525,15 @@ const SplitPaymentSuccessPage = () => {
         }
 
         console.log('✅ Booking data fetched:', {
-          bookingId: bookingData?.id,
-          venueName: bookingData?.venues?.name,
-          initiatorEmail: bookingData?.profiles?.email,
-          hasVenue: !!bookingData?.venues,
-          hasProfile: !!bookingData?.profiles,
-          venueData: bookingData?.venues,
-          venueId: bookingData?.venues?.id,
-          venueUserId: bookingData?.venues?.user_id,
-          venueOwnerId: bookingData?.venues?.owner_id
+          bookingId: completionBookingData?.id,
+          venueName: completionBookingData?.venues?.name,
+          initiatorEmail: completionBookingData?.profiles?.email,
+          hasVenue: !!completionBookingData?.venues,
+          hasProfile: !!completionBookingData?.profiles,
+          venueData: completionBookingData?.venues,
+          venueId: completionBookingData?.venues?.id,
+          venueUserId: completionBookingData?.venues?.user_id,
+          venueOwnerId: completionBookingData?.venues?.owner_id
         });
 
         // DEBUG: Let's check what's actually in the database
