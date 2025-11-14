@@ -18,6 +18,7 @@ const SplitPaymentSuccessPage = () => {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState(null);
   const [paymentDetails, setPaymentDetails] = useState(null);
+  const [allPaymentsDone, setAllPaymentsDone] = useState(false);
 
   const paymentIntentId = searchParams.get('payment_intent');
   const paystackReference = searchParams.get('reference');
@@ -361,7 +362,10 @@ const SplitPaymentSuccessPage = () => {
       });
         
       const allPaid = requests?.every(req => req.status === 'paid');
-      console.log('📊 Payment status check:', { allPaid });
+      console.log('📊 Payment status check:', { allPaid, totalRequests: requests?.length });
+      
+      // Set the state to indicate if all payments are done
+      setAllPaymentsDone(allPaid);
       
       if (allPaid) {
         console.log('🎉 All payments are complete! Sending completion emails...');
@@ -588,31 +592,34 @@ const SplitPaymentSuccessPage = () => {
           });
 
           // Send completion email to initiator via Edge Function
-          const { data: completionEmailResult, error: completionEmailError } = await supabase.functions.invoke('send-email', {
-            body: {
-              to: completionBookingData.profiles?.email || 'initiator@example.com',
-              subject: `Booking Confirmed! - ${completionBookingData.venues?.name || 'Your Venue'}`,
-              template: 'split-payment-complete',
-              data: emailData
-            }
-          });
+          // Send initiator completion email using direct fetch (avoids CORS issues)
+          console.log('📧 Sending initiator completion email...');
+          try {
+            const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://agydpkzfucicraedllgl.supabase.co';
+            const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-          if (completionEmailError) {
-            console.error('❌ Error sending split payment completion email:', {
-              error: completionEmailError,
-              response: completionEmailResult,
-              emailData: {
-                to: bookingData.profiles?.email,
-                subject: `Booking Confirmed! - ${bookingData.venues?.name || 'Your Venue'}`,
-                template: 'booking-confirmation'
-              }
+            const completionEmailResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+              },
+              body: JSON.stringify({
+                to: completionBookingData.profiles?.email || 'initiator@example.com',
+                subject: `All Payments Confirmed! - ${completionBookingData.venues?.name || 'Your Venue'}`,
+                template: 'split-payment-confirmation',
+                data: emailData
+              })
             });
-          } else {
-            console.log('✅ Split payment completion email sent successfully:', {
-              result: completionEmailResult,
-              recipient: bookingData.profiles?.email,
-              template: 'booking-confirmation'
-            });
+
+            if (!completionEmailResponse.ok) {
+              const errorData = await completionEmailResponse.text();
+              console.error('❌ Error sending initiator completion email:', completionEmailResponse.status, errorData);
+            } else {
+              console.log('✅ Split payment completion email sent to initiator:', completionBookingData.profiles?.email);
+            }
+          } catch (completionEmailError) {
+            console.error('❌ Exception sending initiator completion email:', completionEmailError);
           }
 
         // Send email to venue owner when all payments are completed
@@ -874,19 +881,93 @@ const SplitPaymentSuccessPage = () => {
                 qrCodeImageStart: lastPayerEmailData.qrCodeImage?.substring(0, 50) || 'N/A'
               });
 
-              const { data: lastPayerEmailResult, error: lastPayerEmailError } = await supabase.functions.invoke('send-email', {
-                body: {
-                  to: lastPayerProfile.email,
-                  subject: `Payment Confirmed! - ${bookingData.venues?.name || 'Your Venue'}`,
-                  template: 'split-payment-complete',
-                  data: lastPayerEmailData
-                }
-              });
+              // Send confirmation email to last payer using direct fetch
+              try {
+                const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://agydpkzfucicraedllgl.supabase.co';
+                const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-              if (lastPayerEmailError) {
-                console.error('❌ Error sending last payer confirmation email:', lastPayerEmailError);
-              } else {
-                console.log('✅ Last payer confirmation email sent successfully');
+                const lastPayerEmailResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                  },
+                  body: JSON.stringify({
+                    to: lastPayerProfile.email,
+                    subject: `All Payments Confirmed! - ${bookingData.venues?.name || 'Your Venue'}`,
+                    template: 'split-payment-confirmation',
+                    data: lastPayerEmailData
+                  })
+                });
+
+                if (!lastPayerEmailResponse.ok) {
+                  const errorData = await lastPayerEmailResponse.text();
+                  console.error('❌ Error sending last payer confirmation email:', lastPayerEmailResponse.status, errorData);
+                } else {
+                  console.log('✅ Last payer confirmation email sent successfully');
+                }
+              } catch (lastPayerEmailError) {
+                console.error('❌ Exception sending last payer confirmation email:', lastPayerEmailError);
+              }
+
+              // Send split-payment-confirmation email to all other recipients as well
+              console.log('📧 Sending split-payment-confirmation to all other recipients...');
+              if (requests && requests.length > 0) {
+                for (const request of requests) {
+                  // Skip if this is the last payer (already sent above) or if recipient_id is null
+                  if (request.id === requestId || !request.recipient_id) {
+                    continue;
+                  }
+
+                  try {
+                    // Fetch recipient profile
+                    const { data: recipientProfile } = await supabase
+                      .from('profiles')
+                      .select('*')
+                      .eq('id', request.recipient_id)
+                      .single();
+
+                    if (recipientProfile) {
+                      const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://agydpkzfucicraedllgl.supabase.co';
+                      const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+                      const recipientEmailResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+                        method: 'POST',
+                        headers: {
+                          'Content-Type': 'application/json',
+                          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                        },
+                        body: JSON.stringify({
+                          to: recipientProfile.email,
+                          subject: `All Payments Confirmed! - ${bookingData.venues?.name || 'Your Venue'}`,
+                          template: 'split-payment-confirmation',
+                          data: {
+                            email: recipientProfile.email,
+                            customerName: `${recipientProfile.first_name || ''} ${recipientProfile.last_name || ''}`.trim() || 'Guest',
+                            customerEmail: recipientProfile.email,
+                            customerPhone: recipientProfile.phone || 'N/A',
+                            bookingId: bookingData.id,
+                            bookingDate: bookingData.booking_date,
+                            bookingTime: bookingData.start_time,
+                            guestCount: bookingData.number_of_guests,
+                            totalAmount: bookingData.total_amount,
+                            venueName: bookingData.venues?.name,
+                            venueAddress: bookingData.venues?.address,
+                            paymentAmount: request.amount
+                          }
+                        })
+                      });
+
+                      if (!recipientEmailResponse.ok) {
+                        console.error(`❌ Error sending confirmation to ${recipientProfile.email}:`, recipientEmailResponse.status);
+                      } else {
+                        console.log(`✅ Confirmation email sent to ${recipientProfile.email}`);
+                      }
+                    }
+                  } catch (error) {
+                    console.error(`❌ Exception sending confirmation to recipient:`, error);
+                  }
+                }
               }
             }
           }
@@ -958,7 +1039,7 @@ const SplitPaymentSuccessPage = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-green-600">
               <Check className="h-6 w-6" />
-              Payment Successful!
+              {allPaymentsDone ? 'Booking Confirmed!' : 'Your Payment Confirmed!'}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -966,10 +1047,13 @@ const SplitPaymentSuccessPage = () => {
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                 <div className="flex items-center gap-2 text-green-800 mb-2">
                   <CreditCard className="h-4 w-4" />
-                  <span className="font-medium">Payment Completed</span>
+                  <span className="font-medium">{allPaymentsDone ? 'All Payments Complete' : 'Your Payment Completed'}</span>
                 </div>
                 <p className="text-sm text-green-700">
-                  Your payment of ₦{paymentDetails?.amount?.toLocaleString()} has been processed successfully.
+                  {allPaymentsDone 
+                    ? `All split payments have been received. Your booking is now confirmed!`
+                    : `Your payment of ₦${paymentDetails?.amount?.toLocaleString()} has been processed successfully. We're waiting for other participants to complete their payments.`
+                  }
                 </p>
               </div>
 

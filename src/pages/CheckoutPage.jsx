@@ -1524,7 +1524,7 @@ setShowShareDialog(true);
                                 try {
                                   const paymentLink = `${getFullUrl()}/split-payment/${pendingBooking.id}/${splitRequests[i + 1]?.id}`;
                                   
-                                  await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email`, {
+                                  const emailResponse = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email`, {
                                     method: 'POST',
                                     headers: {
                                       'Content-Type': 'application/json',
@@ -1541,11 +1541,19 @@ setShowShareDialog(true);
                                         bookingDate: selection?.date,
                                         bookingTime: selection?.time,
                                         amount: recipient.amount,
-                                        paymentLink
+                                        paymentUrl: paymentLink,
+                                        requestId: splitRequests[i + 1]?.id,
+                                        totalAmount: paymentData.amount
                                       }
                                     })
                                   });
-                                  console.log(`✅ Split payment request email sent to ${recipient.email}`);
+
+                                  if (!emailResponse.ok) {
+                                    const errorData = await emailResponse.text();
+                                    console.error(`❌ Email API error for ${recipient.email}:`, emailResponse.status, errorData);
+                                  } else {
+                                    console.log(`✅ Split payment request email sent to ${recipient.email}`);
+                                  }
                                 } catch (emailError) {
                                   console.error(`❌ Failed to send email to ${recipient.email}:`, emailError);
                                 }
