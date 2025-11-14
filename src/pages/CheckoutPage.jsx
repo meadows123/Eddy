@@ -28,6 +28,7 @@ import { getUserLocationWithFallback, getLocationFromSession, storeLocationInSes
 import PaystackCheckoutForm from '@/components/checkout/PaystackCheckoutForm';
 import SplitPaymentCheckoutForm from '@/components/checkout/SplitPaymentCheckoutForm';
 import { initiatePaystackPayment } from '@/lib/paystackCheckoutHandler';
+import { initiateSplitPaystackPayment } from '@/lib/paystackSplitPaymentHandler';
 
 const CheckoutPage = () => {
 const { id } = useParams();
@@ -1406,6 +1407,7 @@ setShowShareDialog(true);
                           bookingData={selection || bookingData}
                           userEmail={user?.email}
                           userPhone={formData.phone}
+                          userName={formData.fullName}
                           onPaymentInitiate={async (paymentData) => {
                             console.log('🇳🇬 Paystack split payment initiated from CheckoutPage:', paymentData);
                             setIsSubmitting(true);
@@ -1441,26 +1443,43 @@ setShowShareDialog(true);
 
                               console.log('✅ Pending booking created:', pendingBooking.id);
 
-                              // Prepare booking data with the created booking ID
-                              const bookingDataForPaystack = {
-                                ...(selection || bookingData),
-                                bookingId: pendingBooking.id,
-                                venueId: venueId,
-                                venueName: selection?.venue?.name || 'Venue',
-                                bookingDate: selection?.date,
-                                startTime: selection?.time,
-                                endTime: selection?.endTime,
-                                guestCount: selection?.guests || 2,
-                                splitRecipients: paymentData.splitRecipients
-                              };
+                              // Create split payment requests for each recipient
+                              console.log('📝 Creating split payment requests for recipients...');
+                              const splitRequests = [];
+                              for (const recipient of paymentData.splitRecipients) {
+                                const { data: splitRequest, error: splitError } = await supabase
+                                  .from('split_payment_requests')
+                                  .insert([{
+                                    booking_id: pendingBooking.id,
+                                    recipient_email: recipient.email,
+                                    recipient_name: recipient.name,
+                                    recipient_phone: recipient.phone,
+                                    amount: recipient.amount,
+                                    status: 'pending',
+                                    initiator_id: user?.id,
+                                    recipient_id: null // Will be resolved when recipient joins
+                                  }])
+                                  .select('id')
+                                  .single();
+
+                                if (splitError) {
+                                  console.error('❌ Error creating split request:', splitError);
+                                  throw new Error(`Failed to create split request: ${splitError.message}`);
+                                }
+
+                                splitRequests.push(splitRequest);
+                              }
+
+                              console.log('✅ Split payment requests created:', splitRequests.length);
 
                               // Initiate Paystack payment for initiator
-                              const result = await initiatePaystackPayment({
+                              const result = await initiateSplitPaystackPayment({
                                 email: paymentData.email,
                                 fullName: paymentData.fullName,
                                 phone: paymentData.phone,
                                 amount: paymentData.amount,
-                                bookingData: bookingDataForPaystack,
+                                bookingId: pendingBooking.id,
+                                requestId: splitRequests[0]?.id, // Use first request as primary
                                 userId: user?.id
                               });
 
