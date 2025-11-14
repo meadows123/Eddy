@@ -393,12 +393,17 @@ const SplitPaymentSuccessPage = () => {
         let profileData = null;
         
         if (simpleBooking?.venue_id) {
-          const { data: venue } = await supabase
+          const { data: venue, error: venueError } = await supabase
             .from('venues')
-            .select('id, name, address, city, contact_email, contact_phone, owner_id, user_id')
+            .select('*')
             .eq('id', simpleBooking.venue_id)
             .single();
-          venueData = venue;
+          
+          if (venueError) {
+            console.error('❌ Error fetching venue:', venueError);
+          } else {
+            venueData = venue;
+          }
         }
         
         if (simpleBooking?.user_id) {
@@ -419,8 +424,8 @@ const SplitPaymentSuccessPage = () => {
         
         console.log('✅ Booking data for completion email:', bookingData);
         
-        // Fetch venue owner data separately
-        if (bookingData?.venues?.id) {
+        // Fetch venue owner data separately (only if we have venue data)
+        if (bookingData && bookingData.venues?.id) {
           // Try multiple approaches to find venue owner
           let venueOwner = null;
           
