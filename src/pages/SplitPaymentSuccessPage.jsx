@@ -170,14 +170,20 @@ const SplitPaymentSuccessPage = () => {
 
         if (requestData && bookingData) {
           console.log('📧 Processing individual confirmation email for recipient:', requestData.recipient_id);
-          // Get recipient data
-          const { data: recipientData } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', requestData.recipient_id)
-            .single();
+          
+          // Skip individual email if recipient hasn't logged in yet (recipient_id is null)
+          // The recipient will receive an invite email instead from CheckoutPage
+          if (!requestData.recipient_id) {
+            console.log('📧 Skipping individual confirmation email - recipient not yet registered (will receive invite email)');
+          } else {
+            // Get recipient data
+            const { data: recipientData } = await supabase
+              .from('profiles')
+              .select('*')
+              .eq('id', requestData.recipient_id)
+              .single();
 
-          if (recipientData) {
+            if (recipientData) {
             console.log('📧 Sending confirmation email to recipient:', {
               email: recipientData.email,
               name: `${recipientData.first_name || ''} ${recipientData.last_name || ''}`.trim(),
@@ -261,8 +267,9 @@ const SplitPaymentSuccessPage = () => {
                 bookingId: bookingData.id
               });
             }
-          } else {
-            console.error('❌ No recipient data found for ID:', requestData.recipient_id);
+            } else {
+              console.error('❌ No recipient data found for ID:', requestData.recipient_id);
+            }
           }
         } else {
           console.error('❌ Missing request data or booking data for email sending');

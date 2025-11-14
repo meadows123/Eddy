@@ -13,6 +13,7 @@ import { Badge } from '../components/ui/badge';
 import { useToast } from "@/components/ui/use-toast";
 import { getFullUrl } from '@/lib/urlUtils';
 import { stripePromise } from '@/lib/stripe';
+import ProfileDetailsEditor from '@/components/profile/ProfileDetailsEditor';
 
 const UserProfilePage = () => {
   const { toast } = useToast();
@@ -1210,6 +1211,9 @@ const UserProfilePage = () => {
           <TabsContent value="settings">
             <Card className="bg-white border-brand-burgundy/10">
               <div className="p-2 sm:p-4 md:p-6 space-y-10">
+                {/* Profile Details Section */}
+                <ProfileDetailsEditor user={user} />
+                
                 {/* Change Password Section */}
                 <div className="space-y-2 pb-8 border-b border-brand-burgundy/10">
                   <h2 className="text-xl font-semibold mb-2">Change Password</h2>
