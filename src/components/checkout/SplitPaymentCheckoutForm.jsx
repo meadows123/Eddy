@@ -21,13 +21,25 @@ export const SplitPaymentCheckoutForm = ({
   onPaymentInitiate,
   isLoading = false,
   errors = {},
-  userEmail = '',
+  userEmail,
 }) => {
   const { toast } = useToast();
   const [splitCount, setSplitCount] = useState(2); // Number of people to split with
-  const [yourAmount, setYourAmount] = useState(Math.floor(totalAmount / 2));
+  
+  // Helper function to split amount evenly with proper rounding
+  const calculateSplitAmounts = (total, count) => {
+    const baseAmount = Math.floor(total / count);
+    const remainder = total % count;
+    const amounts = Array(count).fill(baseAmount);
+    // Add remainder to the last person (the user)
+    amounts[0] += remainder;
+    return amounts;
+  };
+
+  const initialAmounts = calculateSplitAmounts(totalAmount, 2);
+  const [yourAmount, setYourAmount] = useState(initialAmounts[0]);
   const [recipients, setRecipients] = useState([
-    { email: '', name: '', phone: '', amount: Math.floor(totalAmount / 2) }
+    { email: '', name: '', phone: '', amount: initialAmounts[1] }
   ]);
   const [dataConsent, setDataConsent] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -43,16 +55,16 @@ export const SplitPaymentCheckoutForm = ({
     if (newCount < 2) return;
     setSplitCount(newCount);
     
-    // Recalculate amounts evenly
-    const amountPerPerson = Math.floor(totalAmount / newCount);
-    setYourAmount(amountPerPerson);
+    // Recalculate amounts evenly with proper rounding
+    const amounts = calculateSplitAmounts(totalAmount, newCount);
+    setYourAmount(amounts[0]);
     
-    // Update recipients array
-    const newRecipients = Array(newCount - 1).fill(null).map(() => ({
+    // Update recipients array with remaining amounts
+    const newRecipients = Array(newCount - 1).fill(null).map((_, i) => ({
       email: '',
       name: '',
       phone: '',
-      amount: amountPerPerson
+      amount: amounts[i + 1]
     }));
     setRecipients(newRecipients);
   };
@@ -156,9 +168,9 @@ export const SplitPaymentCheckoutForm = ({
     }
 
     // Check total allocation
-    const totalAllocated = yourAmount + recipients.reduce((sum, r) => sum + (parseInt(r.amount) || 0), 0);
-    if (totalAllocated !== totalAmount) {
-      setError(`Total must equal ₦${totalAmount.toLocaleString()}. Currently: ₦${totalAllocated.toLocaleString()}`);
+    const totalAllocated = yourAmount + recipients.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
+    if (Math.abs(totalAllocated - totalAmount) > 0.01) { // Allow for floating point precision errors
+      setError(`Total must equal ₦${totalAmount.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. Currently: ₦${totalAllocated.toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
       return false;
     }
 
@@ -199,7 +211,7 @@ export const SplitPaymentCheckoutForm = ({
     }
   };
 
-  const totalAllocated = yourAmount + recipients.reduce((sum, r) => sum + (parseInt(r.amount) || 0), 0);
+  const totalAllocated = yourAmount + recipients.reduce((sum, r) => sum + (parseFloat(r.amount) || 0), 0);
 
   return (
     <Card className="w-full">
@@ -281,38 +293,13 @@ export const SplitPaymentCheckoutForm = ({
             </p>
           </div>
 
-          {/* Your Details */}
-          <Card className="p-6 border border-gray-200">
-            <h4 className="text-lg font-semibold text-brand-burgundy mb-4">Your Details</h4>
-            <div className="space-y-4">
-              <div>
-                <Label className="text-brand-burgundy font-semibold">Full Name *</Label>
-                <Input
-                  type="text"
-                  placeholder="John Doe"
-                  value={userEmail?.split('@')[0] || ''}
-                  disabled
-                  className="mt-2 bg-gray-50 border-gray-300"
-                />
-              </div>
-              <div>
-                <Label className="text-brand-burgundy font-semibold">Email Address *</Label>
-                <Input
-                  type="email"
-                  placeholder="your.email@example.com"
-                  value={userEmail || ''}
-                  disabled
-                  className="mt-2 bg-gray-50 border-gray-300"
-                />
-              </div>
-              <div>
-                <Label className="text-brand-burgundy font-semibold">Phone Number *</Label>
-                <Input
-                  type="tel"
-                  placeholder="+234 XXX XXX XXXX"
-                  disabled
-                  className="mt-2 bg-gray-50 border-gray-300"
-                />
+          {/* Logged In Status */}
+          <Card className="p-6 bg-green-50 border-2 border-green-200">
+            <div className="flex items-center gap-3">
+              <Check className="h-6 w-6 text-green-600 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-green-900 truncate">Signed in as {userEmail}</p>
+                <p className="text-sm text-green-700 mt-1">Your details will be auto-populated</p>
               </div>
             </div>
           </Card>
@@ -397,17 +384,17 @@ export const SplitPaymentCheckoutForm = ({
 
               {/* Remaining Amount */}
               <div className={`p-4 rounded-lg border-2 font-semibold text-center ${
-                totalAllocated === totalAmount
+                Math.abs(totalAllocated - totalAmount) < 0.01
                   ? 'bg-green-50 border-green-200 text-green-700'
                   : 'bg-red-50 border-red-200 text-red-700'
               }`}>
-                {totalAllocated === totalAmount ? (
+                {Math.abs(totalAllocated - totalAmount) < 0.01 ? (
                   <div className="flex items-center justify-center gap-2">
                     <Check className="h-5 w-5" />
                     All amounts allocated correctly
                   </div>
                 ) : (
-                  `Remaining: ₦${Math.max(0, totalAmount - totalAllocated).toLocaleString()}`
+                  `Remaining: ₦${Math.max(0, totalAmount - totalAllocated).toLocaleString('en-NG', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                 )}
               </div>
             </div>
@@ -437,7 +424,7 @@ export const SplitPaymentCheckoutForm = ({
           {/* Submit Button */}
           <Button
             type="submit"
-            disabled={isSubmitting || isLoading || !dataConsent || totalAllocated !== totalAmount}
+            disabled={isSubmitting || isLoading || !dataConsent || Math.abs(totalAllocated - totalAmount) > 0.01}
             className="w-full bg-brand-burgundy text-white hover:bg-brand-burgundy/90"
           >
             {isSubmitting || isLoading ? (
