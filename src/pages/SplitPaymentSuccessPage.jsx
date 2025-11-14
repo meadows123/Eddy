@@ -376,189 +376,70 @@ const SplitPaymentSuccessPage = () => {
         console.log('📚 Fetching booking data for completion email...');
         let bookingData = null;
         
-        const { data: initialBookingData, error: bookingError } = await supabase
+        // Fetch booking data separately to avoid join issues
+        const { data: simpleBooking, error: bookingError } = await supabase
           .from('bookings')
-          .select(`
-            *,
-            profiles (
-              email,
-              first_name,
-              last_name,
-              phone
-            ),
-            venues (
-              name,
-              address,
-              city,
-              contact_email,
-              contact_phone,
-              venue_owners (
-                email,
-                full_name
-              )
-            )
-          `)
+          .select('*')
           .eq('id', bookingId)
           .single();
 
         if (bookingError) {
           console.error('❌ Error fetching booking data for completion email:', bookingError);
-          // Try to fetch booking data without joins as fallback
-          const { data: simpleBooking, error: simpleError } = await supabase
-            .from('bookings')
-            .select('*')
-            .eq('id', bookingId)
+          return;
+        }
+        
+        // Fetch venue and profile data separately
+        let venueData = null;
+        let profileData = null;
+        
+        if (simpleBooking?.venue_id) {
+          const { data: venue } = await supabase
+            .from('venues')
+            .select('name, address, city, contact_email, contact_phone')
+            .eq('id', simpleBooking.venue_id)
+            .single();
+          venueData = venue;
+        }
+        
+        if (simpleBooking?.user_id) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('first_name, last_name, email, phone')
+            .eq('id', simpleBooking.user_id)
+            .single();
+          profileData = profile;
+        }
+        
+        // Create booking data object with separately fetched data
+        bookingData = {
+          ...simpleBooking,
+          venues: venueData,
+          profiles: profileData
+        };
+        
+        console.log('✅ Booking data for completion email:', bookingData);
+        
+        // Fetch venue owner data separately
+        if (bookingData?.venues?.id) {
+          // Try multiple approaches to find venue owner
+          let venueOwner = null;
+          
+          // Approach 1: Try venue_id in venue_owners table
+          const { data: ownerByVenueId, error: venueIdError } = await supabase
+            .from('venue_owners')
+            .select('owner_email, owner_name, user_id, venue_name')
+            .eq('venue_id', bookingData.venues.id)
             .single();
           
-          if (simpleError) {
-            console.error('❌ Error fetching simple booking data for completion email:', simpleError);
-            return;
-          }
-          
-          // Fetch venue and profile data separately
-          let venueData = null;
-          let profileData = null;
-          
-          
-          if (simpleBooking?.venue_id) {
-            const { data: venue } = await supabase
-              .from('venues')
-              .select('name, address, city, contact_email, contact_phone')
-              .eq('id', simpleBooking.venue_id)
-              .single();
-            venueData = venue;
+          if (ownerByVenueId && !venueIdError) {
+            venueOwner = ownerByVenueId;
+            console.log('✅ Venue owner found by venue_id:', venueOwner);
+          } else {
+            console.log('❌ No venue owner found by venue_id:', venueIdError);
             
-            // Fetch venue owner data separately
-            if (venue?.id) {
-              let venueOwner = null;
-              
-              // Try multiple approaches to find venue owner
-              const { data: ownerByVenueId, error: venueIdError } = await supabase
-                .from('venue_owners')
-                .select('owner_email, owner_name, user_id, venue_name')
-                .eq('venue_id', venue.id)
-                .single();
-              
-              if (ownerByVenueId && !venueIdError) {
-                venueOwner = ownerByVenueId;
-                console.log('✅ Venue owner found by venue_id (fallback):', venueOwner);
-              } else {
-                console.log('❌ No venue owner found by venue_id (fallback):', venueIdError);
-                
-                // Try owner_id approach
-                if (venue.owner_id) {
-                  const { data: ownerByOwnerId, error: ownerIdError } = await supabase
-                    .from('venue_owners')
-                    .select('owner_email, owner_name, user_id, venue_name')
-                    .eq('user_id', venue.owner_id)
-                    .single();
-                  
-                  if (ownerByOwnerId && !ownerIdError) {
-                    venueOwner = ownerByOwnerId;
-                    console.log('✅ Venue owner found by owner_id (fallback):', venueOwner);
-                  }
-                }
-                
-                // Try user_id approach
-                if (!venueOwner && venue.user_id) {
-                  const { data: ownerByUserId, error: userIdError } = await supabase
-                    .from('venue_owners')
-                    .select('owner_email, owner_name, user_id, venue_name')
-                    .eq('user_id', venue.user_id)
-                    .single();
-                  
-                  if (ownerByUserId && !userIdError) {
-                    venueOwner = ownerByUserId;
-                    console.log('✅ Venue owner found by user_id (fallback):', venueOwner);
-                  }
-                }
-              }
-              
-              if (venueOwner) {
-                venueData.venue_owners = venueOwner;
-                console.log('✅ Final venue owner data set (fallback):', venueOwner);
-              } else {
-                console.log('❌ No venue owner found with any approach (fallback)');
-                
-                // Fallback: Try to find venue owner by venue name
-                if (venue?.name) {
-                  console.log('🔄 Trying fallback lookup by venue name (fallback):', venue.name);
-                  const { data: ownerByName, error: nameError } = await supabase
-                    .from('venue_owners')
-                    .select('owner_email, owner_name, user_id, venue_name')
-                    .ilike('venue_name', `%${venue.name}%`)
-                    .single();
-                  
-                  if (ownerByName && !nameError) {
-                    venueData.venue_owners = ownerByName;
-                    console.log('✅ Venue owner found by name (fallback):', ownerByName);
-                  } else {
-                    console.log('❌ No venue owner found by name (fallback):', nameError);
-                  }
-                }
-              }
-            }
-          }
-          
-          if (simpleBooking?.user_id) {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('first_name, last_name, email, phone')
-              .eq('id', simpleBooking.user_id)
-              .single();
-            profileData = profile;
-          }
-          
-          // Create booking data object with joined data
-          bookingData = {
-            ...simpleBooking,
-            venues: venueData,
-            profiles: profileData
-          };
-          
-          console.log('✅ Fallback booking data for completion email:', bookingData);
-        } else {
-          bookingData = initialBookingData;
-          
-          // Always fetch profile data separately since the join might not work
-          if (bookingData?.user_id) {
-            const { data: profile } = await supabase
-              .from('profiles')
-              .select('first_name, last_name, email, phone')
-              .eq('id', bookingData.user_id)
-              .single();
-            bookingData.profiles = profile;
-          }
-          
-          // Always fetch venue owner data separately
-          console.log('🔍 Venue data for owner lookup:', {
-            venueId: bookingData?.venues?.id,
-            venueUserId: bookingData?.venues?.user_id,
-            venueOwnerId: bookingData?.venues?.owner_id,
-            venueName: bookingData?.venues?.name,
-            fullVenueData: bookingData?.venues
-          });
-          
-          if (bookingData?.venues?.id) {
-            // Try multiple approaches to find venue owner
-            let venueOwner = null;
-            
-            // Approach 1: Try venue_id in venue_owners table
-            const { data: ownerByVenueId, error: venueIdError } = await supabase
-              .from('venue_owners')
-              .select('owner_email, owner_name, user_id, venue_name')
-              .eq('venue_id', bookingData.venues.id)
-              .single();
-            
-            if (ownerByVenueId && !venueIdError) {
-              venueOwner = ownerByVenueId;
-              console.log('✅ Venue owner found by venue_id:', venueOwner);
-            } else {
-              console.log('❌ No venue owner found by venue_id:', venueIdError);
-              
-              // Approach 2: Try owner_id in venues table
-              if (bookingData.venues.owner_id) {
-                const { data: ownerByOwnerId, error: ownerIdError } = await supabase
+            // Approach 2: Try owner_id in venues table
+            if (bookingData.venues.owner_id) {
+              const { data: ownerByOwnerId, error: ownerIdError } = await supabase
                   .from('venue_owners')
                   .select('owner_email, owner_name, user_id, venue_name')
                   .eq('user_id', bookingData.venues.owner_id)
