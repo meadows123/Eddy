@@ -524,42 +524,6 @@ const SplitPaymentSuccessPage = () => {
           }
         }
 
-        // This logging is inside checkAllPaymentsComplete, completionBookingData is defined locally there
-        // No need to log again as it's already logged at line 430
-
-        // DEBUG: Let's check what's actually in the database
-        console.log('🔍 DEBUG: Checking database for venue owner...');
-        
-        // Check all venue owners
-        const { data: allVenueOwners, error: allOwnersError } = await supabase
-          .from('venue_owners')
-          .select('*')
-          .limit(5);
-        
-        console.log('🔍 All venue owners in database:', { allVenueOwners, allOwnersError });
-        
-        // Check if there's a venue with this name
-        if (completionBookingData?.venues?.name) {
-          const { data: venueByName, error: venueByNameError } = await supabase
-            .from('venues')
-            .select('*')
-            .ilike('name', `%${completionBookingData.venues.name}%`)
-            .limit(3);
-          
-          console.log('🔍 Venues with similar name:', { venueByName, venueByNameError });
-        }
-        
-        // Check if there's a venue owner with this venue name
-        if (completionBookingData?.venues?.name) {
-          const { data: ownerByVenueName, error: ownerByVenueNameError } = await supabase
-            .from('venue_owners')
-            .select('*')
-            .ilike('venue_name', `%${completionBookingData.venues.name}%`)
-            .limit(3);
-          
-          console.log('🔍 Venue owners with similar venue name:', { ownerByVenueName, ownerByVenueNameError });
-        }
-
         if (completionBookingData) {
           console.log('📧 Preparing to send completion email to initiator:', {
             to: completionBookingData.profiles?.email,
