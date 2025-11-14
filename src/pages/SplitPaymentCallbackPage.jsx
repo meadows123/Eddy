@@ -62,10 +62,7 @@ const SplitPaymentCallbackPage = () => {
           .from('split_payment_requests')
           .update({
             status: 'paid',
-            paid_at: new Date().toISOString(),
-            payment_reference: reference,
-            payment_method: 'paystack',
-            payment_status: 'completed'
+            paid_at: new Date().toISOString()
           })
           .eq('id', requestId)
           .select('*')
