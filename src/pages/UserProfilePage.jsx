@@ -171,6 +171,21 @@ const UserProfilePage = () => {
         ]);
         
         const receivedError = receivedByIdResult.error || receivedByEmailResult.error;
+        
+        // Debug logging
+        console.log('🔍 Split payment query debug:', {
+          userId: user.id,
+          userEmail: user.email,
+          receivedByIdData: receivedByIdResult.data?.length || 0,
+          receivedByIdError: receivedByIdResult.error,
+          receivedByEmailData: receivedByEmailResult.data?.length || 0,
+          receivedByEmailError: receivedByEmailResult.error
+        });
+        
+        if (receivedByEmailResult.data?.length > 0) {
+          console.log('📧 Split payment requests by email:', receivedByEmailResult.data);
+        }
+        
         // Merge both results, avoiding duplicates
         const received = [
           ...(receivedByIdResult.data || []),
@@ -178,6 +193,8 @@ const UserProfilePage = () => {
             !(receivedByIdResult.data || []).some(existing => existing.id === item.id)
           )
         ];
+        
+        console.log('✅ Final merged received requests:', received.length);
           
           
         if (sentError || receivedError) throw sentError || receivedError;
