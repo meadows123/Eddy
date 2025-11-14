@@ -39,6 +39,7 @@ export const initiateSplitPaystackPayment = async ({
       requestId,
       bookingId,
       paymentType: 'split',
+      callbackType: 'split', // Indicates this should go to split payment callback
       platformCommission,
       amountAfterCommission,
       customerName: fullName,

@@ -73,6 +73,7 @@ export const initiatePaystackPayment = async ({
       userId: userId,
       customerName: fullName,
       customerPhone: phone,
+      callbackType: 'single', // Indicates this should go to single payment callback
       timestamp: new Date().toISOString()
     };
 

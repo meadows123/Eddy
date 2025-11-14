@@ -27,8 +27,7 @@ serve(async (req) => {
 
     // Get environment variables
     const PAYSTACK_SECRET_KEY = Deno.env.get("PAYSTACK_SECRET_KEY");
-    const PAYSTACK_CALLBACK_URL = Deno.env.get("PAYSTACK_CALLBACK_URL") ||
-      "https://www.oneeddy.com/paystack-callback";
+    const BASE_URL = Deno.env.get("BASE_URL") || "https://www.oneeddy.com";
 
     if (!PAYSTACK_SECRET_KEY) {
       throw new Error("PAYSTACK_SECRET_KEY not configured");
@@ -44,6 +43,14 @@ serve(async (req) => {
       phone,
       metadata
     } = body;
+
+    // Determine callback URL based on payment type
+    let callbackUrl = `${BASE_URL}/paystack-callback`;
+    if (metadata?.callbackType === 'split') {
+      callbackUrl = `${BASE_URL}/split-payment-callback`;
+    } else if (metadata?.callbackType === 'credit') {
+      callbackUrl = `${BASE_URL}/credit-purchase-callback`;
+    }
 
     console.log("🇳🇬 Paystack Initialize Request:", {
       email,
@@ -70,10 +77,10 @@ serve(async (req) => {
       first_name: firstName || "",
       last_name: lastName || "",
       mobile_number: phone,
-      callback_url: `${PAYSTACK_CALLBACK_URL}`,
+      callback_url: callbackUrl,
       metadata: {
         ...metadata,
-        cancel_action: `${PAYSTACK_CALLBACK_URL}?status=cancelled`
+        cancel_action: `${callbackUrl}?status=cancelled`
       }
     };
 

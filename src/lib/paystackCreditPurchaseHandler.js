@@ -38,6 +38,7 @@ export const initiateCreditPurchasePayment = async ({
       venueId,
       venueName,
       paymentType: 'credit_purchase',
+      callbackType: 'credit', // Indicates this should go to credit purchase callback
       platformCommission,
       amountAfterCommission,
       customerName: fullName,
