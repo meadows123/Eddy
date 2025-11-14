@@ -663,11 +663,11 @@ serve(async (req) => {
     .brand { color: #FFF5E6; font-size: 24px; font-weight: 700; letter-spacing: 1.5px; }
     .content { padding: 32px 24px; }
     .title { color: #800020; font-size: 24px; font-weight: 700; text-align: center; margin-bottom: 16px; }
-    .payment-card { background: rgba(255, 215, 0, 0.1); border: 2px solid #FFD700; border-radius: 12px; padding: 24px; margin: 20px 0; }
+    .payment-card { background: #FFFAF0; border: 2px solid #FFD700; border-radius: 12px; padding: 24px; margin: 20px 0; }
     .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
-    .detail-item { background: #f8f9fa; padding: 12px; border-radius: 8px; border-left: 4px solid #FFD700; }
+    .detail-item { background: #FFF8E7; padding: 12px; border-radius: 8px; border-left: 4px solid #FFD700; }
     .detail-label { color: #800020; font-weight: 700; font-size: 11px; text-transform: uppercase; margin-bottom: 4px; }
-    .detail-value { color: #666; font-size: 14px; }
+    .detail-value { color: #333333; font-size: 16px; font-weight: 700; }
     .btn { display: inline-block; text-decoration: none; padding: 14px 28px; border-radius: 28px; font-weight: 700; font-size: 14px; background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); color: #FFF5E6; }
   </style>
 </head>
@@ -698,17 +698,17 @@ serve(async (req) => {
             <div class="detail-value">${data.bookingTime || 'N/A'}</div>
           </div>
         </div>
-        <div style="background: rgba(255, 165, 0, 0.1); border: 2px solid #FF8C00; border-radius: 10px; padding: 20px; margin: 20px 0; text-align: center;">
-          <div style="color: #FF8C00; font-size: 20px; font-weight: 700; margin-bottom: 8px;">Payment Status: Confirmed</div>
-          <div style="color: #800020; font-size: 14px; font-weight: bold;">Your payment has been successfully processed. The booking will be fully confirmed once all split payments are completed.</div>
+        <div style="background: #F0F9FF; border: 2px solid #0066CC; border-radius: 10px; padding: 20px; margin: 20px 0; text-align: center;">
+          <div style="color: #0066CC; font-size: 18px; font-weight: 700; margin-bottom: 12px;">✓ Payment Status: Confirmed</div>
+          <div style="color: #333333; font-size: 14px; line-height: 1.6;">Your payment has been successfully processed. The booking will be fully confirmed once all split payments are completed.</div>
         </div>
       </div>
     ${data.qrCodeImage ? `
     <div style="text-align: center; margin: 24px 0;">
-      <div style="display: inline-block; background: rgba(255, 215, 0, 0.1); border: 2px solid #FFD700; border-radius: 12px; padding: 18px 20px;">
+      <div style="display: inline-block; background: #FFFAF0; border: 2px solid #FFD700; border-radius: 12px; padding: 18px 20px;">
         <div style="color: #800020; font-size: 16px; font-weight: 700; margin-bottom: 12px;">Your Booking QR Code</div>
         <img src="${data.qrCodeImage}" alt="Booking QR Code" style="width: 200px; height: 200px; display: block; margin: 0 auto; border-radius: 12px; border: 2px solid #800020;">
-        <p style="color: #800020; font-size: 13px; margin-top: 12px; font-weight: bold;">Present this QR code at the venue when you arrive.</p>
+        <p style="color: #333333; font-size: 13px; margin-top: 12px; font-weight: bold;">Present this QR code at the venue when you arrive.</p>
       </div>
     </div>
     ` : ''}

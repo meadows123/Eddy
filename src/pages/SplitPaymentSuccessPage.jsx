@@ -591,14 +591,13 @@ const SplitPaymentSuccessPage = () => {
             qrCodeImageStart: emailData.qrCodeImage?.substring(0, 50) || 'N/A'
           });
 
-          // Send completion email to initiator via Edge Function
-          // Send initiator completion email using direct fetch (avoids CORS issues)
-          console.log('📧 Sending initiator completion email...');
+          // Send split-payment-initiation email to initiator when they make their payment
+          console.log('📧 Sending split-payment-initiation to initiator...');
           try {
             const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://agydpkzfucicraedllgl.supabase.co';
             const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-            const completionEmailResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+            const initiationEmailResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -606,20 +605,20 @@ const SplitPaymentSuccessPage = () => {
               },
               body: JSON.stringify({
                 to: completionBookingData.profiles?.email || 'initiator@example.com',
-                subject: `All Payments Confirmed! - ${completionBookingData.venues?.name || 'Your Venue'}`,
-                template: 'split-payment-confirmation',
+                subject: `Split Payment Initiated - ${completionBookingData.venues?.name || 'Your Venue'}`,
+                template: 'split-payment-initiation',
                 data: emailData
               })
             });
 
-            if (!completionEmailResponse.ok) {
-              const errorData = await completionEmailResponse.text();
-              console.error('❌ Error sending initiator completion email:', completionEmailResponse.status, errorData);
+            if (!initiationEmailResponse.ok) {
+              const errorData = await initiationEmailResponse.text();
+              console.error('❌ Error sending split payment initiation email:', initiationEmailResponse.status, errorData);
             } else {
-              console.log('✅ Split payment completion email sent to initiator:', completionBookingData.profiles?.email);
+              console.log('✅ Split payment initiation email sent to initiator:', completionBookingData.profiles?.email);
             }
-          } catch (completionEmailError) {
-            console.error('❌ Exception sending initiator completion email:', completionEmailError);
+          } catch (initiationEmailError) {
+            console.error('❌ Exception sending split payment initiation email:', initiationEmailError);
           }
 
         // Send email to venue owner when all payments are completed
@@ -908,6 +907,48 @@ const SplitPaymentSuccessPage = () => {
                 }
               } catch (lastPayerEmailError) {
                 console.error('❌ Exception sending last payer confirmation email:', lastPayerEmailError);
+              }
+
+              // Send split-payment-confirmation email to initiator
+              console.log('📧 Sending split-payment-confirmation to initiator...');
+              try {
+                const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://agydpkzfucicraedllgl.supabase.co';
+                const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+                const initiatorEmailResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                  },
+                  body: JSON.stringify({
+                    to: bookingData.profiles?.email,
+                    subject: `All Payments Confirmed! - ${bookingData.venues?.name || 'Your Venue'}`,
+                    template: 'split-payment-confirmation',
+                    data: {
+                      email: bookingData.profiles?.email,
+                      customerName: `${bookingData.profiles?.first_name || ''} ${bookingData.profiles?.last_name || ''}`.trim() || 'Guest',
+                      customerEmail: bookingData.profiles?.email,
+                      customerPhone: bookingData.profiles?.phone || 'N/A',
+                      bookingId: bookingData.id,
+                      bookingDate: bookingData.booking_date,
+                      bookingTime: bookingData.start_time,
+                      guestCount: bookingData.number_of_guests,
+                      totalAmount: bookingData.total_amount,
+                      venueName: bookingData.venues?.name,
+                      venueAddress: bookingData.venues?.address,
+                      paymentAmount: bookingData.total_amount
+                    }
+                  })
+                });
+
+                if (!initiatorEmailResponse.ok) {
+                  console.error(`❌ Error sending confirmation to initiator:`, initiatorEmailResponse.status);
+                } else {
+                  console.log(`✅ Confirmation email sent to initiator: ${bookingData.profiles?.email}`);
+                }
+              } catch (error) {
+                console.error(`❌ Exception sending confirmation to initiator:`, error);
               }
 
               // Send split-payment-confirmation email to all other recipients as well
