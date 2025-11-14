@@ -1471,6 +1471,40 @@ setShowShareDialog(true);
 
                               console.log('✅ Split payment requests created:', splitRequests.length);
 
+                              // Send emails to recipients asking them to pay their share
+                              console.log('📧 Sending split payment request emails to recipients...');
+                              for (let i = 0; i < paymentData.splitRecipients.length; i++) {
+                                const recipient = paymentData.splitRecipients[i];
+                                try {
+                                  const paymentLink = `${getFullUrl()}/split-payment/${splitRequests[i]?.id}/${pendingBooking.id}`;
+                                  
+                                  await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email`, {
+                                    method: 'POST',
+                                    headers: {
+                                      'Content-Type': 'application/json',
+                                      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+                                    },
+                                    body: JSON.stringify({
+                                      to: recipient.email,
+                                      template: 'split-payment-request',
+                                      subject: `Split Payment Request - ${selection?.venue?.name || 'Venue'}`,
+                                      data: {
+                                        recipientName: recipient.name,
+                                        initiatorName: paymentData.fullName,
+                                        venueName: selection?.venue?.name || 'Venue',
+                                        bookingDate: selection?.date,
+                                        bookingTime: selection?.time,
+                                        amount: recipient.amount,
+                                        paymentLink
+                                      }
+                                    })
+                                  });
+                                  console.log(`✅ Split payment request email sent to ${recipient.email}`);
+                                } catch (emailError) {
+                                  console.error(`❌ Failed to send email to ${recipient.email}:`, emailError);
+                                }
+                              }
+
                               // Initiate Paystack payment for initiator
                               const result = await initiateSplitPaystackPayment({
                                 email: paymentData.email,

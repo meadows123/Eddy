@@ -137,7 +137,8 @@ const UserProfilePage = () => {
           .eq('requester_id', user.id)
           .order('created_at', { ascending: false });
         
-        // Received requests - join with requester profiles  
+        // Received requests - join with requester profiles
+        // Query by both recipient_id (if user has been linked) AND recipient_email (for new requests)
         const { data: received, error: receivedError } = await supabase
           .from('split_payment_requests')
           .select(`
@@ -148,7 +149,7 @@ const UserProfilePage = () => {
               phone
             )
           `)
-          .eq('recipient_id', user.id)
+          .or(`recipient_id.eq.${user.id},recipient_email.eq.${user.email}`)
           .order('created_at', { ascending: false });
           
           
