@@ -1493,12 +1493,36 @@ setShowShareDialog(true);
 
                               console.log('✅ Split payment requests created:', splitRequests.length);
 
+                              // Create a split payment request for the initiator as well
+                              console.log('📝 Creating split payment request for initiator...');
+                              const { data: initiatorRequest, error: initiatorError } = await supabase
+                                .from('split_payment_requests')
+                                .insert([{
+                                  booking_id: pendingBooking.id,
+                                  recipient_email: paymentData.email,
+                                  recipient_phone: paymentData.phone,
+                                  amount: paymentData.amount,
+                                  status: 'pending',
+                                  requester_id: user?.id,
+                                  recipient_id: user?.id // Initiator is also a recipient of their own request
+                                }])
+                                .select('id')
+                                .single();
+
+                              if (initiatorError) {
+                                console.error('❌ Error creating initiator request:', initiatorError);
+                                throw new Error(`Failed to create initiator request: ${initiatorError.message}`);
+                              }
+
+                              console.log('✅ Initiator split payment request created:', initiatorRequest.id);
+                              splitRequests.unshift(initiatorRequest); // Add to beginning so it's used as primary
+
                               // Send emails to recipients asking them to pay their share
                               console.log('📧 Sending split payment request emails to recipients...');
                               for (let i = 0; i < paymentData.splitRecipients.length; i++) {
                                 const recipient = paymentData.splitRecipients[i];
                                 try {
-                                  const paymentLink = `${getFullUrl()}/split-payment/${pendingBooking.id}/${splitRequests[i]?.id}`;
+                                  const paymentLink = `${getFullUrl()}/split-payment/${pendingBooking.id}/${splitRequests[i + 1]?.id}`;
                                   
                                   await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email`, {
                                     method: 'POST',

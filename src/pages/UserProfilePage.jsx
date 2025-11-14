@@ -148,6 +148,10 @@ const UserProfilePage = () => {
                 first_name,
                 last_name,
                 phone
+              ),
+              bookings!split_payment_requests_booking_id_fkey (
+                booking_date,
+                start_time
               )
             `)
             .eq('recipient_id', user.id)
@@ -179,7 +183,9 @@ const UserProfilePage = () => {
         
         const mappedReceived = (received || []).map(request => ({
           ...request,
-          requester_profile: request.profiles
+          requester_profile: request.profiles,
+          booking_date: request.bookings?.booking_date,
+          booking_time: request.bookings?.start_time
         }));
         
         setSplitPaymentsSent(mappedSent);
@@ -1318,7 +1324,15 @@ const UserProfilePage = () => {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {splitPaymentsReceived.map(request => (
+                      {splitPaymentsReceived.map(request => {
+                        console.log('🔍 Split payment request data:', { 
+                          id: request.id, 
+                          booking_date: request.booking_date,
+                          booking_time: request.booking_time,
+                          bookings: request.bookings,
+                          booking_id: request.booking_id 
+                        });
+                        return (
                         <Card key={request.id} className="p-4 hover:shadow-md transition-shadow">
                           <div className="flex items-center justify-between">
                             <div>
@@ -1330,8 +1344,13 @@ const UserProfilePage = () => {
                                   'Unknown User'
                                   : 'A friend'}
                               </div>
+                              {request.booking_date && (
+                                <div className="text-xs text-brand-burgundy/50">
+                                  📅 {new Date(request.booking_date).toLocaleDateString()} at {request.booking_time || request.start_time || 'Time not set'}
+                                </div>
+                              )}
                               <div className="text-xs text-brand-burgundy/50">
-                                {new Date(request.created_at).toLocaleDateString()}
+                                Request sent: {new Date(request.created_at).toLocaleDateString()}
                               </div>
                             </div>
                             <div>
@@ -1361,7 +1380,8 @@ const UserProfilePage = () => {
                             </div>
                           </div>
                         </Card>
-                      ))}
+                        );
+                      })}
                     </div>
                   )}
                 </div>
