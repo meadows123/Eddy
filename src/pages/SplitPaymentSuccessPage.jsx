@@ -114,8 +114,10 @@ const SplitPaymentSuccessPage = () => {
           venue_id: bookingData?.venue_id,
           user_id: bookingData?.user_id,
           number_of_guests: bookingData?.number_of_guests,
+          number_of_guests_type: typeof bookingData?.number_of_guests,
           guest_count: bookingData?.guest_count,
-          allBookingFields: bookingData ? Object.keys(bookingData) : 'no booking data'
+          allBookingFields: bookingData ? Object.keys(bookingData) : 'no booking data',
+          fullBookingData: JSON.stringify(bookingData, null, 2)
         });
       }
 
@@ -314,7 +316,9 @@ const SplitPaymentSuccessPage = () => {
         original_start_time: bookingData?.start_time,
         original_booking_time: bookingData?.booking_time,
         final_booking_time: bookingData?.start_time || bookingData?.booking_time || '19:00:00',
-        venue_name: bookingData?.venues?.name
+        venue_name: bookingData?.venues?.name,
+        number_of_guests_from_booking: bookingData?.number_of_guests,
+        all_booking_fields: bookingData ? Object.keys(bookingData) : 'no data'
       });
 
       setSuccess(true);
