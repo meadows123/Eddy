@@ -85,9 +85,12 @@ const CreditPurchaseCallbackPage = () => {
 
         console.log('✅ Credit purchase completed:', creditRecord);
 
-        // Send confirmation email
+        // Send confirmation email with QR code
         console.log('📧 Sending credit purchase confirmation email...');
         try {
+          // Generate QR code for the credit record
+          const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${creditRecord.id}&color=800020&bgcolor=FFFFFF&format=png`;
+          
           const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://agydpkzfucicraedllgl.supabase.co';
           const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
@@ -109,7 +112,8 @@ const CreditPurchaseCallbackPage = () => {
                 platformCommission: Math.round(totalAmount * 0.1),
                 venueName,
                 dashboardUrl: `${window.location.origin}/profile?tab=wallet`,
-                memberTier: 'VIP'
+                memberTier: 'VIP',
+                qrCodeImage: qrCodeUrl
               }
             })
           });
@@ -121,6 +125,71 @@ const CreditPurchaseCallbackPage = () => {
           }
         } catch (emailError) {
           console.error('❌ Error sending email:', emailError);
+          // Don't fail if email fails
+        }
+
+        // Send venue owner notification
+        console.log('📧 Sending venue owner notification...');
+        try {
+          // Fetch venue owner email from venues table
+          const { data: venueData, error: venueError } = await supabase
+            .from('venues')
+            .select('owner_id, contact_email')
+            .eq('id', venueId)
+            .single();
+
+          if (venueError) {
+            console.error('❌ Error fetching venue:', venueError);
+          } else if (venueData?.owner_id) {
+            // Fetch venue owner email from venue_owners table
+            const { data: ownerData, error: ownerError } = await supabase
+              .from('venue_owners')
+              .select('owner_email')
+              .eq('user_id', venueData.owner_id)
+              .single();
+
+            if (ownerError) {
+              console.error('❌ Error fetching venue owner:', ownerError);
+            } else if (ownerData?.owner_email && ownerData.owner_email !== 'info@oneeddy.com') {
+              // Send venue owner notification
+              console.log('📧 Sending to venue owner:', ownerData.owner_email);
+              const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://agydpkzfucicraedllgl.supabase.co';
+              const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+              const venueEmailResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                },
+                body: JSON.stringify({
+                  to: ownerData.owner_email,
+                  template: 'venue-owner-credit-notification',
+                  subject: `New Credit Purchase - ${venueName}`,
+                  data: {
+                    ownerEmail: ownerData.owner_email,
+                    venueName,
+                    amount: Math.round(totalAmount * 0.9),
+                    totalPaid: Math.round(totalAmount),
+                    platformCommission: Math.round(totalAmount * 0.1),
+                    customerName: fullName,
+                    customerEmail: email,
+                    dashboardUrl: `${window.location.origin}/venue-owner/dashboard`
+                  }
+                })
+              });
+
+              if (!venueEmailResponse.ok) {
+                console.error('⚠️ Error sending venue owner email:', venueEmailResponse.status);
+              } else {
+                console.log('✅ Venue owner notification sent successfully');
+              }
+            } else {
+              console.log('📧 No valid venue owner email found');
+            }
+          }
+        } catch (venueEmailError) {
+          console.error('❌ Error sending venue owner email:', venueEmailError);
           // Don't fail if email fails
         }
 
