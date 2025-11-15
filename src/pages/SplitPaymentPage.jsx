@@ -1286,8 +1286,22 @@ const SplitPaymentPage = () => {
                       );
 
                       if (!response.ok) {
-                        const errorData = await response.json();
-                        throw new Error(errorData.error || 'Failed to create payment intent');
+                        const responseText = await response.text();
+                        console.error('❌ Edge Function error response:', {
+                          status: response.status,
+                          statusText: response.statusText,
+                          text: responseText
+                        });
+                        
+                        let errorMessage = 'Failed to create payment intent';
+                        try {
+                          const errorData = JSON.parse(responseText);
+                          errorMessage = errorData.error || errorMessage;
+                        } catch (e) {
+                          errorMessage = responseText || errorMessage;
+                        }
+                        
+                        throw new Error(`${errorMessage} (${response.status})`);
                       }
 
                       const { clientSecret, paymentIntentId } = await response.json();

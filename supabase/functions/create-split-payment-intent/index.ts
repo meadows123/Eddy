@@ -21,7 +21,7 @@ serve(async (req) => {
     const currency = body?.currency?.toLowerCase() || 'ngn'
     const email = body?.email
 
-    console.log('📝 create-split-payment-intent request:', {
+    console.log('📝 create-split-payment-intent request v2:', {
       amount,
       currency,
       bookingId,
