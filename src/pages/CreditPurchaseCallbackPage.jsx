@@ -164,17 +164,31 @@ const CreditPurchaseCallbackPage = () => {
                 },
                 body: JSON.stringify({
                   to: ownerData.owner_email,
-                  template: 'venue-owner-credit-notification',
+                  template: 'venue-owner-booking-notification',
                   subject: `New Credit Purchase - ${venueName}`,
                   data: {
                     ownerEmail: ownerData.owner_email,
                     venueName,
-                    amount: Math.round(totalAmount * 0.9),
-                    totalPaid: Math.round(totalAmount),
-                    platformCommission: Math.round(totalAmount * 0.1),
+                    bookingDate: new Date().toLocaleDateString('en-US', {
+                      weekday: 'long',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    }),
+                    bookingTime: new Date().toLocaleTimeString('en-US', {
+                      hour: 'numeric',
+                      minute: '2-digit',
+                      hour12: true
+                    }),
+                    endTime: 'N/A',
+                    guestCount: 1,
+                    totalAmount: Math.round(totalAmount * 0.9),
+                    tableInfo: `Credit Purchase: ₦${Math.round(totalAmount * 0.9).toLocaleString()} credits`,
                     customerName: fullName,
                     customerEmail: email,
-                    dashboardUrl: `${window.location.origin}/venue-owner/dashboard`
+                    customerPhone: 'N/A',
+                    specialRequests: `Credit Purchase Payment`,
+                    ownerUrl: `${window.location.origin}/venue-owner/dashboard`
                   }
                 })
               });
