@@ -1266,7 +1266,7 @@ const SplitPaymentPage = () => {
                       
                       // Create payment intent using the Edge Function
                       const response = await fetch(
-                        'https://agydpkzfucicraedllgl.supabase.co/functions/v1/create-split-payment-intent',
+                        'https://agydpkzfucicraedllgl.supabase.co/functions/v1/stripe-split-payment',
                         {
                           method: 'POST',
                           headers: {
