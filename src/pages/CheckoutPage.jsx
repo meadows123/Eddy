@@ -1519,10 +1519,41 @@ setShowShareDialog(true);
 
                               // Send emails to recipients asking them to pay their share
                               console.log('📧 Sending split payment request emails to recipients...');
+                              console.log(`📧 Recipients count: ${paymentData.splitRecipients?.length || 0}`);
+                              console.log(`📧 Split requests: ${JSON.stringify(splitRequests.map(r => ({ id: r?.id })))}`);
+                              
                               for (let i = 0; i < paymentData.splitRecipients.length; i++) {
                                 const recipient = paymentData.splitRecipients[i];
+                                const recipientRequestId = splitRequests[i + 1]?.id;
+                                const paymentLink = `${getFullUrl()}/split-payment/${pendingBooking.id}/${recipientRequestId}`;
+                                
+                                console.log(`📧 Sending email to recipient ${i + 1}:`, {
+                                  email: recipient.email,
+                                  name: recipient.name,
+                                  amount: recipient.amount,
+                                  requestId: recipientRequestId,
+                                  paymentLink
+                                });
+                                
                                 try {
-                                  const paymentLink = `${getFullUrl()}/split-payment/${pendingBooking.id}/${splitRequests[i + 1]?.id}`;
+                                  const emailPayload = {
+                                    to: recipient.email,
+                                    template: 'split-payment-request',
+                                    subject: `Split Payment Request - ${selection?.venue?.name || 'Venue'}`,
+                                    data: {
+                                      recipientName: recipient.name,
+                                      initiatorName: paymentData.fullName,
+                                      venueName: selection?.venue?.name || 'Venue',
+                                      bookingDate: selection?.date,
+                                      bookingTime: selection?.time,
+                                      amount: recipient.amount,
+                                      paymentUrl: paymentLink,
+                                      requestId: recipientRequestId,
+                                      totalAmount: paymentData.amount
+                                    }
+                                  };
+                                  
+                                  console.log(`📧 Email payload for ${recipient.email}:`, emailPayload);
                                   
                                   const emailResponse = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email`, {
                                     method: 'POST',
@@ -1530,27 +1561,17 @@ setShowShareDialog(true);
                                       'Content-Type': 'application/json',
                                       'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
                                     },
-                                    body: JSON.stringify({
-                                      to: recipient.email,
-                                      template: 'split-payment-request',
-                                      subject: `Split Payment Request - ${selection?.venue?.name || 'Venue'}`,
-                                      data: {
-                                        recipientName: recipient.name,
-                                        initiatorName: paymentData.fullName,
-                                        venueName: selection?.venue?.name || 'Venue',
-                                        bookingDate: selection?.date,
-                                        bookingTime: selection?.time,
-                                        amount: recipient.amount,
-                                        paymentUrl: paymentLink,
-                                        requestId: splitRequests[i + 1]?.id,
-                                        totalAmount: paymentData.amount
-                                      }
-                                    })
+                                    body: JSON.stringify(emailPayload)
                                   });
 
+                                  const responseData = await emailResponse.json().catch(() => ({}));
+                                  
                                   if (!emailResponse.ok) {
-                                    const errorData = await emailResponse.text();
-                                    console.error(`❌ Email API error for ${recipient.email}:`, emailResponse.status, errorData);
+                                    console.error(`❌ Email API error for ${recipient.email}:`, {
+                                      status: emailResponse.status,
+                                      statusText: emailResponse.statusText,
+                                      data: responseData
+                                    });
                                   } else {
                                     console.log(`✅ Split payment request email sent to ${recipient.email}`);
                                   }

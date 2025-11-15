@@ -551,6 +551,7 @@ const SplitPaymentSuccessPage = () => {
             guestCount: completionBookingData.number_of_guests || completionBookingData.guest_count,
             totalAmount: completionBookingData.total_amount || completionBookingData.totalAmount,
             initiatorAmount: completionBookingData.total_amount || completionBookingData.totalAmount, // For split-payment-complete template
+            requestsCount: requests?.length || 1, // For split-payment-initiation template
             
             // Table details
             tableName: tableInfo.table_name,
@@ -611,11 +612,18 @@ const SplitPaymentSuccessPage = () => {
               })
             });
 
+            const initiationResponseData = await initiationEmailResponse.json().catch(() => ({}));
             if (!initiationEmailResponse.ok) {
-              const errorData = await initiationEmailResponse.text();
-              console.error('❌ Error sending split payment initiation email:', initiationEmailResponse.status, errorData);
+              console.error('❌ Error sending split payment initiation email:', {
+                status: initiationEmailResponse.status,
+                statusText: initiationEmailResponse.statusText,
+                data: initiationResponseData
+              });
             } else {
-              console.log('✅ Split payment initiation email sent to initiator:', completionBookingData.profiles?.email);
+              console.log('✅ Split payment initiation email sent to initiator:', {
+                to: completionBookingData.profiles?.email,
+                response: initiationResponseData
+              });
             }
           } catch (initiationEmailError) {
             console.error('❌ Exception sending split payment initiation email:', initiationEmailError);
@@ -942,10 +950,15 @@ const SplitPaymentSuccessPage = () => {
                   })
                 });
 
+                const confirmResponseData = await initiatorEmailResponse.json().catch(() => ({}));
                 if (!initiatorEmailResponse.ok) {
-                  console.error(`❌ Error sending confirmation to initiator:`, initiatorEmailResponse.status);
+                  console.error(`❌ Error sending confirmation to initiator:`, {
+                    status: initiatorEmailResponse.status,
+                    statusText: initiatorEmailResponse.statusText,
+                    data: confirmResponseData
+                  });
                 } else {
-                  console.log(`✅ Confirmation email sent to initiator: ${bookingData.profiles?.email}`);
+                  console.log(`✅ Confirmation email sent to initiator: ${bookingData.profiles?.email}`, confirmResponseData);
                 }
               } catch (error) {
                 console.error(`❌ Exception sending confirmation to initiator:`, error);
@@ -999,10 +1012,15 @@ const SplitPaymentSuccessPage = () => {
                         })
                       });
 
+                      const recipientConfirmResponseData = await recipientEmailResponse.json().catch(() => ({}));
                       if (!recipientEmailResponse.ok) {
-                        console.error(`❌ Error sending confirmation to ${recipientProfile.email}:`, recipientEmailResponse.status);
+                        console.error(`❌ Error sending confirmation to ${recipientProfile.email}:`, {
+                          status: recipientEmailResponse.status,
+                          statusText: recipientEmailResponse.statusText,
+                          data: recipientConfirmResponseData
+                        });
                       } else {
-                        console.log(`✅ Confirmation email sent to ${recipientProfile.email}`);
+                        console.log(`✅ Confirmation email sent to ${recipientProfile.email}`, recipientConfirmResponseData);
                       }
                     }
                   } catch (error) {
