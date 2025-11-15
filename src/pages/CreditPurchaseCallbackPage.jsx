@@ -79,7 +79,8 @@ const CreditPurchaseCallbackPage = () => {
             reference,
             amountAfterCommission: Math.round(totalAmount * 0.9), // 10% commission already taken
             platformCommission: Math.round(totalAmount * 0.1)
-          }
+          },
+          supabaseClient: supabase
         });
 
         console.log('✅ Credit purchase completed:', creditRecord);

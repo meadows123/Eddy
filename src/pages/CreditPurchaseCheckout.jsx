@@ -576,64 +576,43 @@ const CreditPurchaseCheckout = () => {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {/* Full Name */}
-                    <div>
-                      <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-1">
-                        Full Name *
-                      </label>
-                      <input
-                        type="text"
-                        id="fullName"
-                        value={formData.fullName}
-                        onChange={(e) => handleInputChange('fullName', e.target.value)}
-                        className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                          errors.fullName ? 'border-red-500' : 'border-gray-300'
-                        }`}
-                        placeholder="Enter your full name"
-                      />
-                      {errors.fullName && (
-                        <p className="text-red-500 text-sm mt-1">{errors.fullName}</p>
-                      )}
-                    </div>
+                    {/* Signed In User Info Section */}
+                    <div className="bg-green-50 border-2 border-green-200 rounded-lg p-4 mb-6">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Check className="h-5 w-5 text-green-600" />
+                        <h4 className="font-semibold text-green-900">You're Signed In</h4>
+                      </div>
+                      <div className="space-y-3">
+                        {/* Full Name - Display Only */}
+                        <div>
+                          <label className="block text-sm font-medium text-green-900 mb-1">
+                            Full Name
+                          </label>
+                          <div className="w-full px-3 py-2 bg-white border border-green-200 rounded-md text-gray-700">
+                            {formData.fullName || 'N/A'}
+                          </div>
+                        </div>
 
-                    {/* Email */}
-                    <div>
-                      <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                        Email Address *
-                      </label>
-                      <input
-                        type="email"
-                        id="email"
-                        value={formData.email}
-                        onChange={(e) => handleInputChange('email', e.target.value)}
-                        className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                          errors.email ? 'border-red-500' : 'border-gray-300'
-                        }`}
-                        placeholder="Enter your email address"
-                      />
-                      {errors.email && (
-                        <p className="text-red-500 text-sm mt-1">{errors.email}</p>
-                      )}
-                    </div>
+                        {/* Email - Display Only */}
+                        <div>
+                          <label className="block text-sm font-medium text-green-900 mb-1">
+                            Email Address
+                          </label>
+                          <div className="w-full px-3 py-2 bg-white border border-green-200 rounded-md text-gray-700">
+                            {formData.email || 'N/A'}
+                          </div>
+                        </div>
 
-                    {/* Phone */}
-                    <div>
-                      <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
-                        Phone Number *
-                      </label>
-                      <input
-                        type="tel"
-                        id="phone"
-                        value={formData.phone}
-                        onChange={(e) => handleInputChange('phone', e.target.value)}
-                        className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                          errors.phone ? 'border-red-500' : 'border-gray-300'
-                        }`}
-                        placeholder="Enter your phone number"
-                      />
-                      {errors.phone && (
-                        <p className="text-red-500 text-sm mt-1">{errors.phone}</p>
-                      )}
+                        {/* Phone - Display Only */}
+                        <div>
+                          <label className="block text-sm font-medium text-green-900 mb-1">
+                            Phone Number
+                          </label>
+                          <div className="w-full px-3 py-2 bg-white border border-green-200 rounded-md text-gray-700">
+                            {formData.phone || 'N/A'}
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
                     {/* Terms Agreement */}
