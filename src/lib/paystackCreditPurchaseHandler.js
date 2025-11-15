@@ -141,8 +141,7 @@ export const completeCreditPurchase = async ({
       used_amount: 0,
       status: 'active',
       payment_reference: paymentData.reference,
-      payment_method: 'paystack',
-      created_at: new Date().toISOString()
+      payment_method: 'paystack'
     };
 
     console.log('📝 Creating venue credit record:', creditDataToInsert);
