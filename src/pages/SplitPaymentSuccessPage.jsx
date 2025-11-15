@@ -113,6 +113,8 @@ const SplitPaymentSuccessPage = () => {
           end_time: bookingData?.end_time,
           venue_id: bookingData?.venue_id,
           user_id: bookingData?.user_id,
+          number_of_guests: bookingData?.number_of_guests,
+          guest_count: bookingData?.guest_count,
           allBookingFields: bookingData ? Object.keys(bookingData) : 'no booking data'
         });
       }
@@ -381,9 +383,6 @@ const SplitPaymentSuccessPage = () => {
 
         // Get booking and venue data for emails
         console.log('📚 Fetching booking data for completion email...');
-        
-        // Create an alias so we can use bookingData in the rest of the code
-        let bookingData = null;
         
         // Fetch booking data separately to avoid join issues
         const { data: simpleBooking, error: bookingError } = await supabase
@@ -776,9 +775,13 @@ const SplitPaymentSuccessPage = () => {
           });
           
           // Send venue owner notification using fetch (matching other email sends)
+          console.log('📧 ABOUT TO SEND VENUE OWNER EMAIL TO:', venueOwnerEmail);
           try {
             const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://agydpkzfucicraedllgl.supabase.co';
             const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+            console.log('📧 Using Supabase URL:', SUPABASE_URL);
+            console.log('📧 Has API key:', !!SUPABASE_ANON_KEY);
 
             const venueOwnerEmailResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
               method: 'POST',
@@ -789,6 +792,7 @@ const SplitPaymentSuccessPage = () => {
               body: JSON.stringify(emailData)
             });
 
+            console.log('📧 Venue owner email response status:', venueOwnerEmailResponse.status);
             const venueEmailResponseData = await venueOwnerEmailResponse.json().catch(() => ({}));
             if (!venueOwnerEmailResponse.ok) {
               console.error('❌ Error sending venue owner notification:', {
