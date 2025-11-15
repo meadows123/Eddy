@@ -408,9 +408,10 @@ const SplitPaymentSuccessPage = () => {
           return;
         }
         
-        // Fetch venue and profile data separately
+        // Fetch venue, profile, and table data separately
         let venueData = null;
         let profileData = null;
+        let tableData = null;
         
         if (simpleBooking?.venue_id) {
           try {
@@ -439,6 +440,21 @@ const SplitPaymentSuccessPage = () => {
             .single();
           profileData = profile;
         }
+
+        // Fetch table data if table_id exists
+        if (simpleBooking?.table_id) {
+          try {
+            const { data: table } = await supabase
+              .from('tables')
+              .select('*')
+              .eq('id', simpleBooking.table_id)
+              .single();
+            tableData = table;
+            console.log('✅ Table fetched:', tableData?.table_number);
+          } catch (err) {
+            console.error('❌ Error fetching table:', err);
+          }
+        }
         
         // Create booking data object with separately fetched data
         console.log('🔧 About to create completionBookingData with:', {
@@ -450,7 +466,8 @@ const SplitPaymentSuccessPage = () => {
         completionBookingData = {
           ...simpleBooking,
           venues: venueData,
-          profiles: profileData
+          profiles: profileData,
+          tables: tableData
         };
         
         console.log('🔧 completionBookingData created:', completionBookingData);
@@ -772,7 +789,7 @@ const SplitPaymentSuccessPage = () => {
               endTime: endTimeFormatted,
               guestCount: completionBookingData.number_of_guests,
               partySize: completionBookingData.number_of_guests,
-              tableInfo: `Table ${completionBookingData.venue_tables?.[0]?.table_number || completionBookingData.venue_tables?.table_number || 'N/A'}`,
+              tableInfo: `Table ${completionBookingData.tables?.table_number || completionBookingData.venue_tables?.[0]?.table_number || 'N/A'}`,
               paymentStatus: 'All payments completed',
               numberOfPayments: requests.length,
               customerName: `${completionBookingData.profiles?.first_name || ''} ${completionBookingData.profiles?.last_name || ''}`.trim() || 'Guest',

@@ -736,12 +736,18 @@ const CreditPurchaseCheckout = () => {
                             {/* Card Number */}
                             <div>
                               <label htmlFor="cardNumber" className="block text-sm font-medium text-gray-700 mb-1">
-                                Card Number *
+                                Card Number * (16 digits)
                               </label>
                               <input
                                 type="text"
                                 id="cardNumber"
                                 placeholder="1234 5678 9012 3456"
+                                maxLength="16"
+                                inputMode="numeric"
+                                onChange={(e) => {
+                                  // Only allow digits
+                                  e.target.value = e.target.value.replace(/\D/g, '').slice(0, 16);
+                                }}
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                               />
                             </div>
