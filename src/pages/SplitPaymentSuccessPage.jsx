@@ -367,6 +367,9 @@ const SplitPaymentSuccessPage = () => {
       // Set the state to indicate if all payments are done
       setAllPaymentsDone(allPaid);
       
+      // Initialize completionBookingData before the if block so it's available throughout
+      let completionBookingData = null;
+      
       if (allPaid) {
         console.log('🎉 All payments are complete! Sending completion emails...');
         console.log('🔍 DEBUG: All payments confirmed - venue owner notification will be sent');
@@ -378,7 +381,6 @@ const SplitPaymentSuccessPage = () => {
 
         // Get booking and venue data for emails
         console.log('📚 Fetching booking data for completion email...');
-        let completionBookingData = null;
         
         // Fetch booking data separately to avoid join issues
         const { data: simpleBooking, error: bookingError } = await supabase
@@ -767,18 +769,35 @@ const SplitPaymentSuccessPage = () => {
             bookingDataVenues: bookingData.venues
           });
           
-          // Send venue owner notification directly via Edge Function
-          const { data: venueEmailResult, error: venueEmailError } = await supabase.functions.invoke('send-email', {
-            body: emailData
-          });
+          // Send venue owner notification using fetch (matching other email sends)
+          try {
+            const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://agydpkzfucicraedllgl.supabase.co';
+            const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-          if (venueEmailError) {
-            console.error('❌ Error sending venue owner notification:', venueEmailError);
-          } else {
-            console.log('✅ Venue owner notification sent successfully:', venueEmailResult);
+            const venueOwnerEmailResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+              },
+              body: JSON.stringify(emailData)
+            });
+
+            const venueEmailResponseData = await venueOwnerEmailResponse.json().catch(() => ({}));
+            if (!venueOwnerEmailResponse.ok) {
+              console.error('❌ Error sending venue owner notification:', {
+                status: venueOwnerEmailResponse.status,
+                statusText: venueOwnerEmailResponse.statusText,
+                data: venueEmailResponseData
+              });
+            } else {
+              console.log('✅ Venue owner notification sent successfully:', venueEmailResponseData);
+            }
+          } catch (venueFetchError) {
+            console.error('❌ Exception sending venue owner notification:', venueFetchError);
           }
         } catch (venueOwnerError) {
-          console.error('❌ Error sending venue owner notification:', venueOwnerError);
+          console.error('❌ Error in venue owner notification block:', venueOwnerError);
         }
 
           // Send confirmation email to the last person who paid (if different from initiator)
