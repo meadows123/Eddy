@@ -1277,7 +1277,7 @@ const SplitPaymentPage = () => {
                             amount: paymentRequest.amount,
                             paymentMethodId,
                             bookingId: paymentRequest.booking_id,
-                            currency: 'gbp',
+                            currency: userLocation?.currency?.toLowerCase() || 'gbp',
                             email: paymentRequest.recipient_email || user?.email || '',
                             bookingType: 'split',
                             isInitiatorPayment: false
