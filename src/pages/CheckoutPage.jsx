@@ -1525,7 +1525,7 @@ setShowShareDialog(true);
                               for (let i = 0; i < paymentData.splitRecipients.length; i++) {
                                 const recipient = paymentData.splitRecipients[i];
                                 const recipientRequestId = splitRequests[i + 1]?.id;
-                                const paymentLink = `${getFullUrl()}/split-payment/${pendingBooking.id}/${recipientRequestId}`;
+                                const paymentLink = getFullUrl(`/split-payment/${pendingBooking.id}/${recipientRequestId}`);
                                 
                                 console.log(`📧 Sending email to recipient ${i + 1}:`, {
                                   email: recipient.email,
