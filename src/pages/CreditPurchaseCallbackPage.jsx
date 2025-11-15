@@ -134,10 +134,10 @@ const CreditPurchaseCallbackPage = () => {
           className: 'bg-green-500 text-white'
         });
 
-        // Redirect to dashboard
+        // Redirect to success page with details
         setTimeout(() => {
-          navigate('/profile?tab=wallet', { replace: true });
-        }, 2000);
+          navigate(`/credit-purchase-success?amount=${totalAmount}&venue=${venueName}&credits=${Math.round(totalAmount * 0.9)}`, { replace: true });
+        }, 1000);
 
       } catch (err) {
         console.error('❌ Credit purchase callback error:', err);

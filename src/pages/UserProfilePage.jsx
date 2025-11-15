@@ -218,7 +218,7 @@ const UserProfilePage = () => {
         .select('*')
         .eq('user_id', user.id)
         .eq('status', 'active')
-        .gt('remaining_balance', 0)
+        .gt('amount', 0)
         .order('created_at', { ascending: false });
 
 
@@ -1520,7 +1520,7 @@ const UserProfilePage = () => {
                       </div>
                       <div className="bg-brand-cream/30 p-4 rounded-lg border border-brand-burgundy/10 text-center">
                         <div className="text-2xl font-bold text-brand-gold">
-                          ₦{venueCredits.reduce((sum, credit) => sum + credit.remaining_balance, 0).toLocaleString()}
+                          ₦{venueCredits.reduce((sum, credit) => sum + (credit.amount - credit.used_amount), 0).toLocaleString()}
                         </div>
                         <div className="text-sm text-brand-burgundy/70">Total Available</div>
                       </div>
@@ -1549,7 +1549,7 @@ const UserProfilePage = () => {
                             </div>
                             <div className="flex flex-col sm:items-end">
                               <div className="text-lg font-bold text-brand-gold mb-1">
-                                ₦{credit.remaining_balance.toLocaleString()}
+                                ₦{(credit.amount - credit.used_amount).toLocaleString()}
                               </div>
                               <div className="text-sm text-brand-burgundy/70">
                                 of ₦{credit.amount.toLocaleString()} credits
