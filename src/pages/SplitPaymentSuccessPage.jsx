@@ -636,24 +636,24 @@ const SplitPaymentSuccessPage = () => {
         console.log('🔍 DEBUG: This venue owner notification is being sent because ALL payments are complete');
         console.log('🚨 DEBUG: NEW VENUE OWNER EMAIL LOOKUP CODE IS BEING EXECUTED!');
         console.log('🔍 DEBUG: Available venue data:', {
-          venueId: bookingData.venues?.id,
-          venueName: bookingData.venues?.name,
-          venueContactEmail: bookingData.venues?.contact_email,
-          fullVenueData: bookingData.venues
+          venueId: completionBookingData.venues?.id,
+          venueName: completionBookingData.venues?.name,
+          venueContactEmail: completionBookingData.venues?.contact_email,
+          fullVenueData: completionBookingData.venues
         });
         
-        console.log('🔍 DEBUG: Full venue data structure:', JSON.stringify(bookingData.venues, null, 2));
+        console.log('🔍 DEBUG: Full venue data structure:', JSON.stringify(completionBookingData.venues, null, 2));
         try {
           // Fetch venue owner email from database
           let venueOwnerEmail = 'info@oneeddy.com'; // fallback
           
           // Try different possible venue ID fields
-          const venueId = bookingData.venues?.id || bookingData.venues?.venue_id || bookingData.venue_id;
+          const venueId = completionBookingData.venues?.id || completionBookingData.venues?.venue_id || completionBookingData.venue_id;
           
           console.log('🔍 Venue ID lookup:', {
-            venuesId: bookingData.venues?.id,
-            venuesVenueId: bookingData.venues?.venue_id,
-            bookingVenueId: bookingData.venue_id,
+            venuesId: completionBookingData.venues?.id,
+            venuesVenueId: completionBookingData.venues?.venue_id,
+            bookingVenueId: completionBookingData.venue_id,
             finalVenueId: venueId
           });
           
@@ -695,7 +695,7 @@ const SplitPaymentSuccessPage = () => {
               });
               
               // Fallback to venue contact email
-              venueOwnerEmail = bookingData.venues?.contact_email || 'info@oneeddy.com';
+              venueOwnerEmail = completionBookingData.venues?.contact_email || 'info@oneeddy.com';
               console.log('📧 Using venue contact email as fallback:', venueOwnerEmail);
             }
           } else {
@@ -707,8 +707,8 @@ const SplitPaymentSuccessPage = () => {
           
           // Prepare email data for venue owner notification
           // Format dates and times properly
-          const bookingDateFormatted = bookingData.booking_date
-            ? new Date(bookingData.booking_date).toLocaleDateString('en-US', {
+          const bookingDateFormatted = completionBookingData.booking_date
+            ? new Date(completionBookingData.booking_date).toLocaleDateString('en-US', {
                 weekday: 'long',
                 year: 'numeric',
                 month: 'long',
@@ -716,16 +716,16 @@ const SplitPaymentSuccessPage = () => {
               })
             : 'N/A';
           
-          const startTimeFormatted = bookingData.start_time
-            ? new Date(`2000-01-01T${bookingData.start_time}`).toLocaleTimeString('en-US', {
+          const startTimeFormatted = completionBookingData.start_time
+            ? new Date(`2000-01-01T${completionBookingData.start_time}`).toLocaleTimeString('en-US', {
                 hour: 'numeric',
                 minute: '2-digit',
                 hour12: true
               })
             : 'N/A';
           
-          const endTimeFormatted = bookingData.end_time
-            ? new Date(`2000-01-01T${bookingData.end_time}`).toLocaleTimeString('en-US', {
+          const endTimeFormatted = completionBookingData.end_time
+            ? new Date(`2000-01-01T${completionBookingData.end_time}`).toLocaleTimeString('en-US', {
                 hour: 'numeric',
                 minute: '2-digit',
                 hour12: true
@@ -734,26 +734,26 @@ const SplitPaymentSuccessPage = () => {
 
           const emailData = {
             to: venueOwnerEmail,
-            subject: `New Booking - ${bookingData.venues?.name || 'Venue'}`,
+            subject: `New Booking - ${completionBookingData.venues?.name || 'Venue'}`,
             template: 'venue-owner-booking-notification',
             data: {
               ownerEmail: venueOwnerEmail,  // Add ownerEmail field for Edge Function lookup
-              venueId: bookingData.venue_id,  // Add venueId for Edge Function lookup
-              venueName: bookingData.venues?.name || 'Venue',
-              venueAddress: bookingData.venues?.address || 'Lagos, Nigeria',
-              venuePhone: bookingData.venues?.contact_phone || '+234 XXX XXX XXXX',
-              venueEmail: bookingData.venues?.contact_email || 'info@oneeddy.com',
-              bookingId: bookingData.id,
+              venueId: completionBookingData.venue_id,  // Add venueId for Edge Function lookup
+              venueName: completionBookingData.venues?.name || 'Venue',
+              venueAddress: completionBookingData.venues?.address || 'Lagos, Nigeria',
+              venuePhone: completionBookingData.venues?.contact_phone || '+234 XXX XXX XXXX',
+              venueEmail: completionBookingData.venues?.contact_email || 'info@oneeddy.com',
+              bookingId: completionBookingData.id,
               bookingDate: bookingDateFormatted,
               bookingTime: startTimeFormatted,
               endTime: endTimeFormatted,
-              guestCount: bookingData.number_of_guests,
-              tableInfo: `Table ${bookingData.venue_tables?.[0]?.table_number || bookingData.venue_tables?.table_number || 'N/A'} (${requests.length} split payments)`,
-              customerName: `${bookingData.profiles?.first_name || ''} ${bookingData.profiles?.last_name || ''}`.trim() || 'Guest',
-              customerEmail: bookingData.profiles?.email || 'guest@example.com',
-              customerPhone: bookingData.profiles?.phone || 'N/A',
-              totalAmount: bookingData.total_amount,
-              specialRequests: bookingData.special_requests || 'Split payment booking',
+              guestCount: completionBookingData.number_of_guests,
+              tableInfo: `Table ${completionBookingData.venue_tables?.[0]?.table_number || completionBookingData.venue_tables?.table_number || 'N/A'} (${requests.length} split payments)`,
+              customerName: `${completionBookingData.profiles?.first_name || ''} ${completionBookingData.profiles?.last_name || ''}`.trim() || 'Guest',
+              customerEmail: completionBookingData.profiles?.email || 'guest@example.com',
+              customerPhone: completionBookingData.profiles?.phone || 'N/A',
+              totalAmount: completionBookingData.total_amount,
+              specialRequests: completionBookingData.special_requests || 'Split payment booking',
               ownerUrl: window.location.origin + '/venue-owner/dashboard'
             }
           };
