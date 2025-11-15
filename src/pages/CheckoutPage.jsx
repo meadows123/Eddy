@@ -1037,6 +1037,19 @@ if (!venueId) {
         venueName: venueData?.name
       });
 
+      // Format booking time (start - end)
+      const formatTime = (timeString) => {
+        if (!timeString) return 'N/A';
+        const [hours, minutes] = timeString.split(':');
+        return `${parseInt(hours)}:${minutes}`;
+      };
+      
+      const startTime = formatTime(updatedBooking.start_time);
+      const endTime = formatTime(updatedBooking.end_time);
+      const bookingTime = startTime !== 'N/A' && endTime !== 'N/A' 
+        ? `${startTime} - ${endTime}` 
+        : 'N/A';
+
       // Use Supabase Edge Function instead of EmailJS for customer confirmation
       const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
         body: {
@@ -1052,13 +1065,16 @@ if (!venueId) {
               month: 'long',
               day: 'numeric'
             }),
+            bookingTime: bookingTime,
             bookingId: updatedBooking.id,
             tableInfo: updatedBooking.table_number || `Table ${updatedBooking.table?.table_number || 'N/A'}`,
             totalAmount: Number(updatedBooking.total_amount || 0),
-            ticketInfo: `Eddy Experience - ${updatedBooking.number_of_guests || 1} guests`,
+            guestCount: updatedBooking.number_of_guests || 2,
+            ticketInfo: `Eddy Experience - ${updatedBooking.number_of_guests || 2} guests`,
             qrCodeImage: qrCodeImage?.externalUrl || qrCodeImage?.base64 || qrCodeImage,
-            venueAddress: venueData?.address || 'Lagos, Nigeria',
-            venuePhone: venueData?.contact_phone || '+234 XXX XXX XXXX'
+            venueAddress: venueData?.address || 'Address not available',
+            venuePhone: venueData?.contact_phone || 'Contact not available',
+            customerPhone: formData.phone || 'N/A'
           }
         }
       });
