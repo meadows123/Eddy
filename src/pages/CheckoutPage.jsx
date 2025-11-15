@@ -1008,18 +1008,18 @@ if (!venueId) {
     // Fetch venue owner data for notification
     let venueOwnerData = null;
     if (venueData?.owner_id) {
-      const { data: ownerData, error: ownerError } = await supabase
+      const { data: ownerDataList, error: ownerError } = await supabase
         .from('venue_owners')
         .select('owner_email, owner_name, email')
         .eq('user_id', venueData.owner_id)
-        .single();
+        .limit(1);
       
-      if (!ownerError && ownerData) {
-        venueOwnerData = ownerData;
+      if (!ownerError && ownerDataList && ownerDataList.length > 0) {
+        venueOwnerData = ownerDataList[0];
         console.log('✅ Venue owner data fetched:', {
-          owner_email: ownerData.owner_email,
-          email: ownerData.email,
-          owner_name: ownerData.owner_name
+          owner_email: venueOwnerData.owner_email,
+          email: venueOwnerData.email,
+          owner_name: venueOwnerData.owner_name
         });
       } else {
         console.log('⚠️ Could not fetch venue owner data:', ownerError);
