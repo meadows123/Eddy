@@ -133,15 +133,14 @@ export const completeCreditPurchase = async ({
   console.log('💳 Completing credit purchase with:', bookingData);
 
   try {
-    // Create venue credit record
+    // Create venue credit record with only essential fields that exist in schema
     const creditDataToInsert = {
       user_id: bookingData.userId,
       venue_id: bookingData.venueId,
       amount: paymentData.amountAfterCommission, // Amount after commission
       used_amount: 0,
       status: 'active',
-      payment_reference: paymentData.reference,
-      payment_method: 'paystack'
+      payment_reference: paymentData.reference
     };
 
     console.log('📝 Creating venue credit record:', creditDataToInsert);

@@ -92,7 +92,7 @@ const CreditPurchaseCheckout = () => {
     detectLocation();
   }, []);
 
-  // Check for credit purchase data
+  // Check for credit purchase data and fetch user profile
   useEffect(() => {
     if (location.state?.creditPurchase) {
       // Normalize the credit data structure
@@ -108,17 +108,55 @@ const CreditPurchaseCheckout = () => {
       
       setCreditData(normalizedData);
       
-      // Pre-fill form data with user info
-      setFormData({
-        fullName: location.state.fullName || user?.user_metadata?.full_name || '',
-        email: location.state.email || user?.email || '',
-        phone: location.state.phone || user?.user_metadata?.phone || '',
-        password: '',
-        agreeToTerms: false,
-        referralCode: ''
-      });
+      // Fetch user profile to get full name
+      const fetchUserProfile = async () => {
+        try {
+          if (user?.id) {
+            const { data: profileData, error } = await supabase
+              .from('profiles')
+              .select('first_name, last_name, phone')
+              .eq('id', user.id)
+              .single();
+            
+            if (!error && profileData) {
+              const fullName = `${profileData.first_name || ''} ${profileData.last_name || ''}`.trim();
+              setFormData({
+                fullName: location.state.fullName || fullName || '',
+                email: location.state.email || user?.email || '',
+                phone: location.state.phone || profileData.phone || user?.user_metadata?.phone || '',
+                password: '',
+                agreeToTerms: false,
+                referralCode: ''
+              });
+            } else {
+              // Fallback if profile fetch fails
+              setFormData({
+                fullName: location.state.fullName || user?.user_metadata?.full_name || '',
+                email: location.state.email || user?.email || '',
+                phone: location.state.phone || user?.user_metadata?.phone || '',
+                password: '',
+                agreeToTerms: false,
+                referralCode: ''
+              });
+            }
+          }
+        } catch (err) {
+          console.error('Error fetching user profile:', err);
+          // Fallback if error
+          setFormData({
+            fullName: location.state.fullName || user?.user_metadata?.full_name || '',
+            email: location.state.email || user?.email || '',
+            phone: location.state.phone || user?.user_metadata?.phone || '',
+            password: '',
+            agreeToTerms: false,
+            referralCode: ''
+          });
+        } finally {
+          setLoading(false);
+        }
+      };
       
-      setLoading(false);
+      fetchUserProfile();
     } else {
       navigate('/venue-credit-purchase');
     }
