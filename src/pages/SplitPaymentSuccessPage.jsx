@@ -293,6 +293,14 @@ const SplitPaymentSuccessPage = () => {
       // Check if all payments are complete and send completion emails
       await checkAllPaymentsComplete(requestData.booking_id);
 
+      // IMPORTANT: Log the exact value being used for number_of_guests
+      console.log('🔍 CRITICAL DEBUG: number_of_guests value:', {
+        raw_value: bookingData?.number_of_guests,
+        type: typeof bookingData?.number_of_guests,
+        all_keys_in_bookingData: Object.keys(bookingData || {}),
+        entire_bookingData: bookingData
+      });
+
       // Set payment details with booking data
       setPaymentDetails({
         id: requestId,
@@ -433,14 +441,24 @@ const SplitPaymentSuccessPage = () => {
         }
         
         // Create booking data object with separately fetched data
+        console.log('🔧 About to create completionBookingData with:', {
+          hasSimpleBooking: !!simpleBooking,
+          hasVenueData: !!venueData,
+          hasProfileData: !!profileData
+        });
+        
         completionBookingData = {
           ...simpleBooking,
           venues: venueData,
           profiles: profileData
         };
         
+        console.log('🔧 completionBookingData created:', completionBookingData);
+        
         // Create alias for backward compatibility with existing code
+        console.log('🔧 About to assign bookingData = completionBookingData');
         bookingData = completionBookingData;
+        console.log('🔧 bookingData assigned successfully:', bookingData);
         
         console.log('✅ Booking data for completion email:', completionBookingData);
         
