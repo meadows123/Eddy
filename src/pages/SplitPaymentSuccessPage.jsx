@@ -760,7 +760,7 @@ const SplitPaymentSuccessPage = () => {
             subject: `New Booking - ${completionBookingData.venues?.name || 'Venue'}`,
             template: 'venue-owner-booking-notification',
             data: {
-              ownerEmail: venueOwnerEmail,  // Add ownerEmail field for Edge Function lookup
+              ownerEmail: venueOwnerEmail && venueOwnerEmail !== 'info@oneeddy.com' ? venueOwnerEmail : '',  // Pass empty if placeholder so Edge Function can look it up
               venueId: completionBookingData.venue_id,  // Add venueId for Edge Function lookup
               venueName: completionBookingData.venues?.name || 'Venue',
               venueAddress: completionBookingData.venues?.address || 'Lagos, Nigeria',
