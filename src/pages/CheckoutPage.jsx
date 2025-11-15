@@ -1321,7 +1321,7 @@ setShowShareDialog(true);
                                   booking_date: selection?.date || new Date().toISOString().split('T')[0],
                                   start_time: selection?.time || '19:00',
                                   end_time: selection?.endTime || '23:00',
-                                  number_of_guests: parseInt(selection?.guests) || 2,
+                                  number_of_guests: parseInt(selection?.guests) || parseInt(selection?.guestCount) || 2,
                                   status: 'pending',
                                   total_amount: paymentData.amount
                                 }])
@@ -1359,9 +1359,11 @@ setShowShareDialog(true);
                               console.log('✅ Payment initiated successfully, redirecting to Paystack...');
 
                               // Redirect to Paystack authorization URL
-                              if (result.authorizationUrl) {
-                                window.location.href = result.authorizationUrl;
+                              const authUrl = result.data?.authorization_url || result.authorizationUrl;
+                              if (authUrl) {
+                                window.location.href = authUrl;
                               } else {
+                                console.error('❌ Missing auth URL in response:', result);
                                 throw new Error('No authorization URL returned from Paystack');
                               }
                             } catch (error) {
@@ -1430,7 +1432,7 @@ setShowShareDialog(true);
                                   booking_date: selection?.date || new Date().toISOString().split('T')[0],
                                   start_time: selection?.time || '19:00',
                                   end_time: selection?.endTime || '23:00',
-                                  number_of_guests: parseInt(selection?.guests) || 2,
+                                  number_of_guests: parseInt(selection?.guests) || parseInt(selection?.guestCount) || 2,
                                   status: 'pending',
                                   total_amount: paymentData.amount
                                 }])
@@ -1594,9 +1596,11 @@ setShowShareDialog(true);
                               console.log('✅ Split payment initiated successfully, redirecting to Paystack...');
 
                               // Redirect to Paystack authorization URL
-                              if (result.authorizationUrl) {
-                                window.location.href = result.authorizationUrl;
+                              const authUrl = result.data?.authorization_url || result.authorizationUrl;
+                              if (authUrl) {
+                                window.location.href = authUrl;
                               } else {
+                                console.error('❌ Missing auth URL in response:', result);
                                 throw new Error('No authorization URL returned from Paystack');
                               }
                             } catch (error) {

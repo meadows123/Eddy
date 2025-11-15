@@ -691,10 +691,12 @@ const CreditPurchaseCheckout = () => {
 
                             console.log('✅ Payment initiated, redirecting to Paystack...');
 
-                            if (result.authorizationUrl) {
-                              window.location.href = result.authorizationUrl;
+                            const authUrl = result.data?.authorization_url || result.authorizationUrl;
+                            if (authUrl) {
+                              window.location.href = authUrl;
                             } else {
-                              throw new Error('No authorization URL returned');
+                              console.error('❌ Missing auth URL in response:', result);
+                              throw new Error('No authorization URL returned from Paystack');
                             }
                           } catch (error) {
                             console.error('❌ Paystack payment error:', error);
