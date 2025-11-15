@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import Stripe from 'stripe'
+import Stripe from 'https://esm.sh/stripe@12.0.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -18,7 +18,15 @@ serve(async (req) => {
     const amount = Number(body?.amount)
     const paymentMethodId = body?.paymentMethodId
     const bookingId = body?.bookingId
-    const splitRequests = body?.splitRequests
+    const currency = body?.currency?.toLowerCase() || 'ngn'
+    const email = body?.email
+
+    console.log('📝 create-split-payment-intent request:', {
+      amount,
+      currency,
+      bookingId,
+      hasPaymentMethod: !!paymentMethodId
+    })
 
     if (!Number.isFinite(amount) || amount <= 0) {
       throw new Error('Invalid amount provided to create-split-payment-intent')
@@ -36,6 +44,8 @@ serve(async (req) => {
     const isTestMode = stripeKey.startsWith('sk_test_')
     const isLiveMode = stripeKey.startsWith('sk_live_')
 
+    console.log('🔑 Stripe mode:', isTestMode ? 'TEST' : isLiveMode ? 'LIVE' : 'UNKNOWN')
+
     if (!stripeKey) {
       throw new Error('Stripe secret key is not configured')
     }
@@ -45,10 +55,10 @@ serve(async (req) => {
       httpClient: Stripe.createFetchHttpClient(),
     })
 
-    // Create payment intent
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // convert to kobo
-      currency: 'ngn',
+    // Create payment intent with proper currency handling
+    const paymentIntentParams = {
+      amount: Math.round(amount * 100), // convert to smallest currency unit
+      currency: currency,
       payment_method_types: ['card'],
       metadata: {
         bookingId,
@@ -56,11 +66,27 @@ serve(async (req) => {
         originatingPaymentMethod: paymentMethodId,
         bookingType: body?.bookingType || 'unknown'
       }
+    }
+
+    if (email) {
+      paymentIntentParams.receipt_email = email
+    }
+
+    console.log('💳 Creating split payment PaymentIntent:', {
+      amount: paymentIntentParams.amount,
+      currency: paymentIntentParams.currency
     })
+
+    const paymentIntent = await stripe.paymentIntents.create(paymentIntentParams)
+
+    console.log('✅ Split payment PaymentIntent created:', paymentIntent.id)
 
     // Return JSON response
     return new Response(
-      JSON.stringify({ clientSecret: paymentIntent.client_secret }),
+      JSON.stringify({ 
+        clientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id
+      }),
       {
         headers: {
           ...corsHeaders,
