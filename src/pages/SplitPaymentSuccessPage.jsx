@@ -789,7 +789,7 @@ const SplitPaymentSuccessPage = () => {
             venueOwnerEmail,
             ownerEmailInData: emailData.data.ownerEmail,
             venueIdInData: emailData.data.venueId,
-            bookingDataVenues: bookingData.venues
+            bookingDataVenues: completionBookingData.venues
           });
           
           // Send venue owner notification using fetch (matching other email sends)
@@ -830,22 +830,22 @@ const SplitPaymentSuccessPage = () => {
 
           // Send confirmation email to the last person who paid (if different from initiator)
           const lastPayment = requests.find(req => req.id === requestId);
-          if (lastPayment && lastPayment.recipient_id !== bookingData.profiles?.id) {
+          if (lastPayment && lastPayment.recipient_id !== completionBookingData.profiles?.id) {
             console.log('📧 [FRONTEND] Sending confirmation email to last payer...');
             console.log('🔍 Last payment details:', {
               lastPayment,
               requestId,
               recipientId: lastPayment.recipient_id,
-              initiatorId: bookingData.profiles?.id
+              initiatorId: completionBookingData.profiles?.id
             });
             console.log('🔍 Booking data for last payer:', {
-              bookingId: bookingData.id,
-              venueName: bookingData.venues?.name,
-              tableId: bookingData.table_id,
-              bookingDate: bookingData.booking_date,
-              startTime: bookingData.start_time,
-              guestCount: bookingData.number_of_guests,
-              totalAmount: bookingData.total_amount
+              bookingId: completionBookingData.id,
+              venueName: completionBookingData.venues?.name,
+              tableId: completionBookingData.table_id,
+              bookingDate: completionBookingData.booking_date,
+              startTime: completionBookingData.start_time,
+              guestCount: completionBookingData.number_of_guests,
+              totalAmount: completionBookingData.total_amount
             });
             
             // Get the last payer's profile
@@ -858,11 +858,11 @@ const SplitPaymentSuccessPage = () => {
             if (lastPayerProfile) {
               // Get table information for the last payer
               let tableInfo = { table_name: 'Table not specified', table_number: 'N/A' };
-              if (bookingData.table_id) {
+              if (completionBookingData.table_id) {
                 const { data: tableData } = await supabase
                   .from('venue_tables')
                   .select('table_type, table_number')
-                  .eq('id', bookingData.table_id)
+                  .eq('id', completionBookingData.table_id)
                   .single();
                 if (tableData) {
                   tableInfo = { table_name: tableData.table_type, table_number: tableData.table_number };
@@ -870,8 +870,8 @@ const SplitPaymentSuccessPage = () => {
               }
 
               // Generate QR code for the last payer (same booking, same QR code)
-              console.log('📱 Generating QR code for last payer split payment booking:', bookingData.id);
-              const lastPayerQrCodeImage = await generateVenueEntryQR(bookingData);
+              console.log('📱 Generating QR code for last payer split payment booking:', completionBookingData.id);
+              const lastPayerQrCodeImage = await generateVenueEntryQR(completionBookingData);
               console.log('📱 Last payer QR code generated successfully:', lastPayerQrCodeImage ? 'Yes' : 'No');
 
               // Prepare comprehensive email data for last payer
@@ -883,42 +883,42 @@ const SplitPaymentSuccessPage = () => {
                 customerPhone: lastPayerProfile.phone || 'N/A',
                 
                 // Booking details
-                bookingId: bookingData.id,
-                bookingReference: bookingData.id, // Template expects bookingReference
-                bookingDate: bookingData.booking_date || bookingData.bookingDate,
-                bookingTime: bookingData.start_time || bookingData.booking_time,
-                partySize: bookingData.number_of_guests || bookingData.guest_count || 1, // Template expects partySize
-                guestCount: bookingData.number_of_guests || bookingData.guest_count,
-                totalAmount: bookingData.total_amount || bookingData.totalAmount,
+                bookingId: completionBookingData.id,
+                bookingReference: completionBookingData.id, // Template expects bookingReference
+                bookingDate: completionBookingData.booking_date || completionBookingData.bookingDate,
+                bookingTime: completionBookingData.start_time || completionBookingData.booking_time,
+                partySize: completionBookingData.number_of_guests || completionBookingData.guest_count || 1, // Template expects partySize
+                guestCount: completionBookingData.number_of_guests || completionBookingData.guest_count,
+                totalAmount: completionBookingData.total_amount || completionBookingData.totalAmount,
                 initiatorAmount: lastPayment.amount || 0, // For split-payment-complete template
                 
                 // Table details
                 tableName: tableInfo.table_name,
                 tableNumber: tableInfo.table_number,
                 tableType: tableInfo.table_name || 'VIP Table',
-                tableCapacity: bookingData.number_of_guests || 4,
+                tableCapacity: completionBookingData.number_of_guests || 4,
                 tableLocation: 'Prime location',
                 tableFeatures: 'Premium features',
                 
                 // Venue details
-                venueName: bookingData.venues?.name,
-                venueAddress: bookingData.venues?.address,
-                venuePhone: bookingData.venues?.contact_phone,
+                venueName: completionBookingData.venues?.name,
+                venueAddress: completionBookingData.venues?.address,
+                venuePhone: completionBookingData.venues?.contact_phone,
                 
                 // Special requests
-                specialRequests: bookingData.special_requests || 'None specified',
+                specialRequests: completionBookingData.special_requests || 'None specified',
                 
                 // QR Code for venue entry
                 qrCodeImage: lastPayerQrCodeImage?.externalUrl || lastPayerQrCodeImage,
                 qrCodeUrl: lastPayerQrCodeImage?.externalUrl || (lastPayerQrCodeImage?.base64 ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(JSON.stringify({
                   type: 'venue-entry',
-                  bookingId: bookingData.id,
-                  venueId: bookingData.venue_id,
+                  bookingId: completionBookingData.id,
+                  venueId: completionBookingData.venue_id,
                   securityCode: 'GENERATED',
-                  bookingDate: bookingData.booking_date,
-                  startTime: bookingData.start_time,
-                  tableNumber: bookingData.venue_tables?.table_type || bookingData.table?.table_number || 'N/A',
-                  guestCount: bookingData.number_of_guests,
+                  bookingDate: completionBookingData.booking_date,
+                  startTime: completionBookingData.start_time,
+                  tableNumber: completionBookingData.venue_tables?.table_type || completionBookingData.table?.table_number || 'N/A',
+                  guestCount: completionBookingData.number_of_guests,
                   status: 'confirmed',
                   timestamp: new Date().toISOString()
                 }))}&color=800020&bgcolor=FFFFFF&format=png` : '')
@@ -948,7 +948,7 @@ const SplitPaymentSuccessPage = () => {
                   },
                   body: JSON.stringify({
                     to: lastPayerProfile.email,
-                    subject: `All Payments Confirmed! - ${bookingData.venues?.name || 'Your Venue'}`,
+                    subject: `All Payments Confirmed! - ${completionBookingData.venues?.name || 'Your Venue'}`,
                     template: 'split-payment-confirmation',
                     data: lastPayerEmailData
                   })
@@ -977,22 +977,22 @@ const SplitPaymentSuccessPage = () => {
                     'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
                   },
                   body: JSON.stringify({
-                    to: bookingData.profiles?.email,
-                    subject: `All Payments Confirmed! - ${bookingData.venues?.name || 'Your Venue'}`,
+                    to: completionBookingData.profiles?.email,
+                    subject: `All Payments Confirmed! - ${completionBookingData.venues?.name || 'Your Venue'}`,
                     template: 'split-payment-confirmation',
                     data: {
-                      email: bookingData.profiles?.email,
-                      customerName: `${bookingData.profiles?.first_name || ''} ${bookingData.profiles?.last_name || ''}`.trim() || 'Guest',
-                      customerEmail: bookingData.profiles?.email,
-                      customerPhone: bookingData.profiles?.phone || 'N/A',
-                      bookingId: bookingData.id,
-                      bookingDate: bookingData.booking_date,
-                      bookingTime: bookingData.start_time,
-                      guestCount: bookingData.number_of_guests,
-                      totalAmount: bookingData.total_amount,
-                      venueName: bookingData.venues?.name,
-                      venueAddress: bookingData.venues?.address,
-                      paymentAmount: bookingData.total_amount
+                      email: completionBookingData.profiles?.email,
+                      customerName: `${completionBookingData.profiles?.first_name || ''} ${completionBookingData.profiles?.last_name || ''}`.trim() || 'Guest',
+                      customerEmail: completionBookingData.profiles?.email,
+                      customerPhone: completionBookingData.profiles?.phone || 'N/A',
+                      bookingId: completionBookingData.id,
+                      bookingDate: completionBookingData.booking_date,
+                      bookingTime: completionBookingData.start_time,
+                      guestCount: completionBookingData.number_of_guests,
+                      totalAmount: completionBookingData.total_amount,
+                      venueName: completionBookingData.venues?.name,
+                      venueAddress: completionBookingData.venues?.address,
+                      paymentAmount: completionBookingData.total_amount
                     }
                   })
                 });
@@ -1005,7 +1005,7 @@ const SplitPaymentSuccessPage = () => {
                     data: confirmResponseData
                   });
                 } else {
-                  console.log(`✅ Confirmation email sent to initiator: ${bookingData.profiles?.email}`, confirmResponseData);
+                  console.log(`✅ Confirmation email sent to initiator: ${completionBookingData.profiles?.email}`, confirmResponseData);
                 }
               } catch (error) {
                 console.error(`❌ Exception sending confirmation to initiator:`, error);
@@ -1040,20 +1040,20 @@ const SplitPaymentSuccessPage = () => {
                         },
                         body: JSON.stringify({
                           to: recipientProfile.email,
-                          subject: `All Payments Confirmed! - ${bookingData.venues?.name || 'Your Venue'}`,
+                          subject: `All Payments Confirmed! - ${completionBookingData.venues?.name || 'Your Venue'}`,
                           template: 'split-payment-confirmation',
                           data: {
                             email: recipientProfile.email,
                             customerName: `${recipientProfile.first_name || ''} ${recipientProfile.last_name || ''}`.trim() || 'Guest',
                             customerEmail: recipientProfile.email,
                             customerPhone: recipientProfile.phone || 'N/A',
-                            bookingId: bookingData.id,
-                            bookingDate: bookingData.booking_date,
-                            bookingTime: bookingData.start_time,
-                            guestCount: bookingData.number_of_guests,
-                            totalAmount: bookingData.total_amount,
-                            venueName: bookingData.venues?.name,
-                            venueAddress: bookingData.venues?.address,
+                            bookingId: completionBookingData.id,
+                            bookingDate: completionBookingData.booking_date,
+                            bookingTime: completionBookingData.start_time,
+                            guestCount: completionBookingData.number_of_guests,
+                            totalAmount: completionBookingData.total_amount,
+                            venueName: completionBookingData.venues?.name,
+                            venueAddress: completionBookingData.venues?.address,
                             paymentAmount: request.amount
                           }
                         })
