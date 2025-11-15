@@ -862,73 +862,99 @@ if (!venueId) {
       throw new Error('Failed to create booking record');
     }
 
-    // Since we already have the paymentMethodId from the form, we can proceed directly
-    // The payment method was already created in CheckoutForm, so we just need to confirm it
+    // Route to correct payment processor
+    console.log('💳 Payment processor:', paymentProcessor);
     
-    // For single payments, we'll use a different approach - create a PaymentIntent directly
-    // We need to use the Edge Function after all, but with the correct parameters
-    
-    const paymentPayload = {
-      amount: parseFloat(calculateTotal()),
-      paymentMethodId,
-      email: formData.email,
-      bookingId: pendingBooking.id,
-      bookingType: 'single',
-      splitRequests: []
-    };
-
-    const response = await fetch(
-      'https://agydpkzfucicraedllgl.supabase.co/functions/v1/create-split-payment-intent',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+    if (paymentProcessor === 'paystack') {
+      // PAYSTACK FLOW - Use existing Paystack handler
+      console.log('🇳🇬 Processing with Paystack...');
+      
+      const result = await initiatePaystackPayment({
+        email: formData.email,
+        fullName: formData.fullName,
+        phone: formData.phone,
+        amount: parseFloat(calculateTotal()),
+        bookingData: {
+          ...selection,
+          bookingId: pendingBooking.id,
+          venueId: venueId,
+          venueName: selection?.venue?.name || 'Venue'
         },
-        body: JSON.stringify(paymentPayload)
+        userId: currentUser?.id
+      });
+
+      const authUrl = result.data?.authorization_url || result.authorizationUrl;
+      if (authUrl) {
+        window.location.href = authUrl;
+        return;
+      } else {
+        throw new Error('No authorization URL returned from Paystack');
       }
-    );
+    } else {
+      // STRIPE FLOW - Create PaymentIntent and confirm payment
+      console.log('💳 Processing with Stripe...');
+      
+      if (!stripe) {
+        throw new Error('Stripe is not initialized');
+      }
+      
+      // Call Edge Function to create Payment Intent
+      const createIntentResponse = await fetch(
+        'https://agydpkzfucicraedllgl.supabase.co/functions/v1/create-stripe-payment-intent',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+          },
+          body: JSON.stringify({
+            amount: parseFloat(calculateTotal()),
+            currency: userLocation?.currency || 'gbp',
+            bookingId: pendingBooking.id,
+            email: formData.email,
+            description: `Booking at ${selection?.venue?.name || 'Venue'}`
+          })
+        }
+      );
 
-    if (!response.ok) {
-      // If payment fails, delete the pending booking
-      await supabase
-  .from('bookings')
-        .delete()
-        .eq('id', pendingBooking.id);
+      if (!createIntentResponse.ok) {
+        const errorData = await createIntentResponse.json();
+        console.error('❌ Failed to create Stripe PaymentIntent:', errorData);
+        throw new Error(errorData.error || 'Failed to create payment intent');
+      }
 
-      const errorData = await response.json();
-      console.error('❌ create-split-payment-intent failed:', response.status, errorData);
-      throw new Error(errorData.error || 'Failed to create payment intent');
-    }
+      const intentData = await createIntentResponse.json();
+      
+      if (!intentData.clientSecret) {
+        throw new Error('No client secret received from server');
+      }
 
-    const responseData = await response.json();
-    
-    if (!responseData.clientSecret) {
-      throw new Error('Payment intent creation failed - no client secret received');
-    }
+      console.log('✅ PaymentIntent created:', intentData.paymentIntentId);
 
-    const { clientSecret } = responseData;
+      // Confirm payment with card details
+      const { paymentIntent, error: confirmError } = await stripe.confirmCardPayment(
+        intentData.clientSecret,
+        {
+          payment_method: paymentMethodId
+        }
+      );
 
-    // Confirm the payment
-    if (!stripe) {
-      throw new Error('Stripe instance is not available for payment confirmation');
-    }
-    
-    const { paymentIntent, error: confirmError } = await stripe.confirmCardPayment(clientSecret, {
-      payment_method: paymentMethodId
-    });
-    
-    if (confirmError) {
-      // If payment fails, mark booking as failed and surface error
-      await supabase
-        .from('bookings')
-        .update({ 
-          payment_status: 'failed',
-          payment_error: confirmError.message
-        })
-        .eq('id', pendingBooking.id);
+      if (confirmError) {
+        console.error('❌ Stripe payment confirmation error:', confirmError);
+        throw new Error(`Payment failed: ${confirmError.message}`);
+      }
 
-      throw new Error(`Payment failed: ${confirmError.message}`);
+      if (!paymentIntent || paymentIntent.status === 'requires_action') {
+        console.error('❌ Payment requires additional action');
+        throw new Error('Payment requires additional authentication. Please complete the 3D Secure verification.');
+      }
+
+      if (paymentIntent.status !== 'succeeded') {
+        console.error('❌ Payment not succeeded, status:', paymentIntent.status);
+        throw new Error(`Payment failed with status: ${paymentIntent.status}`);
+      }
+
+      console.log('✅ Stripe payment confirmed successfully:', paymentIntent.id);
     }
 
     // Update booking status to confirmed

@@ -231,9 +231,9 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
                         fontSize: '16px',
                         color: '#800020',
                         fontFamily: 'system-ui, -apple-system, sans-serif',
-                        lineHeight: '1.5',
+                        padding: '10px 12px',
                         '::placeholder': {
-                          color: '#800020',
+                          color: '#9ca3af',
                         },
                       },
                       invalid: {
@@ -241,12 +241,6 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
                       },
                     },
                     hidePostalCode: true,
-                    // Mobile-specific options
-                    supportedNetworks: ['visa', 'mastercard', 'amex', 'discover'],
-                    // Simple placeholder text
-                    placeholder: 'Card number',
-                    // Disable autofill for better mobile compatibility
-                    disableLink: false,
                     // Ensure proper focus handling on mobile
                     classes: {
                       focus: 'is-focused',
