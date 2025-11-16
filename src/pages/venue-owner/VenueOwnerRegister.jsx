@@ -396,25 +396,15 @@ const VenueOwnerRegister = () => {
 
       console.log('✅ User account created successfully:', signUpData.user.id);
 
-      // Create venue owner record directly (foreign key constraints should work with new users)
+      // Create venue owner record with only owner information
+      console.log('📝 Creating venue owner record...');
       const { data: venueOwnerData, error: venueOwnerError } = await supabase
         .from('venue_owners')
         .insert([{
           user_id: signUpData.user.id,
-          venue_name: formData.venue_name,
-          venue_description: formData.venue_description,
-          venue_address: formData.venue_address,
-          venue_city: formData.venue_city,
-          venue_country: formData.venue_country,
-          venue_phone: formData.phone,
-          owner_name: formData.full_name,
-          owner_email: formData.email,
-          owner_phone: formData.phone,
-          venue_type: formData.venue_type,
-          opening_hours: formData.opening_hours || '',
-          capacity: formData.capacity || '',
-          price_range: formData.price_range || '$$',
-          status: 'pending_approval'
+          full_name: formData.full_name,
+          email: formData.email,
+          phone: formData.phone
         }])
         .select()
         .single();
@@ -425,7 +415,40 @@ const VenueOwnerRegister = () => {
         return;
       }
 
-      console.log('✅ Venue owner record created successfully');
+      console.log('✅ Venue owner record created successfully:', venueOwnerData.id);
+
+      // Now create the venue record with venue details
+      console.log('📝 Creating venue record...');
+      const { data: venueData, error: venueError } = await supabase
+        .from('venues')
+        .insert([{
+          owner_id: signUpData.user.id,
+          name: formData.venue_name,
+          description: formData.venue_description,
+          address: formData.venue_address,
+          city: formData.venue_city,
+          state: formData.venue_city || 'Not specified', // Use city as state if not provided
+          country: formData.venue_country,
+          contact_phone: formData.venue_phone,
+          contact_email: formData.venue_email,
+          type: formData.venue_type,
+          opening_hours: formData.opening_hours || '{}',
+          price_range: formData.price_range || '$$',
+          is_active: false,
+          latitude: 0, // Placeholder - can be updated later with actual coordinates
+          longitude: 0, // Placeholder - can be updated later with actual coordinates
+          rating: null
+        }])
+        .select()
+        .single();
+
+      if (venueError) {
+        console.error('❌ Venue creation failed:', venueError);
+        console.error('Venue error details:', venueError);
+        // Don't return here - venue owner was created successfully, this is secondary
+      } else {
+        console.log('✅ Venue record created successfully:', venueData.id);
+      }
 
       // Also create the pending request for admin tracking
       const requestData = {

@@ -445,53 +445,18 @@ const CreditPurchaseCheckout = () => {
         throw new Error(`Failed to create venue credit: ${creditError.message}`);
       }
 
-      // Generate QR code for Eddys Member
-      let qrCodeImage = null;
-      let qrData = null;
-      try {
-        const { generateEddysMemberQR } = await import('@/lib/qrCodeService.js');
-        
-        // Get user profile data for QR code
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('member_tier, created_at')
-          .eq('id', currentUser.id)
-          .single();
+      // Generate QR code for credit record
+      const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${creditRecord.id}`;
+      console.log('📱 QR code generated for credit:', qrCodeUrl);
 
-        if (profileError) {
-          console.log('⚠️ Error fetching profile data for QR code:', profileError.message);
-        }
-
-        const memberData = {
-          userId: currentUser.id,
-          venueId: creditData.venue.id,
-          memberTier: profileData?.member_tier || 'VIP',
-          memberSince: profileData?.created_at || new Date().toISOString()
-        };
-
-        qrCodeImage = await generateEddysMemberQR(memberData);
-        
-        // Store the QR data for email
-        qrData = {
-          type: 'eddys_member',
-          memberId: memberData.userId,
-          venueId: memberData.venueId,
-          securityCode: 'GENERATED',
-          memberTier: memberData.memberTier,
-          timestamp: new Date().toISOString()
-        };
-      } catch (qrError) {
-        console.error('❌ Error generating QR code:', qrError);
-        // Continue without QR code
-      }
-
-      // Send confirmation email
+      // Send confirmation email to customer
       try {
         const recipientEmail = formData.email || user?.email;
         if (!recipientEmail) {
           throw new Error('Email address is required to send confirmation');
         }
         
+        console.log('📧 Sending credit purchase confirmation email to:', recipientEmail);
         const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-email', {
           body: {
             to: recipientEmail,
@@ -502,19 +467,66 @@ const CreditPurchaseCheckout = () => {
               amount: creditData.amount * 1000,
               venueName: creditData.venue.name,
               dashboardUrl: `${window.location.origin}/profile?tab=wallet`,
-              qrCodeImage: qrCodeImage?.externalUrl || qrCodeImage,
-              qrCodeUrl: qrCodeImage?.externalUrl || (qrData ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(JSON.stringify(qrData))}&color=800020&bgcolor=FFFFFF&format=png` : 'https://www.google.com'),
+              qrCodeImage: qrCodeUrl,
               memberTier: 'VIP'
             }
           }
         });
 
         if (emailError) {
-          console.error('Error sending credit purchase confirmation email:', emailError);
+          console.error('❌ Error sending credit purchase confirmation email:', emailError);
+        } else {
+          console.log('✅ Credit purchase confirmation email sent successfully');
         }
       } catch (emailError) {
-        console.error('Error sending email:', emailError);
+        console.error('❌ Error sending customer email:', emailError);
         // Don't fail the process if email fails
+      }
+
+      // Send venue owner notification
+      try {
+        console.log('📧 Looking up venue owner for notification...');
+        const { data: venueOwnerData, error: ownerError } = await supabase
+          .from('venue_owners')
+          .select('owner_email, owner_name')
+          .eq('venue_id', creditData.venue.id)
+          .limit(1);
+
+        if (ownerError) {
+          console.error('❌ Error fetching venue owner:', ownerError);
+        } else if (venueOwnerData && venueOwnerData.length > 0) {
+          const venueOwner = venueOwnerData[0];
+          console.log('📧 Sending venue owner notification to:', venueOwner.owner_email);
+          
+          const { error: ownerEmailError } = await supabase.functions.invoke('send-email', {
+            body: {
+              to: venueOwner.owner_email,
+              subject: `New Credit Purchase - ${creditData.venue.name}`,
+              template: 'venue-owner-notification',
+              data: {
+                ownerEmail: venueOwner.owner_email,
+                venueName: creditData.venue.name,
+                customerName: formData.fullName,
+                customerEmail: recipientEmail,
+                amount: creditData.amount * 1000,
+                creditAmount: creditData.amount * 1000,
+                purchaseDate: new Date().toLocaleDateString(),
+                transactionType: 'Credit Purchase'
+              }
+            }
+          });
+
+          if (ownerEmailError) {
+            console.error('❌ Error sending venue owner notification:', ownerEmailError);
+          } else {
+            console.log('✅ Venue owner notification sent successfully');
+          }
+        } else {
+          console.log('⚠️ No venue owner found for notification');
+        }
+      } catch (ownerError) {
+        console.error('❌ Error in venue owner notification process:', ownerError);
+        // Don't fail the process if owner notification fails
       }
 
       // Show success message

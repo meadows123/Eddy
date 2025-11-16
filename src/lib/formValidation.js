@@ -1,3 +1,23 @@
+// Phone number validation - Accepts only 10-20 digits with optional +, spaces, hyphens, and parentheses
+export const isValidPhoneNumber = (phone) => {
+  if (!phone) return false;
+  // Remove all non-digit characters except the leading + sign
+  const cleaned = phone.replace(/[\s\-\(\)]/g, '');
+  // Check if it has between 10-20 digits (including country code)
+  const digitCount = cleaned.replace(/\D/g, '').length;
+  return digitCount >= 10 && digitCount <= 20;
+};
+
+// Sanitize phone input - only allow digits, +, spaces, hyphens, and parentheses
+export const sanitizePhoneInput = (value) => {
+  return value.replace(/[^\d\+\s\-\(\)]/g, '');
+};
+
+// Get only the digits from a phone number
+export const getPhoneDigits = (phone) => {
+  return phone.replace(/\D/g, '');
+};
+
 export const validateCheckoutForm = (formData, isAuthenticated = false) => {
   const errors = {};
   
@@ -13,6 +33,8 @@ export const validateCheckoutForm = (formData, isAuthenticated = false) => {
   
   if (!formData.phone.trim()) {
     errors.phone = 'Phone number is required';
+  } else if (!isValidPhoneNumber(formData.phone)) {
+    errors.phone = 'Phone number must contain 10-20 digits';
   }
   
   // Only validate password for non-authenticated users
