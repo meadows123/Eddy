@@ -483,37 +483,53 @@ const VenueOwnerRegister = () => {
         return;
       }
 
-      // Now create the venue record with venue details
-      console.log('📝 Creating venue record...');
-      const { data: venueData, error: venueError } = await supabase
+      // Check if venue already exists for this owner
+      console.log('🔍 Checking for existing venue...');
+      const { data: existingVenueList, error: existingVenueError } = await supabase
         .from('venues')
-        .insert([{
-          owner_id: signUpData.user.id,
-          name: formData.venue_name,
-          description: formData.venue_description,
-          address: formData.venue_address,
-          city: formData.venue_city,
-          state: formData.venue_city || 'Not specified', // Use city as state if not provided
-          country: formData.venue_country,
-          contact_phone: formData.venue_phone,
-          contact_email: formData.venue_email,
-          type: formData.venue_type,
-          opening_hours: formData.opening_hours || '{}',
-          price_range: formData.price_range || '$$',
-          is_active: false,
-          latitude: 0, // Placeholder - can be updated later with actual coordinates
-          longitude: 0, // Placeholder - can be updated later with actual coordinates
-          rating: null
-        }])
-        .select()
-        .single();
+        .select('id')
+        .eq('owner_id', signUpData.user.id)
+        .limit(1);
 
-      if (venueError) {
-        console.error('❌ Venue creation failed:', venueError);
-        console.error('Venue error details:', venueError);
-        // Don't return here - venue owner was created successfully, this is secondary
+      let venueData = null;
+      
+      if (existingVenueList && existingVenueList.length > 0) {
+        console.log('⚠️ Venue already exists for this owner, skipping creation:', existingVenueList[0].id);
+        venueData = existingVenueList[0];
       } else {
-        console.log('✅ Venue record created successfully:', venueData.id);
+        // Now create the venue record with venue details
+        console.log('📝 Creating venue record...');
+        const { data: newVenueList, error: venueError } = await supabase
+          .from('venues')
+          .insert([{
+            owner_id: signUpData.user.id,
+            name: formData.venue_name,
+            description: formData.venue_description,
+            address: formData.venue_address,
+            city: formData.venue_city,
+            state: formData.venue_city || 'Not specified', // Use city as state if not provided
+            country: formData.venue_country,
+            contact_phone: formData.venue_phone,
+            contact_email: formData.venue_email,
+            type: formData.venue_type,
+            opening_hours: formData.opening_hours || '{}',
+            price_range: formData.price_range || '$$',
+            is_active: false,
+            latitude: 0, // Placeholder - can be updated later with actual coordinates
+            longitude: 0, // Placeholder - can be updated later with actual coordinates
+            rating: null
+          }])
+          .select()
+          .limit(1);
+
+        if (venueError) {
+          console.error('❌ Venue creation failed:', venueError);
+          console.error('Venue error details:', venueError);
+          // Don't return here - venue owner was created successfully, this is secondary
+        } else if (newVenueList && newVenueList.length > 0) {
+          venueData = newVenueList[0];
+          console.log('✅ Venue record created successfully:', venueData.id);
+        }
       }
 
       // Also create the pending request for admin tracking

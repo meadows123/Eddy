@@ -33,11 +33,13 @@ const ImageManagement = ({ currentUser }) => {
     try {
       setLoading(true);
       
-      const { data: venueData, error: venueError } = await supabase
+      const { data: venueDataList, error: venueError } = await supabase
         .from('venues')
         .select('*')
         .eq('owner_id', currentUser.id)
-        .single();
+        .limit(1);
+      
+      const venueData = venueDataList && venueDataList.length > 0 ? venueDataList[0] : null;
 
       if (venueError) {
         console.error('Error fetching venue:', venueError);
