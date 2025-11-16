@@ -416,64 +416,42 @@ const VenueOwnerRegister = () => {
         }
       }
 
-      // Check if venue owner already exists
-      console.log('🔍 Checking if venue owner already exists...');
-      const { data: existingVenueOwner, error: checkError } = await supabase
+      // Create venue owner record directly (RLS policy now allows this)
+      console.log('📝 Creating venue owner record...');
+      const { data: venueOwnerData, error: venueOwnerError } = await supabase
         .from('venue_owners')
-        .select('id')
-        .eq('user_id', signUpData.user.id)
-        .limit(1);
+        .insert([{
+          user_id: signUpData.user.id,
+          full_name: formData.full_name,
+          email: formData.email,
+          phone: formData.phone
+        }])
+        .select()
+        .single();
 
-      let venueOwnerId = null;
-      
-      if (existingVenueOwner && existingVenueOwner.length > 0) {
-        // Venue owner already exists, use existing ID
-        venueOwnerId = existingVenueOwner[0].id;
-        console.log('✅ Venue owner already exists, using existing record:', venueOwnerId);
-      } else {
-        // Create venue owner record using Edge Function (bypasses RLS with service role)
-        console.log('📝 Creating venue owner record via Edge Function...');
-        try {
-          const { data: functionResponse, error: functionError } = await supabase.functions.invoke('create-venue-owner', {
-            body: {
-              user_id: signUpData.user.id,
-              full_name: formData.full_name,
-              email: formData.email,
-              phone: formData.phone
-            }
-          });
-
-          if (functionError) {
-            console.error('❌ Edge Function error:', functionError);
-            // Check if it's a "already exists" error
-            if (functionResponse?.error?.includes('already exists') || functionResponse?.code === '23505') {
-              console.log('⚠️ Venue owner already exists, continuing...');
-              // Try to fetch the existing one
-              const { data: existing } = await supabase
-                .from('venue_owners')
-                .select('id')
-                .eq('user_id', signUpData.user.id)
-                .limit(1);
-              if (existing && existing.length > 0) {
-                venueOwnerId = existing[0].id;
-              }
-            } else {
-              setError(`Failed to create venue owner record: ${functionError.message}`);
-              return;
-            }
-          } else if (functionResponse?.success && functionResponse?.data) {
-            venueOwnerId = functionResponse.data.id;
-            console.log('✅ Venue owner record created successfully:', venueOwnerId);
+      if (venueOwnerError) {
+        // Check if it's a duplicate key error (venue owner already exists)
+        if (venueOwnerError.code === '23505') {
+          console.log('⚠️ Venue owner already exists, fetching existing record...');
+          const { data: existing } = await supabase
+            .from('venue_owners')
+            .select('id')
+            .eq('user_id', signUpData.user.id)
+            .limit(1);
+          if (existing && existing.length > 0) {
+            console.log('✅ Using existing venue owner record:', existing[0].id);
           } else {
-            console.error('❌ Venue owner creation failed:', functionResponse?.error);
-            setError(`Failed to create venue owner record: ${functionResponse?.details || 'Unknown error'}`);
+            console.error('❌ Venue owner creation failed:', venueOwnerError);
+            setError(`Failed to create venue owner record: ${venueOwnerError.message}`);
             return;
           }
-        } catch (err) {
-          console.error('❌ Exception creating venue owner:', err);
-          setError(`Failed to create venue owner record: ${err.message}`);
+        } else {
+          console.error('❌ Venue owner creation failed:', venueOwnerError);
+          setError(`Failed to create venue owner record: ${venueOwnerError.message}`);
           return;
         }
+      } else {
+        console.log('✅ Venue owner record created successfully:', venueOwnerData.id);
       }
 
       // Now create the venue record with venue details
