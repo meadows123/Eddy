@@ -179,6 +179,7 @@ const VenueApprovalsPage = () => {
         .from('venue_owners')
         .select('id, user_id, email, owner_email')
         .eq('user_id', req.user_id)
+        .order('created_at', { ascending: false })
         .limit(1);
 
       if (checkError) {
@@ -195,6 +196,7 @@ const VenueApprovalsPage = () => {
         .from('venues')
         .select('id')
         .eq('owner_id', req.user_id)
+        .order('created_at', { ascending: false })
         .limit(1);
 
       let newVenue = null;
@@ -221,6 +223,7 @@ const VenueApprovalsPage = () => {
             owner_id: req.user_id
           }])
           .select()
+          .order('id', { ascending: false })
           .limit(1);
 
         if (venueError) {
@@ -266,6 +269,7 @@ const VenueApprovalsPage = () => {
           })
           .eq('id', existingVenueOwner.id)
           .select()
+          .order('id', { ascending: false })
           .limit(1);
 
         if (updateError) {
@@ -302,6 +306,7 @@ const VenueApprovalsPage = () => {
             price_range: req.price_range || '$$'
           }])
           .select()
+          .order('id', { ascending: false })
           .limit(1);
 
         if (venueOwnerError) {
