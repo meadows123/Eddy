@@ -395,27 +395,57 @@ const VenueOwnerRegister = () => {
       }
 
       console.log('✅ User account created successfully:', signUpData.user.id);
+      console.log('📊 Signup data:', {
+        hasUser: !!signUpData.user,
+        userId: signUpData.user.id,
+        hasSession: !!signUpData.session,
+        sessionUser: signUpData.session?.user?.id
+      });
 
-      // Create venue owner record with only owner information
-      console.log('📝 Creating venue owner record...');
-      const { data: venueOwnerData, error: venueOwnerError } = await supabase
-        .from('venue_owners')
-        .insert([{
-          user_id: signUpData.user.id,
-          full_name: formData.full_name,
-          email: formData.email,
-          phone: formData.phone
-        }])
-        .select()
-        .single();
-
-      if (venueOwnerError) {
-        console.error('❌ Venue owner creation failed:', venueOwnerError);
-        setError(`Failed to create venue owner record: ${venueOwnerError.message}`);
-        return;
+      // If we have a session, set it so the user is authenticated for the next operations
+      if (signUpData.session) {
+        console.log('🔐 Setting session for newly created user...');
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: signUpData.session.access_token,
+          refresh_token: signUpData.session.refresh_token
+        });
+        if (sessionError) {
+          console.warn('⚠️ Could not set session:', sessionError);
+        } else {
+          console.log('✅ Session set successfully');
+        }
       }
 
-      console.log('✅ Venue owner record created successfully:', venueOwnerData.id);
+      // Create venue owner record using Edge Function (bypasses RLS with service role)
+      console.log('📝 Creating venue owner record via Edge Function...');
+      try {
+        const { data: functionResponse, error: functionError } = await supabase.functions.invoke('create-venue-owner', {
+          body: {
+            user_id: signUpData.user.id,
+            full_name: formData.full_name,
+            email: formData.email,
+            phone: formData.phone
+          }
+        });
+
+        if (functionError) {
+          console.error('❌ Edge Function error:', functionError);
+          setError(`Failed to create venue owner record: ${functionError.message}`);
+          return;
+        }
+
+        if (!functionResponse?.success || !functionResponse?.data) {
+          console.error('❌ Venue owner creation failed:', functionResponse?.error);
+          setError(`Failed to create venue owner record: ${functionResponse?.details || 'Unknown error'}`);
+          return;
+        }
+
+        console.log('✅ Venue owner record created successfully:', functionResponse.data.id);
+      } catch (err) {
+        console.error('❌ Exception creating venue owner:', err);
+        setError(`Failed to create venue owner record: ${err.message}`);
+        return;
+      }
 
       // Now create the venue record with venue details
       console.log('📝 Creating venue record...');

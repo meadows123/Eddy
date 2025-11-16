@@ -279,7 +279,6 @@ export async function notifyAdminOfVenueSubmission(newVenue, userProfile, user) 
         }
       })
     });
-
     if (!response.ok) {
       const error = await response.json();
       throw new Error(error.error || "Failed to send admin notification email.");
