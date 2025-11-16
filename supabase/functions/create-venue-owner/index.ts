@@ -29,13 +29,39 @@ serve(async (req) => {
       },
     });
 
-    const { user_id, full_name, email, phone } = await req.json();
+    let body;
+    try {
+      body = await req.json();
+    } catch (e) {
+      console.error("JSON parse error:", e);
+      return new Response(
+        JSON.stringify({ 
+          error: "Invalid JSON in request body",
+          details: e.message
+        }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    }
+
+    const { user_id, full_name, email, phone } = body;
+
+    console.log("Received request body:", body);
+    console.log("Extracted fields:", { user_id, full_name, email, phone });
 
     if (!user_id || !full_name || !email) {
+      console.error("Missing required fields:", { 
+        hasUserId: !!user_id, 
+        hasFullName: !!full_name, 
+        hasEmail: !!email 
+      });
       return new Response(
         JSON.stringify({ 
           error: "Missing required fields",
-          required: ["user_id", "full_name", "email"]
+          required: ["user_id", "full_name", "email"],
+          received: { user_id: !!user_id, full_name: !!full_name, email: !!email }
         }),
         {
           status: 400,
@@ -62,10 +88,31 @@ serve(async (req) => {
 
     if (error) {
       console.error("Error creating venue owner:", error);
+      console.error("Error code:", error.code);
+      console.error("Error details:", error.details);
+      console.error("Error hint:", error.hint);
+      
+      // Check if it's a duplicate key error
+      if (error.code === '23505') {
+        return new Response(
+          JSON.stringify({
+            error: "Venue owner already exists",
+            details: "A venue owner record with this user_id already exists",
+            code: error.code,
+          }),
+          {
+            status: 409, // Conflict
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+      
       return new Response(
         JSON.stringify({
           error: "Failed to create venue owner",
           details: error.message,
+          code: error.code,
+          hint: error.hint,
         }),
         {
           status: 400,

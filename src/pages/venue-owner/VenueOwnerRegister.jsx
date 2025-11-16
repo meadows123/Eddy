@@ -416,35 +416,64 @@ const VenueOwnerRegister = () => {
         }
       }
 
-      // Create venue owner record using Edge Function (bypasses RLS with service role)
-      console.log('📝 Creating venue owner record via Edge Function...');
-      try {
-        const { data: functionResponse, error: functionError } = await supabase.functions.invoke('create-venue-owner', {
-          body: {
-            user_id: signUpData.user.id,
-            full_name: formData.full_name,
-            email: formData.email,
-            phone: formData.phone
+      // Check if venue owner already exists
+      console.log('🔍 Checking if venue owner already exists...');
+      const { data: existingVenueOwner, error: checkError } = await supabase
+        .from('venue_owners')
+        .select('id')
+        .eq('user_id', signUpData.user.id)
+        .limit(1);
+
+      let venueOwnerId = null;
+      
+      if (existingVenueOwner && existingVenueOwner.length > 0) {
+        // Venue owner already exists, use existing ID
+        venueOwnerId = existingVenueOwner[0].id;
+        console.log('✅ Venue owner already exists, using existing record:', venueOwnerId);
+      } else {
+        // Create venue owner record using Edge Function (bypasses RLS with service role)
+        console.log('📝 Creating venue owner record via Edge Function...');
+        try {
+          const { data: functionResponse, error: functionError } = await supabase.functions.invoke('create-venue-owner', {
+            body: {
+              user_id: signUpData.user.id,
+              full_name: formData.full_name,
+              email: formData.email,
+              phone: formData.phone
+            }
+          });
+
+          if (functionError) {
+            console.error('❌ Edge Function error:', functionError);
+            // Check if it's a "already exists" error
+            if (functionResponse?.error?.includes('already exists') || functionResponse?.code === '23505') {
+              console.log('⚠️ Venue owner already exists, continuing...');
+              // Try to fetch the existing one
+              const { data: existing } = await supabase
+                .from('venue_owners')
+                .select('id')
+                .eq('user_id', signUpData.user.id)
+                .limit(1);
+              if (existing && existing.length > 0) {
+                venueOwnerId = existing[0].id;
+              }
+            } else {
+              setError(`Failed to create venue owner record: ${functionError.message}`);
+              return;
+            }
+          } else if (functionResponse?.success && functionResponse?.data) {
+            venueOwnerId = functionResponse.data.id;
+            console.log('✅ Venue owner record created successfully:', venueOwnerId);
+          } else {
+            console.error('❌ Venue owner creation failed:', functionResponse?.error);
+            setError(`Failed to create venue owner record: ${functionResponse?.details || 'Unknown error'}`);
+            return;
           }
-        });
-
-        if (functionError) {
-          console.error('❌ Edge Function error:', functionError);
-          setError(`Failed to create venue owner record: ${functionError.message}`);
+        } catch (err) {
+          console.error('❌ Exception creating venue owner:', err);
+          setError(`Failed to create venue owner record: ${err.message}`);
           return;
         }
-
-        if (!functionResponse?.success || !functionResponse?.data) {
-          console.error('❌ Venue owner creation failed:', functionResponse?.error);
-          setError(`Failed to create venue owner record: ${functionResponse?.details || 'Unknown error'}`);
-          return;
-        }
-
-        console.log('✅ Venue owner record created successfully:', functionResponse.data.id);
-      } catch (err) {
-        console.error('❌ Exception creating venue owner:', err);
-        setError(`Failed to create venue owner record: ${err.message}`);
-        return;
       }
 
       // Now create the venue record with venue details
