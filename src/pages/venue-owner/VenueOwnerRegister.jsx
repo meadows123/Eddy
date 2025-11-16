@@ -416,42 +416,55 @@ const VenueOwnerRegister = () => {
         }
       }
 
-      // Create venue owner record directly (RLS policy now allows this)
-      console.log('📝 Creating venue owner record...');
-      const { data: venueOwnerData, error: venueOwnerError } = await supabase
-        .from('venue_owners')
-        .insert([{
-          user_id: signUpData.user.id,
-          full_name: formData.full_name,
-          email: formData.email,
-          phone: formData.phone
-        }])
-        .select()
-        .single();
-
-      if (venueOwnerError) {
-        // Check if it's a duplicate key error (venue owner already exists)
-        if (venueOwnerError.code === '23505') {
-          console.log('⚠️ Venue owner already exists, fetching existing record...');
-          const { data: existing } = await supabase
-            .from('venue_owners')
-            .select('id')
-            .eq('user_id', signUpData.user.id)
-            .limit(1);
-          if (existing && existing.length > 0) {
-            console.log('✅ Using existing venue owner record:', existing[0].id);
-          } else {
-            console.error('❌ Venue owner creation failed:', venueOwnerError);
-            setError(`Failed to create venue owner record: ${venueOwnerError.message}`);
-            return;
+      // Create venue owner record using Edge Function (bypasses RLS with service role)
+      // This is necessary because the session might not be fully established after signup
+      console.log('📝 Creating venue owner record via Edge Function...');
+      try {
+        const { data: functionResponse, error: functionError } = await supabase.functions.invoke('create-venue-owner', {
+          body: {
+            user_id: signUpData.user.id,
+            full_name: formData.full_name,
+            email: formData.email,
+            phone: formData.phone
           }
+        });
+
+        if (functionError) {
+          console.error('❌ Edge Function error:', functionError);
+          // If Edge Function fails, try direct insert as fallback
+          console.log('🔄 Falling back to direct insert...');
+          const { data: venueOwnerData, error: venueOwnerError } = await supabase
+            .from('venue_owners')
+            .insert([{
+              user_id: signUpData.user.id,
+              full_name: formData.full_name,
+              email: formData.email,
+              phone: formData.phone
+            }])
+            .select()
+            .single();
+
+          if (venueOwnerError) {
+            if (venueOwnerError.code === '23505') {
+              console.log('⚠️ Venue owner already exists, continuing...');
+            } else {
+              setError(`Failed to create venue owner record: ${venueOwnerError.message}`);
+              return;
+            }
+          } else {
+            console.log('✅ Venue owner created via fallback:', venueOwnerData.id);
+          }
+        } else if (functionResponse?.success && functionResponse?.data) {
+          console.log('✅ Venue owner record created successfully:', functionResponse.data.id);
         } else {
-          console.error('❌ Venue owner creation failed:', venueOwnerError);
-          setError(`Failed to create venue owner record: ${venueOwnerError.message}`);
+          console.error('❌ Venue owner creation failed:', functionResponse?.error);
+          setError(`Failed to create venue owner record: ${functionResponse?.details || 'Unknown error'}`);
           return;
         }
-      } else {
-        console.log('✅ Venue owner record created successfully:', venueOwnerData.id);
+      } catch (err) {
+        console.error('❌ Exception creating venue owner:', err);
+        setError(`Failed to create venue owner record: ${err.message}`);
+        return;
       }
 
       // Now create the venue record with venue details
