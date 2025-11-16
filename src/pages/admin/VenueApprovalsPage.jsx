@@ -202,8 +202,37 @@ const VenueApprovalsPage = () => {
       let newVenue = null;
       
       if (existingVenueList && existingVenueList.length > 0) {
-        console.log('⚠️ Venue already exists, using existing venue:', existingVenueList[0].id);
-        newVenue = existingVenueList[0];
+        console.log('⚠️ Venue already exists, updating status to active:', existingVenueList[0].id);
+        // Update existing venue to be active and visible
+        const { data: updatedVenueList, error: updateVenueError } = await supabase
+          .from('venues')
+          .update({
+            status: 'active',
+            is_active: true,
+            name: req.venue_name,
+            description: req.additional_info,
+            type: req.venue_type || 'restaurant',
+            price_range: req.price_range || '$$',
+            address: req.venue_address,
+            city: req.venue_city,
+            state: req.venue_city,
+            country: req.venue_country
+          })
+          .eq('id', existingVenueList[0].id)
+          .select();
+
+        if (updateVenueError) {
+          console.error('❌ Failed to update existing venue:', updateVenueError);
+          throw new Error(`Failed to update existing venue: ${updateVenueError.message}`);
+        }
+
+        if (updatedVenueList && updatedVenueList.length > 0) {
+          newVenue = updatedVenueList[0];
+          console.log('✅ Existing venue updated to active:', newVenue.id);
+        } else {
+          // Fallback: use existing venue if update didn't return data
+          newVenue = existingVenueList[0];
+        }
       } else {
         // Create new venue record
         console.log('🏗️ Creating venue record...');

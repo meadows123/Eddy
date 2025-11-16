@@ -213,10 +213,13 @@ export const sendVenueOwnerApplicationApproved = async (venueOwnerData) => {
     // Try Edge Function first
     const { data, error } = await supabase.functions.invoke('send-email', {
       body: {
+        to: venueOwnerData.email,
+        subject: `🎉 Your Venue Application Has Been Approved - ${venueOwnerData.venue_name}`,
         template: 'venue-owner-application-approved',
         data: {
           email: venueOwnerData.email,
           contactName: venueOwnerData.contact_name || venueOwnerData.owner_name,
+          ownerName: venueOwnerData.contact_name || venueOwnerData.owner_name, // Add both for template compatibility
           venueName: venueOwnerData.venue_name,
           venueType: venueOwnerData.venue_type || 'Restaurant', // Keep fallback but prefer actual type
           venueAddress: venueOwnerData.venue_address,
