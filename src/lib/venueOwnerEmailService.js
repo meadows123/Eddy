@@ -414,7 +414,7 @@ export const notifyAdminOfVenueOwnerRegistration = async (venueOwnerData) => {
           venueType: venueOwnerData.venue_type,
           venueAddress: venueOwnerData.venue_address,
           venueCity: venueOwnerData.venue_city,
-          adminUrl: `https://www.oneeddy.com/admin/venue-approvals`
+          viewUrl: `https://www.oneeddy.com/admin/venue-approvals`
         }
       }
     });
@@ -455,7 +455,7 @@ export const notifyAdminOfVenueOwnerRegistration = async (venueOwnerData) => {
         venueType: venueOwnerData.venue_type || 'Restaurant',
         venueAddress: venueOwnerData.venue_address,
         venueCity: venueOwnerData.venue_city,
-        adminUrl: 'https://www.oneeddy.com/admin/venue-approvals', // Add the admin dashboard URL
+        viewUrl: 'https://www.oneeddy.com/admin/venue-approvals', // Add the admin dashboard URL
         applicationDate: new Date().toLocaleDateString('en-US', {
           weekday: 'long',
           year: 'numeric',
