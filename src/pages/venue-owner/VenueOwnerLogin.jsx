@@ -357,13 +357,14 @@ const VenueOwnerLogin = () => {
       if (userError) throw new Error('User error: ' + userError.message);
 
       // Get venue details
-      const { data: venueData, error: venueError } = await supabase
+      const { data: venueDataList, error: venueError } = await supabase
         .from('venues')
         .select('*')
         .eq('owner_id', user.id)
-        .single();
+        .limit(1);
 
       if (venueError) throw new Error('Venue error: ' + venueError.message);
+      const venueData = venueDataList && venueDataList.length > 0 ? venueDataList[0] : null;
       if (!venueData) throw new Error('No venue found for this user.');
 
       // ...rest of your code...

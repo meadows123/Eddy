@@ -202,7 +202,7 @@ serve(async (req) => {
               </div>
               
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${data.adminUrl || 'https://oneeddy.com/admin/venue-approvals'}" style="background: #FFD700; color: #800020; padding: 14px 32px; text-decoration: none; border-radius: 25px; font-weight: bold; font-size: 16px; display: inline-block; border: 2px solid #800020;">Review Registration</a>
+                <a href="${data.viewUrl || data.adminUrl || 'https://www.oneeddy.com/admin/venue-approvals'}" style="background: #FFD700; color: #800020; padding: 14px 32px; text-decoration: none; border-radius: 25px; font-weight: bold; font-size: 16px; display: inline-block; border: 2px solid #800020;">🏢 VIEW FULL DETAILS</a>
               </div>
               
               <p style="color: #800020; line-height: 1.6; font-size: 16px;">Please review this registration in the admin dashboard and approve or reject the venue owner.</p>
