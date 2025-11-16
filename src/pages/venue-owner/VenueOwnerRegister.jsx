@@ -416,6 +416,10 @@ const VenueOwnerRegister = () => {
         }
       }
 
+      // Small delay to ensure user is fully committed to database before foreign key check
+      console.log('⏳ Waiting for user to be committed to database...');
+      await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
+
       // Create venue owner record using Edge Function (bypasses RLS with service role)
       // This is necessary because the session might not be fully established after signup
       console.log('📝 Creating venue owner record via Edge Function...');
@@ -431,28 +435,40 @@ const VenueOwnerRegister = () => {
 
         if (functionError) {
           console.error('❌ Edge Function error:', functionError);
-          // If Edge Function fails, try direct insert as fallback
-          console.log('🔄 Falling back to direct insert...');
-          const { data: venueOwnerData, error: venueOwnerError } = await supabase
-            .from('venue_owners')
-            .insert([{
-              user_id: signUpData.user.id,
-              full_name: formData.full_name,
-              email: formData.email,
-              phone: formData.phone
-            }])
-            .select()
-            .single();
+          console.error('❌ Edge Function error details:', {
+            message: functionError.message,
+            status: functionError.status,
+            context: functionError.context
+          });
+          
+          // If Edge Function fails, try direct insert as fallback (only if session is set)
+          if (signUpData.session) {
+            console.log('🔄 Falling back to direct insert (session available)...');
+            const { data: venueOwnerData, error: venueOwnerError } = await supabase
+              .from('venue_owners')
+              .insert([{
+                user_id: signUpData.user.id,
+                full_name: formData.full_name,
+                email: formData.email,
+                phone: formData.phone
+              }])
+              .select()
+              .single();
 
-          if (venueOwnerError) {
-            if (venueOwnerError.code === '23505') {
-              console.log('⚠️ Venue owner already exists, continuing...');
+            if (venueOwnerError) {
+              if (venueOwnerError.code === '23505') {
+                console.log('⚠️ Venue owner already exists, continuing...');
+              } else {
+                console.error('❌ Fallback also failed:', venueOwnerError);
+                setError(`Failed to create venue owner record: ${venueOwnerError.message}. Please check RLS policies or deploy Edge Function.`);
+                return;
+              }
             } else {
-              setError(`Failed to create venue owner record: ${venueOwnerError.message}`);
-              return;
+              console.log('✅ Venue owner created via fallback:', venueOwnerData.id);
             }
           } else {
-            console.log('✅ Venue owner created via fallback:', venueOwnerData.id);
+            setError(`Failed to create venue owner record: ${functionError.message}. Please deploy the create-venue-owner Edge Function or run the RLS fix SQL.`);
+            return;
           }
         } else if (functionResponse?.success && functionResponse?.data) {
           console.log('✅ Venue owner record created successfully:', functionResponse.data.id);

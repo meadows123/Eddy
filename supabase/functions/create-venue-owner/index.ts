@@ -73,18 +73,46 @@ serve(async (req) => {
     console.log("Creating venue owner:", { user_id, full_name, email, phone });
 
     // Insert into venue_owners table using service role (bypasses RLS)
-    const { data, error } = await supabase
-      .from("venue_owners")
-      .insert([
-        {
-          user_id,
-          full_name,
-          email,
-          phone,
-        },
-      ])
-      .select()
-      .single();
+    // Retry logic for foreign key constraint (user might not be visible immediately after creation)
+    let data = null;
+    let error = null;
+    let retries = 3;
+    let delay = 500; // Start with 500ms delay
+
+    while (retries > 0) {
+      const result = await supabase
+        .from("venue_owners")
+        .insert([
+          {
+            user_id,
+            full_name,
+            email,
+            phone,
+          },
+        ])
+        .select()
+        .single();
+
+      error = result.error;
+      data = result.data;
+
+      // If successful, break out of retry loop
+      if (!error) {
+        console.log("✅ Venue owner created successfully on attempt", 4 - retries);
+        break;
+      }
+
+      // If it's a foreign key error, retry after delay
+      if (error?.code === '23503' && retries > 1) {
+        console.log(`⚠️ Foreign key constraint error, retrying in ${delay}ms... (${retries - 1} retries left)`);
+        retries--;
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay *= 2; // Exponential backoff: 500ms, 1000ms, 2000ms
+      } else {
+        // Not a retryable error, break
+        break;
+      }
+    }
 
     if (error) {
       console.error("Error creating venue owner:", error);
