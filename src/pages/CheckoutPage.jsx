@@ -901,6 +901,20 @@ if (!venueId) {
       if (!paymentMethodId) {
         throw new Error('Payment method ID is required. Please ensure your card details are entered correctly.');
       }
+
+      const requestBody = {
+        amount: parseFloat(calculateTotal()),
+        currency: userLocation?.currency || 'gbp',
+        bookingId: pendingBooking.id,
+        email: formData.email,
+        description: `Booking at ${selection?.venue?.name || 'Venue'}`
+      };
+
+      console.log('📤 Sending PaymentIntent request:', {
+        ...requestBody,
+        amount: requestBody.amount,
+        hasPaymentMethodId: !!paymentMethodId
+      });
       
       // Call Edge Function to create Payment Intent
       const createIntentResponse = await fetch(
@@ -911,20 +925,24 @@ if (!venueId) {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
           },
-          body: JSON.stringify({
-            amount: parseFloat(calculateTotal()),
-            currency: userLocation?.currency || 'gbp',
-            bookingId: pendingBooking.id,
-            email: formData.email,
-            description: `Booking at ${selection?.venue?.name || 'Venue'}`
-          })
+          body: JSON.stringify(requestBody)
         }
       );
 
+      console.log('📥 PaymentIntent response status:', createIntentResponse.status);
+
       if (!createIntentResponse.ok) {
-        const errorData = await createIntentResponse.json();
+        let errorData;
+        try {
+          errorData = await createIntentResponse.json();
+        } catch (e) {
+          const errorText = await createIntentResponse.text();
+          console.error('❌ Failed to parse error response:', errorText);
+          throw new Error(`Failed to create payment intent: ${createIntentResponse.status} ${createIntentResponse.statusText}`);
+        }
         console.error('❌ Failed to create Stripe PaymentIntent:', errorData);
-        throw new Error(errorData.error || 'Failed to create payment intent');
+        console.error('❌ Full error response:', JSON.stringify(errorData, null, 2));
+        throw new Error(errorData.error || errorData.message || 'Failed to create payment intent');
       }
 
       const intentData = await createIntentResponse.json();

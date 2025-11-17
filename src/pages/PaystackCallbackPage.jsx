@@ -104,7 +104,22 @@ const PaystackCallbackPage = () => {
             updated_at: new Date().toISOString()
           })
           .eq('id', bookingId)
-          .select('id, booking_date, start_time, end_time, number_of_guests, total_amount, venue_id, user_id')
+          .select(`
+            id, 
+            booking_date, 
+            start_time, 
+            end_time, 
+            number_of_guests, 
+            total_amount, 
+            venue_id, 
+            user_id,
+            venues (
+              name,
+              address,
+              city,
+              contact_phone
+            )
+          `)
           .single();
 
         console.log('📝 Database update result:', { bookingData, updateError });
@@ -112,6 +127,21 @@ const PaystackCallbackPage = () => {
         if (updateError) {
           console.error('❌ UPDATE ERROR:', updateError);
           throw new Error(`Failed to update booking: ${updateError.message}`);
+        }
+
+        // If venue data wasn't included in the join, fetch it separately
+        if (bookingData && !bookingData.venues && bookingData.venue_id) {
+          console.log('🔄 Venue data not in join, fetching separately...');
+          const { data: venueData, error: venueError } = await supabase
+            .from('venues')
+            .select('name, address, city, contact_phone')
+            .eq('id', bookingData.venue_id)
+            .single();
+          
+          if (!venueError && venueData) {
+            bookingData.venues = venueData;
+            console.log('✅ Venue data fetched separately:', venueData);
+          }
         }
 
         console.log('✅ Booking payment status updated:', bookingData);
@@ -314,7 +344,7 @@ const PaystackCallbackPage = () => {
                     <p><strong>Venue:</strong> {bookingDetails.venues?.name}</p>
                     <p><strong>Date:</strong> {new Date(bookingDetails.booking_date).toLocaleDateString()}</p>
                     <p><strong>Time:</strong> {bookingDetails.start_time} - {bookingDetails.end_time}</p>
-                    <p><strong>Guests:</strong> {bookingDetails.guest_count}</p>
+                    <p><strong>Guests:</strong> {bookingDetails.number_of_guests || bookingDetails.guest_count || 'N/A'}</p>
                     <p><strong>Total Amount:</strong> ₦{bookingDetails.total_amount?.toLocaleString()}</p>
                     <p><strong>Reference:</strong> {bookingDetails.id?.slice(0, 8)}...</p>
                   </div>

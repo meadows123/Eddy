@@ -124,48 +124,53 @@ const VenueOwnerCredits = () => {
 
       setVenue(venueData);
 
-      // Try to fetch credits with user profile data (falls back if profiles table not ready)
+      // Fetch credits first
       let creditsData;
       let creditsError;
       
-      try {
-        // Attempt to fetch with profiles join
-        const { data, error } = await supabase
-          .from('venue_credits')
-          .select(`
-            *,
-            profiles:user_id (
-              id,
-              full_name,
-              email,
-              first_name,
-              last_name
-            )
-          `)
-          .eq('venue_id', venueData.id)
-          .order('created_at', { ascending: false });
-        
-        creditsData = data;
-        creditsError = error;
-        
-        if (creditsError && creditsError.code === 'PGRST200') {
-          // Profiles table not ready yet, fall back to basic query
-          console.log('🔄 Profiles table not ready, using fallback...');
-          const fallbackResult = await supabase
-            .from('venue_credits')
-            .select('*')
-            .eq('venue_id', venueData.id)
-            .order('created_at', { ascending: false });
-          
-          creditsData = fallbackResult.data;
-          creditsError = fallbackResult.error;
-        }
-      } catch (error) {
-        console.error('Error fetching credits:', error);
-        creditsError = error;
+      const { data: credits, error: creditsErr } = await supabase
+        .from('venue_credits')
+        .select('*')
+        .eq('venue_id', venueData.id)
+        .order('created_at', { ascending: false });
+      
+      creditsData = credits;
+      creditsError = creditsErr;
+      
+      if (creditsError) {
+        console.error('Error fetching credits:', creditsError);
+        throw creditsError;
       }
 
-      if (creditsError) throw creditsError;
+      // Fetch profiles for all unique user_ids
+      if (creditsData && creditsData.length > 0) {
+        const uniqueUserIds = [...new Set(creditsData.map(credit => credit.user_id).filter(Boolean))];
+        
+        if (uniqueUserIds.length > 0) {
+          console.log('🔍 Fetching profiles for user IDs:', uniqueUserIds);
+          
+          const { data: profilesData, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, full_name, email, first_name, last_name')
+            .in('id', uniqueUserIds);
+          
+          if (profilesError) {
+            console.warn('⚠️ Error fetching profiles:', profilesError);
+            // Continue without profiles - will use fallback display
+          } else if (profilesData) {
+            // Create a map of user_id -> profile for quick lookup
+            const profilesMap = new Map(profilesData.map(profile => [profile.id, profile]));
+            
+            // Attach profile data to each credit
+            creditsData = creditsData.map(credit => ({
+              ...credit,
+              profiles: profilesMap.get(credit.user_id) || null
+            }));
+            
+            console.log('✅ Profiles attached to credits:', creditsData.length);
+          }
+        }
+      }
 
       // Process the credits data based on whether we have profiles or not
       const processedCredits = (creditsData || []).map((credit) => {

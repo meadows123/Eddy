@@ -157,43 +157,72 @@ const VenueOwnerReceipts = () => {
 
     try {
       // Search for members who have credits at this venue
-            const { data: membersData, error } = await supabase
+      // First fetch credits with available balance (amount - used_amount > 0)
+      const { data: creditsData, error: creditsError } = await supabase
         .from('venue_credits')
-        .select(`
-          user_id,
-          remaining_balance,
-          profiles:user_id (
-            id,
-              full_name,
-              email,
-              first_name,
-              last_name
-            )
-          `)
+        .select('user_id, amount, used_amount, status')
         .eq('venue_id', venue.id)
-        .eq('status', 'active')
-        .gt('remaining_balance', 0);
+        .eq('status', 'active');
 
-      if (error) {
-        console.error('Error searching members:', error);
+      if (creditsError) {
+        console.error('Error fetching credits:', creditsError);
         return;
       }
 
-      // Filter results based on search term
-      const filteredMembers = (membersData || [])
-        .filter(member => {
-          if (!member.profiles) return false;
-          const fullName = member.profiles.full_name || `${member.profiles.first_name || ''} ${member.profiles.last_name || ''}`.trim();
-          const email = member.profiles.email || '';
-          
-          return fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                 email.toLowerCase().includes(searchTerm.toLowerCase());
+      // Calculate remaining balance and filter for members with available credits
+      const membersWithCredits = (creditsData || [])
+        .map(credit => {
+          const amount = Number(credit.amount) || 0;
+          const usedAmount = Number(credit.used_amount) || 0;
+          const remainingBalance = amount - usedAmount;
+          return {
+            ...credit,
+            remaining_balance: remainingBalance
+          };
         })
-        .map(member => ({
-          ...member,
-          display_name: member.profiles.full_name || `${member.profiles.first_name || ''} ${member.profiles.last_name || ''}`.trim() || 'Unknown Member',
-          display_email: member.profiles.email || 'No email'
-        }));
+        .filter(credit => credit.remaining_balance > 0);
+
+      // Get unique user IDs
+      const uniqueUserIds = [...new Set(membersWithCredits.map(c => c.user_id).filter(Boolean))];
+
+      if (uniqueUserIds.length === 0) {
+        setMemberSearchResults([]);
+        return;
+      }
+
+      // Fetch profiles for these users
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, first_name, last_name')
+        .in('id', uniqueUserIds);
+
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        // Continue without profiles - will show user IDs
+      }
+
+      // Create a map of user_id -> profile
+      const profilesMap = new Map((profilesData || []).map(profile => [profile.id, profile]));
+
+      // Combine credits with profiles and filter by search term
+      const filteredMembers = membersWithCredits
+        .map(credit => {
+          const profile = profilesMap.get(credit.user_id);
+          const fullName = profile?.full_name || (profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() : '') || `Member ${credit.user_id?.substring(0, 8) || 'unknown'}...`;
+          const email = profile?.email || `member-${credit.user_id?.substring(0, 8) || 'unknown'}@hidden`;
+          
+          return {
+            ...credit,
+            profiles: profile,
+            display_name: fullName,
+            display_email: email
+          };
+        })
+        .filter(member => {
+          // Filter by search term
+          return member.display_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                 member.display_email.toLowerCase().includes(searchTerm.toLowerCase());
+        });
 
       setMemberSearchResults(filteredMembers);
 
@@ -543,7 +572,7 @@ const VenueOwnerReceipts = () => {
                             <div className="font-medium text-brand-burgundy text-xs sm:text-sm md:text-base">{member.display_name}</div>
                             <div className="text-xs sm:text-sm text-brand-burgundy/70">{member.display_email}</div>
                             <div className="text-xs sm:text-sm text-brand-gold font-semibold">
-                                                             Available: ₦{member.remaining_balance.toLocaleString()}
+                                                             Available: ₦{(member.remaining_balance || 0).toLocaleString()}
                             </div>
                           </button>
                         ))}
