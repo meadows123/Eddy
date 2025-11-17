@@ -14,18 +14,40 @@ serve(async (req) => {
   }
 
   try {
-    const body = await req.json()
+    let body;
+    try {
+      body = await req.json()
+    } catch (e) {
+      console.error('❌ JSON parse error:', e)
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: 'Invalid JSON in request body',
+          details: e.message
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400,
+        }
+      )
+    }
+
+    console.log('📝 Full request body received:', JSON.stringify(body, null, 2))
+
     const amount = Number(body?.amount)
     const currency = body?.currency?.toLowerCase() || 'gbp'
     const bookingId = body?.bookingId
     const email = body?.email
     const description = body?.description || 'Venue Booking'
+    const paymentMethodId = body?.paymentMethodId // Optional - not required for PaymentIntent creation
 
     console.log('📝 create-stripe-payment-intent request:', {
       amount,
       currency,
       bookingId,
-      email
+      email,
+      hasPaymentMethodId: !!paymentMethodId,
+      description
     })
 
     // Validate inputs
@@ -41,17 +63,21 @@ serve(async (req) => {
       throw new Error('Email is required')
     }
 
+    // Note: paymentMethodId is NOT required for creating a PaymentIntent
+    // It will be attached when confirming the payment in the frontend
+
     // Get Stripe secret key - check both test and live keys
     const testKey = Deno.env.get('STRIPE_TEST_SECRET_KEY')?.trim() ?? ''
     const liveKey = Deno.env.get('STRIPE_SECRET_KEY')?.trim() ?? ''
     const stripeKey = (testKey && testKey.length > 0) ? testKey : liveKey
+    const isTestMode = stripeKey.startsWith('sk_test_')
+    const isLiveMode = stripeKey.startsWith('sk_live_')
+
+    console.log('🔑 Stripe mode:', isTestMode ? 'TEST' : isLiveMode ? 'LIVE' : 'UNKNOWN')
 
     if (!stripeKey) {
       throw new Error('Stripe secret key is not configured')
     }
-
-    const isTestMode = stripeKey.startsWith('sk_test_')
-    console.log('🔑 Stripe mode:', isTestMode ? 'TEST' : 'LIVE')
 
     const stripe = new Stripe(stripeKey, {
       apiVersion: '2023-10-16',
@@ -101,6 +127,7 @@ serve(async (req) => {
     )
   } catch (error) {
     console.error('❌ create-stripe-payment-intent error:', error)
+    // Return error as JSON
     return new Response(
       JSON.stringify({
         success: false,

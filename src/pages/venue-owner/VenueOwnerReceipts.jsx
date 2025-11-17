@@ -238,19 +238,43 @@ const VenueOwnerReceipts = () => {
     
     // Get full credit balance for this member
     try {
-      const { data: balanceData, error } = await supabase
-        .rpc('get_member_credit_balance', {
-          p_venue_id: venue.id,
-          p_member_user_id: member.user_id
-        });
+      // Fetch all active credits for this member at this venue
+      const { data: creditsData, error: creditsError } = await supabase
+        .from('venue_credits')
+        .select('id, amount, used_amount, status, created_at, expires_at')
+        .eq('venue_id', venue.id)
+        .eq('user_id', member.user_id)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
 
-      if (!error && balanceData) {
-        setSelectedMember(prev => ({
-          ...prev,
-          total_balance: balanceData.total_balance,
-          active_credits: balanceData.active_credits || []
-        }));
+      if (creditsError) {
+        console.error('Error fetching member credits:', creditsError);
+        return;
       }
+
+      // Calculate total balance and active credits
+      const activeCredits = (creditsData || []).map(credit => {
+        const amount = Number(credit.amount) || 0;
+        const usedAmount = Number(credit.used_amount) || 0;
+        const remainingBalance = amount - usedAmount;
+        return {
+          ...credit,
+          remaining_balance: remainingBalance
+        };
+      }).filter(credit => credit.remaining_balance > 0);
+
+      const totalBalance = activeCredits.reduce((sum, credit) => sum + credit.remaining_balance, 0);
+
+      setSelectedMember(prev => ({
+        ...prev,
+        total_balance: totalBalance,
+        active_credits: activeCredits
+      }));
+
+      console.log('✅ Member balance calculated:', {
+        totalBalance,
+        activeCreditsCount: activeCredits.length
+      });
     } catch (error) {
       console.error('Error fetching member balance:', error);
     }
