@@ -86,23 +86,93 @@ export const SplitPaymentCheckoutForm = ({
 
     setIsSearching(true);
     try {
-      console.log('🔍 Searching for users:', query);
+      const searchTerm = query.trim().toLowerCase();
+      console.log('🔍 Searching for users:', searchTerm);
 
+      // Search profiles with multiple fields
+      // Build search conditions - try to include all possible column names
+      let searchConditions = [];
+      
+      // Name searches
+      searchConditions.push(`full_name.ilike.%${searchTerm}%`);
+      searchConditions.push(`first_name.ilike.%${searchTerm}%`);
+      searchConditions.push(`last_name.ilike.%${searchTerm}%`);
+      
+      // Phone searches (try both column names)
+      searchConditions.push(`phone.ilike.%${searchTerm}%`);
+      searchConditions.push(`phone_number.ilike.%${searchTerm}%`);
+      
+      // Email search (if available)
+      searchConditions.push(`email.ilike.%${searchTerm}%`);
+      
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, email, first_name, last_name, phone')
-        .or(
-          `email.ilike.%${query}%,first_name.ilike.%${query}%,last_name.ilike.%${query}%,phone.ilike.%${query}%`
-        )
-        .limit(10);
+        .select('id, email, first_name, last_name, full_name, phone, phone_number')
+        .or(searchConditions.join(','))
+        .limit(20); // Get more results to filter client-side
 
       if (error) {
         console.error('❌ Search error:', error);
-        throw error;
+        // Try simpler search without email and phone_number
+        const simpleConditions = [
+          `full_name.ilike.%${searchTerm}%`,
+          `first_name.ilike.%${searchTerm}%`,
+          `last_name.ilike.%${searchTerm}%`,
+          `phone.ilike.%${searchTerm}%`
+        ];
+        
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name, full_name, phone')
+          .or(simpleConditions.join(','))
+          .limit(20);
+        
+        if (fallbackError) {
+          console.error('❌ Fallback search also failed:', fallbackError);
+          throw fallbackError;
+        }
+        
+        console.log('✅ Found users (fallback):', fallbackData?.length || 0);
+        
+        // Filter client-side for combined name matches
+        const filtered = (fallbackData || []).filter(profile => {
+          const fullName = (profile.full_name || `${profile.first_name || ''} ${profile.last_name || ''}`.trim()).toLowerCase();
+          const phone = (profile.phone || '').toLowerCase();
+          const firstName = (profile.first_name || '').toLowerCase();
+          const lastName = (profile.last_name || '').toLowerCase();
+          const combinedName = `${firstName} ${lastName}`.trim();
+          
+          return fullName.includes(searchTerm) ||
+                 phone.includes(searchTerm) ||
+                 firstName.includes(searchTerm) ||
+                 lastName.includes(searchTerm) ||
+                 combinedName.includes(searchTerm);
+        });
+        
+        setSearchResults(filtered);
+        return;
       }
 
-      console.log('✅ Found users:', data?.length || 0);
-      setSearchResults(data || []);
+      // Filter results client-side for combined name matches
+      // (e.g., "jordan webb" should match first_name="Jordan" + last_name="Webb")
+      const filteredResults = (data || []).filter(profile => {
+        const fullName = (profile.full_name || `${profile.first_name || ''} ${profile.last_name || ''}`.trim()).toLowerCase();
+        const email = (profile.email || '').toLowerCase();
+        const phone = (profile.phone || profile.phone_number || '').toLowerCase();
+        const firstName = (profile.first_name || '').toLowerCase();
+        const lastName = (profile.last_name || '').toLowerCase();
+        const combinedName = `${firstName} ${lastName}`.trim();
+        
+        return fullName.includes(searchTerm) ||
+               email.includes(searchTerm) ||
+               phone.includes(searchTerm) ||
+               firstName.includes(searchTerm) ||
+               lastName.includes(searchTerm) ||
+               combinedName.includes(searchTerm);
+      });
+
+      console.log('✅ Found users:', filteredResults.length);
+      setSearchResults(filteredResults);
     } catch (error) {
       console.error('❌ User search failed:', error);
       setSearchResults([]);
