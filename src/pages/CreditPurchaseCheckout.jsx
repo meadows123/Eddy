@@ -486,40 +486,109 @@ const CreditPurchaseCheckout = () => {
       // Send venue owner notification
       try {
         console.log('📧 Looking up venue owner for notification...');
-        const { data: venueOwnerData, error: ownerError } = await supabase
+        console.log('📧 DEBUG: Venue ID for lookup:', creditData.venue.id);
+        
+        // Try to find venue owner by venue_id (primary method)
+        let venueOwnerData = null;
+        const { data: ownerDataList, error: ownerError } = await supabase
           .from('venue_owners')
-          .select('owner_email, owner_name')
+          .select('owner_email, owner_name, email, venue_id, user_id')
           .eq('venue_id', creditData.venue.id)
           .limit(1);
 
-        if (ownerError) {
-          console.error('❌ Error fetching venue owner:', ownerError);
-        } else if (venueOwnerData && venueOwnerData.length > 0) {
-          const venueOwner = venueOwnerData[0];
-          console.log('📧 Sending venue owner notification to:', venueOwner.owner_email);
-          
-          const { error: ownerEmailError } = await supabase.functions.invoke('send-email', {
-            body: {
-              to: venueOwner.owner_email,
-              subject: `New Credit Purchase - ${creditData.venue.name}`,
-              template: 'venue-owner-notification',
-              data: {
-                ownerEmail: venueOwner.owner_email,
-                venueName: creditData.venue.name,
-                customerName: formData.fullName,
-                customerEmail: recipientEmail,
-                amount: creditData.amount * 1000,
-                creditAmount: creditData.amount * 1000,
-                purchaseDate: new Date().toLocaleDateString(),
-                transactionType: 'Credit Purchase'
-              }
-            }
+        if (!ownerError && ownerDataList && ownerDataList.length > 0) {
+          venueOwnerData = ownerDataList[0];
+          console.log('✅ Venue owner data fetched by venue_id:', {
+            owner_email: venueOwnerData.owner_email,
+            email: venueOwnerData.email,
+            owner_name: venueOwnerData.owner_name
           });
+        } else {
+          console.log('⚠️ Could not fetch venue owner data by venue_id:', ownerError);
+          
+          // Fallback: Try to find by owner_id if venue has it
+          if (creditData.venue?.owner_id) {
+            const { data: fallbackOwnerList, error: fallbackError } = await supabase
+              .from('venue_owners')
+              .select('owner_email, owner_name, email')
+              .eq('user_id', creditData.venue.owner_id)
+              .limit(1);
+            
+            if (!fallbackError && fallbackOwnerList && fallbackOwnerList.length > 0) {
+              venueOwnerData = fallbackOwnerList[0];
+              console.log('✅ Venue owner data fetched by owner_id (fallback):', {
+                owner_email: venueOwnerData.owner_email,
+                email: venueOwnerData.email
+              });
+            } else {
+              console.log('⚠️ Could not fetch venue owner data by owner_id:', fallbackError);
+            }
+          }
+        }
 
-          if (ownerEmailError) {
-            console.error('❌ Error sending venue owner notification:', ownerEmailError);
+        if (venueOwnerData) {
+          const ownerEmail = venueOwnerData.owner_email || venueOwnerData.email;
+          
+          if (ownerEmail && ownerEmail !== 'info@oneeddy.com' && ownerEmail.includes('@')) {
+            console.log('📧 Sending venue owner notification to:', ownerEmail);
+            
+            const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://agydpkzfucicraedllgl.supabase.co';
+            const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+            
+            const venueOwnerEmailData = {
+              ownerEmail: ownerEmail && ownerEmail !== 'info@oneeddy.com' ? ownerEmail : '',  // Pass empty if placeholder so Edge Function can look it up
+              venueId: creditData.venue.id,  // Add venueId for Edge Function lookup
+              venueName: creditData.venue.name,
+              customerName: formData.fullName,
+              customerEmail: recipientEmail,
+              amount: creditData.amount * 1000,
+              creditAmount: creditData.amount * 1000,
+              purchaseDate: new Date().toLocaleDateString(),
+              transactionType: 'Credit Purchase',
+              qrCodeImage: qrCodeUrl
+            };
+            
+            console.log('📧 Venue owner email data being sent:', {
+              to: ownerEmail,
+              ownerEmail: venueOwnerEmailData.ownerEmail,
+              venueId: venueOwnerEmailData.venueId,
+              template: 'venue-owner-booking-notification'
+            });
+            
+            const venueOwnerResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+              },
+              body: JSON.stringify({
+                to: ownerEmail,
+                subject: `New Credit Purchase - ${creditData.venue.name}`,
+                template: 'venue-owner-booking-notification',  // Use the same template as Paystack
+                data: venueOwnerEmailData
+              })
+            });
+
+            const venueOwnerResponseData = await venueOwnerResponse.json().catch(() => ({}));
+            
+            if (venueOwnerResponse.ok) {
+              console.log('✅ Venue owner notification sent successfully:', {
+                status: venueOwnerResponse.status,
+                response: venueOwnerResponseData
+              });
+            } else {
+              console.error('⚠️ Venue owner email failed:', {
+                status: venueOwnerResponse.status,
+                statusText: venueOwnerResponse.statusText,
+                error: venueOwnerResponseData
+              });
+            }
           } else {
-            console.log('✅ Venue owner notification sent successfully');
+            console.log('⚠️ Skipping venue owner email - invalid or placeholder email:', {
+              ownerEmail,
+              isPlaceholder: ownerEmail === 'info@oneeddy.com',
+              hasAtSymbol: ownerEmail?.includes('@')
+            });
           }
         } else {
           console.log('⚠️ No venue owner found for notification');

@@ -271,6 +271,29 @@ const PaystackCallbackPage = () => {
           }
 
           console.log('📧 Sending to venue owner:', venueOwnerEmail);
+          
+          // Prepare email data with all required fields for the Edge Function
+          const venueEmailData = {
+            venueName: paystackMetadata.venueName,
+            customerName: paystackMetadata.customerName,
+            customerEmail: email,
+            customerPhone: paystackMetadata.customerPhone,
+            bookingDate: new Date(bookingData.booking_date).toLocaleDateString(),
+            bookingTime: bookingData.start_time,
+            guestCount: bookingData.number_of_guests,
+            totalAmount: bookingData.total_amount,
+            bookingId: bookingId,
+            // CRITICAL: Include ownerEmail and venueId so Edge Function can process the email
+            ownerEmail: venueOwnerEmail !== 'info@oneeddy.com' ? venueOwnerEmail : '', // Empty string if placeholder, so Edge Function will look it up
+            venueId: bookingData.venue_id // Required for Edge Function to look up venue owner if ownerEmail is missing
+          };
+          
+          console.log('📧 Venue owner email data:', {
+            ownerEmail: venueEmailData.ownerEmail,
+            venueId: venueEmailData.venueId,
+            venueName: venueEmailData.venueName
+          });
+          
           const venueEmailResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
             method: 'POST',
             headers: {
@@ -278,20 +301,10 @@ const PaystackCallbackPage = () => {
               'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
             },
             body: JSON.stringify({
-              to: venueOwnerEmail,
+              to: venueOwnerEmail, // Still include in 'to' field as fallback
               template: 'venue-owner-booking-notification',
               subject: `New Booking - ${paystackMetadata.venueName}`,
-              data: {
-                venueName: paystackMetadata.venueName,
-                customerName: paystackMetadata.customerName,
-                customerEmail: email,
-                customerPhone: paystackMetadata.customerPhone,
-                bookingDate: new Date(bookingData.booking_date).toLocaleDateString(),
-                bookingTime: bookingData.start_time,
-                guestCount: bookingData.number_of_guests,
-                totalAmount: bookingData.total_amount,
-                bookingId: bookingId
-              }
+              data: venueEmailData
             }),
           });
 

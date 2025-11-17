@@ -158,6 +158,7 @@ const PaymentForm = ({ amount, onSuccess, recipientEmail = '', recipientName = '
             <div className="p-4 border border-brand-burgundy/30 rounded-lg mt-2">
               <CardElement 
                 options={{
+                  hidePostalCode: true, // Hide zip/postal code field
                   style: {
                     base: {
                       fontSize: '16px',
