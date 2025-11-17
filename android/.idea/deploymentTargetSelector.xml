@@ -2,27 +2,18 @@
 <project version="4">
   <component name="deploymentTargetSelector">
     <selectionStates>
-      <SelectionState runConfigName="app">
-        <option name="selectionMode" value="DROPDOWN" />
-<<<<<<< HEAD
-        <DropdownSelection timestamp="2025-11-03T15:51:58.503563200Z">
-=======
-        <DropdownSelection timestamp="2025-10-03T07:10:19.989590600Z">
->>>>>>> b0f0c14f257d4ccc3fec1df1402794b012f329c5
-          <Target type="DEFAULT_BOOT">
-            <handle>
-              <DeviceId pluginId="PhysicalDevice" identifier="serial=RQCX2028SBR" />
-            </handle>
-          </Target>
-        </DropdownSelection>
-        <DialogSelection />
-      </SelectionState>
-<<<<<<< HEAD
       <SelectionState runConfigName="vipCLub.android.app">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
-=======
->>>>>>> b0f0c14f257d4ccc3fec1df1402794b012f329c5
+      <SelectionState runConfigName="app.androidTest">
+        <option name="selectionMode" value="DROPDOWN" />
+      </SelectionState>
+      <SelectionState runConfigName="app.main">
+        <option name="selectionMode" value="DROPDOWN" />
+      </SelectionState>
+      <SelectionState runConfigName="app.unitTest">
+        <option name="selectionMode" value="DROPDOWN" />
+      </SelectionState>
     </selectionStates>
   </component>
 </project>

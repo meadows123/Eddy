@@ -168,6 +168,66 @@ export const generateVenueEntryQR = async (bookingData) => {
 };
 
 /**
+ * Generate a QR code for credit purchase verification
+ * @param {Object} creditData - Credit purchase data
+ * @returns {Promise<Object>} - QR code image data
+ */
+export const generateCreditPurchaseQR = async (creditData) => {
+  try {
+    // Import supabase client
+    const { supabase } = await import('./supabase.js');
+    
+    // Generate a unique security code
+    const securityCode = generateSecurityCode();
+    
+    // Create QR data in the format expected by the scanner
+    const qrData = {
+      type: 'eddys_member', // Use eddys_member type since credits are for members
+      memberId: creditData.userId,
+      venueId: creditData.venueId,
+      securityCode: securityCode,
+      creditId: creditData.creditId, // Store credit ID for reference
+      creditAmount: creditData.amount,
+      memberTier: 'VIP',
+      timestamp: new Date().toISOString()
+    };
+
+    // Store security code in user profile (only for real users, not test ones)
+    if (creditData.userId && !creditData.userId.startsWith('test-')) {
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ 
+          qr_security_code: securityCode,
+          last_qr_generated: new Date().toISOString()
+        })
+        .eq('id', creditData.userId);
+
+      if (updateError) {
+        // Continue anyway - QR code will still work
+      }
+    }
+
+    // Generate QR code image
+    const qrCodeImage = await QRCode.toDataURL(JSON.stringify(qrData), {
+      width: 200,
+      margin: 1,
+      color: {
+        dark: '#800020', // Brand burgundy
+        light: '#FFFFFF'
+      }
+    });
+
+    // For email compatibility, return both base64 and external URL
+    return {
+      base64: qrCodeImage,
+      externalUrl: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(JSON.stringify(qrData))}&color=800020&bgcolor=FFFFFF&margin=1`
+    };
+  } catch (error) {
+    throw error;
+  }
+};
+
+/**
  * Generate a security code for QR code validation
  * @returns {string} - 8-character security code
  */

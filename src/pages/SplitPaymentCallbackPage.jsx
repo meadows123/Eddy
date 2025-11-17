@@ -261,76 +261,8 @@ async function sendSplitPaymentEmails(bookingId, requestId, paymentData) {
       qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(bookingId)}`;
     }
 
-    // Send email to payment recipient
-    if (recipientEmail) {
-      console.log('📧 Sending recipient confirmation email...');
-      await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-        },
-        body: JSON.stringify({
-          to: recipientEmail,
-          template: 'split-payment-complete',
-          subject: `Payment Received - ${venue.name}`,
-          data: {
-            customerName: request.recipient_name || 'Guest',
-            email: recipientEmail,
-            bookingId,
-            bookingDate: new Date(booking.booking_date).toLocaleDateString(),
-            bookingTime: booking.start_time,
-            endTime: booking.end_time,
-            guestCount: booking.number_of_guests,
-            totalAmount: booking.total_amount,
-            venueName: venue.name,
-            venueAddress: venue.address,
-            qrCodeImage: qrCodeUrl
-          }
-        })
-      });
-      console.log('✅ Recipient email sent');
-    }
-
-    // Send email to payment initiator (if all payments complete)
-    if (initiatorEmail) {
-      const { data: allRequests } = await supabase
-        .from('split_payment_requests')
-        .select('status')
-        .eq('booking_id', bookingId);
-
-      const allPaid = allRequests?.every(r => r.status === 'paid');
-
-      if (allPaid) {
-        console.log('📧 Sending initiator confirmation email...');
-        await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          },
-          body: JSON.stringify({
-            to: initiatorEmail,
-            template: 'split-payment-complete',
-            subject: `Booking Confirmed - ${venue.name}`,
-            data: {
-              customerName: request.initiator_name || 'Guest',
-              email: initiatorEmail,
-              bookingId,
-              bookingDate: new Date(booking.booking_date).toLocaleDateString(),
-              bookingTime: booking.start_time,
-              endTime: booking.end_time,
-              guestCount: booking.number_of_guests,
-              totalAmount: booking.total_amount,
-              venueName: venue.name,
-              venueAddress: venue.address,
-              qrCodeImage: qrCodeUrl
-            }
-          })
-        });
-        console.log('✅ Initiator email sent');
-      }
-    }
+    // Note: Individual payment confirmation emails are now sent from SplitPaymentSuccessPage.jsx
+    // to avoid duplicate emails. Only venue owner notification is sent here.
 
     // Send venue owner notification if all payments complete
     if (venue.contact_email) {

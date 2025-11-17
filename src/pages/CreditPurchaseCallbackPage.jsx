@@ -88,8 +88,24 @@ const CreditPurchaseCallbackPage = () => {
         // Send confirmation email with QR code
         console.log('📧 Sending credit purchase confirmation email...');
         try {
-          // Generate QR code for the credit record
-          const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${creditRecord.id}&color=800020&bgcolor=FFFFFF&format=png`;
+          // Generate QR code for the credit record using proper format
+          console.log('📱 Generating QR code for credit purchase...');
+          let qrCodeUrl = null;
+          try {
+            const { generateCreditPurchaseQR } = await import('@/lib/qrCodeService');
+            const qrCodeData = await generateCreditPurchaseQR({
+              userId: user.id,
+              venueId: venueId,
+              creditId: creditRecord.id,
+              amount: Math.round(totalAmount * 0.9)
+            });
+            qrCodeUrl = qrCodeData?.externalUrl || qrCodeData?.base64 || null;
+            console.log('📱 QR code generated successfully for credit purchase');
+          } catch (qrError) {
+            console.error('❌ Failed to generate QR code:', qrError);
+            // Fallback to simple QR code if generation fails
+            qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${creditRecord.id}&color=800020&bgcolor=FFFFFF&format=png`;
+          }
           
           const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://agydpkzfucicraedllgl.supabase.co';
           const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;

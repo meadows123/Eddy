@@ -445,9 +445,24 @@ const CreditPurchaseCheckout = () => {
         throw new Error(`Failed to create venue credit: ${creditError.message}`);
       }
 
-      // Generate QR code for credit record
-      const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${creditRecord.id}`;
-      console.log('📱 QR code generated for credit:', qrCodeUrl);
+      // Generate QR code for credit record using proper format
+      console.log('📱 Generating QR code for credit purchase...');
+      let qrCodeUrl = null;
+      try {
+        const { generateCreditPurchaseQR } = await import('@/lib/qrCodeService');
+        const qrCodeData = await generateCreditPurchaseQR({
+          userId: currentUser.id,
+          venueId: creditData.venue.id,
+          creditId: creditRecord.id,
+          amount: creditData.amount * 1000
+        });
+        qrCodeUrl = qrCodeData?.externalUrl || qrCodeData?.base64 || null;
+        console.log('📱 QR code generated successfully for credit purchase');
+      } catch (qrError) {
+        console.error('❌ Failed to generate QR code:', qrError);
+        // Fallback to simple QR code if generation fails
+        qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${creditRecord.id}`;
+      }
 
       // Send confirmation email to customer
       try {
