@@ -89,19 +89,23 @@ const VenueOwnerReceipts = () => {
   const fetchVenueAndReceipts = async (userId) => {
     try {
       // Get venue owned by this user
-      const { data: venueData, error: venueError } = await supabase
+      const { data: venueDataList, error: venueError } = await supabase
         .from('venues')
         .select('*')
         .eq('owner_id', userId)
-        .single();
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      const venueData = venueDataList && venueDataList.length > 0 ? venueDataList[0] : null;
 
       if (venueError) {
-        if (venueError.code === 'PGRST116') {
-          setVenue(null);
-          setReceipts([]);
-          return;
-        }
         throw venueError;
+      }
+
+      if (!venueData) {
+        setVenue(null);
+        setReceipts([]);
+        return;
       }
 
       setVenue(venueData);
@@ -241,7 +245,7 @@ const VenueOwnerReceipts = () => {
       // Fetch all active credits for this member at this venue
       const { data: creditsData, error: creditsError } = await supabase
         .from('venue_credits')
-        .select('id, amount, used_amount, status, created_at, expires_at')
+        .select('id, amount, used_amount, status, created_at')
         .eq('venue_id', venue.id)
         .eq('user_id', member.user_id)
         .eq('status', 'active')
