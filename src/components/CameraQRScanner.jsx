@@ -27,6 +27,7 @@ const CameraQRScanner = ({ onMemberScanned }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [emailRateLimited, setEmailRateLimited] = useState(false);
   const [emailEnabled, setEmailEnabled] = useState(true); // Enabled by default
+  const [qrDetected, setQrDetected] = useState(false); // Track when QR code is detected (even if invalid)
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -213,7 +214,8 @@ const CameraQRScanner = ({ onMemberScanned }) => {
         });
         
         if (code && code.data && code.data.trim() !== '') {
-          console.log('🔍 QR Code found:', code.data);
+          console.log('🔍 QR Code detected:', code.data.substring(0, 100) + '...');
+          setQrDetected(true); // Show that QR code was detected
           
           // Validate QR data format before processing
           const isValidFormat = code.data.startsWith('{') || 
@@ -221,7 +223,14 @@ const CameraQRScanner = ({ onMemberScanned }) => {
                                code.data.startsWith('oneeddy://');
           
           if (!isValidFormat) {
-            console.log('⚠️ Invalid QR code format, skipping...');
+            console.warn('⚠️ Invalid QR code format detected:', code.data.substring(0, 50));
+            setError('❌ Invalid QR code format. This QR code is not from Eddys Members. Please scan a valid booking or member QR code.');
+            setSuccess(null);
+            // Clear error after 5 seconds
+            setTimeout(() => {
+              setError(null);
+              setQrDetected(false);
+            }, 5000);
             return;
           }
           
@@ -326,23 +335,34 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       // Update state for UI
       setIsProcessing(true);
       setEmailRateLimited(false);
+      setQrDetected(false); // Reset detection indicator when processing starts
       
       // Parse the QR code data
       let qrData;
       try {
+        console.log('📋 Parsing QR code data...');
         qrData = parseQRCodeData(qrDataString);
+        console.log('✅ QR code parsed successfully:', qrData?.type || 'unknown');
       } catch (parseError) {
-        // Silently ignore parsing errors
+        console.error('❌ Failed to parse QR code:', parseError);
+        setError(`❌ Failed to parse QR code: ${parseError.message || 'Invalid QR code data format'}`);
+        setSuccess(null);
         isProcessingRef.current = false;
         setIsProcessing(false);
+        // Clear error after 5 seconds
+        setTimeout(() => setError(null), 5000);
         return;
       }
       
       // Check if qrData is valid
       if (!qrData) {
-        // Don't throw error for parse failures - just silently ignore
+        console.warn('⚠️ QR code data is null or invalid');
+        setError('❌ Invalid QR code: Could not extract booking or member information. Please ensure you are scanning a valid Eddys Members QR code.');
+        setSuccess(null);
         isProcessingRef.current = false;
         setIsProcessing(false);
+        // Clear error after 5 seconds
+        setTimeout(() => setError(null), 5000);
         return;
       }
       
@@ -369,15 +389,31 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       });
       
       if (!qrData.type) {
-        throw new Error('QR code data missing type field');
+        const errorMsg = '❌ Invalid QR code: Missing type information. This QR code may be corrupted or from an older version.';
+        console.error(errorMsg);
+        setError(errorMsg);
+        setSuccess(null);
+        isProcessingRef.current = false;
+        setIsProcessing(false);
+        setTimeout(() => setError(null), 5000);
+        return;
       }
+      
+      console.log(`🔄 Processing ${qrData.type} QR code...`);
       
       if (qrData.type === 'venue-entry') {
         await handleBookingScan(qrData);
       } else if (qrData.type === 'eddys_member') {
         await handleMemberScan(qrData);
       } else {
-        throw new Error(`Unknown QR code type: ${qrData.type}`);
+        const errorMsg = `❌ Unknown QR code type: ${qrData.type}. This QR code is not recognized.`;
+        console.error(errorMsg);
+        setError(errorMsg);
+        setSuccess(null);
+        isProcessingRef.current = false;
+        setIsProcessing(false);
+        setTimeout(() => setError(null), 5000);
+        return;
       }
       
       // Call the callback if provided
@@ -386,8 +422,12 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       }
       
     } catch (err) {
-      setError(err.message);
+      console.error('❌ Error processing QR code:', err);
+      const errorMessage = err.message || 'An unexpected error occurred while processing the QR code.';
+      setError(`❌ ${errorMessage}`);
       setSuccess(null);
+      // Clear error after 8 seconds for important errors
+      setTimeout(() => setError(null), 8000);
     } finally {
       isProcessingRef.current = false;
       setIsProcessing(false);
@@ -398,8 +438,16 @@ const CameraQRScanner = ({ onMemberScanned }) => {
     try {
 
       if (!qrData.bookingId || !qrData.securityCode) {
-        throw new Error('Invalid booking QR code format');
+        const errorMsg = '❌ Invalid booking QR code: Missing booking ID or security code. This QR code may be corrupted.';
+        console.error(errorMsg, qrData);
+        throw new Error(errorMsg);
       }
+      
+      console.log('✅ Booking QR code validated:', {
+        bookingId: qrData.bookingId,
+        hasSecurityCode: !!qrData.securityCode,
+        venueId: qrData.venueId
+      });
 
       // Get booking details
       
@@ -412,15 +460,29 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       
         
       if (checkError) {
-        throw new Error(`Booking lookup failed: ${checkError.message}`);
+        console.error('❌ Booking lookup error:', checkError);
+        throw new Error(`❌ Booking lookup failed: ${checkError.message || 'Database error'}`);
       }
       
       if (!bookingCheck) {
-        throw new Error(`No booking found with ID: ${qrData.bookingId}`);
+        console.error('❌ Booking not found:', qrData.bookingId);
+        throw new Error(`❌ No booking found with ID: ${qrData.bookingId.substring(0, 8)}... This booking may have been cancelled or does not exist.`);
       }
       
+      console.log('✅ Booking found:', {
+        id: bookingCheck.id,
+        status: bookingCheck.status,
+        bookingDate: bookingCheck.booking_date
+      });
+      
       if (bookingCheck.status !== 'confirmed') {
-        throw new Error(`Booking is not confirmed (status: ${bookingCheck.status})`);
+        const statusMsg = bookingCheck.status === 'cancelled' 
+          ? 'This booking has been cancelled.'
+          : bookingCheck.status === 'completed'
+          ? 'This booking has already been completed.'
+          : `This booking is ${bookingCheck.status} and cannot be used for entry.`;
+        console.warn('⚠️ Booking not confirmed:', bookingCheck.status);
+        throw new Error(`❌ ${statusMsg}`);
       }
       
       
@@ -530,15 +592,32 @@ const CameraQRScanner = ({ onMemberScanned }) => {
       const normalizedToday = new Date(today).toISOString().split('T')[0];
 
       if (normalizedBookingDate !== normalizedToday) {
-        throw new Error(`This booking is for ${normalizedBookingDate}, not today (${normalizedToday})`);
+        const dateMsg = normalizedBookingDate < normalizedToday
+          ? `This booking was for ${normalizedBookingDate} (past date).`
+          : `This booking is for ${normalizedBookingDate} (future date).`;
+        console.warn('⚠️ Booking date mismatch:', { bookingDate: normalizedBookingDate, today: normalizedToday });
+        throw new Error(`❌ ${dateMsg} Only bookings for today (${normalizedToday}) can be used for entry.`);
       }
+      
+      console.log('✅ Booking date verified:', normalizedBookingDate);
 
       // Verify security code
       if (booking.qr_security_code) {
         // For bookings with security codes, verify they match
+        console.log('🔐 Verifying security code...', {
+          expected: booking.qr_security_code?.substring(0, 4) + '...',
+          received: qrData.securityCode?.substring(0, 4) + '...'
+        });
         if (booking.qr_security_code !== qrData.securityCode) {
-          throw new Error('Invalid security code');
+          console.error('❌ Security code mismatch!', {
+            expected: booking.qr_security_code,
+            received: qrData.securityCode
+          });
+          throw new Error('❌ Security verification failed: QR code security code does not match. This QR code may be fake or expired. Please contact the customer to verify their booking.');
         }
+        console.log('✅ Security code verified successfully');
+      } else {
+        console.warn('⚠️ Booking has no security code - skipping security verification');
       }
 
       // Update scan count
@@ -617,7 +696,14 @@ const CameraQRScanner = ({ onMemberScanned }) => {
         }
       }
 
-      setSuccess('✅ Booking verified! Customer can be seated.');
+      const successMsg = `✅ Booking verified successfully! Customer "${booking.profiles?.full_name || 'Guest'}" can be seated at ${booking.venues?.name || 'venue'}.`;
+      console.log('✅ Booking scan completed successfully:', {
+        bookingId: booking.id,
+        customerName: booking.profiles?.full_name,
+        venueName: booking.venues?.name,
+        tableNumber: booking.venue_tables?.table_number || 'N/A'
+      });
+      setSuccess(successMsg);
       setError(null);
       
       // Stop scanning after successful scan to prevent duplicates
@@ -771,6 +857,18 @@ const CameraQRScanner = ({ onMemberScanned }) => {
               </div>
             </div>
           </div>
+          
+          {/* QR Code Detected Indicator */}
+          {qrDetected && !isProcessing && (
+            <div className="qr-detected-indicator mb-4">
+              <div className="flex items-center justify-center p-4 bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-300 rounded-xl shadow-md">
+                <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center mr-3 animate-pulse">
+                  <span className="text-white text-xs">📷</span>
+                </div>
+                <span className="text-blue-800 font-medium">QR Code detected! Processing...</span>
+              </div>
+            </div>
+          )}
           
           {/* Processing indicator */}
           {isProcessing && (

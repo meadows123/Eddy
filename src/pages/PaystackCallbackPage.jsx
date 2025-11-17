@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Loader, CheckCircle, AlertCircle, Home } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getPaymentFromSession, clearPaymentFromSession } from '@/lib/paystackCheckoutHandler';
+import { generateVenueEntryQR } from '@/lib/qrCodeService';
 
 const PaystackCallbackPage = () => {
   const [searchParams] = useSearchParams();
@@ -161,10 +162,26 @@ const PaystackCallbackPage = () => {
           const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://agydpkzfucicraedllgl.supabase.co';
           const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-          // Generate QR code for the booking
+          // Generate QR code for the booking using proper function
           console.log('📱 Generating QR code for booking:', bookingId);
-          const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(bookingId)}`;
-          console.log('📱 QR code URL:', qrCodeUrl);
+          let qrCodeUrl = null;
+          try {
+            const qrCodeData = await generateVenueEntryQR({
+              id: bookingId,
+              venue_id: bookingData.venue_id,
+              booking_date: bookingData.booking_date,
+              start_time: bookingData.start_time,
+              end_time: bookingData.end_time,
+              number_of_guests: bookingData.number_of_guests,
+              table_id: bookingData.table_id || null
+            });
+            qrCodeUrl = qrCodeData?.externalUrl || qrCodeData?.base64 || null;
+            console.log('📱 QR code generated successfully:', qrCodeUrl ? 'Yes' : 'No');
+          } catch (qrError) {
+            console.error('❌ Failed to generate QR code:', qrError);
+            // Fallback to simple QR code if generation fails
+            qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(bookingId)}`;
+          }
 
           // Send customer confirmation email
           console.log('📧 Sending customer confirmation email to:', email);

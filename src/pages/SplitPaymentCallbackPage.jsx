@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabase';
 import { verifySplitPaystackPayment, getSplitPaymentFromSession, clearSplitPaymentFromSession } from '@/lib/paystackSplitPaymentHandler';
+import { generateVenueEntryQR } from '@/lib/qrCodeService';
 import { Loader2 } from 'lucide-react';
 
 /**
@@ -237,8 +238,28 @@ async function sendSplitPaymentEmails(bookingId, requestId, paymentData) {
       venue: venue.contact_email
     });
 
-    // Generate QR code
-    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(bookingId)}`;
+    // Generate QR code using proper function
+    let qrCodeUrl = null;
+    try {
+      // Fetch booking data for QR code generation
+      const { data: bookingData, error: bookingError } = await supabase
+        .from('bookings')
+        .select('id, venue_id, booking_date, start_time, end_time, number_of_guests, table_id')
+        .eq('id', bookingId)
+        .single();
+      
+      if (!bookingError && bookingData) {
+        const qrCodeData = await generateVenueEntryQR(bookingData);
+        qrCodeUrl = qrCodeData?.externalUrl || qrCodeData?.base64 || null;
+        console.log('📱 QR code generated successfully for split payment');
+      } else {
+        throw new Error('Failed to fetch booking data for QR code');
+      }
+    } catch (qrError) {
+      console.error('❌ Failed to generate QR code:', qrError);
+      // Fallback to simple QR code if generation fails
+      qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(bookingId)}`;
+    }
 
     // Send email to payment recipient
     if (recipientEmail) {
