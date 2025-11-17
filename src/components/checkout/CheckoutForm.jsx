@@ -231,7 +231,6 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
                         fontSize: '16px',
                         color: '#800020',
                         fontFamily: 'system-ui, -apple-system, sans-serif',
-                        padding: '10px 12px',
                         '::placeholder': {
                           color: '#9ca3af',
                         },

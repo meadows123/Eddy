@@ -897,6 +897,10 @@ if (!venueId) {
       if (!stripe) {
         throw new Error('Stripe is not initialized');
       }
+
+      if (!paymentMethodId) {
+        throw new Error('Payment method ID is required. Please ensure your card details are entered correctly.');
+      }
       
       // Call Edge Function to create Payment Intent
       const createIntentResponse = await fetch(
@@ -930,8 +934,9 @@ if (!venueId) {
       }
 
       console.log('✅ PaymentIntent created:', intentData.paymentIntentId);
+      console.log('💳 Confirming payment with payment method:', paymentMethodId);
 
-      // Confirm payment with card details
+      // Confirm payment with payment method ID
       const { paymentIntent, error: confirmError } = await stripe.confirmCardPayment(
         intentData.clientSecret,
         {
@@ -944,7 +949,11 @@ if (!venueId) {
         throw new Error(`Payment failed: ${confirmError.message}`);
       }
 
-      if (!paymentIntent || paymentIntent.status === 'requires_action') {
+      if (!paymentIntent) {
+        throw new Error('Payment confirmation failed - no payment intent returned');
+      }
+
+      if (paymentIntent.status === 'requires_action') {
         console.error('❌ Payment requires additional action');
         throw new Error('Payment requires additional authentication. Please complete the 3D Secure verification.');
       }
