@@ -756,6 +756,27 @@ const CameraQRScanner = ({ onMemberScanned }) => {
         throw new Error(`Member not found: ${memberError?.message || 'Unknown error'}`);
       }
 
+      // Fetch venue name if venueId is available in QR code data
+      let venueName = 'Eddys Members'; // Default fallback
+      if (qrData.venueId) {
+        try {
+          const { data: venue, error: venueError } = await supabase
+            .from('venues')
+            .select('name')
+            .eq('id', qrData.venueId)
+            .single();
+          
+          if (!venueError && venue?.name) {
+            venueName = venue.name;
+            console.log('✅ Fetched venue name from database:', venueName);
+          } else {
+            console.warn('⚠️ Could not fetch venue name, using default');
+          }
+        } catch (venueFetchError) {
+          console.warn('⚠️ Error fetching venue name:', venueFetchError);
+        }
+      }
+
       setScanResult({
         type: 'eddys_member',
         customerName: '***', // Hide personal details from bouncer
@@ -763,7 +784,7 @@ const CameraQRScanner = ({ onMemberScanned }) => {
         memberTier: member.member_tier || 'Standard',
         memberSince: member.created_at,
         creditBalance: '***', // Hide credit balance from bouncer
-        venueName: 'Eddys VIP Club',
+        venueName: venueName, // Use actual venue name from database
         scanTime: new Date().toLocaleString(),
         status: 'verified'
       });
