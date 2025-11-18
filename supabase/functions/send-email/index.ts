@@ -480,15 +480,7 @@ serve(async (req) => {
           <div style="color: #800020; font-size: 14px; font-weight: bold;">${data.requestsCount || 0} payment requests have been sent to your friends.</div>
         </div>
       </div>
-    ${data.qrCodeImage ? `
-    <div style="text-align: center; margin: 24px 0;">
-      <div style="display: inline-block; background: rgba(255, 215, 0, 0.1); border: 2px solid #FFD700; border-radius: 12px; padding: 18px 20px;">
-        <div style="color: #800020; font-size: 16px; font-weight: 700; margin-bottom: 12px;">Your Booking QR Code</div>
-        <img src="${data.qrCodeImage}" alt="Booking QR Code" style="width: 200px; height: 200px; display: block; margin: 0 auto; border-radius: 12px; border: 2px solid #800020;">
-        <p style="color: #800020; font-size: 13px; margin-top: 12px; font-weight: bold;">Show this QR code at the venue to access your booking.</p>
-      </div>
-    </div>
-    ` : ''}
+      <!-- QR code removed from split payment initiation email - QR codes are only sent when all payments are complete -->
       <div style="text-align: center; margin: 24px 0;">
         <a href="${data.dashboardUrl || (Deno.env.get('APP_URL') || '') + '/profile'}" class="btn">📊 View Booking Details</a>
       </div>
@@ -554,15 +546,7 @@ serve(async (req) => {
           <div style="color: #800020; font-size: 14px; font-weight: bold;"><strong>${data.initiatorName || 'Your friend'}</strong> has requested you to pay <strong>₦${Number(data.amount || 0).toLocaleString()}</strong> for this booking.</div>
         </div>
       </div>
-      ${data.qrCodeImage ? `
-      <div style="text-align: center; margin: 24px 0;">
-        <div style="display: inline-block; background: rgba(255, 215, 0, 0.1); border: 2px solid #FFD700; border-radius: 12px; padding: 18px 20px;">
-          <div style="color: #800020; font-size: 16px; font-weight: 700; margin-bottom: 12px;">Booking QR Code</div>
-          <img src="${data.qrCodeImage}" alt="Booking QR Code" style="width: 200px; height: 200px; display: block; margin: 0 auto; border-radius: 12px; border: 2px solid #800020;">
-          <p style="color: #800020; font-size: 13px; margin-top: 12px; font-weight: bold;">You can present this QR code at the venue once your payment is confirmed.</p>
-        </div>
-      </div>
-      ` : ''}
+      <!-- QR code removed from split payment request email - QR codes are only sent when all payments are complete -->
       <div style="text-align: center; margin: 24px 0;">
         <a href="${data.paymentUrl || (Deno.env.get('APP_URL') || '') + '/split-payment/' + (data.requestId || '')}" class="btn">💳 Pay Your Share</a>
       </div>
