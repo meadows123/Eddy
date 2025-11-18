@@ -1674,11 +1674,33 @@ setShowShareDialog(true);
                               // Send emails to recipients asking them to pay their share
                               console.log('📧 Sending split payment request emails to recipients...');
                               console.log(`📧 Recipients count: ${paymentData.splitRecipients?.length || 0}`);
+                              console.log(`📧 Split requests count: ${splitRequests.length}`);
                               console.log(`📧 Split requests: ${JSON.stringify(splitRequests.map(r => ({ id: r?.id })))}`);
+                              
+                              // Validate that we have the right number of requests (initiator + recipients)
+                              if (splitRequests.length < paymentData.splitRecipients.length + 1) {
+                                console.error('❌ Mismatch: Split requests count does not match recipients count', {
+                                  splitRequestsCount: splitRequests.length,
+                                  recipientsCount: paymentData.splitRecipients.length,
+                                  expectedTotal: paymentData.splitRecipients.length + 1
+                                });
+                              }
                               
                               for (let i = 0; i < paymentData.splitRecipients.length; i++) {
                                 const recipient = paymentData.splitRecipients[i];
+                                // splitRequests[0] is the initiator, so recipients start at index 1
                                 const recipientRequestId = splitRequests[i + 1]?.id;
+                                
+                                if (!recipientRequestId) {
+                                  console.error(`❌ Missing request ID for recipient ${i + 1} (${recipient.email})`, {
+                                    recipientIndex: i,
+                                    splitRequestsLength: splitRequests.length,
+                                    splitRequests: splitRequests.map((r, idx) => ({ index: idx, id: r?.id }))
+                                  });
+                                  // Continue to next recipient but log the error
+                                  continue;
+                                }
+                                
                                 const paymentLink = getFullUrl(`/split-payment/${pendingBooking.id}/${recipientRequestId}`);
                                 
                                 console.log(`📧 Sending email to recipient ${i + 1}:`, {
@@ -1686,7 +1708,8 @@ setShowShareDialog(true);
                                   name: recipient.name,
                                   amount: recipient.amount,
                                   requestId: recipientRequestId,
-                                  paymentLink
+                                  paymentLink,
+                                  bookingId: pendingBooking.id
                                 });
                                 
                                 try {
@@ -1732,15 +1755,28 @@ setShowShareDialog(true);
                                     console.error(`❌ Email API error for ${recipient.email}:`, {
                                       status: emailResponse.status,
                                       statusText: emailResponse.statusText,
-                                      data: responseData
+                                      data: responseData,
+                                      emailPayload: emailPayload
                                     });
                                   } else {
-                                    console.log(`✅ Split payment request email sent to ${recipient.email}`);
+                                    console.log(`✅ Split payment request email sent successfully to ${recipient.email}`, {
+                                      recipientEmail: recipient.email,
+                                      requestId: recipientRequestId,
+                                      paymentLink: paymentLink
+                                    });
                                   }
                                 } catch (emailError) {
-                                  console.error(`❌ Failed to send email to ${recipient.email}:`, emailError);
+                                  console.error(`❌ Failed to send email to ${recipient.email}:`, {
+                                    error: emailError,
+                                    errorMessage: emailError?.message,
+                                    errorStack: emailError?.stack,
+                                    recipientEmail: recipient.email,
+                                    requestId: recipientRequestId
+                                  });
                                 }
                               }
+                              
+                              console.log('📧 Finished sending split payment request emails to all recipients');
 
                               // Initiate Paystack payment for initiator
                               const result = await initiateSplitPaystackPayment({
