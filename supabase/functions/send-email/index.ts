@@ -511,7 +511,7 @@ serve(async (req) => {
     .email-container { max-width: 600px; margin: 0 auto; background: #FFF5E6; box-shadow: 0 10px 30px rgba(128,0,32,0.08); border: 2px solid #800020; }
     .header { background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); padding: 32px 24px; text-align: center; }
     .logo-image { width: 80px; height: 80px; border-radius: 50%; border: 2px solid #FFD700; box-shadow: 0 6px 16px rgba(255,215,0,.25); margin-bottom: 10px; }
-    .brand { color: #FFF5E6; font-size: 24px; font-weight: 700; letter-spacing: 1.5px; }
+    .brand { color: #800020; background: #FFFFFF; padding: 8px 16px; border-radius: 4px; font-size: 24px; font-weight: 700; letter-spacing: 1.5px; display: inline-block; }
     .content { padding: 32px 24px; background: #FFF5E6; }
     .title { color: #800020; font-size: 24px; font-weight: 700; text-align: center; margin-bottom: 16px; }
     .request-card { background: rgba(255, 215, 0, 0.1); border: 2px solid #FFD700; border-radius: 12px; padding: 24px; margin: 20px 0; }

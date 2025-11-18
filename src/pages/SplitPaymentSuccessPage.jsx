@@ -781,16 +781,37 @@ const SplitPaymentSuccessPage = () => {
               console.log('📧 No contact email, fetching from venue_owners with owner_id:', venueDataForEmail.owner_id);
               const { data: ownerDataList, error: ownerError } = await supabase
                 .from('venue_owners')
-                .select('owner_email')
-                .eq('user_id', venueDataForEmail.owner_id);
+                .select('owner_email, user_id')
+                .eq('user_id', venueDataForEmail.owner_id)
+                .limit(1);
               
               console.log('📍 Venue owner fetch result:', { ownerDataList, ownerError });
               
               if (ownerError) {
                 console.warn('⚠️ Error fetching venue owner:', ownerError);
-              } else if (ownerDataList && ownerDataList.length > 0 && ownerDataList[0]?.owner_email) {
-                venueOwnerEmail = ownerDataList[0].owner_email;
-                console.log('✅ Found venue owner email:', venueOwnerEmail);
+              } else if (ownerDataList && ownerDataList.length > 0) {
+                // Check if owner_email is available
+                if (ownerDataList[0]?.owner_email) {
+                  venueOwnerEmail = ownerDataList[0].owner_email;
+                  console.log('✅ Found venue owner email from venue_owners table:', venueOwnerEmail);
+                } else if (ownerDataList[0]?.user_id) {
+                  // If owner_email is null, fetch from profiles table
+                  console.log('📧 owner_email is null, fetching from profiles table with user_id:', ownerDataList[0].user_id);
+                  const { data: profileData, error: profileError } = await supabase
+                    .from('profiles')
+                    .select('email')
+                    .eq('id', ownerDataList[0].user_id)
+                    .single();
+                  
+                  if (profileError) {
+                    console.warn('⚠️ Error fetching profile email:', profileError);
+                  } else if (profileData?.email) {
+                    venueOwnerEmail = profileData.email;
+                    console.log('✅ Found venue owner email from profiles table:', venueOwnerEmail);
+                  } else {
+                    console.warn('⚠️ Profile found but no email');
+                  }
+                }
               }
             } else {
               console.warn('⚠️ Venue found but no contact_email or owner_id');
@@ -801,112 +822,118 @@ const SplitPaymentSuccessPage = () => {
           
           console.log('📧 Final venue owner email for split payment:', venueOwnerEmail);
           
-          // Prepare email data for venue owner notification
-          // Format dates and times properly
-          const bookingDateFormatted = completionBookingData.booking_date
-            ? new Date(completionBookingData.booking_date).toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-              })
-            : 'N/A';
-          
-          const startTimeFormatted = completionBookingData.start_time
-            ? new Date(`2000-01-01T${completionBookingData.start_time}`).toLocaleTimeString('en-US', {
-                hour: 'numeric',
-                minute: '2-digit',
-                hour12: true
-              })
-            : 'N/A';
-          
-          const endTimeFormatted = completionBookingData.end_time
-            ? new Date(`2000-01-01T${completionBookingData.end_time}`).toLocaleTimeString('en-US', {
-                hour: 'numeric',
-                minute: '2-digit',
-                hour12: true
-              })
-            : '23:00';
+          // Skip sending if email is still placeholder
+          if (!venueOwnerEmail || venueOwnerEmail === 'info@oneeddy.com') {
+            console.warn('⚠️ Skipping venue owner email - no valid email found (placeholder or empty)');
+            // Don't send email, but continue with rest of the function
+          } else {
+            // Prepare email data for venue owner notification
+            // Format dates and times properly
+            const bookingDateFormatted = completionBookingData.booking_date
+              ? new Date(completionBookingData.booking_date).toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric'
+                })
+              : 'N/A';
+            
+            const startTimeFormatted = completionBookingData.start_time
+              ? new Date(`2000-01-01T${completionBookingData.start_time}`).toLocaleTimeString('en-US', {
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true
+                })
+              : 'N/A';
+            
+            const endTimeFormatted = completionBookingData.end_time
+              ? new Date(`2000-01-01T${completionBookingData.end_time}`).toLocaleTimeString('en-US', {
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true
+                })
+              : '23:00';
 
-          // Calculate the full total amount from all split payment requests
-          const fullTotalAmount = requests?.reduce((sum, req) => sum + (Number(req.amount) || 0), 0) || completionBookingData.total_amount;
-          
-          console.log('💰 Calculating total amount for venue owner email:', {
-            bookingTotalAmount: completionBookingData.total_amount,
-            calculatedFullAmount: fullTotalAmount,
-            numberOfRequests: requests?.length,
-            requestAmounts: requests?.map(r => r.amount)
-          });
-
-          // Prepare email data with all required fields for the Edge Function (same as Paystack)
-          const emailData = {
-            to: venueOwnerEmail, // Still include in 'to' field as fallback
-            subject: `New Booking - ${completionBookingData.venues?.name || 'Venue'}`,
-            template: 'venue-owner-booking-notification',
-            data: {
-              ownerEmail: venueOwnerEmail !== 'info@oneeddy.com' ? venueOwnerEmail : '', // Empty string if placeholder, so Edge Function will look it up
-              venueId: completionBookingData.venue_id, // Required for Edge Function to look up venue owner if ownerEmail is missing
-              venueName: completionBookingData.venues?.name || 'Venue',
-              customerName: `${completionBookingData.profiles?.first_name || ''} ${completionBookingData.profiles?.last_name || ''}`.trim() || 'Guest',
-              customerEmail: completionBookingData.profiles?.email || 'guest@example.com',
-              customerPhone: completionBookingData.profiles?.phone || 'N/A',
-              bookingDate: bookingDateFormatted,
-              bookingTime: startTimeFormatted,
-              endTime: endTimeFormatted,
-              guestCount: completionBookingData.number_of_guests,
-              partySize: completionBookingData.number_of_guests,
-              tableInfo: `Table ${completionBookingData.tables?.table_number || completionBookingData.venue_tables?.[0]?.table_number || 'N/A'}`,
-              totalAmount: fullTotalAmount, // Use the calculated full amount from all split payments
-              bookingId: completionBookingData.id,
-              paymentType: 'split',
-              paymentStatus: 'All payments completed',
-              numberOfPayments: requests.length
-            }
-          };
-          
-          console.log('📧 DEBUG: Email data being sent to Edge Function:', {
-            to: emailData.to,
-            subject: emailData.subject,
-            template: emailData.template,
-            dataKeys: Object.keys(emailData.data),
-            venueOwnerEmail,
-            ownerEmailInData: emailData.data.ownerEmail,
-            venueIdInData: emailData.data.venueId,
-            bookingDataVenues: completionBookingData.venues
-          });
-          
-          // Send venue owner notification using fetch (matching other email sends)
-          console.log('📧 ABOUT TO SEND VENUE OWNER EMAIL TO:', venueOwnerEmail);
-          try {
-            const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://agydpkzfucicraedllgl.supabase.co';
-            const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-            console.log('📧 Using Supabase URL:', SUPABASE_URL);
-            console.log('📧 Has API key:', !!SUPABASE_ANON_KEY);
-
-            const venueOwnerEmailResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-              },
-              body: JSON.stringify(emailData)
+            // Calculate the full total amount from all split payment requests
+            const fullTotalAmount = requests?.reduce((sum, req) => sum + (Number(req.amount) || 0), 0) || completionBookingData.total_amount;
+            
+            console.log('💰 Calculating total amount for venue owner email:', {
+              bookingTotalAmount: completionBookingData.total_amount,
+              calculatedFullAmount: fullTotalAmount,
+              numberOfRequests: requests?.length,
+              requestAmounts: requests?.map(r => r.amount)
             });
 
-            console.log('📧 Venue owner email response status:', venueOwnerEmailResponse.status);
-            const venueEmailResponseData = await venueOwnerEmailResponse.json().catch(() => ({}));
-            if (!venueOwnerEmailResponse.ok) {
-              console.error('❌ Error sending venue owner notification:', {
-                status: venueOwnerEmailResponse.status,
-                statusText: venueOwnerEmailResponse.statusText,
-                data: venueEmailResponseData
+            // Prepare email data with all required fields for the Edge Function (same as Paystack)
+            const emailData = {
+              to: venueOwnerEmail, // Still include in 'to' field as fallback
+              subject: `New Booking - ${completionBookingData.venues?.name || 'Venue'}`,
+              template: 'venue-owner-booking-notification',
+              data: {
+                ownerEmail: venueOwnerEmail !== 'info@oneeddy.com' ? venueOwnerEmail : '', // Empty string if placeholder, so Edge Function will look it up
+                venueId: completionBookingData.venue_id, // Required for Edge Function to look up venue owner if ownerEmail is missing
+                venueName: completionBookingData.venues?.name || 'Venue',
+                customerName: `${completionBookingData.profiles?.first_name || ''} ${completionBookingData.profiles?.last_name || ''}`.trim() || 'Guest',
+                customerEmail: completionBookingData.profiles?.email || 'guest@example.com',
+                customerPhone: completionBookingData.profiles?.phone || 'N/A',
+                bookingDate: bookingDateFormatted,
+                bookingTime: startTimeFormatted,
+                endTime: endTimeFormatted,
+                guestCount: completionBookingData.number_of_guests,
+                partySize: completionBookingData.number_of_guests,
+                tableInfo: `Table ${completionBookingData.tables?.table_number || completionBookingData.venue_tables?.[0]?.table_number || 'N/A'}`,
+                totalAmount: fullTotalAmount, // Use the calculated full amount from all split payments
+                bookingId: completionBookingData.id,
+                paymentType: 'split',
+                paymentStatus: 'All payments completed',
+                numberOfPayments: requests.length
+              }
+            };
+            
+            console.log('📧 DEBUG: Email data being sent to Edge Function:', {
+              to: emailData.to,
+              subject: emailData.subject,
+              template: emailData.template,
+              dataKeys: Object.keys(emailData.data),
+              venueOwnerEmail,
+              ownerEmailInData: emailData.data.ownerEmail,
+              venueIdInData: emailData.data.venueId,
+              bookingDataVenues: completionBookingData.venues
+            });
+            
+            // Send venue owner notification using fetch (matching other email sends)
+            console.log('📧 ABOUT TO SEND VENUE OWNER EMAIL TO:', venueOwnerEmail);
+            try {
+              const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://agydpkzfucicraedllgl.supabase.co';
+              const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+              console.log('📧 Using Supabase URL:', SUPABASE_URL);
+              console.log('📧 Has API key:', !!SUPABASE_ANON_KEY);
+
+              const venueOwnerEmailResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                },
+                body: JSON.stringify(emailData)
               });
-            } else {
-              console.log('✅ Venue owner notification sent successfully:', venueEmailResponseData);
+
+              console.log('📧 Venue owner email response status:', venueOwnerEmailResponse.status);
+              const venueEmailResponseData = await venueOwnerEmailResponse.json().catch(() => ({}));
+              if (!venueOwnerEmailResponse.ok) {
+                console.error('❌ Error sending venue owner notification:', {
+                  status: venueOwnerEmailResponse.status,
+                  statusText: venueOwnerEmailResponse.statusText,
+                  data: venueEmailResponseData
+                });
+              } else {
+                console.log('✅ Venue owner notification sent successfully:', venueEmailResponseData);
+              }
+            } catch (venueFetchError) {
+              console.error('❌ Exception sending venue owner notification:', venueFetchError);
             }
-          } catch (venueFetchError) {
-            console.error('❌ Exception sending venue owner notification:', venueFetchError);
-          }
+          } // End of else block for valid email check
         } catch (venueOwnerError) {
           console.error('❌ Error in venue owner notification block:', venueOwnerError);
         }
@@ -1069,57 +1096,92 @@ const SplitPaymentSuccessPage = () => {
                 // Calculate total amount from all split payments
                 const fullTotalAmount = requests?.reduce((sum, req) => sum + (Number(req.amount) || 0), 0) || completionBookingData.total_amount;
                 
-                // Find initiator's payment amount
+                // Find the initiator - the person who created the split payment (first requester_id)
+                const initiatorRequest = requests?.[0]; // The first request has the initiator's requester_id
+                const initiatorId = initiatorRequest?.requester_id;
+                
+                // Find initiator's payment amount (where requester_id === recipient_id, or first request)
                 const initiatorPayment = requests?.find(req => req.requester_id === req.recipient_id) || requests?.[0];
                 const initiatorPaymentAmount = Number(initiatorPayment?.amount) || 0;
 
-                const initiatorEmailResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                  },
-                  body: JSON.stringify({
-                    to: completionBookingData.profiles?.email,
-                    subject: `All Payments Confirmed! - ${completionBookingData.venues?.name || 'Your Venue'}`,
-                    template: 'split-payment-confirmation',
-                    data: {
-                      email: completionBookingData.profiles?.email,
-                      customerName: `${completionBookingData.profiles?.first_name || ''} ${completionBookingData.profiles?.last_name || ''}`.trim() || 'Guest',
-                      customerEmail: completionBookingData.profiles?.email,
-                      customerPhone: completionBookingData.profiles?.phone || 'N/A',
-                      bookingId: completionBookingData.id,
-                      bookingDate: completionBookingData.booking_date,
-                      bookingTime: completionBookingData.start_time,
-                      guestCount: completionBookingData.number_of_guests,
-                      totalAmount: fullTotalAmount,
-                      paymentAmount: initiatorPaymentAmount,
-                      venueName: completionBookingData.venues?.name,
-                      venueAddress: completionBookingData.venues?.address,
-                      venuePhone: completionBookingData.venues?.contact_phone,
-                      // NO QR CODE - removed per user request
-                      dashboardUrl: `${window.location.origin}/profile`
-                    }
-                  })
-                });
+                // Fetch initiator's profile
+                let initiatorProfile = null;
+                if (initiatorId) {
+                  const { data: profile, error: profileError } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', initiatorId)
+                    .single();
+                  
+                  if (profileError) {
+                    console.error('❌ Error fetching initiator profile:', profileError);
+                  } else {
+                    initiatorProfile = profile;
+                    console.log('✅ Initiator profile fetched:', { id: initiatorId, email: profile.email });
+                  }
+                }
 
-                const confirmResponseData = await initiatorEmailResponse.json().catch(() => ({}));
-                if (!initiatorEmailResponse.ok) {
-                  console.error(`❌ Error sending confirmation to initiator:`, {
-                    status: initiatorEmailResponse.status,
-                    statusText: initiatorEmailResponse.statusText,
-                    data: confirmResponseData
-                  });
+                // Use initiator's profile if found, otherwise fallback to booking profile
+                const initiatorEmail = initiatorProfile?.email || completionBookingData.profiles?.email;
+                const initiatorName = initiatorProfile 
+                  ? `${initiatorProfile.first_name || ''} ${initiatorProfile.last_name || ''}`.trim() || 'Guest'
+                  : `${completionBookingData.profiles?.first_name || ''} ${completionBookingData.profiles?.last_name || ''}`.trim() || 'Guest';
+                const initiatorPhone = initiatorProfile?.phone || completionBookingData.profiles?.phone || 'N/A';
+
+                if (!initiatorEmail) {
+                  console.error('❌ No initiator email found, skipping email');
                 } else {
-                  console.log(`✅ Confirmation email sent to initiator: ${completionBookingData.profiles?.email}`, confirmResponseData);
+                  const initiatorEmailResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    },
+                    body: JSON.stringify({
+                      to: initiatorEmail,
+                      subject: `All Payments Confirmed! - ${completionBookingData.venues?.name || 'Your Venue'}`,
+                      template: 'split-payment-confirmation',
+                      data: {
+                        email: initiatorEmail,
+                        customerName: initiatorName,
+                        customerEmail: initiatorEmail,
+                        customerPhone: initiatorPhone,
+                        bookingId: completionBookingData.id,
+                        bookingDate: completionBookingData.booking_date,
+                        bookingTime: completionBookingData.start_time,
+                        guestCount: completionBookingData.number_of_guests,
+                        totalAmount: fullTotalAmount,
+                        paymentAmount: initiatorPaymentAmount,
+                        venueName: completionBookingData.venues?.name,
+                        venueAddress: completionBookingData.venues?.address,
+                        venuePhone: completionBookingData.venues?.contact_phone,
+                        // NO QR CODE - removed per user request
+                        dashboardUrl: `${window.location.origin}/profile`
+                      }
+                    })
+                  });
+
+                  const confirmResponseData = await initiatorEmailResponse.json().catch(() => ({}));
+                  if (!initiatorEmailResponse.ok) {
+                    console.error(`❌ Error sending confirmation to initiator:`, {
+                      status: initiatorEmailResponse.status,
+                      statusText: initiatorEmailResponse.statusText,
+                      data: confirmResponseData
+                    });
+                  } else {
+                    console.log(`✅ Confirmation email sent to initiator: ${initiatorEmail}`, confirmResponseData);
+                  }
                 }
               } catch (error) {
                 console.error(`❌ Exception sending confirmation to initiator:`, error);
               }
               if (requests && requests.length > 0) {
+                // Get initiator ID to exclude from loop
+                const initiatorRequestId = requests?.[0]?.requester_id;
+                
                 for (const request of requests) {
-                  // Skip if this is the last payer (already sent above) or if recipient_id is null
-                  if (request.id === requestId || !request.recipient_id) {
+                  // Skip if this is the last payer (already sent above), if recipient_id is null, or if this is the initiator
+                  if (request.id === requestId || !request.recipient_id || request.recipient_id === initiatorRequestId) {
                     continue;
                   }
 
