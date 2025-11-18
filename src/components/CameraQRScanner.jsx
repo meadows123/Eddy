@@ -218,12 +218,26 @@ const CameraQRScanner = ({ onMemberScanned }) => {
           setQrDetected(true); // Show that QR code was detected
           
           // Validate QR data format before processing
-          const isValidFormat = code.data.startsWith('{') || 
-                               code.data.startsWith('vipclub://') || 
-                               code.data.startsWith('oneeddy://');
+          // Try to decode URL-encoded data first
+          let qrDataString = code.data;
+          try {
+            // If it's URL-encoded JSON, decode it
+            if (qrDataString.includes('%7B') || qrDataString.includes('%22')) {
+              qrDataString = decodeURIComponent(qrDataString);
+            }
+          } catch (decodeError) {
+            // If decoding fails, use original string
+            console.log('📝 QR data is not URL-encoded, using as-is');
+          }
+          
+          const isValidFormat = qrDataString.startsWith('{') || 
+                               qrDataString.startsWith('vipclub://') || 
+                               qrDataString.startsWith('oneeddy://') ||
+                               qrDataString.startsWith('https://api.qrserver.com'); // Allow QR server URLs that contain encoded data
           
           if (!isValidFormat) {
-            console.warn('⚠️ Invalid QR code format detected:', code.data.substring(0, 50));
+            console.warn('⚠️ Invalid QR code format detected:', code.data.substring(0, 100));
+            console.warn('⚠️ Decoded QR data:', qrDataString.substring(0, 100));
             setError('❌ Invalid QR code format. This QR code is not from Eddys Members. Please scan a valid booking or member QR code.');
             setSuccess(null);
             // Clear error after 5 seconds
@@ -233,6 +247,9 @@ const CameraQRScanner = ({ onMemberScanned }) => {
             }, 5000);
             return;
           }
+          
+          // Use the decoded string for processing
+          code.data = qrDataString;
           
           // Play success sound (short pleasant blip)
           playSuccessBlip();

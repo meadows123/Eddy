@@ -247,6 +247,34 @@ export const generateSecurityCode = () => {
  */
 export const parseQRCodeData = (qrDataString) => {
   try {
+    // Handle QR server URLs - extract the data parameter
+    if (qrDataString.includes('api.qrserver.com') && qrDataString.includes('data=')) {
+      try {
+        const url = new URL(qrDataString);
+        const dataParam = url.searchParams.get('data');
+        if (dataParam) {
+          qrDataString = decodeURIComponent(dataParam);
+          console.log('📝 Extracted data from QR server URL');
+        }
+      } catch (urlError) {
+        // If URL parsing fails, try to extract data manually
+        const dataMatch = qrDataString.match(/data=([^&]+)/);
+        if (dataMatch && dataMatch[1]) {
+          qrDataString = decodeURIComponent(dataMatch[1]);
+          console.log('📝 Extracted data from QR server URL (manual)');
+        }
+      }
+    }
+    
+    // Try to decode URL-encoded JSON if needed
+    if (qrDataString.includes('%7B') || qrDataString.includes('%22')) {
+      try {
+        qrDataString = decodeURIComponent(qrDataString);
+        console.log('📝 Decoded URL-encoded QR data');
+      } catch (decodeError) {
+        console.log('📝 URL decoding failed, trying as-is');
+      }
+    }
     
     // Try to parse as JSON
     const qrData = JSON.parse(qrDataString);
