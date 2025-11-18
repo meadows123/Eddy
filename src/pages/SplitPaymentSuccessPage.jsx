@@ -925,13 +925,25 @@ const SplitPaymentSuccessPage = () => {
                 console.error('❌ Error sending venue owner notification:', {
                   status: venueOwnerEmailResponse.status,
                   statusText: venueOwnerEmailResponse.statusText,
-                  data: venueEmailResponseData
+                  data: venueEmailResponseData,
+                  emailData: emailData,
+                  venueOwnerEmail: venueOwnerEmail
                 });
               } else {
-                console.log('✅ Venue owner notification sent successfully:', venueEmailResponseData);
+                console.log('✅ Venue owner notification sent successfully:', {
+                  response: venueEmailResponseData,
+                  sentTo: venueOwnerEmail,
+                  venueId: emailData.data.venueId
+                });
               }
             } catch (venueFetchError) {
-              console.error('❌ Exception sending venue owner notification:', venueFetchError);
+              console.error('❌ Exception sending venue owner notification:', {
+                error: venueFetchError,
+                message: venueFetchError?.message,
+                stack: venueFetchError?.stack,
+                emailData: emailData,
+                venueOwnerEmail: venueOwnerEmail
+              });
             }
           } // End of else block for valid email check
         } catch (venueOwnerError) {

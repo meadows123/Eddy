@@ -1124,6 +1124,19 @@ if (!venueId) {
     // Skip sending venue owner email if it's still placeholder
     const shouldSendVenueOwnerEmail = venueOwnerEmail && venueOwnerEmail !== 'info@oneeddy.com';
 
+    // Format booking time (start - end) - calculate outside try block so it's accessible to both email sections
+    const formatTime = (timeString) => {
+      if (!timeString) return 'N/A';
+      const [hours, minutes] = timeString.split(':');
+      return `${parseInt(hours)}:${minutes}`;
+    };
+    
+    const startTime = formatTime(updatedBooking.start_time);
+    const endTime = formatTime(updatedBooking.end_time);
+    const bookingTime = startTime !== 'N/A' && endTime !== 'N/A' 
+      ? `${startTime} - ${endTime}` 
+      : 'N/A';
+
     // Send customer confirmation email now that payment is confirmed
     try {
       console.log('📧 Sending customer confirmation email after payment confirmation:', {
@@ -1132,19 +1145,6 @@ if (!venueId) {
         bookingId: updatedBooking.id,
         venueName: venueData?.name
       });
-
-      // Format booking time (start - end)
-      const formatTime = (timeString) => {
-        if (!timeString) return 'N/A';
-        const [hours, minutes] = timeString.split(':');
-        return `${parseInt(hours)}:${minutes}`;
-      };
-      
-      const startTime = formatTime(updatedBooking.start_time);
-      const endTime = formatTime(updatedBooking.end_time);
-      const bookingTime = startTime !== 'N/A' && endTime !== 'N/A' 
-        ? `${startTime} - ${endTime}` 
-        : 'N/A';
 
       // Use Supabase Edge Function instead of EmailJS for customer confirmation
       const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
