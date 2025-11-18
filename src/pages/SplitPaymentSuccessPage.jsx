@@ -774,14 +774,21 @@ const SplitPaymentSuccessPage = () => {
                     })
                   : '23:00';
 
+                // Fetch all split payment requests to calculate the full total amount
+                const { data: allSplitRequests, error: splitRequestsError } = await supabase
+                  .from('split_payment_requests')
+                  .select('amount')
+                  .eq('booking_id', completionBookingData.id);
+                
                 // Calculate the full total amount from all split payment requests
-                const fullTotalAmount = requests?.reduce((sum, req) => sum + (Number(req.amount) || 0), 0) || completionBookingData.total_amount;
+                const fullTotalAmount = allSplitRequests?.reduce((sum, req) => sum + (Number(req.amount) || 0), 0) || completionBookingData.total_amount;
                 
                 console.log('💰 Calculating total amount for venue owner email:', {
                   bookingTotalAmount: completionBookingData.total_amount,
                   calculatedFullAmount: fullTotalAmount,
-                  numberOfRequests: requests?.length,
-                  requestAmounts: requests?.map(r => r.amount)
+                  numberOfRequests: allSplitRequests?.length,
+                  requestAmounts: allSplitRequests?.map(r => r.amount),
+                  splitRequestsError: splitRequestsError
                 });
 
                 // Prepare email data with all required fields for the Edge Function (same as Paystack)
@@ -806,7 +813,7 @@ const SplitPaymentSuccessPage = () => {
                     bookingId: completionBookingData.id,
                     paymentType: 'split',
                     paymentStatus: 'All payments completed',
-                    numberOfPayments: requests.length
+                    numberOfPayments: allSplitRequests?.length || 0
                   }
                 };
                 
