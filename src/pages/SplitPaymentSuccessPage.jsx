@@ -1273,19 +1273,17 @@ const SplitPaymentSuccessPage = () => {
           }
 
           console.log('✅ Split payment completion emails sent successfully');
-        }
-        
-        // Send confirmation notifications to all parties
-        if (allPaid) {
+          
+          // Send confirmation notifications to all parties
           toast({
             title: "Booking Confirmed!",
             description: "All split payments have been received. Your booking is now confirmed.",
             className: "bg-green-500 text-white"
           });
-        }
-      } catch (error) {
-        console.error('Error checking payment completion:', error);
-      }
+        } // End of if (allPaid) block
+    } catch (error) {
+      console.error('Error checking payment completion:', error);
+    }
   };
 
   if (loading) {
