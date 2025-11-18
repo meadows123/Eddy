@@ -443,8 +443,8 @@ export const SplitPaymentCheckoutForm = ({
         {/* Search Recipient Modal */}
         {showSearchModal && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <Card className="w-full max-w-md mx-4 p-6">
-              <div className="flex items-center justify-between mb-4">
+            <Card className="w-full max-w-md mx-4 p-8">
+              <div className="flex items-center justify-between mb-6">
                 <h3 className="text-lg font-semibold text-brand-burgundy">Search for Recipient</h3>
                 <Button
                   type="button"
@@ -462,38 +462,38 @@ export const SplitPaymentCheckoutForm = ({
               </div>
 
               {/* Search Input */}
-              <div className="mb-4">
+              <div className="mb-6">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                   <Input
                     autoFocus
                     type="text"
                     placeholder="Search by name, email, or phone..."
                     value={searchQuery}
                     onChange={(e) => handleSearch(e.target.value)}
-                    className="pl-10 border-brand-burgundy/30 focus:border-brand-burgundy"
+                    className="pl-12 py-3 border-brand-burgundy/30 focus:border-brand-burgundy"
                   />
                   {isSearching && (
-                    <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-brand-burgundy animate-spin" />
+                    <Loader2 className="absolute right-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-brand-burgundy animate-spin" />
                   )}
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Type at least 2 characters to search</p>
+                <p className="text-xs text-gray-500 mt-3">Type at least 2 characters to search</p>
               </div>
 
               {/* Search Results */}
-              <div className="space-y-2 max-h-80 overflow-y-auto">
+              <div className="space-y-4 max-h-80 overflow-y-auto">
                 {searchResults.length > 0 ? (
                   searchResults.map((user) => (
                     <Button
                       key={user.id}
                       type="button"
                       onClick={() => selectUserAsRecipient(user)}
-                      className="w-full justify-start p-4 bg-gray-50 hover:bg-gray-100 text-left border border-gray-200"
+                      className="w-full justify-start p-5 bg-gray-50 hover:bg-gray-100 text-left border border-gray-200"
                     >
-                      <div className="h-10 w-10 rounded-full bg-brand-burgundy/20 flex items-center justify-center mr-3 flex-shrink-0">
+                      <div className="h-10 w-10 rounded-full bg-brand-burgundy/20 flex items-center justify-center mr-4 flex-shrink-0">
                         <span className="text-brand-burgundy font-semibold">👤</span>
                       </div>
-                      <div className="flex-1">
+                      <div className="flex-1 space-y-1">
                         <p className="font-semibold text-brand-burgundy">
                           {user.first_name} {user.last_name}
                         </p>

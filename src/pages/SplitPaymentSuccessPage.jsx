@@ -952,20 +952,9 @@ const SplitPaymentSuccessPage = () => {
                 // Special requests
                 specialRequests: completionBookingData.special_requests || 'None specified',
                 
-                // QR Code for venue entry
-                qrCodeImage: lastPayerQrCodeImage?.externalUrl || lastPayerQrCodeImage,
-                qrCodeUrl: lastPayerQrCodeImage?.externalUrl || (lastPayerQrCodeImage?.base64 ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(JSON.stringify({
-                  type: 'venue-entry',
-                  bookingId: completionBookingData.id,
-                  venueId: completionBookingData.venue_id,
-                  securityCode: 'GENERATED',
-                  bookingDate: completionBookingData.booking_date,
-                  startTime: completionBookingData.start_time,
-                  tableNumber: completionBookingData.venue_tables?.table_type || completionBookingData.table?.table_number || 'N/A',
-                  guestCount: completionBookingData.number_of_guests,
-                  status: 'confirmed',
-                  timestamp: new Date().toISOString()
-                }))}&color=800020&bgcolor=FFFFFF&format=png` : '')
+                // QR Code for venue entry - ensure we always pass a string URL
+                qrCodeImage: lastPayerQrCodeImage?.externalUrl || lastPayerQrCodeImage?.base64 || '',
+                qrCodeUrl: lastPayerQrCodeImage?.externalUrl || lastPayerQrCodeImage?.base64 || ''
               };
 
               console.log('📧 Last payer email data:', {
@@ -987,14 +976,14 @@ const SplitPaymentSuccessPage = () => {
                 // Calculate total amount from all split payments
                 const fullTotalAmount = requests?.reduce((sum, req) => sum + (Number(req.amount) || 0), 0) || completionBookingData.total_amount;
                 
-                // Update email data with calculated total and remove QR code
+                // Update email data with calculated total and include QR code
                 const lastPayerCompletionEmailData = {
                   ...lastPayerEmailData,
                   totalAmount: fullTotalAmount,
                   paymentAmount: Number(lastPayment.amount) || 0,
-                  // Remove QR code fields - user requested no QR codes in split payment confirmation emails
-                  qrCodeImage: undefined,
-                  qrCodeUrl: undefined
+                  // Include QR code for venue entry scanning
+                  qrCodeImage: lastPayerEmailData.qrCodeImage,
+                  qrCodeUrl: lastPayerEmailData.qrCodeUrl
                 };
 
                 const lastPayerEmailResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
@@ -1062,6 +1051,11 @@ const SplitPaymentSuccessPage = () => {
                   : `${completionBookingData.profiles?.first_name || ''} ${completionBookingData.profiles?.last_name || ''}`.trim() || 'Guest';
                 const initiatorPhone = initiatorProfile?.phone || completionBookingData.profiles?.phone || 'N/A';
 
+                // Generate QR code for initiator
+                console.log('📱 Generating QR code for initiator split payment booking:', completionBookingData.id);
+                const initiatorQrCodeImage = await generateVenueEntryQR(completionBookingData);
+                console.log('📱 Initiator QR code generated successfully:', initiatorQrCodeImage ? 'Yes' : 'No');
+
                 if (!initiatorEmail) {
                   console.error('❌ No initiator email found, skipping email');
                 } else {
@@ -1089,7 +1083,9 @@ const SplitPaymentSuccessPage = () => {
                         venueName: completionBookingData.venues?.name,
                         venueAddress: completionBookingData.venues?.address,
                         venuePhone: completionBookingData.venues?.contact_phone,
-                        // NO QR CODE - removed per user request
+                        // Include QR code for venue entry scanning - ensure we always pass a string URL
+                        qrCodeImage: initiatorQrCodeImage?.externalUrl || initiatorQrCodeImage?.base64 || '',
+                        qrCodeUrl: initiatorQrCodeImage?.externalUrl || initiatorQrCodeImage?.base64 || '',
                         dashboardUrl: `${window.location.origin}/profile`
                       }
                     })
@@ -1131,6 +1127,14 @@ const SplitPaymentSuccessPage = () => {
                       const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://agydpkzfucicraedllgl.supabase.co';
                       const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
+                      // Generate QR code for recipient
+                      console.log('📱 Generating QR code for recipient split payment booking:', completionBookingData.id);
+                      const recipientQrCodeImage = await generateVenueEntryQR(completionBookingData);
+                      console.log('📱 Recipient QR code generated successfully:', recipientQrCodeImage ? 'Yes' : 'No');
+
+                      // Calculate total amount from all split payments
+                      const fullTotalAmount = requests?.reduce((sum, req) => sum + (Number(req.amount) || 0), 0) || completionBookingData.total_amount;
+
                       const recipientEmailResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
                         method: 'POST',
                         headers: {
@@ -1150,10 +1154,13 @@ const SplitPaymentSuccessPage = () => {
                             bookingDate: completionBookingData.booking_date,
                             bookingTime: completionBookingData.start_time,
                             guestCount: completionBookingData.number_of_guests,
-                            totalAmount: completionBookingData.total_amount,
+                            totalAmount: fullTotalAmount,
                             venueName: completionBookingData.venues?.name,
                             venueAddress: completionBookingData.venues?.address,
-                            paymentAmount: request.amount
+                            paymentAmount: request.amount,
+                            // Include QR code for venue entry scanning - ensure we always pass a string URL
+                            qrCodeImage: recipientQrCodeImage?.externalUrl || recipientQrCodeImage?.base64 || '',
+                            qrCodeUrl: recipientQrCodeImage?.externalUrl || recipientQrCodeImage?.base64 || ''
                           }
                         })
                       });

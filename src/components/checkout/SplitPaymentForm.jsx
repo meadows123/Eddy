@@ -745,13 +745,13 @@ const SplitPaymentForm = ({
 
       {/* Search Dialog */}
       <Dialog open={showSearchDialog} onOpenChange={setShowSearchDialog}>
-        <DialogContent className="sm:max-w-md max-w-[95vw]">
-          <DialogHeader>
+        <DialogContent className="sm:max-w-md max-w-[95vw] p-8">
+          <DialogHeader className="mb-6">
             <DialogTitle className="text-lg sm:text-xl">Search for Recipient</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-6">
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input
                 placeholder="Search by name or phone..."
                 value={searchQuery}
@@ -759,29 +759,29 @@ const SplitPaymentForm = ({
                   setSearchQuery(e.target.value);
                   searchUsers(e.target.value);
                 }}
-                className="pl-10 text-sm sm:text-base"
+                className="pl-12 py-3 text-sm sm:text-base"
               />
             </div>
 
             {isSearching && (
-              <div className="text-center py-4">
+              <div className="text-center py-6">
                 <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-burgundy mx-auto"></div>
-                <p className="text-sm text-muted-foreground mt-2">Searching...</p>
+                <p className="text-sm text-muted-foreground mt-3">Searching...</p>
               </div>
             )}
 
-            <div className="max-h-60 overflow-y-auto space-y-2">
+            <div className="max-h-60 overflow-y-auto space-y-4">
               {searchResults.map((result) => (
                 <div
                   key={result.id}
-                  className="flex items-center justify-between p-2 sm:p-3 border rounded-lg hover:bg-muted cursor-pointer gap-2"
+                  className="flex items-center justify-between p-4 sm:p-5 border rounded-lg hover:bg-muted cursor-pointer gap-3"
                   onClick={() => selectRecipient(result, currentSplitIndex)}
                 >
-                  <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
-                    <div className="w-6 h-6 sm:w-8 sm:h-8 bg-brand-burgundy/10 rounded-full flex items-center justify-center flex-shrink-0">
-                      <User className="h-3 w-3 sm:h-4 sm:w-4 text-brand-burgundy" />
+                  <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
+                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-brand-burgundy/10 rounded-full flex items-center justify-center flex-shrink-0">
+                      <User className="h-4 w-4 sm:h-5 sm:w-5 text-brand-burgundy" />
                     </div>
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-0 flex-1 space-y-1">
                       <div className="font-medium text-sm sm:text-base truncate">{result.displayName}</div>
                       <div className="text-xs sm:text-sm text-muted-foreground truncate">
                         {result.phone}
@@ -796,9 +796,9 @@ const SplitPaymentForm = ({
             </div>
 
             {searchQuery && !isSearching && searchResults.length === 0 && (
-              <div className="text-center py-4 text-muted-foreground">
+              <div className="text-center py-6 text-muted-foreground">
                 <p className="text-sm sm:text-base">No users found matching "{searchQuery}"</p>
-                <p className="text-xs sm:text-sm mt-1">Try searching by name or phone number</p>
+                <p className="text-xs sm:text-sm mt-2">Try searching by name or phone number</p>
               </div>
             )}
           </div>
