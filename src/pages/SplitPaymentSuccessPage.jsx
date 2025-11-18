@@ -516,7 +516,6 @@ const SplitPaymentSuccessPage = () => {
                 } else {
                   console.log('❌ No venue owner found by owner_id:', ownerIdError);
                 }
-              }
               
               // Approach 3: Try user_id in venues table
               if (!venueOwner && completionBookingData.venues.user_id) {
@@ -1272,15 +1271,15 @@ const SplitPaymentSuccessPage = () => {
             }
           }
 
-          console.log('✅ Split payment completion emails sent successfully');
-          
-          // Send confirmation notifications to all parties
-          toast({
-            title: "Booking Confirmed!",
-            description: "All split payments have been received. Your booking is now confirmed.",
-            className: "bg-green-500 text-white"
-          });
-        } // End of if (allPaid) block
+        console.log('✅ Split payment completion emails sent successfully');
+        
+        // Send confirmation notifications to all parties
+        toast({
+          title: "Booking Confirmed!",
+          description: "All split payments have been received. Your booking is now confirmed.",
+          className: "bg-green-500 text-white"
+        });
+      }
     } catch (error) {
       console.error('Error checking payment completion:', error);
     }
