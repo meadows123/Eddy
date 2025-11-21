@@ -1,4 +1,5 @@
 import { initializePaystackPayment } from './api';
+import { getPaystackCallbackUrl } from './urlUtils';
 
 /**
  * Initiates a split payment through Paystack
@@ -49,6 +50,10 @@ export const initiateSplitPaystackPayment = async ({
 
     console.log('📦 Split payment metadata:', metadata);
 
+    // Get callback URL (mobile-friendly if on mobile app)
+    const callbackUrl = getPaystackCallbackUrl('/split-payment-callback');
+    console.log('🔗 Split payment callback URL:', callbackUrl);
+
     // Call Paystack initialization
     const response = await initializePaystackPayment({
       email,
@@ -57,7 +62,8 @@ export const initiateSplitPaystackPayment = async ({
       firstName: fullName.split(' ')[0],
       lastName: fullName.split(' ').slice(1).join(' ') || '',
       phone,
-      userId
+      userId,
+      callbackUrl // Pass mobile-friendly callback URL
     });
 
     console.log('✅ Split payment initialized:', {

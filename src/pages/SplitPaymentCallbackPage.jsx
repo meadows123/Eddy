@@ -4,6 +4,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { supabase } from '@/lib/supabase';
 import { verifySplitPaystackPayment, getSplitPaymentFromSession, clearSplitPaymentFromSession } from '@/lib/paystackSplitPaymentHandler';
 import { generateVenueEntryQR } from '@/lib/qrCodeService';
+import { redirectToMobileApp } from '@/lib/urlUtils';
 import { Loader2 } from 'lucide-react';
 
 /**
@@ -16,8 +17,89 @@ const SplitPaymentCallbackPage = () => {
   const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isRedirecting, setIsRedirecting] = useState(false);
+
+  // Redirect to mobile app if we're in a mobile browser (not in the app)
+  useEffect(() => {
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isInApp = typeof window !== 'undefined' && (window.Capacitor || window.cordova || window.ionic);
+    
+    // Only redirect if we're on mobile but NOT already in the app
+    if (isMobile && !isInApp) {
+      console.log('📱 Detected mobile browser, redirecting to app...');
+      setIsRedirecting(true);
+      setLoading(true);
+      
+      const reference = searchParams.get('reference') || searchParams.get('trxref');
+      const cancelled = searchParams.get('status') === 'cancelled';
+      
+      const params = {};
+      if (reference) params.reference = reference;
+      if (cancelled) params.status = 'cancelled';
+      
+      // Build query string
+      const queryString = Object.keys(params)
+        .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+        .join('&');
+      const query = queryString ? `?${queryString}` : '';
+      
+      // Build app deep link URL
+      const appUrl = `com.oneeddy.members://split-payment-callback${query}`;
+      
+      // For Android, use Intent URL for better compatibility
+      const isAndroid = /Android/i.test(navigator.userAgent);
+      let redirectUrl = appUrl;
+      
+      if (isAndroid) {
+        // Android Intent URL - more reliable
+        const currentPath = `/split-payment-callback${query}`;
+        redirectUrl = `intent://oneeddy.com${currentPath}#Intent;scheme=https;package=com.oneeddy.members;end`;
+      }
+      
+      console.log('📱 Redirecting to app with URL:', redirectUrl);
+      
+      // Try to open the app immediately
+      try {
+        if (isAndroid) {
+          // For Android, try Intent URL first, then fallback to custom scheme
+          window.location.href = redirectUrl;
+          // Also try custom scheme as fallback
+          setTimeout(() => {
+            window.location.href = appUrl;
+          }, 500);
+        } else {
+          // For iOS, use iframe method
+          const iframe = document.createElement('iframe');
+          iframe.style.display = 'none';
+          iframe.style.width = '0';
+          iframe.style.height = '0';
+          iframe.style.border = 'none';
+          iframe.src = appUrl;
+          document.body.appendChild(iframe);
+          setTimeout(() => {
+            if (iframe.parentNode) {
+              document.body.removeChild(iframe);
+            }
+          }, 2000);
+        }
+      } catch (error) {
+        console.error('Error redirecting to app:', error);
+        setIsRedirecting(false);
+        setLoading(false);
+      }
+      
+      // Don't proceed with verification - let the app handle it
+      return;
+    }
+  }, [searchParams]);
 
   useEffect(() => {
+    // Don't verify if we're redirecting to the app
+    if (isRedirecting) {
+      console.log('⏸️ Skipping verification - redirecting to app');
+      return;
+    }
+    
     const handlePaymentCallback = async () => {
       try {
         setLoading(true);
@@ -127,13 +209,8 @@ const SplitPaymentCallbackPage = () => {
         });
 
         // Redirect to success page with all information
-        const redirectUrl = new URL('/split-payment-success', window.location.origin);
-        redirectUrl.searchParams.set('reference', reference);
-        redirectUrl.searchParams.set('request_id', requestId);
-        redirectUrl.searchParams.set('booking_id', bookingId);
-        redirectUrl.searchParams.set('all_paid', allPaid);
-        
-        window.location.href = redirectUrl.toString();
+        // Use navigate for better mobile app compatibility (works with deep linking)
+        navigate(`/split-payment-success?reference=${encodeURIComponent(reference)}&request_id=${encodeURIComponent(requestId)}&booking_id=${encodeURIComponent(bookingId)}&all_paid=${allPaid}`, { replace: true });
 
       } catch (err) {
         console.error('❌ Split payment callback error:', err);
@@ -155,7 +232,7 @@ const SplitPaymentCallbackPage = () => {
     };
 
     handlePaymentCallback();
-  }, [searchParams, navigate, toast]);
+  }, [searchParams, navigate, toast, isRedirecting]);
 
   if (loading) {
     return (

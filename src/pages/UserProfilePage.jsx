@@ -458,22 +458,108 @@ const UserProfilePage = () => {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setError(null); // Clear previous errors
+    
+    // Detect if running on mobile (for logging/debugging only - doesn't affect functionality)
+    const isMobile = typeof window !== 'undefined' && (window.Capacitor || window.cordova || window.ionic);
+    
     try {
-      const { error } = await signIn(form);
-      if (error) throw error;
-    } catch (error) {
-      // Provide more specific and helpful error messages
-      if (error.message === 'Invalid login credentials' || error.message.includes('Invalid login credentials')) {
-        setError('The email or password you entered is incorrect. Please check your credentials and try again. If you\'ve forgotten your password, click "Forgot Password?" below to reset it.');
-      } else if (error.message.includes('Email not confirmed')) {
-        setError('Please check your email and click the confirmation link before logging in. If you didn\'t receive the email, try signing up again.');
-      } else if (error.message.includes('Too many requests')) {
-        setError('Too many login attempts. Please wait a few minutes before trying again. If you\'ve forgotten your password, use the "Forgot Password?" option below.');
-      } else if (error.message.includes('User not found')) {
-        setError('No account found with this email address. Please check your email or create a new account.');
-      } else {
-        setError(error.message || 'Login failed. Please try again or contact support if the problem persists.');
+      // Log for debugging (only in development or on mobile)
+      if (isMobile || import.meta.env.DEV) {
+        console.log('🔐 Attempting login...', { 
+          email: form.email, 
+          isMobile,
+          hasPassword: !!form.password 
+        });
       }
+      
+      const { data, error } = await signIn(form);
+      
+      if (error) {
+        // Log error details for debugging (especially helpful on mobile)
+        if (isMobile || import.meta.env.DEV) {
+          console.error('❌ Login error:', {
+            message: error.message,
+            status: error.status,
+            name: error.name,
+            isMobile
+          });
+        }
+        throw error;
+      }
+      
+      if (!data || !data.user) {
+        if (isMobile || import.meta.env.DEV) {
+          console.error('❌ No user data returned:', { data, isMobile });
+        }
+        throw new Error('Login succeeded but no user data was returned. Please try again.');
+      }
+      
+      if (isMobile || import.meta.env.DEV) {
+        console.log('✅ Login successful:', { 
+          userId: data.user.id, 
+          email: data.user.email,
+          isMobile 
+        });
+      }
+      
+      // Verify session was created (non-blocking - just for logging/debugging)
+      // On web, AuthContext will handle session updates via onAuthStateChange
+      // On mobile, we verify to catch potential session issues early
+      if (isMobile) {
+        // Only verify session on mobile where we need extra validation
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError || !sessionData?.session) {
+          if (import.meta.env.DEV) {
+            console.error('❌ Session verification failed:', { sessionError, sessionData, isMobile });
+          }
+          // Don't throw - let AuthContext handle it, but log for debugging
+          // The session might be created asynchronously via onAuthStateChange
+        } else if (import.meta.env.DEV) {
+          console.log('✅ Session verified:', { 
+            hasSession: !!sessionData.session,
+            userId: sessionData.session?.user?.id,
+            isMobile 
+          });
+        }
+      }
+      
+      // Clear form on success
+      setForm({ email: '', password: '' });
+      
+    } catch (error) {
+      // Log error for debugging (especially helpful on mobile)
+      if (isMobile || import.meta.env.DEV) {
+        console.error('❌ Login failed:', {
+          error,
+          message: error?.message,
+          isMobile
+        });
+      }
+      
+      // Provide more specific and helpful error messages
+      let errorMessage = 'Login failed. Please try again or contact support if the problem persists.';
+      
+      if (error?.message === 'Invalid login credentials' || error?.message?.includes('Invalid login credentials')) {
+        errorMessage = 'The email or password you entered is incorrect. Please check your credentials and try again. If you\'ve forgotten your password, click "Forgot Password?" below to reset it.';
+      } else if (error?.message?.includes('Email not confirmed')) {
+        errorMessage = 'Please check your email and click the confirmation link before logging in. If you didn\'t receive the email, try signing up again.';
+      } else if (error?.message?.includes('Too many requests')) {
+        errorMessage = 'Too many login attempts. Please wait a few minutes before trying again. If you\'ve forgotten your password, use the "Forgot Password?" option below.';
+      } else if (error?.message?.includes('User not found')) {
+        errorMessage = 'No account found with this email address. Please check your email or create a new account.';
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      setError(errorMessage);
+      
+      // Show toast notification for better visibility (works on both web and mobile)
+      toast({
+        title: 'Login Failed',
+        description: errorMessage,
+        variant: 'destructive',
+      });
     }
   };
 

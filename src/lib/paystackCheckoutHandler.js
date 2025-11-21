@@ -8,6 +8,7 @@
  */
 
 import { supabase } from './supabase';
+import { getPaystackCallbackUrl } from './urlUtils';
 
 const PAYSTACK_API_BASE = 'https://api.paystack.co';
 
@@ -83,6 +84,10 @@ export const initiatePaystackPayment = async ({
 
     console.log('📞 Calling Supabase Edge Function: paystack-initialize...');
 
+    // Get callback URL (mobile-friendly if on mobile app)
+    const callbackUrl = getPaystackCallbackUrl('/paystack-callback');
+    console.log('🔗 Callback URL:', callbackUrl);
+
     // Import the Supabase function caller
     const { initializePaystackPayment: callInitialize } = await import('./api.jsx');
 
@@ -93,7 +98,8 @@ export const initiatePaystackPayment = async ({
       firstName: fullName.split(' ')[0],
       lastName: fullName.split(' ').slice(1).join(' ') || '',
       phone,
-      metadata
+      metadata,
+      callbackUrl // Pass mobile-friendly callback URL
     });
 
     console.log('✅ Paystack payment initialized:', {
@@ -180,8 +186,24 @@ export const completeBookingAfterPayment = async ({
       reference
     });
 
-    // Update booking in Supabase
-    const { data, error } = await supabase
+    // First verify the booking exists
+    const { data: existingBooking, error: checkError } = await supabase
+      .from('bookings')
+      .select('id')
+      .eq('id', bookingId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    
+    if (checkError) {
+      throw new Error(`Failed to verify booking: ${checkError.message}`);
+    }
+    
+    if (!existingBooking) {
+      throw new Error(`Booking not found or access denied. Booking ID: ${bookingId}`);
+    }
+
+    // Update booking in Supabase (without .single() to avoid errors)
+    const { data: bookingDataArray, error } = await supabase
       .from('bookings')
       .update({
         payment_status: 'completed',
@@ -191,11 +213,17 @@ export const completeBookingAfterPayment = async ({
       })
       .eq('id', bookingId)
       .eq('user_id', userId)
-      .select()
-      .single();
+      .select();
 
     if (error) {
       throw new Error(`Failed to update booking: ${error.message}`);
+    }
+    
+    // Get the first (and should be only) booking from the array
+    const data = bookingDataArray && bookingDataArray.length > 0 ? bookingDataArray[0] : null;
+    
+    if (!data) {
+      throw new Error('Booking update succeeded but no data returned');
     }
 
     console.log('✅ Booking completed:', bookingId);
@@ -209,9 +237,10 @@ export const completeBookingAfterPayment = async ({
 
 /**
  * Gets the callback URL for Paystack redirects
+ * @deprecated Use getPaystackCallbackUrl from urlUtils instead
  * @returns {string} Callback URL
  */
-export const getPaystackCallbackUrl = () => {
+export const getPaystackCallbackUrlLegacy = () => {
   const baseUrl = window.location.origin;
   return `${baseUrl}/paystack-callback`;
 };

@@ -1,6 +1,6 @@
 // VenueOwnerLogin.jsx - Updated to fix auth.users query issue
 // Cache bust: 2024-01-15 - Removed direct auth.users queries
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Store, Mail, Lock, ArrowRight, Eye, EyeOff } from 'lucide-react';
@@ -9,18 +9,82 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../components/ui/use-toast';
+import { useAuth } from '../../contexts/AuthContext';
 import { sendVenueOwnerPasswordReset } from '../../lib/venueOwnerEmailService.js';
 
 const VenueOwnerLogin = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
   });
   const [error, setError] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Check if user is already logged in and is a venue owner
+  useEffect(() => {
+    const checkExistingAuth = async () => {
+      // Wait for auth context to finish loading
+      if (authLoading) {
+        return;
+      }
+
+      // If no user, they need to log in
+      if (!user) {
+        setCheckingAuth(false);
+        return;
+      }
+
+      try {
+        // Check if user is a venue owner
+        let venueOwner = null;
+        
+        // Try to find venue owner by user_id first
+        const { data: venueOwners, error: venueOwnerError } = await supabase
+          .from('venue_owners')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (venueOwnerError) {
+          // If error, try email fallback
+          const { data: venueOwnersByEmail, error: emailError } = await supabase
+            .from('venue_owners')
+            .select('*')
+            .eq('owner_email', user.email)
+            .order('created_at', { ascending: false });
+          
+          if (!emailError && venueOwnersByEmail && venueOwnersByEmail.length > 0) {
+            venueOwner = venueOwnersByEmail[0];
+          }
+        } else if (venueOwners && venueOwners.length > 0) {
+          venueOwner = venueOwners[0];
+        }
+
+        // If user is a venue owner with active/approved status, redirect to dashboard
+        if (venueOwner) {
+          const validStatuses = ['active', 'approved'];
+          if (validStatuses.includes(venueOwner.status)) {
+            console.log('✅ User is already logged in as venue owner, redirecting to dashboard');
+            navigate('/venue-owner/dashboard');
+            return;
+          }
+        }
+
+        // If we get here, user is logged in but not a venue owner (or not active)
+        setCheckingAuth(false);
+      } catch (error) {
+        console.error('Error checking existing auth:', error);
+        setCheckingAuth(false);
+      }
+    };
+
+    checkExistingAuth();
+  }, [user, authLoading, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -379,6 +443,18 @@ const VenueOwnerLogin = () => {
       setLoading(false);
     }
   };
+
+  // Show loading state while checking authentication
+  if (checkingAuth || authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center py-4 px-4 sm:py-12 sm:px-6 lg:px-8">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-burgundy mx-auto mb-4"></div>
+          <p className="text-brand-burgundy/70">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center py-4 px-4 sm:py-12 sm:px-6 lg:px-8">

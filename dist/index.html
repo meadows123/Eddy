@@ -22,8 +22,45 @@
 		<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 		<!-- App Redirect: Try to open mobile app first, fallback to web -->
 		<script src="/app-redirect.js"></script>
-		<script type="module" crossorigin src="/assets/index-6241eb9c.js"></script>
-		<link rel="stylesheet" href="/assets/index-8c782edf.css">
+		<!-- Immediate redirect for Paystack callbacks on mobile -->
+		<script>
+			(function() {
+				// Only run on callback pages
+				const isCallbackPage = window.location.pathname.includes('paystack-callback') || 
+				                      window.location.pathname.includes('split-payment-callback');
+				
+				if (!isCallbackPage) return;
+				
+				// Check if we're on mobile but NOT in the app
+				const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+				const isInApp = window.Capacitor || window.cordova || window.ionic;
+				
+				if (isMobile && !isInApp) {
+					const currentPath = window.location.pathname;
+					const query = window.location.search;
+					const fullPath = currentPath + query;
+					
+					// Build app deep link
+					const appUrl = 'com.oneeddy.members://' + fullPath.substring(1); // Remove leading /
+					
+					// For Android, use Intent URL
+					if (/Android/i.test(navigator.userAgent)) {
+						const intentUrl = 'intent://oneeddy.com' + fullPath + '#Intent;scheme=https;package=com.oneeddy.members;end';
+						// Try Intent URL first
+						window.location.href = intentUrl;
+						// Fallback to custom scheme after short delay
+						setTimeout(function() {
+							window.location.href = appUrl;
+						}, 300);
+					} else {
+						// For iOS, try custom scheme
+						window.location.href = appUrl;
+					}
+				}
+			})();
+		</script>
+		<script type="module" crossorigin src="/assets/index-6833e1c8.js"></script>
+		<link rel="stylesheet" href="/assets/index-527f3222.css">
 	</head>
 	<body>
 		<div id="root"></div>

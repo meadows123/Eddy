@@ -7,6 +7,10 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables. Please check your .env file.')
 }
 
+// Detect if running in mobile app (Capacitor)
+// This detection is safe and won't affect web functionality
+const isMobileApp = typeof window !== 'undefined' && (window.Capacitor || window.cordova || window.ionic);
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   db: {
     schema: 'public',
@@ -14,7 +18,12 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: true
+    // URL detection behavior:
+    // - Web: detectSessionInUrl = true (normal web behavior, uses URL hash fragments)
+    // - Mobile: detectSessionInUrl = false (mobile apps don't use URL-based auth flows)
+    // This prevents session detection issues on mobile while maintaining web functionality
+    detectSessionInUrl: !isMobileApp,
+    storageKey: 'supabase.auth.token'
   },
   global: {
     headers: {

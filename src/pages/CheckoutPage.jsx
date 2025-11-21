@@ -24,7 +24,7 @@ import { Elements, CardElement } from '@stripe/react-stripe-js';
 import { stripePromise } from '@/lib/stripe';
 import { generateSecurityCode, generateVenueEntryQR } from '@/lib/qrCodeService';
 import { getFullUrl } from '@/lib/urlUtils';
-import { getUserLocationWithFallback, getLocationFromSession, storeLocationInSession } from '@/lib/locationService';
+import { getUserLocationWithFallback, getLocationFromSession, storeLocationInSession, setTestLocation, clearTestLocation, TestLocations } from '@/lib/locationService';
 import PaystackCheckoutForm from '@/components/checkout/PaystackCheckoutForm';
 import SplitPaymentCheckoutForm from '@/components/checkout/SplitPaymentCheckoutForm';
 import { initiatePaystackPayment } from '@/lib/paystackCheckoutHandler';
@@ -76,6 +76,7 @@ const [stripe, setStripe] = useState(null);
 const [userLocation, setUserLocation] = useState(null);
 const [paymentProcessor, setPaymentProcessor] = useState(null);
 const [locationLoading, setLocationLoading] = useState(true);
+const [showLocationOverride, setShowLocationOverride] = useState(false);
 
 
 // Detect user location and payment processor
@@ -98,7 +99,8 @@ useEffect(() => {
         processor: detectedLocation.processor,
         currency: detectedLocation.currency,
         country: detectedLocation.country,
-        description: `${detectedLocation.country} - ${detectedLocation.processor.toUpperCase()}`
+        description: `${detectedLocation.country} - ${detectedLocation.processor.toUpperCase()}`,
+        isTest: detectedLocation.isTest || false
       });
     } catch (error) {
       console.error('Error detecting location:', error);
@@ -117,6 +119,41 @@ useEffect(() => {
   
   initializeLocation();
 }, []);
+
+// Function to handle location override
+const handleLocationOverride = (locationType) => {
+  let newLocation;
+  switch (locationType) {
+    case 'nigeria':
+      newLocation = TestLocations.nigeria();
+      break;
+    case 'uk':
+      newLocation = TestLocations.uk();
+      break;
+    case 'usa':
+      newLocation = TestLocations.usa();
+      break;
+    case 'europe':
+      newLocation = TestLocations.europe();
+      break;
+    case 'clear':
+      clearTestLocation();
+      // Reload location
+      window.location.reload();
+      return;
+    default:
+      return;
+  }
+  
+  setUserLocation(newLocation);
+  setPaymentProcessor(newLocation.processor);
+  setShowLocationOverride(false);
+  
+  toast({
+    title: "Location Override Set",
+    description: `Testing with ${newLocation.country} - ${newLocation.processor.toUpperCase()}`,
+  });
+};
 
 // Initialize Stripe
 useEffect(() => {
@@ -1416,24 +1453,99 @@ setShowShareDialog(true);
                       ? 'bg-green-50 border-green-200' 
                       : 'bg-purple-50 border-purple-200'
                   }`}>
-                    <p className={`font-semibold ${
-                      paymentProcessor === 'paystack' 
-                        ? 'text-green-800' 
-                        : 'text-purple-800'
-                    }`}>
-                      {paymentProcessor === 'paystack' 
-                        ? '🇳🇬 Paystack Payment (NGN)' 
-                        : `💳 Stripe Payment (${userLocation?.currency || 'EUR'})`}
-                    </p>
-                    <p className={`text-sm ${
-                      paymentProcessor === 'paystack' 
-                        ? 'text-green-700' 
-                        : 'text-purple-700'
-                    }`}>
-                      {paymentProcessor === 'paystack' 
-                        ? 'Using Paystack for secure Nigerian payments' 
-                        : 'Using Stripe for secure international payments'}
-                    </p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className={`font-semibold ${
+                          paymentProcessor === 'paystack' 
+                            ? 'text-green-800' 
+                            : 'text-purple-800'
+                        }`}>
+                          {paymentProcessor === 'paystack' 
+                            ? '🇳🇬 Paystack Payment (NGN)' 
+                            : `💳 Stripe Payment (${userLocation?.currency || 'EUR'})`}
+                          {userLocation?.isTest && (
+                            <span className="ml-2 text-xs bg-yellow-200 text-yellow-800 px-2 py-1 rounded">
+                              🧪 TEST MODE
+                            </span>
+                          )}
+                        </p>
+                        <p className={`text-sm ${
+                          paymentProcessor === 'paystack' 
+                            ? 'text-green-700' 
+                            : 'text-purple-700'
+                        }`}>
+                          {paymentProcessor === 'paystack' 
+                            ? 'Using Paystack for secure Nigerian payments' 
+                            : 'Using Stripe for secure international payments'}
+                        </p>
+                      </div>
+                      {/* Test Location Override Button - Always show for testing payment processors */}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowLocationOverride(!showLocationOverride)}
+                        className="text-xs"
+                      >
+                        {showLocationOverride ? 'Hide' : '🧪 Test Location'}
+                      </Button>
+                    </div>
+                    
+                    {/* Location Override Panel */}
+                    {showLocationOverride && (
+                      <div className="mt-4 pt-4 border-t border-gray-200">
+                        <p className="text-xs font-semibold mb-2 text-gray-700">Test Location Override:</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleLocationOverride('nigeria')}
+                            className="text-xs"
+                          >
+                            🇳🇬 Nigeria (Paystack)
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleLocationOverride('uk')}
+                            className="text-xs"
+                          >
+                            🇬🇧 UK (Stripe)
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleLocationOverride('usa')}
+                            className="text-xs"
+                          >
+                            🇺🇸 USA (Stripe)
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleLocationOverride('europe')}
+                            className="text-xs"
+                          >
+                            🇪🇺 Europe (Stripe)
+                          </Button>
+                        </div>
+                        {userLocation?.isTest && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleLocationOverride('clear')}
+                            className="text-xs mt-2 w-full"
+                          >
+                            Clear Override (Use Auto-Detect)
+                          </Button>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <Tabs defaultValue="single" className="w-full mb-6">

@@ -7,6 +7,7 @@ import { Loader, CheckCircle, AlertCircle, Home } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { getPaymentFromSession, clearPaymentFromSession } from '@/lib/paystackCheckoutHandler';
 import { generateVenueEntryQR } from '@/lib/qrCodeService';
+import { redirectToMobileApp } from '@/lib/urlUtils';
 
 const PaystackCallbackPage = () => {
   const [searchParams] = useSearchParams();
@@ -15,10 +16,70 @@ const PaystackCallbackPage = () => {
   const [message, setMessage] = useState('Verifying your payment...');
   const [bookingDetails, setBookingDetails] = useState(null);
   const [error, setError] = useState(null);
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   console.log('🔄 PaystackCallbackPage Component Mounted');
 
+  // Check if we're redirecting (set by inline script in index.html)
+  // This is a fallback - the inline script should handle the redirect before React loads
   useEffect(() => {
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isInApp = typeof window !== 'undefined' && (window.Capacitor || window.cordova || window.ionic);
+    
+    // If we're still here on mobile browser, the inline script redirect didn't work
+    // Try one more time as a fallback
+    if (isMobile && !isInApp && !isRedirecting) {
+      console.log('📱 Fallback: Detected mobile browser, attempting redirect to app...');
+      setIsRedirecting(true);
+      setMessage('Opening app...');
+      
+      const reference = searchParams.get('reference') || searchParams.get('trxref');
+      const cancelled = searchParams.get('status') === 'cancelled';
+      
+      const params = {};
+      if (reference) params.reference = reference;
+      if (cancelled) params.status = 'cancelled';
+      
+      // Build query string
+      const queryString = Object.keys(params)
+        .map(key => `${encodeURIComponent(key)}=${encodeURIComponent(params[key])}`)
+        .join('&');
+      const query = queryString ? `?${queryString}` : '';
+      
+      // Build app deep link URL
+      const appUrl = `com.oneeddy.members://paystack-callback${query}`;
+      
+      // For Android, use Intent URL for better compatibility
+      const isAndroid = /Android/i.test(navigator.userAgent);
+      
+      // Try to open the app
+      try {
+        if (isAndroid) {
+          // For Android, try Intent URL
+          const currentPath = `/paystack-callback${query}`;
+          const intentUrl = `intent://oneeddy.com${currentPath}#Intent;scheme=https;package=com.oneeddy.members;end`;
+          window.location.href = intentUrl;
+        } else {
+          // For iOS, use custom scheme
+          window.location.href = appUrl;
+        }
+      } catch (error) {
+        console.error('Error redirecting to app:', error);
+        setIsRedirecting(false);
+      }
+      
+      // Don't proceed with verification - let the app handle it
+      return;
+    }
+  }, [searchParams, isRedirecting]);
+
+  useEffect(() => {
+    // Don't verify if we're redirecting to the app
+    if (isRedirecting) {
+      console.log('⏸️ Skipping verification - redirecting to app');
+      return;
+    }
+    
     const verifyPayment = async () => {
       try {
         // Paystack sends the reference as 'reference' OR 'trxref' parameter
@@ -96,7 +157,29 @@ const PaystackCallbackPage = () => {
 
         // Update booking payment status in database
         console.log('📊 About to update booking payment status...');
-        const { data: bookingData, error: updateError } = await supabase
+        console.log('🔍 Booking ID to update:', bookingId);
+        
+        // First verify the booking exists
+        const { data: existingBooking, error: checkError } = await supabase
+          .from('bookings')
+          .select('id')
+          .eq('id', bookingId)
+          .maybeSingle();
+        
+        if (checkError) {
+          console.error('❌ Error checking booking existence:', checkError);
+          throw new Error(`Failed to verify booking: ${checkError.message}`);
+        }
+        
+        if (!existingBooking) {
+          console.error('❌ Booking not found with ID:', bookingId);
+          throw new Error(`Booking not found. Please contact support with reference: ${reference}`);
+        }
+        
+        // Update booking payment status
+        // Use a two-step approach: update first, then fetch separately to avoid join/select issues
+        console.log('📝 Attempting to update booking with ID:', bookingId);
+        const { data: updateData, error: updateError } = await supabase
           .from('bookings')
           .update({
             payment_status: 'completed',
@@ -105,6 +188,36 @@ const PaystackCallbackPage = () => {
             updated_at: new Date().toISOString()
           })
           .eq('id', bookingId)
+          .select('id'); // Select just id to verify update worked
+
+        console.log('📝 Database update result:', { 
+          updateError, 
+          updateData, 
+          rowsUpdated: updateData?.length 
+        });
+
+        if (updateError) {
+          console.error('❌ UPDATE ERROR:', updateError);
+          console.error('❌ Update error details:', {
+            message: updateError.message,
+            code: updateError.code,
+            details: updateError.details,
+            hint: updateError.hint
+          });
+          throw new Error(`Failed to update booking: ${updateError.message}`);
+        }
+
+        // Verify that at least one row was updated
+        if (!updateData || updateData.length === 0) {
+          console.warn('⚠️ No rows were updated. Booking might not exist or already be updated.');
+          // Don't throw error here - booking might already be updated, continue to fetch
+        } else {
+          console.log('✅ Successfully updated booking:', updateData[0].id);
+        }
+
+        // Now fetch the updated booking data separately (without joins to avoid errors)
+        const { data: bookingDataArray, error: fetchError } = await supabase
+          .from('bookings')
           .select(`
             id, 
             booking_date, 
@@ -114,36 +227,41 @@ const PaystackCallbackPage = () => {
             total_amount, 
             venue_id, 
             user_id,
-            venues (
-              name,
-              address,
-              city,
-              contact_phone
-            )
+            table_id
           `)
-          .single();
-
-        console.log('📝 Database update result:', { bookingData, updateError });
-
-        if (updateError) {
-          console.error('❌ UPDATE ERROR:', updateError);
-          throw new Error(`Failed to update booking: ${updateError.message}`);
+          .eq('id', bookingId)
+          .limit(1);
+        
+        if (fetchError) {
+          console.error('❌ Error fetching updated booking:', fetchError);
+          throw new Error(`Failed to fetch updated booking: ${fetchError.message}`);
         }
-
-        // If venue data wasn't included in the join, fetch it separately
-        if (bookingData && !bookingData.venues && bookingData.venue_id) {
-          console.log('🔄 Venue data not in join, fetching separately...');
+        
+        // Get the first (and should be only) booking from the array
+        let bookingData = bookingDataArray && bookingDataArray.length > 0 ? bookingDataArray[0] : null;
+        
+        if (!bookingData) {
+          console.error('❌ No booking data returned after fetch');
+          throw new Error(`Booking was updated but could not be retrieved. Booking ID: ${bookingId}, Reference: ${reference}`);
+        }
+        
+        // Fetch venue data separately to avoid join issues
+        if (bookingData.venue_id) {
           const { data: venueData, error: venueError } = await supabase
             .from('venues')
             .select('name, address, city, contact_phone')
             .eq('id', bookingData.venue_id)
-            .single();
+            .maybeSingle();
           
           if (!venueError && venueData) {
             bookingData.venues = venueData;
             console.log('✅ Venue data fetched separately:', venueData);
+          } else if (venueError) {
+            console.warn('⚠️ Error fetching venue data:', venueError);
+            // Don't fail the whole process if venue fetch fails
           }
         }
+
 
         console.log('✅ Booking payment status updated:', bookingData);
         setBookingDetails(bookingData);
@@ -234,11 +352,13 @@ const PaystackCallbackPage = () => {
           console.log('🔍 Looking up venue with ID:', bookingData?.venue_id);
           try {
             // First try to get venue contact email
-            const { data: venueData, error: venueError } = await supabase
+            const { data: venueDataArray, error: venueError } = await supabase
               .from('venues')
               .select('contact_email, owner_id')
               .eq('id', bookingData.venue_id)
-              .single();
+              .limit(1);
+            
+            const venueData = venueDataArray && venueDataArray.length > 0 ? venueDataArray[0] : null;
             
             console.log('📍 Venue fetch result:', { venueData, venueError });
             
@@ -319,16 +439,47 @@ const PaystackCallbackPage = () => {
         }
 
       } catch (error) {
+        // Get reference for error reporting
+        const reference = searchParams.get('reference') || searchParams.get('trxref') || 'unknown';
+        
         console.error('❌ Callback verification error:', error);
+        console.error('❌ Error details:', {
+          message: error?.message,
+          stack: error?.stack,
+          name: error?.name,
+          code: error?.code,
+          details: error?.details,
+          hint: error?.hint,
+          reference: reference,
+          url: window.location.href
+        });
+        
+        // Log to console in a very visible way
+        console.error('🚨 PAYMENT CALLBACK ERROR 🚨');
+        console.error('Payment Reference:', reference);
+        console.error('Error Message:', error?.message);
+        console.error('Full Error:', error);
+        
         setStatus('error');
         const errorMsg = error instanceof Error ? error.message : String(error);
-        setMessage(errorMsg || 'An error occurred while processing your payment.');
-        setError(errorMsg);
+        
+        // Provide more helpful error messages
+        let userFriendlyMessage = errorMsg;
+        if (errorMsg.includes('JSON object requested')) {
+          userFriendlyMessage = 'Payment was successful, but there was an issue updating your booking. Please contact support with your payment reference.';
+        } else if (errorMsg.includes('Booking not found')) {
+          userFriendlyMessage = 'Payment was successful, but we could not find your booking. Please contact support.';
+        } else if (errorMsg.includes('Failed to update')) {
+          userFriendlyMessage = 'Payment was successful, but there was an issue confirming your booking. Please contact support.';
+        }
+        
+        setMessage(userFriendlyMessage);
+        setError(`${errorMsg} (Reference: ${reference})`);
       }
     };
 
     verifyPayment();
-  }, [searchParams]);
+  }, [searchParams, isRedirecting]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
@@ -339,15 +490,23 @@ const PaystackCallbackPage = () => {
         className="w-full max-w-md"
       >
         <Card className="p-8">
-          {/* Verifying State */}
-          {status === 'verifying' && (
+          {/* Verifying/Redirecting State */}
+          {(status === 'verifying' || isRedirecting) && (
             <div className="text-center space-y-4">
               <div className="flex justify-center">
                 <Loader className="h-12 w-12 animate-spin text-blue-500" />
               </div>
-              <h1 className="text-2xl font-bold text-gray-800">Processing</h1>
+              <h1 className="text-2xl font-bold text-gray-800">
+                {isRedirecting ? 'Opening App...' : 'Processing'}
+              </h1>
               <p className="text-gray-600">{message}</p>
-              <p className="text-sm text-gray-500">This may take a few moments...</p>
+              {isRedirecting ? (
+                <p className="text-sm text-gray-500">
+                  Redirecting you to the mobile app to complete your payment verification...
+                </p>
+              ) : (
+                <p className="text-sm text-gray-500">This may take a few moments...</p>
+              )}
             </div>
           )}
 
@@ -403,42 +562,6 @@ const PaystackCallbackPage = () => {
             </div>
           )}
 
-          {/* Error State */}
-          {status === 'error' && (
-            <div className="text-center space-y-4">
-              <div className="flex justify-center">
-                <AlertCircle className="h-16 w-16 text-red-500" />
-              </div>
-              <h1 className="text-2xl font-bold text-red-700">Payment Failed</h1>
-              <p className="text-gray-600">{message}</p>
-
-              {error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
-                  Error: {error}
-                </div>
-              )}
-
-              <div className="space-y-3">
-                <p className="text-sm text-gray-500">
-                  Your booking has not been charged. Please try again.
-                </p>
-                <Button
-                  onClick={() => navigate(-1)}
-                  className="w-full bg-red-600 hover:bg-red-700"
-                >
-                  Try Again
-                </Button>
-                <Button
-                  onClick={() => navigate('/venues')}
-                  variant="outline"
-                  className="w-full"
-                >
-                  <Home className="mr-2 h-4 w-4" />
-                  Back to Venues
-                </Button>
-              </div>
-            </div>
-          )}
 
           {/* Cancelled State */}
           {status === 'cancelled' && (

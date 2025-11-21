@@ -207,3 +207,94 @@ export function getPaymentProcessorForCurrency(currency) {
   return processorMap[currency] || 'paystack';
 }
 
+/**
+ * Set test location override for development/testing
+ * This allows manually setting location to test different payment processors
+ * 
+ * @param {Object} locationConfig - Location configuration
+ * @param {string} locationConfig.country - Country code (e.g., 'NG', 'GB', 'US')
+ * @param {string} locationConfig.currency - Currency code (e.g., 'NGN', 'GBP', 'USD')
+ * @param {string} locationConfig.processor - Payment processor ('paystack' or 'stripe')
+ * @param {string} [locationConfig.region] - Region name (optional)
+ * @param {number} [locationConfig.latitude] - Latitude (optional)
+ * @param {number} [locationConfig.longitude] - Longitude (optional)
+ * 
+ * @example
+ * // Set to Nigeria/Paystack
+ * setTestLocation({ country: 'NG', currency: 'NGN', processor: 'paystack' });
+ * 
+ * // Set to UK/Stripe
+ * setTestLocation({ country: 'GB', currency: 'GBP', processor: 'stripe' });
+ * 
+ * // Clear test location (use auto-detection)
+ * clearTestLocation();
+ */
+export function setTestLocation(locationConfig) {
+  const testLocation = {
+    country: locationConfig.country || 'NG',
+    currency: locationConfig.currency || 'NGN',
+    processor: locationConfig.processor || 'paystack',
+    region: locationConfig.region || 'Test Location',
+    latitude: locationConfig.latitude || 6.5244,
+    longitude: locationConfig.longitude || 3.3792,
+    isTest: true // Mark as test location
+  };
+  
+  storeLocationInSession(testLocation);
+  console.log('🧪 Test location set:', testLocation);
+  return testLocation;
+}
+
+/**
+ * Clear test location override and use auto-detection
+ */
+export function clearTestLocation() {
+  try {
+    sessionStorage.removeItem('userLocation');
+    console.log('🧪 Test location cleared - will use auto-detection');
+  } catch (error) {
+    console.warn('Failed to clear test location:', error);
+  }
+}
+
+/**
+ * Quick helper functions for common test locations
+ */
+export const TestLocations = {
+  nigeria: () => setTestLocation({
+    country: 'NG',
+    currency: 'NGN',
+    processor: 'paystack',
+    region: 'Lagos, Nigeria',
+    latitude: 6.5244,
+    longitude: 3.3792
+  }),
+  
+  uk: () => setTestLocation({
+    country: 'GB',
+    currency: 'GBP',
+    processor: 'stripe',
+    region: 'London, UK',
+    latitude: 51.5074,
+    longitude: -0.1278
+  }),
+  
+  usa: () => setTestLocation({
+    country: 'US',
+    currency: 'USD',
+    processor: 'stripe',
+    region: 'New York, USA',
+    latitude: 40.7128,
+    longitude: -74.0060
+  }),
+  
+  europe: () => setTestLocation({
+    country: 'DE',
+    currency: 'EUR',
+    processor: 'stripe',
+    region: 'Berlin, Germany',
+    latitude: 52.5200,
+    longitude: 13.4050
+  })
+};
+

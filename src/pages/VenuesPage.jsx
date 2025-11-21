@@ -72,13 +72,32 @@ const VenuesPage = () => {
     const fallbackMusicGenres = ['Afrobeats', 'Hip Hop', 'R&B', 'House', 'Amapiano', 'Reggae', 'Pop', 'Jazz', 'Live Band', 'DJ Sets'];
 
     const locations = [...new Set(venuesData.map(venue => venue.city).filter(Boolean))].sort();
-    // Merge fallbackVenueTypes with those found in data, removing duplicates
-    const venueTypes = [
-      ...new Set([
-        ...venuesData.map(venue => venue.type).filter(Boolean),
-        ...fallbackVenueTypes
-      ])
-    ].sort();
+    
+    // Normalize and deduplicate venue types
+    // First, normalize all venue types to proper case (capitalize first letter)
+    const normalizeVenueType = (type) => {
+      if (!type) return null;
+      const lower = type.toLowerCase();
+      if (lower === 'club' || lower === 'clubs') return 'Club';
+      if (lower === 'lounge' || lower === 'lounges') return 'Lounge';
+      if (lower === 'restaurant' || lower === 'restaurants') return 'Restaurant';
+      // For any other type, capitalize first letter
+      return type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
+    };
+    
+    // Extract and normalize venue types from data
+    const normalizedTypes = venuesData
+      .map(venue => normalizeVenueType(venue.type))
+      .filter(Boolean);
+    
+    // Merge with fallback types and remove duplicates (case-insensitive)
+    const allTypes = [...new Set([...normalizedTypes, ...fallbackVenueTypes])];
+    
+    // Filter to only include the three standard types
+    const standardTypes = ['Club', 'Lounge', 'Restaurant'];
+    const venueTypes = allTypes
+      .filter(type => standardTypes.includes(type))
+      .sort();
 
     // Extract cuisine types from venues
     const cuisineTypes = [];

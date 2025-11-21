@@ -41,15 +41,20 @@ serve(async (req) => {
       firstName,
       lastName,
       phone,
-      metadata
+      metadata,
+      callbackUrl: clientCallbackUrl // Allow client to specify callback URL (for mobile app deep linking)
     } = body;
 
-    // Determine callback URL based on payment type
-    let callbackUrl = `${BASE_URL}/paystack-callback`;
-    if (metadata?.callbackType === 'split') {
-      callbackUrl = `${BASE_URL}/split-payment-callback`;
-    } else if (metadata?.callbackType === 'credit') {
-      callbackUrl = `${BASE_URL}/credit-purchase-callback`;
+    // Determine callback URL based on payment type or use client-provided URL
+    let callbackUrl = clientCallbackUrl;
+    if (!callbackUrl) {
+      // Fallback to default based on payment type
+      callbackUrl = `${BASE_URL}/paystack-callback`;
+      if (metadata?.callbackType === 'split') {
+        callbackUrl = `${BASE_URL}/split-payment-callback`;
+      } else if (metadata?.callbackType === 'credit') {
+        callbackUrl = `${BASE_URL}/credit-purchase-callback`;
+      }
     }
 
     console.log("🇳🇬 Paystack Initialize Request:", {

@@ -324,48 +324,50 @@ const VenueOwnerReceipts = () => {
       const fileExt = file.name.split('.').pop();
       const fileName = `receipts/receipt-${Date.now()}.${fileExt}`;
       
-      // Upload using direct fetch to Supabase Storage REST API
-      // This bypasses the client library's FormData handling
+      // Check authentication
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         throw new Error('Not authenticated');
       }
 
-      const arrayBuffer = await file.arrayBuffer();
-      
-      // Get Supabase project URL and anon key
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://agydpkzfucicraedllgl.supabase.co';
-      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      
-      // Upload directly to Storage REST API
-      // Note: Supabase Storage API expects the path to be URL-encoded
-      const encodedPath = encodeURIComponent(fileName);
-      const uploadUrl = `${supabaseUrl}/storage/v1/object/venue-images/${encodedPath}`;
-      
-      const uploadResponse = await fetch(uploadUrl, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': file.type,
-          'x-upsert': 'false',
-          'apikey': supabaseKey
-        },
-        body: arrayBuffer
+      console.log('📤 Uploading receipt image:', {
+        fileName,
+        fileSize: file.size,
+        fileType: file.type,
+        isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
       });
 
-      if (!uploadResponse.ok) {
-        const errorText = await uploadResponse.text();
-        throw new Error(`Upload failed: ${uploadResponse.status} - ${errorText}`);
+      // Use Supabase client library for better mobile compatibility
+      // This handles file conversion and authentication automatically
+      const { data, error: uploadError } = await supabase.storage
+        .from('venue-images')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: file.type
+        });
+
+      if (uploadError) {
+        console.error('❌ Upload error:', uploadError);
+        throw new Error(`Upload failed: ${uploadError.message}`);
       }
+
+      if (!data) {
+        throw new Error('Upload failed: No data returned');
+      }
+
+      console.log('✅ Upload successful:', data);
 
       // Get public URL using Supabase client
       const { data: { publicUrl } } = supabase.storage
         .from('venue-images')
-        .getPublicUrl(fileName);
+        .getPublicUrl(data.path);
+
+      console.log('✅ Public URL generated:', publicUrl);
 
       return publicUrl;
     } catch (error) {
-      console.error('Error uploading receipt image:', error);
+      console.error('❌ Error uploading receipt image:', error);
       throw error;
     }
   };

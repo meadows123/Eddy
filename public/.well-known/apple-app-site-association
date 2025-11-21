@@ -9,7 +9,9 @@
           "/*",
           "/venues/*",
           "/profile/*",
-          "/checkout/*"
+          "/checkout/*",
+          "/paystack-callback*",
+          "/split-payment-callback*"
         ]
       }
     ]
