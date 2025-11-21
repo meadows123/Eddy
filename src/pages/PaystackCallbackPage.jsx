@@ -19,15 +19,25 @@ const PaystackCallbackPage = () => {
   const [isRedirecting, setIsRedirecting] = useState(false);
 
   console.log('🔄 PaystackCallbackPage Component Mounted');
+  console.log('🔍 Initial state:', {
+    url: window.location.href,
+    search: window.location.search,
+    pathname: window.location.pathname,
+    isInApp: typeof window !== 'undefined' && (window.Capacitor || window.cordova || window.ionic)
+  });
 
-  // Check if we're redirecting (set by inline script in index.html)
-  // This is a fallback - the inline script should handle the redirect before React loads
+  // Check if we're in the app - if so, we should NOT redirect, just verify payment
   useEffect(() => {
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     const isInApp = typeof window !== 'undefined' && (window.Capacitor || window.cordova || window.ionic);
     
-    // If we're still here on mobile browser, the inline script redirect didn't work
-    // Try one more time as a fallback
+    // If we're in the app, make sure isRedirecting is false so verification can run
+    if (isInApp && isRedirecting) {
+      console.log('📱 In app - clearing redirect flag to allow verification');
+      setIsRedirecting(false);
+    }
+    
+    // Only redirect if we're on mobile browser (NOT in app)
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     if (isMobile && !isInApp && !isRedirecting) {
       console.log('📱 Fallback: Detected mobile browser, attempting redirect to app...');
       setIsRedirecting(true);
@@ -74,8 +84,9 @@ const PaystackCallbackPage = () => {
   }, [searchParams, isRedirecting]);
 
   useEffect(() => {
-    // Don't verify if we're redirecting to the app
-    if (isRedirecting) {
+    // Don't verify if we're redirecting to the app (and not in app)
+    const isInApp = typeof window !== 'undefined' && (window.Capacitor || window.cordova || window.ionic);
+    if (isRedirecting && !isInApp) {
       console.log('⏸️ Skipping verification - redirecting to app');
       return;
     }
@@ -83,13 +94,23 @@ const PaystackCallbackPage = () => {
     const verifyPayment = async () => {
       try {
         // Paystack sends the reference as 'reference' OR 'trxref' parameter
-        const reference = searchParams.get('reference') || searchParams.get('trxref');
-        const cancelled = searchParams.get('status') === 'cancelled';
+        // Also check URL directly in case deep link format is different
+        const urlParams = new URLSearchParams(window.location.search);
+        const reference = searchParams.get('reference') || 
+                         searchParams.get('trxref') || 
+                         urlParams.get('reference') || 
+                         urlParams.get('trxref') ||
+                         (window.location.href.match(/[?&]reference=([^&]+)/)?.[1]) ||
+                         (window.location.href.match(/[?&]trxref=([^&]+)/)?.[1]);
+        const cancelled = searchParams.get('status') === 'cancelled' || urlParams.get('status') === 'cancelled';
 
         console.log('🔄 Paystack Callback Page Loaded:', {
           reference,
           cancelled,
-          url: window.location.href
+          url: window.location.href,
+          searchParams: window.location.search,
+          isInApp: isInApp,
+          isRedirecting: isRedirecting
         });
 
         // Check if payment was cancelled
