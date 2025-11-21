@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import { getPaymentFromSession, clearPaymentFromSession } from '@/lib/paystackCheckoutHandler';
 import { generateVenueEntryQR } from '@/lib/qrCodeService';
 import { redirectToMobileApp } from '@/lib/urlUtils';
+import { App } from '@capacitor/app';
 
 const PaystackCallbackPage = () => {
   const [searchParams] = useSearchParams();
@@ -17,6 +18,7 @@ const PaystackCallbackPage = () => {
   const [bookingDetails, setBookingDetails] = useState(null);
   const [error, setError] = useState(null);
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [launchUrl, setLaunchUrl] = useState(null);
 
   console.log('🔄 PaystackCallbackPage Component Mounted');
   console.log('🔍 Initial state:', {
@@ -25,6 +27,33 @@ const PaystackCallbackPage = () => {
     pathname: window.location.pathname,
     isInApp: typeof window !== 'undefined' && (window.Capacitor || window.cordova || window.ionic)
   });
+
+  // Get launch URL from Capacitor App plugin (for deep links)
+  useEffect(() => {
+    const getLaunchUrl = async () => {
+      const isInApp = typeof window !== 'undefined' && (window.Capacitor || window.cordova || window.ionic);
+      if (isInApp) {
+        try {
+          const { url } = await App.getLaunchUrl();
+          if (url) {
+            console.log('📱 Launch URL from Capacitor:', url);
+            setLaunchUrl(url);
+            // If launch URL has query params, update the URL to include them
+            if (url.includes('?')) {
+              const urlObj = new URL(url);
+              // Update window.location to include the query params
+              if (urlObj.search) {
+                window.history.replaceState({}, '', urlObj.pathname + urlObj.search);
+              }
+            }
+          }
+        } catch (error) {
+          console.log('No launch URL or error getting launch URL:', error);
+        }
+      }
+    };
+    getLaunchUrl();
+  }, []);
 
   // Check if we're in the app - if so, we should NOT redirect, just verify payment
   useEffect(() => {
@@ -113,6 +142,23 @@ const PaystackCallbackPage = () => {
                        urlParams.get('reference') || 
                        urlParams.get('trxref');
         
+        // If still no reference, try parsing from launch URL (deep link from Capacitor)
+        if (!reference && launchUrl) {
+          try {
+            const launchUrlObj = new URL(launchUrl);
+            reference = launchUrlObj.searchParams.get('reference') || 
+                       launchUrlObj.searchParams.get('trxref');
+            console.log('📱 Extracted reference from launch URL:', reference);
+          } catch (e) {
+            // If URL parsing fails, try regex
+            const urlMatch = launchUrl.match(/[?&#](?:reference|trxref)=([^&#]+)/);
+            if (urlMatch) {
+              reference = decodeURIComponent(urlMatch[1]);
+              console.log('📱 Extracted reference from launch URL string:', reference);
+            }
+          }
+        }
+        
         // If still no reference, try parsing from full URL (for deep links)
         if (!reference) {
           const urlMatch = window.location.href.match(/[?&#](?:reference|trxref)=([^&#]+)/);
@@ -123,12 +169,14 @@ const PaystackCallbackPage = () => {
         
         const cancelled = searchParams.get('status') === 'cancelled' || 
                          urlParams.get('status') === 'cancelled' ||
-                         window.location.href.includes('status=cancelled');
+                         window.location.href.includes('status=cancelled') ||
+                         (launchUrl && launchUrl.includes('status=cancelled'));
 
         console.log('🔄 Paystack Callback Page Loaded:', {
           reference,
           cancelled,
           url: window.location.href,
+          launchUrl: launchUrl,
           searchParams: window.location.search,
           pathname: window.location.pathname,
           isInApp: isInApp,
@@ -542,7 +590,7 @@ const PaystackCallbackPage = () => {
     return () => {
       clearTimeout(timeoutId);
     };
-  }, [searchParams, isRedirecting, status]);
+  }, [searchParams, isRedirecting, status, launchUrl]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
@@ -575,14 +623,27 @@ const PaystackCallbackPage = () => {
               <div className="mt-4 p-3 bg-gray-100 rounded text-left text-xs text-gray-600">
                 <p><strong>Debug Info:</strong></p>
                 <p>URL: {window.location.href.substring(0, 80)}...</p>
+                <p>Launch URL: {launchUrl ? (launchUrl.length > 80 ? launchUrl.substring(0, 80) + '...' : launchUrl) : 'None'}</p>
                 <p>Reference: {(() => {
                   const urlParams = new URLSearchParams(window.location.search);
-                  return searchParams.get('reference') || 
+                  let ref = searchParams.get('reference') || 
                          searchParams.get('trxref') || 
                          urlParams.get('reference') || 
                          urlParams.get('trxref') ||
-                         (window.location.href.match(/[?&#](?:reference|trxref)=([^&#]+)/)?.[1]) ||
-                         'Not found';
+                         (window.location.href.match(/[?&#](?:reference|trxref)=([^&#]+)/)?.[1]);
+                  
+                  // Also check launchUrl
+                  if (!ref && launchUrl) {
+                    try {
+                      const launchUrlObj = new URL(launchUrl);
+                      ref = launchUrlObj.searchParams.get('reference') || launchUrlObj.searchParams.get('trxref');
+                    } catch (e) {
+                      const match = launchUrl.match(/[?&#](?:reference|trxref)=([^&#]+)/);
+                      if (match) ref = decodeURIComponent(match[1]);
+                    }
+                  }
+                  
+                  return ref || 'Not found';
                 })()}</p>
                 <p>In App: {typeof window !== 'undefined' && (window.Capacitor || window.cordova || window.ionic) ? 'Yes' : 'No'}</p>
                 <p>Status: {status}</p>
