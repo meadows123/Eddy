@@ -91,30 +91,55 @@ const PaystackCallbackPage = () => {
       return;
     }
     
+    // Set a timeout to prevent infinite spinning (30 seconds)
+    const timeoutId = setTimeout(() => {
+      if (status === 'verifying') {
+        console.error('⏰ Payment verification timeout after 30 seconds');
+        setStatus('error');
+        setMessage('Payment verification is taking longer than expected. Please check your bookings or contact support.');
+        setError('Verification timeout - please check your bookings page');
+      }
+    }, 30000);
+    
     const verifyPayment = async () => {
       try {
         // Paystack sends the reference as 'reference' OR 'trxref' parameter
         // Also check URL directly in case deep link format is different
         const urlParams = new URLSearchParams(window.location.search);
-        const reference = searchParams.get('reference') || 
-                         searchParams.get('trxref') || 
-                         urlParams.get('reference') || 
-                         urlParams.get('trxref') ||
-                         (window.location.href.match(/[?&]reference=([^&]+)/)?.[1]) ||
-                         (window.location.href.match(/[?&]trxref=([^&]+)/)?.[1]);
-        const cancelled = searchParams.get('status') === 'cancelled' || urlParams.get('status') === 'cancelled';
+        
+        // Try multiple methods to extract reference
+        let reference = searchParams.get('reference') || 
+                       searchParams.get('trxref') || 
+                       urlParams.get('reference') || 
+                       urlParams.get('trxref');
+        
+        // If still no reference, try parsing from full URL (for deep links)
+        if (!reference) {
+          const urlMatch = window.location.href.match(/[?&#](?:reference|trxref)=([^&#]+)/);
+          if (urlMatch) {
+            reference = decodeURIComponent(urlMatch[1]);
+          }
+        }
+        
+        const cancelled = searchParams.get('status') === 'cancelled' || 
+                         urlParams.get('status') === 'cancelled' ||
+                         window.location.href.includes('status=cancelled');
 
         console.log('🔄 Paystack Callback Page Loaded:', {
           reference,
           cancelled,
           url: window.location.href,
           searchParams: window.location.search,
+          pathname: window.location.pathname,
           isInApp: isInApp,
-          isRedirecting: isRedirecting
+          isRedirecting: isRedirecting,
+          searchParamsKeys: Array.from(searchParams.keys()),
+          urlParamsKeys: Array.from(urlParams.keys())
         });
 
         // Check if payment was cancelled
         if (cancelled) {
+          clearTimeout(timeoutId);
           setStatus('cancelled');
           setMessage('Payment was cancelled. Your booking has not been charged.');
           console.log('❌ Payment cancelled by user');
@@ -122,10 +147,13 @@ const PaystackCallbackPage = () => {
         }
 
         if (!reference) {
+          clearTimeout(timeoutId);
           setStatus('error');
-          setMessage('No payment reference found. Please try again.');
-          setError('Missing reference parameter');
-          console.log('❌ No reference in URL');
+          setMessage('No payment reference found in the URL. The payment may have failed or the link is invalid.');
+          setError('Missing reference parameter. URL: ' + window.location.href.substring(0, 100));
+          console.error('❌ No reference in URL. Full URL:', window.location.href);
+          console.error('❌ Search params:', Array.from(searchParams.entries()));
+          console.error('❌ URL params:', Array.from(urlParams.entries()));
           return;
         }
 
@@ -460,8 +488,14 @@ const PaystackCallbackPage = () => {
         }
 
       } catch (error) {
-        // Get reference for error reporting
-        const reference = searchParams.get('reference') || searchParams.get('trxref') || 'unknown';
+        // Get reference for error reporting (try multiple methods)
+        const urlParams = new URLSearchParams(window.location.search);
+        let reference = searchParams.get('reference') || 
+                       searchParams.get('trxref') || 
+                       urlParams.get('reference') || 
+                       urlParams.get('trxref') ||
+                       (window.location.href.match(/[?&#](?:reference|trxref)=([^&#]+)/)?.[1]) ||
+                       'unknown';
         
         console.error('❌ Callback verification error:', error);
         console.error('❌ Error details:', {
@@ -496,11 +530,19 @@ const PaystackCallbackPage = () => {
         
         setMessage(userFriendlyMessage);
         setError(`${errorMsg} (Reference: ${reference})`);
+      } finally {
+        // Clear timeout when verification completes (success or error)
+        clearTimeout(timeoutId);
       }
     };
 
     verifyPayment();
-  }, [searchParams, isRedirecting]);
+    
+    // Cleanup timeout on unmount
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [searchParams, isRedirecting, status]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
@@ -528,6 +570,23 @@ const PaystackCallbackPage = () => {
               ) : (
                 <p className="text-sm text-gray-500">This may take a few moments...</p>
               )}
+              
+              {/* Debug info - visible on screen for troubleshooting */}
+              <div className="mt-4 p-3 bg-gray-100 rounded text-left text-xs text-gray-600">
+                <p><strong>Debug Info:</strong></p>
+                <p>URL: {window.location.href.substring(0, 80)}...</p>
+                <p>Reference: {(() => {
+                  const urlParams = new URLSearchParams(window.location.search);
+                  return searchParams.get('reference') || 
+                         searchParams.get('trxref') || 
+                         urlParams.get('reference') || 
+                         urlParams.get('trxref') ||
+                         (window.location.href.match(/[?&#](?:reference|trxref)=([^&#]+)/)?.[1]) ||
+                         'Not found';
+                })()}</p>
+                <p>In App: {typeof window !== 'undefined' && (window.Capacitor || window.cordova || window.ionic) ? 'Yes' : 'No'}</p>
+                <p>Status: {status}</p>
+              </div>
             </div>
           )}
 
