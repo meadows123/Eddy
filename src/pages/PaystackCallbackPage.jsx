@@ -509,6 +509,22 @@ const PaystackCallbackPage = () => {
         setMessage('Payment verified successfully! Your booking is confirmed.');
         addDebugLog('Success status set - page should update now');
         console.log('✅ Booking confirmation complete');
+        console.log('🎉 PAYMENT SUCCESS - Status set to success, UI should update');
+        
+        // Force UI update by using setTimeout to ensure React processes state changes
+        setTimeout(() => {
+          addDebugLog('Forcing UI refresh after success');
+          // Force a re-render by updating a state
+          setVerificationStep(prev => prev + ' (refreshed)');
+          
+          // After showing success for 2 seconds, navigate to bookings page
+          // This ensures user sees confirmation and then goes to their bookings
+          setTimeout(() => {
+            addDebugLog('Navigating to bookings page');
+            console.log('✅ Navigating to bookings page after successful payment');
+            navigate('/bookings', { replace: true });
+          }, 2000);
+        }, 100);
 
         // Send emails as fallback (webhook might not fire reliably)
         console.log('📧 Sending emails as fallback from callback page...');
@@ -738,6 +754,23 @@ const PaystackCallbackPage = () => {
     addDebugLog('Component rendered - React is working!');
     setVerificationStep('Component loaded successfully');
   }, []);
+
+  // Watch for success status and ensure UI updates
+  useEffect(() => {
+    if (status === 'success') {
+      addDebugLog('SUCCESS STATUS DETECTED - UI should show success page');
+      // Force a small delay to ensure React has processed the state change
+      const timer = setTimeout(() => {
+        addDebugLog('Success page should be visible now');
+        // Optionally auto-navigate to bookings after 3 seconds if user doesn't interact
+        // Uncomment if you want automatic navigation:
+        // setTimeout(() => {
+        //   navigate('/bookings');
+        // }, 3000);
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [status, navigate]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
