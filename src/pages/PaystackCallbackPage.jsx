@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/card';
@@ -19,6 +19,8 @@ const PaystackCallbackPage = () => {
   const [error, setError] = useState(null);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [launchUrl, setLaunchUrl] = useState(null);
+  const [launchUrlChecked, setLaunchUrlChecked] = useState(false);
+  const verificationStartedRef = useRef(false); // Track if verification has started
 
   console.log('🔄 PaystackCallbackPage Component Mounted');
   console.log('🔍 Initial state:', {
@@ -32,6 +34,12 @@ const PaystackCallbackPage = () => {
   useEffect(() => {
     const isInApp = typeof window !== 'undefined' && (window.Capacitor || window.cordova || window.ionic);
     
+    // If not in app, mark as checked immediately (no launch URL needed)
+    if (!isInApp) {
+      setLaunchUrlChecked(true);
+      return;
+    }
+    
     if (isInApp) {
       // Get initial launch URL
       const getLaunchUrl = async () => {
@@ -40,15 +48,21 @@ const PaystackCallbackPage = () => {
           if (url) {
             console.log('📱 Launch URL from Capacitor:', url);
             setLaunchUrl(url);
-            // If launch URL has query params, update the URL to include them
+            // Update URL in history without reloading (to avoid interrupting verification)
             if (url.includes('?')) {
               try {
                 const urlObj = new URL(url);
-                // Update window.location to include the query params
                 if (urlObj.search) {
-                  window.history.replaceState({}, '', urlObj.pathname + urlObj.search);
-                  // Force React Router to update
-                  window.location.reload();
+                  const newPath = urlObj.pathname + urlObj.search;
+                  const currentPath = window.location.pathname + window.location.search;
+                  
+                  // Only update if the URL is actually different (avoid unnecessary navigation)
+                  if (newPath !== currentPath) {
+                    // Update URL without reloading - React Router will pick up the change
+                    window.history.replaceState({}, '', newPath);
+                    // Update searchParams by navigating to the same path with new search
+                    navigate(newPath, { replace: true });
+                  }
                 }
               } catch (e) {
                 // If URL parsing fails, try to extract path and query manually
@@ -56,14 +70,22 @@ const PaystackCallbackPage = () => {
                 if (match) {
                   const path = match[1] || '/paystack-callback';
                   const query = match[2] || '';
-                  window.history.replaceState({}, '', path + query);
-                  window.location.reload();
+                  const newPath = path + query;
+                  const currentPath = window.location.pathname + window.location.search;
+                  
+                  // Only update if the URL is actually different
+                  if (newPath !== currentPath) {
+                    window.history.replaceState({}, '', newPath);
+                    navigate(newPath, { replace: true });
+                  }
                 }
               }
             }
           }
+          setLaunchUrlChecked(true);
         } catch (error) {
           console.log('No launch URL or error getting launch URL:', error);
+          setLaunchUrlChecked(true); // Mark as checked even if no URL
         }
       };
       
@@ -73,20 +95,32 @@ const PaystackCallbackPage = () => {
       const listener = App.addListener('appUrlOpen', (data) => {
         console.log('📱 App opened with URL:', data.url);
         setLaunchUrl(data.url);
-        // Parse the URL and update the current location
+        // Parse the URL and update the current location without reloading
         try {
           const urlObj = new URL(data.url);
           if (urlObj.search) {
-            window.history.replaceState({}, '', urlObj.pathname + urlObj.search);
-            window.location.reload();
+            const newPath = urlObj.pathname + urlObj.search;
+            const currentPath = window.location.pathname + window.location.search;
+            
+            // Only update if the URL is actually different (avoid unnecessary navigation)
+            if (newPath !== currentPath) {
+              window.history.replaceState({}, '', newPath);
+              navigate(newPath, { replace: true });
+            }
           }
         } catch (e) {
           const match = data.url.match(/^(?:[^:]+:\/\/)?[^/]+(\/[^?]*)(\?.*)?/);
           if (match) {
             const path = match[1] || '/paystack-callback';
             const query = match[2] || '';
-            window.history.replaceState({}, '', path + query);
-            window.location.reload();
+            const newPath = path + query;
+            const currentPath = window.location.pathname + window.location.search;
+            
+            // Only update if the URL is actually different
+            if (newPath !== currentPath) {
+              window.history.replaceState({}, '', newPath);
+              navigate(newPath, { replace: true });
+            }
           }
         }
       });
@@ -95,7 +129,7 @@ const PaystackCallbackPage = () => {
         listener.then(l => l.remove());
       };
     }
-  }, []);
+  }, [navigate]);
 
   // Check if we're in the app - if so, we should NOT redirect, just verify payment
   useEffect(() => {
@@ -155,9 +189,29 @@ const PaystackCallbackPage = () => {
   }, [searchParams, isRedirecting]);
 
   useEffect(() => {
+    // Prevent multiple verification runs
+    if (verificationStartedRef.current) {
+      console.log('⏸️ Verification already started, skipping...');
+      return;
+    }
+    
     // Check if we're in the app
     const isInApp = typeof window !== 'undefined' && (window.Capacitor || window.cordova || window.ionic);
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    // If we're in the app, wait for launch URL to be checked
+    if (isInApp && !launchUrlChecked) {
+      console.log('⏳ Waiting for launch URL check...');
+      // Timeout after 2 seconds if launch URL check doesn't complete
+      const timeout = setTimeout(() => {
+        if (!launchUrlChecked) {
+          console.log('⏰ Launch URL check timeout, proceeding anyway');
+          setLaunchUrlChecked(true); // Mark as checked to proceed
+        }
+      }, 2000);
+      
+      return () => clearTimeout(timeout);
+    }
     
     // If we're NOT in the app but on mobile, we should have been redirected by inline script
     // If React is still loading, it means the redirect didn't work or we're in a browser
@@ -180,6 +234,9 @@ const PaystackCallbackPage = () => {
       console.log('⏸️ Skipping verification - redirecting to app');
       return;
     }
+    
+    // Mark verification as started
+    verificationStartedRef.current = true;
     
     // Set a timeout to prevent infinite spinning (30 seconds)
     const timeoutId = setTimeout(() => {
@@ -651,7 +708,7 @@ const PaystackCallbackPage = () => {
     return () => {
       clearTimeout(timeoutId);
     };
-  }, [searchParams, isRedirecting, status, launchUrl]);
+  }, [searchParams, isRedirecting, status, launchUrl, launchUrlChecked, navigate]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
