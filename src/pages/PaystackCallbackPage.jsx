@@ -11,6 +11,11 @@ import { redirectToMobileApp } from '@/lib/urlUtils';
 import { App } from '@capacitor/app';
 
 const PaystackCallbackPage = () => {
+  // FORCE LOG AT COMPONENT START
+  console.log('🚀 PAYSTACK CALLBACK PAGE COMPONENT LOADED - REACT IS WORKING');
+  console.log('Current URL:', window.location.href);
+  console.log('Current time:', new Date().toISOString());
+
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [status, setStatus] = useState('verifying'); // verifying, success, error, cancelled
@@ -249,20 +254,7 @@ const PaystackCallbackPage = () => {
     
     const verifyPayment = async () => {
       addDebugLog('🔥 VERIFYPAYMENT FUNCTION CALLED - STARTING VERIFICATION');
-      console.log('🔥 VERIFYPAYMENT FUNCTION CALLED - THIS SHOULD SHOW IN CONSOLE');
       setVerificationStep('Extracting payment reference...');
-
-      // Force show a visible alert to confirm we're running
-      if (typeof window !== 'undefined' && window.alert) {
-        console.log('Showing alert to confirm verification started');
-        alert('🔥 VERIFICATION STARTED - Paystack callback processing...');
-      }
-
-      // TEMPORARY: Force an error to test error handling
-      console.log('🔥 TESTING ERROR HANDLING - forcing an error');
-      addDebugLog('TESTING ERROR HANDLING - forcing an error');
-      setVerificationStep('TESTING ERROR HANDLING');
-      throw new Error('TEST ERROR - This is a forced error to test error handling');
       try {
         // Paystack sends the reference as 'reference' OR 'trxref' parameter
         // Also check URL directly in case deep link format is different
@@ -508,22 +500,6 @@ const PaystackCallbackPage = () => {
         setMessage('Payment verified successfully! Your booking is confirmed.');
         addDebugLog('Success status set - page should update now');
         console.log('✅ Booking confirmation complete');
-        console.log('🎉 PAYMENT SUCCESS - Status set to success, UI should update');
-        
-        // Force UI update by using setTimeout to ensure React processes state changes
-        setTimeout(() => {
-          addDebugLog('Forcing UI refresh after success');
-          // Force a re-render by updating a state
-          setVerificationStep(prev => prev + ' (refreshed)');
-          
-          // After showing success for 2 seconds, navigate to bookings page
-          // This ensures user sees confirmation and then goes to their bookings
-          setTimeout(() => {
-            addDebugLog('Navigating to bookings page');
-            console.log('✅ Navigating to bookings page after successful payment');
-            navigate('/bookings', { replace: true });
-          }, 2000);
-        }, 100);
 
         // Send emails as fallback (webhook might not fire reliably)
         console.log('📧 Sending emails as fallback from callback page...');
@@ -844,38 +820,21 @@ const PaystackCallbackPage = () => {
               
               {/* Manual Retry Button */}
               {status === 'verifying' && !isRedirecting && (
-                <>
-                  <Button
-                    onClick={() => {
-                      addDebugLog('Manual retry triggered');
-                      verificationStartedRef.current = false;
-                      setStatus('verifying');
-                      setVerificationStep('Retrying...');
-                      // Force re-run by updating a dependency
-                      setLaunchUrlChecked(prev => !prev);
-                      setLaunchUrlChecked(prev => !prev);
-                    }}
-                    variant="outline"
-                    className="mt-4"
-                  >
-                    Retry Verification
-                  </Button>
-
-                  {/* TEST BUTTON - Force success to test UI */}
-                  <Button
-                    onClick={() => {
-                      console.log('🔥 FORCE SUCCESS TEST');
-                      addDebugLog('FORCE SUCCESS TEST');
-                      setStatus('success');
-                      setMessage('Test success - forced');
-                      setVerificationStep('Force success test');
-                    }}
-                    variant="outline"
-                    className="mt-2 ml-2 bg-green-500 text-white hover:bg-green-600"
-                  >
-                    Test Success UI
-                  </Button>
-                </>
+                <Button
+                  onClick={() => {
+                    addDebugLog('Manual retry triggered');
+                    verificationStartedRef.current = false;
+                    setStatus('verifying');
+                    setVerificationStep('Retrying...');
+                    // Force re-run by updating a dependency
+                    setLaunchUrlChecked(prev => !prev);
+                    setLaunchUrlChecked(prev => !prev);
+                  }}
+                  variant="outline"
+                  className="mt-4"
+                >
+                  Retry Verification
+                </Button>
               )}
             </div>
           )}
