@@ -205,54 +205,31 @@ const PaystackCallbackPage = () => {
   }, [searchParams, isRedirecting]);
 
   useEffect(() => {
-    addDebugLog('Verification useEffect triggered');
-    
-    // Prevent multiple verification runs
+    addDebugLog('🔥 VERIFICATION USEEFFECT TRIGGERED - FORCE STARTING');
+    addDebugLog(`URL: ${window.location.href}`);
+    addDebugLog(`Search params: ${window.location.search}`);
+    addDebugLog(`Status: ${status}, isRedirecting: ${isRedirecting}, launchUrlChecked: ${launchUrlChecked}`);
+
+    // FORCE VERIFICATION TO START - remove all the conditional logic that was preventing it
     if (verificationStartedRef.current) {
-      addDebugLog('Verification already started - skipping');
-      return;
+      addDebugLog('Verification already started - but forcing restart anyway');
+      // Reset to allow restart
+      verificationStartedRef.current = false;
     }
     
     // Check if we're in the app
     const isInApp = typeof window !== 'undefined' && (window.Capacitor || window.cordova || window.ionic);
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    
+
     addDebugLog(`Environment: InApp=${isInApp}, Mobile=${isMobile}, LaunchChecked=${launchUrlChecked}`);
-    
-    // If we're in the app, wait for launch URL to be checked (but with shorter timeout)
-    if (isInApp && !launchUrlChecked) {
-      setVerificationStep('Waiting for launch URL...');
-      addDebugLog('Waiting for launch URL check (max 500ms)');
-      // Timeout after 500ms if launch URL check doesn't complete (much faster)
-      const timeout = setTimeout(() => {
-        if (!launchUrlChecked) {
-          addDebugLog('Launch URL check timeout - proceeding anyway');
-          setLaunchUrlChecked(true); // Mark as checked to proceed
-        }
-      }, 500);
-      
-      return () => clearTimeout(timeout);
-    }
-    
-    // If we're NOT in the app but on mobile, we should have been redirected by inline script
-    // If React is still loading, it means the redirect didn't work or we're in a browser
-    if (!isInApp && isMobile) {
-      addDebugLog('Mobile browser detected - should redirect to app');
-      setStatus('error');
-      setMessage('Please complete your payment in the mobile app. The payment was successful, but you need to open the app to see the confirmation.');
-      setError('Please open the app to view your booking confirmation');
-      return;
-    }
-    
-    // If we're in the app, make sure isRedirecting is false
-    if (isInApp && isRedirecting) {
-      addDebugLog('In app - clearing redirect flag');
+
+    // FORCE VERIFICATION - Skip all the conditional checks that were preventing it
+    addDebugLog('🚀 FORCE PROCEEDING WITH VERIFICATION - ignoring environment checks');
+
+    // Clear any redirect flags
+    if (isRedirecting) {
+      addDebugLog('Clearing redirect flag');
       setIsRedirecting(false);
-    }
-    
-    if (isRedirecting && !isInApp) {
-      addDebugLog('Skipping - redirecting to app');
-      return;
     }
     
     // Mark verification as started IMMEDIATELY to prevent re-runs
@@ -271,8 +248,21 @@ const PaystackCallbackPage = () => {
     }, 30000);
     
     const verifyPayment = async () => {
-      addDebugLog('verifyPayment function called');
+      addDebugLog('🔥 VERIFYPAYMENT FUNCTION CALLED - STARTING VERIFICATION');
+      console.log('🔥 VERIFYPAYMENT FUNCTION CALLED - THIS SHOULD SHOW IN CONSOLE');
       setVerificationStep('Extracting payment reference...');
+
+      // Force show a visible alert to confirm we're running
+      if (typeof window !== 'undefined' && window.alert) {
+        console.log('Showing alert to confirm verification started');
+        alert('🔥 VERIFICATION STARTED - Paystack callback processing...');
+      }
+
+      // TEMPORARY: Force an error to test error handling
+      console.log('🔥 TESTING ERROR HANDLING - forcing an error');
+      addDebugLog('TESTING ERROR HANDLING - forcing an error');
+      setVerificationStep('TESTING ERROR HANDLING');
+      throw new Error('TEST ERROR - This is a forced error to test error handling');
       try {
         // Paystack sends the reference as 'reference' OR 'trxref' parameter
         // Also check URL directly in case deep link format is different
@@ -351,8 +341,17 @@ const PaystackCallbackPage = () => {
         // Call Supabase Edge Function to verify payment
         setVerificationStep('Calling Paystack verification API...');
         addDebugLog('Calling Paystack verification API...');
-        const verifyData = await callVerify(reference);
-        addDebugLog(`Verification response: status=${verifyData.data?.status}`);
+
+        try {
+          console.log('🔗 About to call verifyPaystackPayment with reference:', reference);
+          const verifyData = await callVerify(reference);
+          console.log('✅ API call succeeded:', verifyData);
+          addDebugLog(`Verification response: status=${verifyData.data?.status}`);
+        } catch (apiError) {
+          console.error('❌ API call failed:', apiError);
+          addDebugLog(`API call failed: ${apiError.message}`);
+          throw apiError;
+        }
 
         // Check if payment was successful
         if (verifyData.data?.status !== 'success') {
@@ -845,21 +844,38 @@ const PaystackCallbackPage = () => {
               
               {/* Manual Retry Button */}
               {status === 'verifying' && !isRedirecting && (
-                <Button
-                  onClick={() => {
-                    addDebugLog('Manual retry triggered');
-                    verificationStartedRef.current = false;
-                    setStatus('verifying');
-                    setVerificationStep('Retrying...');
-                    // Force re-run by updating a dependency
-                    setLaunchUrlChecked(prev => !prev);
-                    setLaunchUrlChecked(prev => !prev);
-                  }}
-                  variant="outline"
-                  className="mt-4"
-                >
-                  Retry Verification
-                </Button>
+                <>
+                  <Button
+                    onClick={() => {
+                      addDebugLog('Manual retry triggered');
+                      verificationStartedRef.current = false;
+                      setStatus('verifying');
+                      setVerificationStep('Retrying...');
+                      // Force re-run by updating a dependency
+                      setLaunchUrlChecked(prev => !prev);
+                      setLaunchUrlChecked(prev => !prev);
+                    }}
+                    variant="outline"
+                    className="mt-4"
+                  >
+                    Retry Verification
+                  </Button>
+
+                  {/* TEST BUTTON - Force success to test UI */}
+                  <Button
+                    onClick={() => {
+                      console.log('🔥 FORCE SUCCESS TEST');
+                      addDebugLog('FORCE SUCCESS TEST');
+                      setStatus('success');
+                      setMessage('Test success - forced');
+                      setVerificationStep('Force success test');
+                    }}
+                    variant="outline"
+                    className="mt-2 ml-2 bg-green-500 text-white hover:bg-green-600"
+                  >
+                    Test Success UI
+                  </Button>
+                </>
               )}
             </div>
           )}
