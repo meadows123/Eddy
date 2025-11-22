@@ -496,14 +496,18 @@ const PaystackCallbackPage = () => {
 
 
         console.log('✅ Booking payment status updated:', bookingData);
+        addDebugLog('Booking updated successfully - setting success status');
         setBookingDetails(bookingData);
 
         // Clear session data
         clearPaymentFromSession();
 
         // Set success status (show success page)
+        addDebugLog('Setting status to SUCCESS');
+        setVerificationStep('Payment verified - showing success page');
         setStatus('success');
         setMessage('Payment verified successfully! Your booking is confirmed.');
+        addDebugLog('Success status set - page should update now');
         console.log('✅ Booking confirmation complete');
 
         // Send emails as fallback (webhook might not fire reliably)
@@ -737,13 +741,56 @@ const PaystackCallbackPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
+      {/* HUGE BANNER - Always visible to confirm component loaded */}
+      <div className="fixed top-0 left-0 right-0 bg-red-600 text-white p-2 text-center text-sm font-bold z-50">
+        🔴 PAYSTACK CALLBACK PAGE LOADED - React is Working! 🔴
+      </div>
+      
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.3 }}
-        className="w-full max-w-md"
+        className="w-full max-w-md mt-12"
       >
         <Card className="p-8">
+          {/* ALWAYS VISIBLE DEBUG PANEL AT TOP */}
+          <div className="mb-4 p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg text-left text-sm text-gray-800">
+            <p className="font-bold text-yellow-800 mb-2">🔍 DEBUG INFO (Always Visible):</p>
+            <p><strong>Current Step:</strong> <span className="text-blue-600">{verificationStep}</span></p>
+            <p><strong>Reference:</strong> <span className="text-purple-600">{(() => {
+              const urlParams = new URLSearchParams(window.location.search);
+              let ref = searchParams.get('reference') || 
+                     searchParams.get('trxref') || 
+                     urlParams.get('reference') || 
+                     urlParams.get('trxref') ||
+                     (window.location.href.match(/[?&#](?:reference|trxref)=([^&#]+)/)?.[1]);
+              
+              if (!ref && launchUrl) {
+                try {
+                  const launchUrlObj = new URL(launchUrl);
+                  ref = launchUrlObj.searchParams.get('reference') || launchUrlObj.searchParams.get('trxref');
+                } catch (e) {
+                  const match = launchUrl.match(/[?&#](?:reference|trxref)=([^&#]+)/);
+                  if (match) ref = decodeURIComponent(match[1]);
+                }
+              }
+              
+              return ref || 'Not found';
+            })()}</span></p>
+            <p><strong>Status:</strong> <span className="text-blue-600">{status}</span></p>
+            <p><strong>Verification Started:</strong> <span className={verificationStartedRef.current ? 'text-green-600' : 'text-red-600'}>{verificationStartedRef.current ? 'Yes' : 'No'}</span></p>
+            <p><strong>Recent Logs ({debugLogs.length}):</strong></p>
+            {debugLogs.length > 0 ? (
+              <div className="mt-1 max-h-32 overflow-y-auto bg-white p-2 rounded">
+                {debugLogs.slice(-5).map((log, idx) => (
+                  <p key={idx} className="text-xs text-gray-700 font-mono">{log}</p>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-500 italic">No logs yet...</p>
+            )}
+          </div>
+
           {/* Verifying/Redirecting State */}
           {(status === 'verifying' || isRedirecting) && (
             <div className="text-center space-y-4">
@@ -751,7 +798,7 @@ const PaystackCallbackPage = () => {
                 <Loader className="h-12 w-12 animate-spin text-blue-500" />
               </div>
               <h1 className="text-2xl font-bold text-gray-800">
-                {isRedirecting ? 'Opening App...' : 'Processing'}
+                {isRedirecting ? 'Opening App...' : 'Processing Payment'}
               </h1>
               <p className="text-gray-600">{message}</p>
               <p className="text-sm font-semibold text-blue-600">{verificationStep}</p>
@@ -781,50 +828,6 @@ const PaystackCallbackPage = () => {
                   Retry Verification
                 </Button>
               )}
-              
-              {/* Debug info - ALWAYS VISIBLE for troubleshooting */}
-              <div className="mt-4 p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg text-left text-sm text-gray-800 max-h-96 overflow-y-auto">
-                <p className="font-bold text-yellow-800 mb-2">🔍 DEBUG INFO (Always Visible):</p>
-                <p><strong>Current Step:</strong> <span className="text-blue-600">{verificationStep}</span></p>
-                <p><strong>Reference:</strong> <span className="text-purple-600">{(() => {
-                  const urlParams = new URLSearchParams(window.location.search);
-                  let ref = searchParams.get('reference') || 
-                         searchParams.get('trxref') || 
-                         urlParams.get('reference') || 
-                         urlParams.get('trxref') ||
-                         (window.location.href.match(/[?&#](?:reference|trxref)=([^&#]+)/)?.[1]);
-                  
-                  // Also check launchUrl
-                  if (!ref && launchUrl) {
-                    try {
-                      const launchUrlObj = new URL(launchUrl);
-                      ref = launchUrlObj.searchParams.get('reference') || launchUrlObj.searchParams.get('trxref');
-                    } catch (e) {
-                      const match = launchUrl.match(/[?&#](?:reference|trxref)=([^&#]+)/);
-                      if (match) ref = decodeURIComponent(match[1]);
-                    }
-                  }
-                  
-                  return ref || 'Not found';
-                })()}</span></p>
-                <p><strong>In App:</strong> <span className={typeof window !== 'undefined' && (window.Capacitor || window.cordova || window.ionic) ? 'text-green-600' : 'text-red-600'}>{typeof window !== 'undefined' && (window.Capacitor || window.cordova || window.ionic) ? 'Yes' : 'No'}</span></p>
-                <p><strong>Status:</strong> <span className="text-blue-600">{status}</span></p>
-                <p><strong>Verification Started:</strong> <span className={verificationStartedRef.current ? 'text-green-600' : 'text-red-600'}>{verificationStartedRef.current ? 'Yes' : 'No'}</span></p>
-                <p><strong>Launch URL Checked:</strong> <span className={launchUrlChecked ? 'text-green-600' : 'text-red-600'}>{launchUrlChecked ? 'Yes' : 'No'}</span></p>
-                <p><strong>Is Redirecting:</strong> <span className={isRedirecting ? 'text-yellow-600' : 'text-gray-600'}>{isRedirecting ? 'Yes' : 'No'}</span></p>
-                
-                {/* Debug Logs - ALWAYS SHOW */}
-                <div className="mt-3 pt-3 border-t-2 border-yellow-400">
-                  <p className="font-bold text-yellow-800 mb-1">Recent Logs ({debugLogs.length}):</p>
-                  {debugLogs.length > 0 ? (
-                    debugLogs.map((log, idx) => (
-                      <p key={idx} className="text-xs text-gray-700 font-mono bg-white p-1 mb-1 rounded">{log}</p>
-                    ))
-                  ) : (
-                    <p className="text-xs text-gray-500 italic">No logs yet...</p>
-                  )}
-                </div>
-              </div>
             </div>
           )}
 
