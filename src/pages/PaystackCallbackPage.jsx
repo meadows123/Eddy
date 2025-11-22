@@ -189,6 +189,15 @@ const PaystackCallbackPage = () => {
   }, [searchParams, isRedirecting]);
 
   useEffect(() => {
+    console.log('🔄 Verification useEffect triggered:', {
+      verificationStarted: verificationStartedRef.current,
+      launchUrlChecked,
+      isRedirecting,
+      status,
+      hasSearchParams: searchParams.toString().length > 0,
+      currentUrl: window.location.href
+    });
+    
     // Prevent multiple verification runs
     if (verificationStartedRef.current) {
       console.log('⏸️ Verification already started, skipping...');
@@ -199,16 +208,18 @@ const PaystackCallbackPage = () => {
     const isInApp = typeof window !== 'undefined' && (window.Capacitor || window.cordova || window.ionic);
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
-    // If we're in the app, wait for launch URL to be checked
+    console.log('🔍 Environment check:', { isInApp, isMobile, launchUrlChecked });
+    
+    // If we're in the app, wait for launch URL to be checked (but with shorter timeout)
     if (isInApp && !launchUrlChecked) {
-      console.log('⏳ Waiting for launch URL check...');
-      // Timeout after 2 seconds if launch URL check doesn't complete
+      console.log('⏳ Waiting for launch URL check (max 500ms)...');
+      // Timeout after 500ms if launch URL check doesn't complete (much faster)
       const timeout = setTimeout(() => {
         if (!launchUrlChecked) {
-          console.log('⏰ Launch URL check timeout, proceeding anyway');
+          console.log('⏰ Launch URL check timeout (500ms), proceeding anyway');
           setLaunchUrlChecked(true); // Mark as checked to proceed
         }
-      }, 2000);
+      }, 500);
       
       return () => clearTimeout(timeout);
     }
@@ -235,7 +246,8 @@ const PaystackCallbackPage = () => {
       return;
     }
     
-    // Mark verification as started
+    // Mark verification as started IMMEDIATELY to prevent re-runs
+    console.log('✅ Starting verification process...');
     verificationStartedRef.current = true;
     
     // Set a timeout to prevent infinite spinning (30 seconds)
@@ -249,16 +261,26 @@ const PaystackCallbackPage = () => {
     }, 30000);
     
     const verifyPayment = async () => {
+      console.log('🚀 verifyPayment function called');
       try {
         // Paystack sends the reference as 'reference' OR 'trxref' parameter
         // Also check URL directly in case deep link format is different
         const urlParams = new URLSearchParams(window.location.search);
+        
+        console.log('🔍 Extracting reference from:', {
+          searchParams: searchParams.toString(),
+          urlParams: urlParams.toString(),
+          windowLocation: window.location.href,
+          launchUrl: launchUrl
+        });
         
         // Try multiple methods to extract reference
         let reference = searchParams.get('reference') || 
                        searchParams.get('trxref') || 
                        urlParams.get('reference') || 
                        urlParams.get('trxref');
+        
+        console.log('🔍 Initial reference extraction:', reference);
         
         // If still no reference, try parsing from launch URL (deep link from Capacitor)
         if (!reference && launchUrl) {
@@ -702,7 +724,23 @@ const PaystackCallbackPage = () => {
       }
     };
 
-    verifyPayment();
+    // Wrap in try-catch to catch any synchronous errors
+    try {
+      console.log('🚀 Calling verifyPayment...');
+      verifyPayment().catch((error) => {
+        console.error('❌ Unhandled promise rejection in verifyPayment:', error);
+        setStatus('error');
+        setMessage(`Payment verification failed: ${error?.message || 'Unknown error'}`);
+        setError(`Verification error: ${error?.message || 'Unknown error'}`);
+        clearTimeout(timeoutId);
+      });
+    } catch (error) {
+      console.error('❌ Error calling verifyPayment:', error);
+      setStatus('error');
+      setMessage(`Failed to start verification: ${error?.message || 'Unknown error'}`);
+      setError(`Startup error: ${error?.message || 'Unknown error'}`);
+      clearTimeout(timeoutId);
+    }
     
     // Cleanup timeout on unmount
     return () => {
@@ -765,6 +803,9 @@ const PaystackCallbackPage = () => {
                 })()}</p>
                 <p>In App: {typeof window !== 'undefined' && (window.Capacitor || window.cordova || window.ionic) ? 'Yes' : 'No'}</p>
                 <p>Status: {status}</p>
+                <p>Verification Started: {verificationStartedRef.current ? 'Yes' : 'No'}</p>
+                <p>Launch URL Checked: {launchUrlChecked ? 'Yes' : 'No'}</p>
+                <p>Is Redirecting: {isRedirecting ? 'Yes' : 'No'}</p>
               </div>
             </div>
           )}
