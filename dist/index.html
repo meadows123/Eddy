@@ -43,24 +43,32 @@
 					// Build app deep link
 					const appUrl = 'com.oneeddy.members://' + fullPath.substring(1); // Remove leading /
 					
+					console.log('🚀 Redirecting to app from inline script:', appUrl);
+					
+					// Show a message while redirecting
+					document.write('<html><head><title>Opening App...</title>  <script type="module" crossorigin src="/assets/index-733fc147.js"></script>
+  <link rel="stylesheet" href="/assets/index-527f3222.css">
+</head><body style="font-family: Arial; text-align: center; padding: 50px;"><h1>Opening App...</h1><p>Please wait while we open the app to complete your payment.</p></body></html>');
+					
 					// For Android, use Intent URL
 					if (/Android/i.test(navigator.userAgent)) {
 						const intentUrl = 'intent://oneeddy.com' + fullPath + '#Intent;scheme=https;package=com.oneeddy.members;end';
-						// Try Intent URL first
+						// Try Intent URL first - this should open the app immediately
 						window.location.href = intentUrl;
-						// Fallback to custom scheme after short delay
+						// Also try custom scheme as fallback
 						setTimeout(function() {
 							window.location.href = appUrl;
-						}, 300);
+						}, 500);
 					} else {
 						// For iOS, try custom scheme
 						window.location.href = appUrl;
 					}
+					
+					// Prevent further page loading
+					throw new Error('Redirecting to app');
 				}
 			})();
 		</script>
-		<script type="module" crossorigin src="/assets/index-6fbee5f6.js"></script>
-		<link rel="stylesheet" href="/assets/index-527f3222.css">
 	</head>
 	<body>
 		<div id="root"></div>
