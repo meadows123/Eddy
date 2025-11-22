@@ -28,11 +28,13 @@ const PaystackCallbackPage = () => {
     isInApp: typeof window !== 'undefined' && (window.Capacitor || window.cordova || window.ionic)
   });
 
-  // Get launch URL from Capacitor App plugin (for deep links)
+  // Get launch URL and listen for URL changes from Capacitor App plugin (for deep links)
   useEffect(() => {
-    const getLaunchUrl = async () => {
-      const isInApp = typeof window !== 'undefined' && (window.Capacitor || window.cordova || window.ionic);
-      if (isInApp) {
+    const isInApp = typeof window !== 'undefined' && (window.Capacitor || window.cordova || window.ionic);
+    
+    if (isInApp) {
+      // Get initial launch URL
+      const getLaunchUrl = async () => {
         try {
           const { url } = await App.getLaunchUrl();
           if (url) {
@@ -40,19 +42,59 @@ const PaystackCallbackPage = () => {
             setLaunchUrl(url);
             // If launch URL has query params, update the URL to include them
             if (url.includes('?')) {
-              const urlObj = new URL(url);
-              // Update window.location to include the query params
-              if (urlObj.search) {
-                window.history.replaceState({}, '', urlObj.pathname + urlObj.search);
+              try {
+                const urlObj = new URL(url);
+                // Update window.location to include the query params
+                if (urlObj.search) {
+                  window.history.replaceState({}, '', urlObj.pathname + urlObj.search);
+                  // Force React Router to update
+                  window.location.reload();
+                }
+              } catch (e) {
+                // If URL parsing fails, try to extract path and query manually
+                const match = url.match(/^(?:[^:]+:\/\/)?[^/]+(\/[^?]*)(\?.*)?/);
+                if (match) {
+                  const path = match[1] || '/paystack-callback';
+                  const query = match[2] || '';
+                  window.history.replaceState({}, '', path + query);
+                  window.location.reload();
+                }
               }
             }
           }
         } catch (error) {
           console.log('No launch URL or error getting launch URL:', error);
         }
-      }
-    };
-    getLaunchUrl();
+      };
+      
+      getLaunchUrl();
+      
+      // Listen for app URL open events (when app is opened via deep link while running)
+      const listener = App.addListener('appUrlOpen', (data) => {
+        console.log('📱 App opened with URL:', data.url);
+        setLaunchUrl(data.url);
+        // Parse the URL and update the current location
+        try {
+          const urlObj = new URL(data.url);
+          if (urlObj.search) {
+            window.history.replaceState({}, '', urlObj.pathname + urlObj.search);
+            window.location.reload();
+          }
+        } catch (e) {
+          const match = data.url.match(/^(?:[^:]+:\/\/)?[^/]+(\/[^?]*)(\?.*)?/);
+          if (match) {
+            const path = match[1] || '/paystack-callback';
+            const query = match[2] || '';
+            window.history.replaceState({}, '', path + query);
+            window.location.reload();
+          }
+        }
+      });
+      
+      return () => {
+        listener.then(l => l.remove());
+      };
+    }
   }, []);
 
   // Check if we're in the app - if so, we should NOT redirect, just verify payment
@@ -113,8 +155,27 @@ const PaystackCallbackPage = () => {
   }, [searchParams, isRedirecting]);
 
   useEffect(() => {
-    // Don't verify if we're redirecting to the app (and not in app)
+    // Check if we're in the app
     const isInApp = typeof window !== 'undefined' && (window.Capacitor || window.cordova || window.ionic);
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    // If we're NOT in the app but on mobile, we should have been redirected by inline script
+    // If React is still loading, it means the redirect didn't work or we're in a browser
+    if (!isInApp && isMobile) {
+      console.warn('⚠️ Mobile browser detected - should have been redirected by inline script');
+      // Don't process payment in browser - show message instead
+      setStatus('error');
+      setMessage('Please complete your payment in the mobile app. The payment was successful, but you need to open the app to see the confirmation.');
+      setError('Please open the app to view your booking confirmation');
+      return;
+    }
+    
+    // If we're in the app, make sure isRedirecting is false
+    if (isInApp && isRedirecting) {
+      console.log('📱 In app - clearing redirect flag');
+      setIsRedirecting(false);
+    }
+    
     if (isRedirecting && !isInApp) {
       console.log('⏸️ Skipping verification - redirecting to app');
       return;
