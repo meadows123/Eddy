@@ -20,7 +20,23 @@ const PaystackCallbackPage = () => {
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [launchUrl, setLaunchUrl] = useState(null);
   const [launchUrlChecked, setLaunchUrlChecked] = useState(false);
+  const [verificationStep, setVerificationStep] = useState('Initializing...');
+  const [debugLogs, setDebugLogs] = useState([]);
   const verificationStartedRef = useRef(false); // Track if verification has started
+
+  // Reset verification ref on mount (in case it was stuck from previous attempt)
+  useEffect(() => {
+    verificationStartedRef.current = false;
+    setDebugLogs(prev => [...prev, 'Component mounted - reset verification']);
+  }, []);
+
+  // Helper function to add debug logs (visible on screen)
+  const addDebugLog = (message) => {
+    const timestamp = new Date().toLocaleTimeString();
+    const logMessage = `[${timestamp}] ${message}`;
+    setDebugLogs(prev => [...prev.slice(-9), logMessage]); // Keep last 10 logs
+    console.log(logMessage);
+  };
 
   console.log('🔄 PaystackCallbackPage Component Mounted');
   console.log('🔍 Initial state:', {
@@ -189,18 +205,11 @@ const PaystackCallbackPage = () => {
   }, [searchParams, isRedirecting]);
 
   useEffect(() => {
-    console.log('🔄 Verification useEffect triggered:', {
-      verificationStarted: verificationStartedRef.current,
-      launchUrlChecked,
-      isRedirecting,
-      status,
-      hasSearchParams: searchParams.toString().length > 0,
-      currentUrl: window.location.href
-    });
+    addDebugLog('Verification useEffect triggered');
     
     // Prevent multiple verification runs
     if (verificationStartedRef.current) {
-      console.log('⏸️ Verification already started, skipping...');
+      addDebugLog('Verification already started - skipping');
       return;
     }
     
@@ -208,15 +217,16 @@ const PaystackCallbackPage = () => {
     const isInApp = typeof window !== 'undefined' && (window.Capacitor || window.cordova || window.ionic);
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     
-    console.log('🔍 Environment check:', { isInApp, isMobile, launchUrlChecked });
+    addDebugLog(`Environment: InApp=${isInApp}, Mobile=${isMobile}, LaunchChecked=${launchUrlChecked}`);
     
     // If we're in the app, wait for launch URL to be checked (but with shorter timeout)
     if (isInApp && !launchUrlChecked) {
-      console.log('⏳ Waiting for launch URL check (max 500ms)...');
+      setVerificationStep('Waiting for launch URL...');
+      addDebugLog('Waiting for launch URL check (max 500ms)');
       // Timeout after 500ms if launch URL check doesn't complete (much faster)
       const timeout = setTimeout(() => {
         if (!launchUrlChecked) {
-          console.log('⏰ Launch URL check timeout (500ms), proceeding anyway');
+          addDebugLog('Launch URL check timeout - proceeding anyway');
           setLaunchUrlChecked(true); // Mark as checked to proceed
         }
       }, 500);
@@ -227,8 +237,7 @@ const PaystackCallbackPage = () => {
     // If we're NOT in the app but on mobile, we should have been redirected by inline script
     // If React is still loading, it means the redirect didn't work or we're in a browser
     if (!isInApp && isMobile) {
-      console.warn('⚠️ Mobile browser detected - should have been redirected by inline script');
-      // Don't process payment in browser - show message instead
+      addDebugLog('Mobile browser detected - should redirect to app');
       setStatus('error');
       setMessage('Please complete your payment in the mobile app. The payment was successful, but you need to open the app to see the confirmation.');
       setError('Please open the app to view your booking confirmation');
@@ -237,17 +246,18 @@ const PaystackCallbackPage = () => {
     
     // If we're in the app, make sure isRedirecting is false
     if (isInApp && isRedirecting) {
-      console.log('📱 In app - clearing redirect flag');
+      addDebugLog('In app - clearing redirect flag');
       setIsRedirecting(false);
     }
     
     if (isRedirecting && !isInApp) {
-      console.log('⏸️ Skipping verification - redirecting to app');
+      addDebugLog('Skipping - redirecting to app');
       return;
     }
     
     // Mark verification as started IMMEDIATELY to prevent re-runs
-    console.log('✅ Starting verification process...');
+    addDebugLog('Starting verification process');
+    setVerificationStep('Starting verification...');
     verificationStartedRef.current = true;
     
     // Set a timeout to prevent infinite spinning (30 seconds)
@@ -261,18 +271,15 @@ const PaystackCallbackPage = () => {
     }, 30000);
     
     const verifyPayment = async () => {
-      console.log('🚀 verifyPayment function called');
+      addDebugLog('verifyPayment function called');
+      setVerificationStep('Extracting payment reference...');
       try {
         // Paystack sends the reference as 'reference' OR 'trxref' parameter
         // Also check URL directly in case deep link format is different
         const urlParams = new URLSearchParams(window.location.search);
         
-        console.log('🔍 Extracting reference from:', {
-          searchParams: searchParams.toString(),
-          urlParams: urlParams.toString(),
-          windowLocation: window.location.href,
-          launchUrl: launchUrl
-        });
+        addDebugLog(`Search params: ${searchParams.toString()}`);
+        addDebugLog(`URL: ${window.location.href.substring(0, 100)}`);
         
         // Try multiple methods to extract reference
         let reference = searchParams.get('reference') || 
@@ -280,21 +287,22 @@ const PaystackCallbackPage = () => {
                        urlParams.get('reference') || 
                        urlParams.get('trxref');
         
-        console.log('🔍 Initial reference extraction:', reference);
+        addDebugLog(`Initial reference: ${reference || 'NOT FOUND'}`);
         
         // If still no reference, try parsing from launch URL (deep link from Capacitor)
         if (!reference && launchUrl) {
+          addDebugLog('Trying to extract from launch URL...');
           try {
             const launchUrlObj = new URL(launchUrl);
             reference = launchUrlObj.searchParams.get('reference') || 
                        launchUrlObj.searchParams.get('trxref');
-            console.log('📱 Extracted reference from launch URL:', reference);
+            addDebugLog(`Extracted from launch URL: ${reference || 'NOT FOUND'}`);
           } catch (e) {
             // If URL parsing fails, try regex
             const urlMatch = launchUrl.match(/[?&#](?:reference|trxref)=([^&#]+)/);
             if (urlMatch) {
               reference = decodeURIComponent(urlMatch[1]);
-              console.log('📱 Extracted reference from launch URL string:', reference);
+              addDebugLog(`Extracted from launch URL (regex): ${reference}`);
             }
           }
         }
@@ -304,6 +312,7 @@ const PaystackCallbackPage = () => {
           const urlMatch = window.location.href.match(/[?&#](?:reference|trxref)=([^&#]+)/);
           if (urlMatch) {
             reference = decodeURIComponent(urlMatch[1]);
+            addDebugLog(`Extracted from full URL: ${reference}`);
           }
         }
         
@@ -312,25 +321,14 @@ const PaystackCallbackPage = () => {
                          window.location.href.includes('status=cancelled') ||
                          (launchUrl && launchUrl.includes('status=cancelled'));
 
-        console.log('🔄 Paystack Callback Page Loaded:', {
-          reference,
-          cancelled,
-          url: window.location.href,
-          launchUrl: launchUrl,
-          searchParams: window.location.search,
-          pathname: window.location.pathname,
-          isInApp: isInApp,
-          isRedirecting: isRedirecting,
-          searchParamsKeys: Array.from(searchParams.keys()),
-          urlParamsKeys: Array.from(urlParams.keys())
-        });
+        addDebugLog(`Reference: ${reference || 'NOT FOUND'}, Cancelled: ${cancelled}`);
 
         // Check if payment was cancelled
         if (cancelled) {
           clearTimeout(timeoutId);
           setStatus('cancelled');
           setMessage('Payment was cancelled. Your booking has not been charged.');
-          console.log('❌ Payment cancelled by user');
+          addDebugLog('Payment cancelled by user');
           return;
         }
 
@@ -339,25 +337,22 @@ const PaystackCallbackPage = () => {
           setStatus('error');
           setMessage('No payment reference found in the URL. The payment may have failed or the link is invalid.');
           setError('Missing reference parameter. URL: ' + window.location.href.substring(0, 100));
-          console.error('❌ No reference in URL. Full URL:', window.location.href);
-          console.error('❌ Search params:', Array.from(searchParams.entries()));
-          console.error('❌ URL params:', Array.from(urlParams.entries()));
+          addDebugLog('ERROR: No reference found');
+          setVerificationStep('ERROR: No reference found');
           return;
         }
 
-        console.log('🔍 Verifying payment with reference:', reference);
+        setVerificationStep('Verifying payment with Paystack...');
+        addDebugLog(`Verifying payment with reference: ${reference}`);
 
         // Import Supabase function caller
         const { verifyPaystackPayment: callVerify } = await import('@/lib/api.jsx');
 
         // Call Supabase Edge Function to verify payment
+        setVerificationStep('Calling Paystack verification API...');
+        addDebugLog('Calling Paystack verification API...');
         const verifyData = await callVerify(reference);
-        console.log('✅ Payment verification response:', {
-          status: verifyData.data?.status,
-          amount: verifyData.data?.amount,
-          customer: verifyData.data?.customer?.email,
-          metadata: verifyData.data?.metadata
-        });
+        addDebugLog(`Verification response: status=${verifyData.data?.status}`);
 
         // Check if payment was successful
         if (verifyData.data?.status !== 'success') {
@@ -685,26 +680,9 @@ const PaystackCallbackPage = () => {
                        (window.location.href.match(/[?&#](?:reference|trxref)=([^&#]+)/)?.[1]) ||
                        'unknown';
         
-        console.error('❌ Callback verification error:', error);
-        console.error('❌ Error details:', {
-          message: error?.message,
-          stack: error?.stack,
-          name: error?.name,
-          code: error?.code,
-          details: error?.details,
-          hint: error?.hint,
-          reference: reference,
-          url: window.location.href
-        });
-        
-        // Log to console in a very visible way
-        console.error('🚨 PAYMENT CALLBACK ERROR 🚨');
-        console.error('Payment Reference:', reference);
-        console.error('Error Message:', error?.message);
-        console.error('Full Error:', error);
-        
-        setStatus('error');
         const errorMsg = error instanceof Error ? error.message : String(error);
+        addDebugLog(`ERROR: ${errorMsg}`);
+        setVerificationStep(`ERROR: ${errorMsg}`);
         
         // Provide more helpful error messages
         let userFriendlyMessage = errorMsg;
@@ -716,6 +694,7 @@ const PaystackCallbackPage = () => {
           userFriendlyMessage = 'Payment was successful, but there was an issue confirming your booking. Please contact support.';
         }
         
+        setStatus('error');
         setMessage(userFriendlyMessage);
         setError(`${errorMsg} (Reference: ${reference})`);
       } finally {
@@ -726,19 +705,21 @@ const PaystackCallbackPage = () => {
 
     // Wrap in try-catch to catch any synchronous errors
     try {
-      console.log('🚀 Calling verifyPayment...');
+      addDebugLog('Calling verifyPayment...');
       verifyPayment().catch((error) => {
-        console.error('❌ Unhandled promise rejection in verifyPayment:', error);
+        addDebugLog(`Unhandled promise rejection: ${error?.message || 'Unknown error'}`);
         setStatus('error');
         setMessage(`Payment verification failed: ${error?.message || 'Unknown error'}`);
         setError(`Verification error: ${error?.message || 'Unknown error'}`);
+        setVerificationStep(`ERROR: ${error?.message || 'Unknown error'}`);
         clearTimeout(timeoutId);
       });
     } catch (error) {
-      console.error('❌ Error calling verifyPayment:', error);
+      addDebugLog(`Error calling verifyPayment: ${error?.message || 'Unknown error'}`);
       setStatus('error');
       setMessage(`Failed to start verification: ${error?.message || 'Unknown error'}`);
       setError(`Startup error: ${error?.message || 'Unknown error'}`);
+      setVerificationStep(`ERROR: ${error?.message || 'Unknown error'}`);
       clearTimeout(timeoutId);
     }
     
@@ -767,6 +748,7 @@ const PaystackCallbackPage = () => {
                 {isRedirecting ? 'Opening App...' : 'Processing'}
               </h1>
               <p className="text-gray-600">{message}</p>
+              <p className="text-sm font-semibold text-blue-600">{verificationStep}</p>
               {isRedirecting ? (
                 <p className="text-sm text-gray-500">
                   Redirecting you to the mobile app to complete your payment verification...
@@ -775,12 +757,30 @@ const PaystackCallbackPage = () => {
                 <p className="text-sm text-gray-500">This may take a few moments...</p>
               )}
               
+              {/* Manual Retry Button */}
+              {status === 'verifying' && !isRedirecting && (
+                <Button
+                  onClick={() => {
+                    addDebugLog('Manual retry triggered');
+                    verificationStartedRef.current = false;
+                    setStatus('verifying');
+                    setVerificationStep('Retrying...');
+                    // Force re-run by updating a dependency
+                    setLaunchUrlChecked(prev => !prev);
+                    setLaunchUrlChecked(prev => !prev);
+                  }}
+                  variant="outline"
+                  className="mt-4"
+                >
+                  Retry Verification
+                </Button>
+              )}
+              
               {/* Debug info - visible on screen for troubleshooting */}
-              <div className="mt-4 p-3 bg-gray-100 rounded text-left text-xs text-gray-600">
+              <div className="mt-4 p-3 bg-gray-100 rounded text-left text-xs text-gray-600 max-h-64 overflow-y-auto">
                 <p><strong>Debug Info:</strong></p>
-                <p>URL: {window.location.href.substring(0, 80)}...</p>
-                <p>Launch URL: {launchUrl ? (launchUrl.length > 80 ? launchUrl.substring(0, 80) + '...' : launchUrl) : 'None'}</p>
-                <p>Reference: {(() => {
+                <p><strong>Current Step:</strong> {verificationStep}</p>
+                <p><strong>Reference:</strong> {(() => {
                   const urlParams = new URLSearchParams(window.location.search);
                   let ref = searchParams.get('reference') || 
                          searchParams.get('trxref') || 
@@ -806,6 +806,16 @@ const PaystackCallbackPage = () => {
                 <p>Verification Started: {verificationStartedRef.current ? 'Yes' : 'No'}</p>
                 <p>Launch URL Checked: {launchUrlChecked ? 'Yes' : 'No'}</p>
                 <p>Is Redirecting: {isRedirecting ? 'Yes' : 'No'}</p>
+                
+                {/* Debug Logs */}
+                {debugLogs.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-gray-300">
+                    <p><strong>Recent Logs:</strong></p>
+                    {debugLogs.map((log, idx) => (
+                      <p key={idx} className="text-xs text-gray-500">{log}</p>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -862,6 +872,89 @@ const PaystackCallbackPage = () => {
             </div>
           )}
 
+
+          {/* Error State */}
+          {status === 'error' && (
+            <div className="text-center space-y-4">
+              <div className="flex justify-center">
+                <AlertCircle className="h-16 w-16 text-red-500" />
+              </div>
+              <h1 className="text-2xl font-bold text-red-700">Verification Error</h1>
+              <p className="text-gray-600">{message}</p>
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-left">
+                  <p className="text-sm font-semibold text-red-700">Error Details:</p>
+                  <p className="text-xs text-red-600">{error}</p>
+                </div>
+              )}
+              
+              {/* Debug info in error state */}
+              <div className="mt-4 p-3 bg-gray-100 rounded text-left text-xs text-gray-600 max-h-64 overflow-y-auto">
+                <p><strong>Debug Info:</strong></p>
+                <p><strong>Current Step:</strong> {verificationStep}</p>
+                <p><strong>Reference:</strong> {(() => {
+                  const urlParams = new URLSearchParams(window.location.search);
+                  let ref = searchParams.get('reference') || 
+                         searchParams.get('trxref') || 
+                         urlParams.get('reference') || 
+                         urlParams.get('trxref') ||
+                         (window.location.href.match(/[?&#](?:reference|trxref)=([^&#]+)/)?.[1]);
+                  
+                  if (!ref && launchUrl) {
+                    try {
+                      const launchUrlObj = new URL(launchUrl);
+                      ref = launchUrlObj.searchParams.get('reference') || launchUrlObj.searchParams.get('trxref');
+                    } catch (e) {
+                      const match = launchUrl.match(/[?&#](?:reference|trxref)=([^&#]+)/);
+                      if (match) ref = decodeURIComponent(match[1]);
+                    }
+                  }
+                  
+                  return ref || 'Not found';
+                })()}</p>
+                {debugLogs.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-gray-300">
+                    <p><strong>Recent Logs:</strong></p>
+                    {debugLogs.map((log, idx) => (
+                      <p key={idx} className="text-xs text-gray-500">{log}</p>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-3">
+                <Button
+                  onClick={() => {
+                    addDebugLog('Manual retry from error state');
+                    verificationStartedRef.current = false;
+                    setStatus('verifying');
+                    setVerificationStep('Retrying...');
+                    setError(null);
+                    setLaunchUrlChecked(prev => !prev);
+                    setLaunchUrlChecked(prev => !prev);
+                  }}
+                  className="w-full bg-red-600 hover:bg-red-700"
+                >
+                  Retry Verification
+                </Button>
+                <Button
+                  onClick={() => navigate('/bookings')}
+                  variant="outline"
+                  className="w-full"
+                >
+                  View My Bookings
+                </Button>
+                <Button
+                  onClick={() => navigate('/venues')}
+                  variant="outline"
+                  className="w-full"
+                >
+                  <Home className="mr-2 h-4 w-4" />
+                  Back to Venues
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Cancelled State */}
           {status === 'cancelled' && (
