@@ -729,6 +729,12 @@ const PaystackCallbackPage = () => {
     };
   }, [searchParams, isRedirecting, status, launchUrl, launchUrlChecked, navigate]);
 
+  // Log when component renders
+  useEffect(() => {
+    addDebugLog('Component rendered - React is working!');
+    setVerificationStep('Component loaded successfully');
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
       <motion.div
@@ -776,11 +782,11 @@ const PaystackCallbackPage = () => {
                 </Button>
               )}
               
-              {/* Debug info - visible on screen for troubleshooting */}
-              <div className="mt-4 p-3 bg-gray-100 rounded text-left text-xs text-gray-600 max-h-64 overflow-y-auto">
-                <p><strong>Debug Info:</strong></p>
-                <p><strong>Current Step:</strong> {verificationStep}</p>
-                <p><strong>Reference:</strong> {(() => {
+              {/* Debug info - ALWAYS VISIBLE for troubleshooting */}
+              <div className="mt-4 p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg text-left text-sm text-gray-800 max-h-96 overflow-y-auto">
+                <p className="font-bold text-yellow-800 mb-2">🔍 DEBUG INFO (Always Visible):</p>
+                <p><strong>Current Step:</strong> <span className="text-blue-600">{verificationStep}</span></p>
+                <p><strong>Reference:</strong> <span className="text-purple-600">{(() => {
                   const urlParams = new URLSearchParams(window.location.search);
                   let ref = searchParams.get('reference') || 
                          searchParams.get('trxref') || 
@@ -800,22 +806,24 @@ const PaystackCallbackPage = () => {
                   }
                   
                   return ref || 'Not found';
-                })()}</p>
-                <p>In App: {typeof window !== 'undefined' && (window.Capacitor || window.cordova || window.ionic) ? 'Yes' : 'No'}</p>
-                <p>Status: {status}</p>
-                <p>Verification Started: {verificationStartedRef.current ? 'Yes' : 'No'}</p>
-                <p>Launch URL Checked: {launchUrlChecked ? 'Yes' : 'No'}</p>
-                <p>Is Redirecting: {isRedirecting ? 'Yes' : 'No'}</p>
+                })()}</span></p>
+                <p><strong>In App:</strong> <span className={typeof window !== 'undefined' && (window.Capacitor || window.cordova || window.ionic) ? 'text-green-600' : 'text-red-600'}>{typeof window !== 'undefined' && (window.Capacitor || window.cordova || window.ionic) ? 'Yes' : 'No'}</span></p>
+                <p><strong>Status:</strong> <span className="text-blue-600">{status}</span></p>
+                <p><strong>Verification Started:</strong> <span className={verificationStartedRef.current ? 'text-green-600' : 'text-red-600'}>{verificationStartedRef.current ? 'Yes' : 'No'}</span></p>
+                <p><strong>Launch URL Checked:</strong> <span className={launchUrlChecked ? 'text-green-600' : 'text-red-600'}>{launchUrlChecked ? 'Yes' : 'No'}</span></p>
+                <p><strong>Is Redirecting:</strong> <span className={isRedirecting ? 'text-yellow-600' : 'text-gray-600'}>{isRedirecting ? 'Yes' : 'No'}</span></p>
                 
-                {/* Debug Logs */}
-                {debugLogs.length > 0 && (
-                  <div className="mt-2 pt-2 border-t border-gray-300">
-                    <p><strong>Recent Logs:</strong></p>
-                    {debugLogs.map((log, idx) => (
-                      <p key={idx} className="text-xs text-gray-500">{log}</p>
-                    ))}
-                  </div>
-                )}
+                {/* Debug Logs - ALWAYS SHOW */}
+                <div className="mt-3 pt-3 border-t-2 border-yellow-400">
+                  <p className="font-bold text-yellow-800 mb-1">Recent Logs ({debugLogs.length}):</p>
+                  {debugLogs.length > 0 ? (
+                    debugLogs.map((log, idx) => (
+                      <p key={idx} className="text-xs text-gray-700 font-mono bg-white p-1 mb-1 rounded">{log}</p>
+                    ))
+                  ) : (
+                    <p className="text-xs text-gray-500 italic">No logs yet...</p>
+                  )}
+                </div>
               </div>
             </div>
           )}
