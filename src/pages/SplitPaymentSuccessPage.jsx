@@ -202,6 +202,48 @@ const SplitPaymentSuccessPage = () => {
               amount: requestData.amount
             });
 
+            // Ensure venue data is available - fetch if missing
+            let venueDataForEmail = bookingData.venues;
+            if (!venueDataForEmail && bookingData.venue_id) {
+              console.log('⚠️ Venue data missing in bookingData, fetching separately...');
+              try {
+                const { data: fetchedVenue, error: venueFetchError } = await supabase
+                  .from('venues')
+                  .select('name, address, city, contact_email, contact_phone, price_range')
+                  .eq('id', bookingData.venue_id)
+                  .single();
+                
+                if (!venueFetchError && fetchedVenue) {
+                  venueDataForEmail = fetchedVenue;
+                  console.log('✅ Venue data fetched separately:', fetchedVenue.name);
+                } else {
+                  console.error('❌ Failed to fetch venue data:', venueFetchError);
+                  // Create fallback venue object
+                  venueDataForEmail = {
+                    name: 'Your Venue',
+                    address: 'Address not available',
+                    contact_phone: 'N/A'
+                  };
+                }
+              } catch (err) {
+                console.error('❌ Exception fetching venue data:', err);
+                venueDataForEmail = {
+                  name: 'Your Venue',
+                  address: 'Address not available',
+                  contact_phone: 'N/A'
+                };
+              }
+            }
+            
+            // Ensure venueDataForEmail is never null
+            if (!venueDataForEmail) {
+              venueDataForEmail = {
+                name: 'Your Venue',
+                address: 'Address not available',
+                contact_phone: 'N/A'
+              };
+            }
+
             // Fetch all split payment requests to calculate the total amount
             const { data: allSplitRequests, error: splitRequestsError } = await supabase
               .from('split_payment_requests')
@@ -217,6 +259,9 @@ const SplitPaymentSuccessPage = () => {
               calculatedTotal: calculatedTotalAmount,
               bookingTotal: bookingData.total_amount
             });
+
+            // Ensure venue name is available for subject line (use fetched venue data)
+            const venueNameForSubject = venueDataForEmail?.name || 'Your Venue';
 
             // Debug: Log the email data being sent (NO QR CODE for split payment confirmation)
             const emailData = {
@@ -235,13 +280,13 @@ const SplitPaymentSuccessPage = () => {
               paymentAmount: Number(requestData.amount) || 0,
               
               // Table details
-              tableName: bookingData.table?.table_type,
-              tableNumber: bookingData.table?.table_number,
+              tableName: bookingData.table?.table_type || bookingData.venue_tables?.table_type || 'VIP Table',
+              tableNumber: bookingData.table?.table_number || bookingData.venue_tables?.table_number || 'N/A',
               
-              // Venue details - ensure venue name is always set
-              venueName: bookingData.venues?.name || 'Your Venue',
-              venueAddress: bookingData.venues?.address || 'Address not available',
-              venuePhone: bookingData.venues?.contact_phone || 'N/A',
+              // Venue details - use fetched venue data with fallbacks
+              venueName: venueDataForEmail?.name || 'Your Venue',
+              venueAddress: venueDataForEmail?.address || 'Address not available',
+              venuePhone: venueDataForEmail?.contact_phone || 'N/A',
               
               // NO QR CODE - removed per user request
               // QR codes are only sent when all payments are complete
@@ -257,9 +302,6 @@ const SplitPaymentSuccessPage = () => {
               qrCodeImage: emailData.qrCodeImage,
               qrCodeUrl: emailData.qrCodeUrl
             });
-
-            // Ensure venue name is available for subject line
-            const venueNameForSubject = bookingData.venues?.name || emailData.venueName || 'Your Venue';
             
             console.log('📧 SENDING INDIVIDUAL CONFIRMATION EMAIL NOW:', {
               to: recipientData.email,
@@ -1027,13 +1069,16 @@ const SplitPaymentSuccessPage = () => {
                 // Calculate total amount from all split payments
                 const fullTotalAmount = requests?.reduce((sum, req) => sum + (Number(req.amount) || 0), 0) || completionBookingData.total_amount;
                 
+                // Ensure venue name is always a string (never undefined)
+                const venueNameForEmail = String(completionBookingData.venues?.name || venueData?.name || 'Your Venue').trim() || 'Your Venue';
+                
                 // Update email data with calculated total and include QR code
                 // Ensure venue name is always set
                 const lastPayerCompletionEmailData = {
                   ...lastPayerEmailData,
                   totalAmount: fullTotalAmount,
                   paymentAmount: Number(lastPayment.amount) || 0,
-                  venueName: completionBookingData.venues?.name || venueData?.name || 'Your Venue', // Ensure venue name is always set
+                  venueName: venueNameForEmail, // Use guaranteed string venue name
                   venueAddress: completionBookingData.venues?.address || venueData?.address || 'Address not available',
                   venuePhone: completionBookingData.venues?.contact_phone || venueData?.contact_phone || 'N/A',
                   // Include QR code for venue entry scanning
@@ -1049,7 +1094,7 @@ const SplitPaymentSuccessPage = () => {
                   },
                   body: JSON.stringify({
                     to: lastPayerProfile.email,
-                    subject: `All Payments Confirmed! - ${completionBookingData.venues?.name || venueData?.name || 'Your Venue'}`,
+                    subject: `All Payments Confirmed! - ${venueNameForEmail}`, // Use guaranteed string venue name
                     template: 'split-payment-confirmation',
                     data: lastPayerCompletionEmailData
                   })
@@ -1114,6 +1159,9 @@ const SplitPaymentSuccessPage = () => {
                 if (!initiatorEmail) {
                   console.error('❌ No initiator email found, skipping email');
                 } else {
+                  // Ensure venue name is always a string (never undefined)
+                  const venueNameForInitiatorEmail = String(completionBookingData.venues?.name || venueData?.name || 'Your Venue').trim() || 'Your Venue';
+                  
                   const initiatorEmailResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
                     method: 'POST',
                     headers: {
@@ -1122,7 +1170,7 @@ const SplitPaymentSuccessPage = () => {
                     },
                     body: JSON.stringify({
                       to: initiatorEmail,
-                      subject: `All Payments Confirmed! - ${completionBookingData.venues?.name || venueData?.name || 'Your Venue'}`,
+                      subject: `All Payments Confirmed! - ${venueNameForInitiatorEmail}`, // Use guaranteed string venue name
                       template: 'split-payment-confirmation',
                       data: {
                         email: initiatorEmail,
@@ -1135,7 +1183,7 @@ const SplitPaymentSuccessPage = () => {
                         guestCount: completionBookingData.number_of_guests,
                         totalAmount: fullTotalAmount,
                         paymentAmount: initiatorPaymentAmount,
-                        venueName: completionBookingData.venues?.name || venueData?.name || 'Your Venue', // Ensure venue name is always set
+                        venueName: venueNameForInitiatorEmail, // Use guaranteed string venue name
                         venueAddress: completionBookingData.venues?.address || venueData?.address || 'Address not available',
                         venuePhone: completionBookingData.venues?.contact_phone || venueData?.contact_phone || 'N/A',
                         // Include QR code for venue entry scanning - ensure we always pass a string URL
@@ -1190,6 +1238,9 @@ const SplitPaymentSuccessPage = () => {
                       // Calculate total amount from all split payments
                       const fullTotalAmount = requests?.reduce((sum, req) => sum + (Number(req.amount) || 0), 0) || completionBookingData.total_amount;
 
+                      // Ensure venue name is always a string (never undefined)
+                      const venueNameForRecipientEmail = String(completionBookingData.venues?.name || venueData?.name || 'Your Venue').trim() || 'Your Venue';
+
                       const recipientEmailResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
                         method: 'POST',
                         headers: {
@@ -1198,7 +1249,7 @@ const SplitPaymentSuccessPage = () => {
                         },
                         body: JSON.stringify({
                           to: recipientProfile.email,
-                          subject: `All Payments Confirmed! - ${completionBookingData.venues?.name || venueData?.name || 'Your Venue'}`,
+                          subject: `All Payments Confirmed! - ${venueNameForRecipientEmail}`, // Use guaranteed string venue name
                           template: 'split-payment-confirmation',
                           data: {
                             email: recipientProfile.email,
@@ -1210,7 +1261,7 @@ const SplitPaymentSuccessPage = () => {
                             bookingTime: completionBookingData.start_time,
                             guestCount: completionBookingData.number_of_guests,
                             totalAmount: fullTotalAmount,
-                            venueName: completionBookingData.venues?.name || venueData?.name || 'Your Venue', // Ensure venue name is always set
+                            venueName: venueNameForRecipientEmail, // Use guaranteed string venue name
                             venueAddress: completionBookingData.venues?.address || venueData?.address || 'Address not available',
                             venuePhone: completionBookingData.venues?.contact_phone || venueData?.contact_phone || 'N/A',
                             paymentAmount: request.amount,

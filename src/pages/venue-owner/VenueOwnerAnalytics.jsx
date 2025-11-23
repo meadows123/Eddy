@@ -341,12 +341,24 @@ const VenueOwnerAnalytics = () => {
     const startUTC = start;
     const endUTC = end;
     
+    // Helper function to parse date string and create UTC date
+    const parseDateToUTC = (dateString) => {
+      if (!dateString) return null;
+      // If it's a date-only string (YYYY-MM-DD), parse it directly
+      if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        const [year, month, day] = dateString.split('-').map(Number);
+        return new Date(Date.UTC(year, month - 1, day)); // month is 0-indexed
+      }
+      // Otherwise, parse as ISO string and extract UTC components
+      const date = new Date(dateString);
+      return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+    };
+
     // Filter bookings for current period
     const currentPeriodBookings = bookings.filter(booking => {
       // Use booking_date for revenue calculations, fallback to created_at for display
-      const bookingDate = new Date(booking.booking_date || booking.created_at);
-      // Normalize booking date to UTC midnight for accurate comparison
-      const bookingDateUTC = new Date(Date.UTC(bookingDate.getFullYear(), bookingDate.getMonth(), bookingDate.getDate()));
+      const bookingDateUTC = parseDateToUTC(booking.booking_date || booking.created_at);
+      if (!bookingDateUTC) return false;
       
       const isInPeriod = bookingDateUTC >= startUTC && bookingDateUTC <= endUTC;
       
@@ -356,9 +368,9 @@ const VenueOwnerAnalytics = () => {
           bookingId: booking.id,
           bookingDate: booking.booking_date,
           createdAt: booking.created_at,
-          parsedDate: bookingDateUTC,
-          start: startUTC,
-          end: endUTC,
+          parsedDateUTC: bookingDateUTC.toISOString(),
+          startUTC: startUTC.toISOString(),
+          endUTC: endUTC.toISOString(),
           isInPeriod,
           totalAmount: booking.total_amount,
           status: booking.status,
@@ -379,14 +391,20 @@ const VenueOwnerAnalytics = () => {
       ? endOfMonth(subMonths(start, 1))
       : endOfWeek(subWeeks(start, 1), { weekStartsOn: 1 });
 
+    // Normalize comparison period dates to UTC
+    const prevStartYear = prevStart.getUTCFullYear();
+    const prevStartMonth = prevStart.getUTCMonth();
+    const prevStartDay = prevStart.getUTCDate();
+    const prevEndYear = prevEnd.getUTCFullYear();
+    const prevEndMonth = prevEnd.getUTCMonth();
+    const prevEndDay = prevEnd.getUTCDate();
+    
+    const prevStartUTC = new Date(Date.UTC(prevStartYear, prevStartMonth, prevStartDay));
+    const prevEndUTC = new Date(Date.UTC(prevEndYear, prevEndMonth, prevEndDay, 23, 59, 59, 999));
+    
     const prevPeriodBookings = bookings.filter(booking => {
-      const bookingDate = new Date(booking.booking_date || booking.created_at);
-      // Normalize dates to UTC midnight for accurate comparison
-      const bookingDateUTC = new Date(Date.UTC(bookingDate.getFullYear(), bookingDate.getMonth(), bookingDate.getDate()));
-      const prevStartUTC = new Date(Date.UTC(prevStart.getFullYear(), prevStart.getMonth(), prevStart.getDate()));
-      const prevEndUTC = new Date(Date.UTC(prevEnd.getFullYear(), prevEnd.getMonth(), prevEnd.getDate()));
-      // Set end date to end of day
-      prevEndUTC.setUTCHours(23, 59, 59, 999);
+      const bookingDateUTC = parseDateToUTC(booking.booking_date || booking.created_at);
+      if (!bookingDateUTC) return false;
       return bookingDateUTC >= prevStartUTC && bookingDateUTC <= prevEndUTC;
     });
 
@@ -450,19 +468,21 @@ const VenueOwnerAnalytics = () => {
     const { start: chartStart, end: chartEnd } = getDateRange();
     const daysInRange = Math.ceil((chartEnd - chartStart) / (1000 * 60 * 60 * 24)) + 1;
     
+    // Create date range using UTC to avoid timezone issues
     const dateRange = Array.from({ length: daysInRange }, (_, i) => {
-      const date = new Date(chartStart);
-      date.setDate(date.getDate() + i);
-      return date;
+      const startYear = chartStart.getUTCFullYear();
+      const startMonth = chartStart.getUTCMonth();
+      const startDay = chartStart.getUTCDate();
+      return new Date(Date.UTC(startYear, startMonth, startDay + i));
     });
 
     const dailyRevenue = dateRange.map(date => {
       // Only use bookings from the current period (already filtered by time range)
       const dayBookings = currentPeriodBookings.filter(booking => {
-        const bookingDate = new Date(booking.booking_date || booking.created_at);
-        // Normalize both dates to UTC for comparison
-        const bookingDateUTC = new Date(Date.UTC(bookingDate.getFullYear(), bookingDate.getMonth(), bookingDate.getDate()));
-        const dateUTC = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+        const bookingDateUTC = parseDateToUTC(booking.booking_date || booking.created_at);
+        if (!bookingDateUTC) return false;
+        // Normalize chart date to UTC for comparison
+        const dateUTC = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
         const isMatch = bookingDateUTC.getTime() === dateUTC.getTime();
         
         return isMatch;
