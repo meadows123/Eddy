@@ -199,8 +199,9 @@ async function checkAllSplitPaymentsComplete(bookingId: string) {
         .update({ status: 'confirmed', payment_status: 'paid' })
         .eq('id', bookingId)
 
-      // Send completion emails
-      await sendBookingConfirmationEmails(bookingId)
+      // Removed sendBookingConfirmationEmails for split payments - users already receive individual "Split Payment Confirmed" emails
+      // No need to send duplicate "Booking Confirmed!" email
+      console.log('✅ Booking status updated to confirmed - individual split payment confirmation emails already sent')
     }
   } catch (error) {
     console.error('❌ Error checking split payments:', error)
@@ -280,6 +281,9 @@ async function sendBookingConfirmationEmails(bookingId: string) {
     const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? ''
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 
+    // Ensure venue name is always a string (never undefined)
+    const venueNameForEmail = String(venue?.name || 'Your Venue').trim() || 'Your Venue'
+    
     // Send customer confirmation email
     console.log('📧 Sending customer confirmation email to:', customer.email)
     try {
@@ -291,7 +295,7 @@ async function sendBookingConfirmationEmails(bookingId: string) {
         },
         body: JSON.stringify({
           to: customer.email,
-          subject: `Booking Confirmed! - ${venue.name || 'Your Venue'}`,
+          subject: `Booking Confirmed! - ${venueNameForEmail}`, // Use guaranteed string venue name
           template: 'booking-confirmation',
           data: {
             email: customer.email,
@@ -302,9 +306,9 @@ async function sendBookingConfirmationEmails(bookingId: string) {
             endTime: endTimeFormatted,
             guestCount: booking.number_of_guests || 1,
             totalAmount: booking.total_amount,
-            venueName: venue.name,
-            venueAddress: venue.address,
-            venuePhone: venue.contact_phone,
+            venueName: venueNameForEmail, // Use guaranteed string venue name
+            venueAddress: venue?.address || 'Address not available',
+            venuePhone: venue?.contact_phone || 'N/A',
             specialRequests: booking.special_requests || 'None specified'
           }
         }),
