@@ -281,30 +281,74 @@ const VenueOwnerAnalytics = () => {
 
   const getDateRange = () => {
     const now = new Date();
+    let start, end;
+    
     switch (timeRange) {
       case 'thisMonth':
-        return { start: startOfMonth(now), end: endOfMonth(now) };
+        start = startOfMonth(now);
+        end = endOfMonth(now);
+        break;
       case 'lastMonth':
         const lastMonth = subMonths(now, 1);
-        return { start: startOfMonth(lastMonth), end: endOfMonth(lastMonth) };
+        start = startOfMonth(lastMonth);
+        end = endOfMonth(lastMonth);
+        break;
       case 'thisWeek':
-        return { start: startOfWeek(now), end: endOfWeek(now) };
+        start = startOfWeek(now, { weekStartsOn: 1 });
+        end = endOfWeek(now, { weekStartsOn: 1 });
+        break;
       case 'lastWeek':
-        const lastWeek = subMonths(now, 1);
-        return { start: startOfWeek(lastWeek), end: endOfWeek(lastWeek) };
+        const lastWeek = subWeeks(now, 1);
+        start = startOfWeek(lastWeek, { weekStartsOn: 1 });
+        end = endOfWeek(lastWeek, { weekStartsOn: 1 });
+        break;
       default:
-        return { start: startOfMonth(now), end: endOfMonth(now) };
+        start = startOfMonth(now);
+        end = endOfMonth(now);
     }
+    
+    // Normalize to UTC dates using LOCAL date components to preserve calendar dates
+    // Extract LOCAL date components from the date-fns result (preserves calendar date regardless of timezone)
+    const startYear = start.getFullYear();
+    const startMonth = start.getMonth();
+    const startDay = start.getDate();
+    const endYear = end.getFullYear();
+    const endMonth = end.getMonth();
+    const endDay = end.getDate();
+    
+    // Create UTC dates at midnight using the local calendar date components
+    // This ensures "October 1st" matches "October 1st" regardless of timezone
+    const startUTC = new Date(Date.UTC(startYear, startMonth, startDay));
+    const endUTC = new Date(Date.UTC(endYear, endMonth, endDay, 23, 59, 59, 999));
+    
+    // Debug logging to verify date ranges
+    console.log(`📅 Date range for ${timeRange}:`, {
+      timeRange,
+      startLocal: start.toLocaleString(),
+      endLocal: end.toLocaleString(),
+      startUTC: startUTC.toISOString(),
+      endUTC: endUTC.toISOString(),
+      now: now.toLocaleString()
+    });
+    
+    return { start: startUTC, end: endUTC };
   };
 
   const calculateAnalytics = () => {
     const { start, end } = getDateRange();
     
+    // Dates are already normalized to UTC in getDateRange()
+    const startUTC = start;
+    const endUTC = end;
+    
     // Filter bookings for current period
     const currentPeriodBookings = bookings.filter(booking => {
       // Use booking_date for revenue calculations, fallback to created_at for display
       const bookingDate = new Date(booking.booking_date || booking.created_at);
-      const isInPeriod = bookingDate >= start && bookingDate <= end;
+      // Normalize booking date to UTC midnight for accurate comparison
+      const bookingDateUTC = new Date(Date.UTC(bookingDate.getFullYear(), bookingDate.getMonth(), bookingDate.getDate()));
+      
+      const isInPeriod = bookingDateUTC >= startUTC && bookingDateUTC <= endUTC;
       
       // Debug logging for first few bookings
       if (bookings.indexOf(booking) < 3) {
@@ -312,10 +356,13 @@ const VenueOwnerAnalytics = () => {
           bookingId: booking.id,
           bookingDate: booking.booking_date,
           createdAt: booking.created_at,
-          parsedDate: bookingDate,
+          parsedDate: bookingDateUTC,
+          start: startUTC,
+          end: endUTC,
           isInPeriod,
           totalAmount: booking.total_amount,
-          status: booking.status
+          status: booking.status,
+          timeRange
         });
       }
       
@@ -327,14 +374,20 @@ const VenueOwnerAnalytics = () => {
     // Get comparison period (previous month/week)
     const prevStart = timeRange.includes('Month') 
       ? startOfMonth(subMonths(start, 1))
-      : startOfWeek(subMonths(start, 1));
+      : startOfWeek(subWeeks(start, 1), { weekStartsOn: 1 });
     const prevEnd = timeRange.includes('Month')
       ? endOfMonth(subMonths(start, 1))
-      : endOfWeek(subMonths(start, 1));
+      : endOfWeek(subWeeks(start, 1), { weekStartsOn: 1 });
 
     const prevPeriodBookings = bookings.filter(booking => {
       const bookingDate = new Date(booking.booking_date || booking.created_at);
-      return bookingDate >= prevStart && bookingDate <= prevEnd;
+      // Normalize dates to UTC midnight for accurate comparison
+      const bookingDateUTC = new Date(Date.UTC(bookingDate.getFullYear(), bookingDate.getMonth(), bookingDate.getDate()));
+      const prevStartUTC = new Date(Date.UTC(prevStart.getFullYear(), prevStart.getMonth(), prevStart.getDate()));
+      const prevEndUTC = new Date(Date.UTC(prevEnd.getFullYear(), prevEnd.getMonth(), prevEnd.getDate()));
+      // Set end date to end of day
+      prevEndUTC.setUTCHours(23, 59, 59, 999);
+      return bookingDateUTC >= prevStartUTC && bookingDateUTC <= prevEndUTC;
     });
 
     // Calculate metrics - only count revenue from confirmed/completed bookings
@@ -404,10 +457,13 @@ const VenueOwnerAnalytics = () => {
     });
 
     const dailyRevenue = dateRange.map(date => {
-      const dayBookings = bookings.filter(booking => {
+      // Only use bookings from the current period (already filtered by time range)
+      const dayBookings = currentPeriodBookings.filter(booking => {
         const bookingDate = new Date(booking.booking_date || booking.created_at);
-        // Compare dates by date string (ignoring time)
-        const isMatch = bookingDate.toDateString() === date.toDateString();
+        // Normalize both dates to UTC for comparison
+        const bookingDateUTC = new Date(Date.UTC(bookingDate.getFullYear(), bookingDate.getMonth(), bookingDate.getDate()));
+        const dateUTC = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+        const isMatch = bookingDateUTC.getTime() === dateUTC.getTime();
         
         return isMatch;
       });
@@ -435,62 +491,8 @@ const VenueOwnerAnalytics = () => {
       };
     });
 
-    // Check if we have any confirmed/completed bookings at all
-    const allConfirmedBookings = bookings.filter(b => b.status === 'confirmed' || b.status === 'completed');
-
-    // SIMPLE FIX: If no revenue in the 90-day range, create a chart with your actual confirmed bookings
-    if (dailyRevenue.every(d => d.revenue === 0)) {
-      
-      if (allConfirmedBookings.length > 0) {
-        // Create a simple chart showing your actual confirmed bookings by date
-        const actualRevenueData = allConfirmedBookings.map(booking => {
-          const date = new Date(booking.booking_date || booking.created_at);
-          let amount = parseFloat(booking.total_amount) || 0;
-          
-          // Convert kobo to naira if needed
-          if (amount > 0 && amount < 1000) {
-            amount = amount * 100;
-          }
-          
-          return {
-            date: format(date, 'MMM dd'),
-            revenue: amount,
-            bookings: 1
-          };
-        });
-        
-        // Sort by date
-        actualRevenueData.sort((a, b) => {
-          const dateA = new Date(a.date + ' 2024');
-          const dateB = new Date(b.date + ' 2024');
-          return dateA - dateB;
-        });
-        
-        // Replace the daily revenue with actual data
-        dailyRevenue.splice(0, dailyRevenue.length, ...actualRevenueData);
-      }
-    }
-    
-    // Debug: Check which dates have confirmed bookings
-    const confirmedBookingsByDate = {};
-    allConfirmedBookings.forEach(booking => {
-      const date = new Date(booking.booking_date || booking.created_at);
-      const dateKey = date.toDateString();
-      if (!confirmedBookingsByDate[dateKey]) {
-        confirmedBookingsByDate[dateKey] = [];
-      }
-      confirmedBookingsByDate[dateKey].push(booking);
-    });
-
-    // If no real data, generate sample data for testing
-    if (dailyRevenue.every(d => d.revenue === 0 && d.bookings === 0)) {
-      const sampleDailyRevenue = dateRange.map((date, index) => ({
-        date: format(date, 'MMM dd'),
-        revenue: Math.floor(Math.random() * 50000) + 10000, // Random 10k-60k revenue
-        bookings: Math.floor(Math.random() * 5) + 1 // Random 1-5 bookings
-      }));
-      dailyRevenue.splice(0, dailyRevenue.length, ...sampleDailyRevenue);
-    }
+    // Only show bookings within the selected time range - no fallback to all bookings
+    // If there's no revenue in the selected period, show empty chart (already handled by dailyRevenue calculation)
 
     // Status breakdown
     const statusBreakdown = {

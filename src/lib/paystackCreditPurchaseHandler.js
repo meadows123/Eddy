@@ -1,4 +1,5 @@
 import { initializePaystackPayment } from './api';
+import { getPaystackCallbackUrl } from './urlUtils';
 
 /**
  * Initiates a credit purchase payment through Paystack
@@ -48,6 +49,10 @@ export const initiateCreditPurchasePayment = async ({
 
     console.log('📦 Credit purchase metadata:', metadata);
 
+    // Generate mobile-friendly callback URL
+    const callbackUrl = getPaystackCallbackUrl('/credit-purchase-callback');
+    console.log('🔗 Credit purchase callback URL:', callbackUrl);
+
     // Call Paystack initialization
     const result = await initializePaystackPayment({
       email,
@@ -55,17 +60,18 @@ export const initiateCreditPurchasePayment = async ({
       metadata,
       fullName,
       phone,
-      userId
+      userId,
+      callbackUrl // Pass mobile-friendly callback URL
     });
 
     console.log('✅ Credit purchase payment initialized:', {
-      hasAuthUrl: !!result.authorizationUrl,
-      reference: result.reference
+      hasAuthUrl: !!result.data?.authorization_url,
+      reference: result.data?.reference || result.reference
     });
 
     // Store payment details in session for later verification
     const paymentData = {
-      reference: result.reference,
+      reference: result.data?.reference || result.reference,
       email,
       amount,
       venueId,
@@ -78,7 +84,12 @@ export const initiateCreditPurchasePayment = async ({
     sessionStorage.setItem('paystack_credit_purchase', JSON.stringify(paymentData));
     console.log('💾 Credit purchase payment data stored in session');
 
-    return result;
+    // Return transformed result to match expected structure
+    return {
+      ...result,
+      authorizationUrl: result.data?.authorization_url,
+      reference: result.data?.reference || result.reference
+    };
   } catch (error) {
     console.error('❌ Credit purchase payment initialization error:', error);
     throw error;

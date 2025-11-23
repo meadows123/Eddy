@@ -238,10 +238,10 @@ const SplitPaymentSuccessPage = () => {
               tableName: bookingData.table?.table_type,
               tableNumber: bookingData.table?.table_number,
               
-              // Venue details
-              venueName: bookingData.venues?.name,
-              venueAddress: bookingData.venues?.address,
-              venuePhone: bookingData.venues?.contact_phone,
+              // Venue details - ensure venue name is always set
+              venueName: bookingData.venues?.name || 'Your Venue',
+              venueAddress: bookingData.venues?.address || 'Address not available',
+              venuePhone: bookingData.venues?.contact_phone || 'N/A',
               
               // NO QR CODE - removed per user request
               // QR codes are only sent when all payments are complete
@@ -258,17 +258,21 @@ const SplitPaymentSuccessPage = () => {
               qrCodeUrl: emailData.qrCodeUrl
             });
 
+            // Ensure venue name is available for subject line
+            const venueNameForSubject = bookingData.venues?.name || emailData.venueName || 'Your Venue';
+            
             console.log('📧 SENDING INDIVIDUAL CONFIRMATION EMAIL NOW:', {
               to: recipientData.email,
               template: 'split-payment-confirmation',
-              subject: `Split Payment Confirmed - ${bookingData.venues?.name || 'Your Venue'}`
+              subject: `Split Payment Confirmed - ${venueNameForSubject}`,
+              venueName: venueNameForSubject
             });
 
             // Send confirmation email via Edge Function
             const { data: emailResult, error: emailError } = await supabase.functions.invoke('send-email', {
               body: {
                 to: recipientData.email,
-                subject: `Split Payment Confirmed - ${bookingData.venues?.name || 'Your Venue'}`,
+                subject: `Split Payment Confirmed - ${venueNameForSubject}`,
                 template: 'split-payment-confirmation',
                 data: emailData
               }
@@ -467,21 +471,61 @@ const SplitPaymentSuccessPage = () => {
           }
         }
         
+        // Ensure venue data is always available - fetch again if missing
+        if (!venueData && simpleBooking?.venue_id) {
+          console.log('⚠️ Venue data missing, fetching again...');
+          try {
+            const { data: retryVenue, error: retryVenueError } = await supabase
+              .from('venues')
+              .select('*')
+              .eq('id', simpleBooking.venue_id)
+              .single();
+            
+            if (!retryVenueError && retryVenue) {
+              venueData = retryVenue;
+              console.log('✅ Venue data fetched on retry:', venueData?.name);
+            } else {
+              console.error('❌ Failed to fetch venue on retry:', retryVenueError);
+              // Create a fallback venue object to prevent undefined errors
+              venueData = {
+                id: simpleBooking.venue_id,
+                name: 'Your Venue',
+                address: 'Address not available',
+                contact_phone: 'N/A'
+              };
+            }
+          } catch (err) {
+            console.error('❌ Exception fetching venue on retry:', err);
+            // Create a fallback venue object
+            venueData = {
+              id: simpleBooking.venue_id,
+              name: 'Your Venue',
+              address: 'Address not available',
+              contact_phone: 'N/A'
+            };
+          }
+        }
+        
         // Create booking data object with separately fetched data
         console.log('🔧 About to create completionBookingData with:', {
           hasSimpleBooking: !!simpleBooking,
           hasVenueData: !!venueData,
+          venueName: venueData?.name,
           hasProfileData: !!profileData
         });
         
         completionBookingData = {
           ...simpleBooking,
-          venues: venueData,
+          venues: venueData || { name: 'Your Venue', address: 'Address not available' }, // Ensure venues is never null
           profiles: profileData,
           tables: tableData
         };
         
-        console.log('🔧 completionBookingData created:', completionBookingData);
+        console.log('🔧 completionBookingData created:', {
+          bookingId: completionBookingData.id,
+          venueName: completionBookingData.venues?.name,
+          hasVenue: !!completionBookingData.venues
+        });
         console.log('✅ Booking data for completion email:', completionBookingData);
         
         // Fetch venue owner data separately (only if we have venue data)
@@ -611,10 +655,10 @@ const SplitPaymentSuccessPage = () => {
             tableLocation: 'Prime location',
             tableFeatures: 'Premium features',
             
-            // Venue details
-            venueName: completionBookingData.venues?.name,
-            venueAddress: completionBookingData.venues?.address,
-            venuePhone: completionBookingData.venues?.contact_phone,
+            // Venue details - ensure venue name is always set
+            venueName: completionBookingData.venues?.name || venueData?.name || 'Your Venue',
+            venueAddress: completionBookingData.venues?.address || venueData?.address || 'Address not available',
+            venuePhone: completionBookingData.venues?.contact_phone || venueData?.contact_phone || 'N/A',
             
             // Special requests
             specialRequests: completionBookingData.special_requests || 'None specified',
@@ -799,7 +843,7 @@ const SplitPaymentSuccessPage = () => {
                   data: {
                     ownerEmail: venueOwnerEmail !== 'info@oneeddy.com' ? venueOwnerEmail : '', // Empty string if placeholder, so Edge Function will look it up
                     venueId: completionBookingData.venue_id, // Required for Edge Function to look up venue owner if ownerEmail is missing
-                    venueName: completionBookingData.venues?.name || 'Venue',
+                    venueName: completionBookingData.venues?.name || venueData?.name || 'Your Venue',
                     customerName: `${completionBookingData.profiles?.first_name || ''} ${completionBookingData.profiles?.last_name || ''}`.trim() || 'Guest',
                     customerEmail: completionBookingData.profiles?.email || 'guest@example.com',
                     customerPhone: completionBookingData.profiles?.phone || 'N/A',
@@ -951,10 +995,10 @@ const SplitPaymentSuccessPage = () => {
                 tableLocation: 'Prime location',
                 tableFeatures: 'Premium features',
                 
-                // Venue details
-                venueName: completionBookingData.venues?.name,
-                venueAddress: completionBookingData.venues?.address,
-                venuePhone: completionBookingData.venues?.contact_phone,
+                // Venue details - ensure venue name is always set
+                venueName: completionBookingData.venues?.name || venueData?.name || 'Your Venue',
+                venueAddress: completionBookingData.venues?.address || venueData?.address || 'Address not available',
+                venuePhone: completionBookingData.venues?.contact_phone || venueData?.contact_phone || 'N/A',
                 
                 // Special requests
                 specialRequests: completionBookingData.special_requests || 'None specified',
@@ -984,10 +1028,14 @@ const SplitPaymentSuccessPage = () => {
                 const fullTotalAmount = requests?.reduce((sum, req) => sum + (Number(req.amount) || 0), 0) || completionBookingData.total_amount;
                 
                 // Update email data with calculated total and include QR code
+                // Ensure venue name is always set
                 const lastPayerCompletionEmailData = {
                   ...lastPayerEmailData,
                   totalAmount: fullTotalAmount,
                   paymentAmount: Number(lastPayment.amount) || 0,
+                  venueName: completionBookingData.venues?.name || venueData?.name || 'Your Venue', // Ensure venue name is always set
+                  venueAddress: completionBookingData.venues?.address || venueData?.address || 'Address not available',
+                  venuePhone: completionBookingData.venues?.contact_phone || venueData?.contact_phone || 'N/A',
                   // Include QR code for venue entry scanning
                   qrCodeImage: lastPayerEmailData.qrCodeImage,
                   qrCodeUrl: lastPayerEmailData.qrCodeUrl
@@ -1001,7 +1049,7 @@ const SplitPaymentSuccessPage = () => {
                   },
                   body: JSON.stringify({
                     to: lastPayerProfile.email,
-                    subject: `All Payments Confirmed! - ${completionBookingData.venues?.name || 'Your Venue'}`,
+                    subject: `All Payments Confirmed! - ${completionBookingData.venues?.name || venueData?.name || 'Your Venue'}`,
                     template: 'split-payment-confirmation',
                     data: lastPayerCompletionEmailData
                   })
@@ -1074,7 +1122,7 @@ const SplitPaymentSuccessPage = () => {
                     },
                     body: JSON.stringify({
                       to: initiatorEmail,
-                      subject: `All Payments Confirmed! - ${completionBookingData.venues?.name || 'Your Venue'}`,
+                      subject: `All Payments Confirmed! - ${completionBookingData.venues?.name || venueData?.name || 'Your Venue'}`,
                       template: 'split-payment-confirmation',
                       data: {
                         email: initiatorEmail,
@@ -1087,9 +1135,9 @@ const SplitPaymentSuccessPage = () => {
                         guestCount: completionBookingData.number_of_guests,
                         totalAmount: fullTotalAmount,
                         paymentAmount: initiatorPaymentAmount,
-                        venueName: completionBookingData.venues?.name,
-                        venueAddress: completionBookingData.venues?.address,
-                        venuePhone: completionBookingData.venues?.contact_phone,
+                        venueName: completionBookingData.venues?.name || venueData?.name || 'Your Venue', // Ensure venue name is always set
+                        venueAddress: completionBookingData.venues?.address || venueData?.address || 'Address not available',
+                        venuePhone: completionBookingData.venues?.contact_phone || venueData?.contact_phone || 'N/A',
                         // Include QR code for venue entry scanning - ensure we always pass a string URL
                         qrCodeImage: initiatorQrCodeImage?.externalUrl || initiatorQrCodeImage?.base64 || '',
                         qrCodeUrl: initiatorQrCodeImage?.externalUrl || initiatorQrCodeImage?.base64 || '',
@@ -1150,7 +1198,7 @@ const SplitPaymentSuccessPage = () => {
                         },
                         body: JSON.stringify({
                           to: recipientProfile.email,
-                          subject: `All Payments Confirmed! - ${completionBookingData.venues?.name || 'Your Venue'}`,
+                          subject: `All Payments Confirmed! - ${completionBookingData.venues?.name || venueData?.name || 'Your Venue'}`,
                           template: 'split-payment-confirmation',
                           data: {
                             email: recipientProfile.email,
@@ -1162,8 +1210,9 @@ const SplitPaymentSuccessPage = () => {
                             bookingTime: completionBookingData.start_time,
                             guestCount: completionBookingData.number_of_guests,
                             totalAmount: fullTotalAmount,
-                            venueName: completionBookingData.venues?.name,
-                            venueAddress: completionBookingData.venues?.address,
+                            venueName: completionBookingData.venues?.name || venueData?.name || 'Your Venue', // Ensure venue name is always set
+                            venueAddress: completionBookingData.venues?.address || venueData?.address || 'Address not available',
+                            venuePhone: completionBookingData.venues?.contact_phone || venueData?.contact_phone || 'N/A',
                             paymentAmount: request.amount,
                             // Include QR code for venue entry scanning - ensure we always pass a string URL
                             qrCodeImage: recipientQrCodeImage?.externalUrl || recipientQrCodeImage?.base64 || '',

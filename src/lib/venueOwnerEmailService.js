@@ -404,42 +404,59 @@ export const notifyAdminOfVenueOwnerRegistration = async (venueOwnerData) => {
   try {
     console.log('🔄 Notifying admin of venue owner registration');
     
-    // Try Edge Function first
-    const { data, error } = await supabase.functions.invoke('send-email', {
-      body: {
+    const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://agydpkzfucicraedllgl.supabase.co';
+    const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+    
+    // Try Edge Function first using fetch (same pattern as other email calls)
+    const emailResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      },
+      body: JSON.stringify({
+        to: 'info@oneeddy.com',
         template: 'admin-venue-owner-registration',
+        subject: 'New Venue Owner Registration - Action Required',
         data: {
-          adminEmail: 'info@oneeddy.com', // Replace with your admin email
-          ownerName: venueOwnerData.owner_name,
+          adminEmail: 'info@oneeddy.com',
+          ownerName: venueOwnerData.owner_name || venueOwnerData.full_name,
           email: venueOwnerData.email,
-          phone: venueOwnerData.phone,
+          phone: venueOwnerData.phone || 'Not provided',
           venueName: venueOwnerData.venue_name,
-          venueType: venueOwnerData.venue_type,
-          venueAddress: venueOwnerData.venue_address,
-          venueCity: venueOwnerData.venue_city,
-          viewUrl: `https://www.oneeddy.com/admin/venue-approvals`
+          venueType: venueOwnerData.venue_type || 'Not specified',
+          venueAddress: venueOwnerData.venue_address || 'Not provided',
+          venueCity: venueOwnerData.venue_city || 'Not provided',
+          viewUrl: 'https://www.oneeddy.com/admin/venue-approvals'
         }
-      }
+      })
     });
 
-    if (error) {
-      console.warn('⚠️ Edge Function failed, trying EmailJS fallback...', error);
-      throw error; // This will trigger the fallback
+    if (!emailResponse.ok) {
+      const errorData = await emailResponse.json().catch(() => ({}));
+      console.warn('⚠️ Edge Function failed, trying EmailJS fallback...', {
+        status: emailResponse.status,
+        error: errorData
+      });
+      throw new Error(`Edge Function failed: ${emailResponse.status}`);
     }
 
-    console.log('✅ Admin notification sent successfully via Edge Function:', data);
-    return data;
+    const responseData = await emailResponse.json().catch(() => ({}));
+    console.log('✅ Admin notification sent successfully via Edge Function');
+    return responseData;
   } catch (error) {
     console.log('🔄 Falling back to EmailJS for admin notification...');
     
-    // Fallback to EmailJS
+    // Fallback to EmailJS - but don't throw if it fails, just log
     try {
       const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
       const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_VENUE_OWNER_REQUEST_TEMPLATE;
       const PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
       
       if (!SERVICE_ID || !TEMPLATE_ID || !PUBLIC_KEY) {
-        throw new Error('EmailJS configuration missing');
+        console.warn('⚠️ EmailJS configuration missing - admin notification email will not be sent');
+        // Don't throw - just return silently so registration can continue
+        return { success: false, reason: 'EmailJS configuration missing' };
       }
       
       // Initialize EmailJS
@@ -451,14 +468,14 @@ export const notifyAdminOfVenueOwnerRegistration = async (venueOwnerData) => {
         to_name: 'Admin',
         from_name: 'VIPClub System',
         subject: 'New Venue Owner Registration',
-        ownerName: venueOwnerData.owner_name,
+        ownerName: venueOwnerData.owner_name || venueOwnerData.full_name,
         ownerEmail: venueOwnerData.email,
         ownerPhone: venueOwnerData.phone || 'Not provided',
         venueName: venueOwnerData.venue_name,
         venueType: venueOwnerData.venue_type || 'Restaurant',
-        venueAddress: venueOwnerData.venue_address,
-        venueCity: venueOwnerData.venue_city,
-        viewUrl: 'https://www.oneeddy.com/admin/venue-approvals', // Add the admin dashboard URL
+        venueAddress: venueOwnerData.venue_address || 'Not provided',
+        venueCity: venueOwnerData.venue_city || 'Not provided',
+        viewUrl: 'https://www.oneeddy.com/admin/venue-approvals',
         applicationDate: new Date().toLocaleDateString('en-US', {
           weekday: 'long',
           year: 'numeric',
@@ -467,11 +484,12 @@ export const notifyAdminOfVenueOwnerRegistration = async (venueOwnerData) => {
         })
       });
       
-      console.log('✅ Admin notification sent via EmailJS fallback:', result);
+      console.log('✅ Admin notification sent via EmailJS fallback');
       return result;
     } catch (fallbackError) {
-      console.error('❌ Both Edge Function and EmailJS fallback failed:', fallbackError);
-      throw fallbackError;
+      // Don't throw - just log and return silently so registration can continue
+      console.warn('⚠️ EmailJS fallback also failed - admin notification email will not be sent:', fallbackError.message);
+      return { success: false, reason: 'Both methods failed' };
     }
   }
 };

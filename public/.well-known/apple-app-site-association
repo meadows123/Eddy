@@ -11,7 +11,8 @@
           "/profile/*",
           "/checkout/*",
           "/paystack-callback*",
-          "/split-payment-callback*"
+          "/split-payment-callback*",
+          "/credit-purchase-callback*"
         ]
       }
     ]

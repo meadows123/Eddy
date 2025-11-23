@@ -806,6 +806,15 @@ const CreditPurchaseCheckout = () => {
 
                             const authUrl = result.data?.authorization_url || result.authorizationUrl;
                             if (authUrl) {
+                              // Store callback path in sessionStorage before redirecting (for deep link handling)
+                              const callbackPath = '/credit-purchase-callback';
+                              const reference = result.data?.reference || result.reference;
+                              if (reference) {
+                                sessionStorage.setItem('paystack_callback_path', callbackPath);
+                                sessionStorage.setItem('paystack_callback_reference', reference);
+                                console.log('💾 Stored callback path before redirect:', callbackPath, 'Reference:', reference);
+                              }
+                              console.log('🚀 Redirecting to Paystack:', authUrl);
                               window.location.href = authUrl;
                             } else {
                               console.error('❌ Missing auth URL in response:', result);

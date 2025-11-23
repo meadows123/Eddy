@@ -24,58 +24,113 @@
 		<script src="/app-redirect.js"></script>
 		<!-- Immediate redirect for Paystack callbacks on mobile -->
 		<script>
+			// FORCE LOG AT PAGE LOAD - this should ALWAYS run
+			console.log('🔥🔥🔥 INLINE SCRIPT LOADED - PAGE:', window.location.href);
+			console.log('🔥🔥🔥 Pathname:', window.location.pathname);
+			console.log('🔥🔥🔥 Search:', window.location.search);
+			
 			(function() {
 				try {
 					// Only run on callback pages
 					const isCallbackPage = window.location.pathname.includes('paystack-callback') || 
-					                      window.location.pathname.includes('split-payment-callback');
+					                      window.location.pathname.includes('split-payment-callback') ||
+					                      window.location.pathname.includes('credit-purchase-callback');
 					
-					if (!isCallbackPage) return;
+					console.log('🔍 Inline script check:', {
+						pathname: window.location.pathname,
+						isCallbackPage: isCallbackPage,
+						url: window.location.href
+					});
+					
+					if (!isCallbackPage) {
+						console.log('⏸️ Not a callback page, skipping redirect logic');
+						return;
+					}
 					
 					// Check if we're on mobile but NOT in the app
 					const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 					const isInApp = window.Capacitor || window.cordova || window.ionic;
 					
-					if (isMobile && !isInApp) {
+					console.log('🔍 Inline script redirect check:', {
+						isMobile: isMobile,
+						isInApp: isInApp,
+						shouldRedirect: isMobile && !isInApp
+					});
+					
+					// ALWAYS try to redirect if we're on a callback page and on mobile
+					// Even if we're in the app, we want to ensure the deep link works
+					if (isMobile) {
 						const currentPath = window.location.pathname;
 						const query = window.location.search;
 						const fullPath = currentPath + query;
 						
+						console.log('🚨 INLINE SCRIPT: Mobile detected, attempting redirect:', {
+							fullPath: fullPath,
+							isInApp: isInApp,
+							userAgent: navigator.userAgent
+						});
+						
 						// Build app deep link
 						const appUrl = 'com.oneeddy.members://' + fullPath.substring(1); // Remove leading /
 						
-						// For Android, use Intent URL
+						// For Android, use Intent URL (works even if already in app)
 						if (/Android/i.test(navigator.userAgent)) {
 							const intentUrl = 'intent://oneeddy.com' + fullPath + '#Intent;scheme=https;package=com.oneeddy.members;end';
+							console.log('🚨 INLINE SCRIPT: Android Intent URL:', intentUrl);
+							console.log('🚨 INLINE SCRIPT: Attempting redirect NOW...');
+							
 							// Try Intent URL first - this should open the app immediately
-							window.location.replace(intentUrl);
-							// Also try custom scheme as fallback
+							try {
+								window.location.href = intentUrl; // Use href instead of replace for better compatibility
+							} catch (e) {
+								console.error('❌ Intent URL failed, trying custom scheme:', e);
+								window.location.href = appUrl;
+							}
+							
+							// Also try custom scheme as fallback after a short delay
 							setTimeout(function() {
-								window.location.replace(appUrl);
-							}, 300);
+								console.log('🚨 INLINE SCRIPT: Android fallback custom scheme:', appUrl);
+								try {
+									window.location.href = appUrl;
+								} catch (e) {
+									console.error('❌ Custom scheme also failed:', e);
+								}
+							}, 500);
 						} else {
 							// For iOS, try custom scheme
-							window.location.replace(appUrl);
+							console.log('🚨 INLINE SCRIPT: iOS custom scheme:', appUrl);
+							try {
+								window.location.href = appUrl;
+							} catch (e) {
+								console.error('❌ iOS custom scheme failed:', e);
+							}
 						}
+						
+						// If we're already in app, log but still allow redirect attempt (it will just reload the page)
+						if (isInApp) {
+							console.log('✅ INLINE SCRIPT: Already in app, redirect will reload page in app');
+						}
+					} else {
+						console.log('⏸️ INLINE SCRIPT: Not mobile, skipping redirect');
 					}
 				} catch (e) {
-					// Silently fail - let the page load normally
-					console.error('Redirect error:', e);
+					// Log error but let page load
+					console.error('❌ Inline script redirect error:', e);
 				}
 			})();
 		</script>
-		<script type="module" crossorigin src="/assets/index-ac11ae6b.js"></script>
+		<script type="module" crossorigin src="/assets/index-040c9051.js"></script>
 		<link rel="stylesheet" href="/assets/index-86fbd4ce.css">
 	</head>
 	<body>
 		<div id="root">
-			<!-- Fallback content - shows immediately if React hasn't loaded -->
-			<div style="display: flex; align-items: center; justify-content: center; min-height: 100vh; background: #f3f4f6; font-family: system-ui, -apple-system, sans-serif; padding: 20px;">
+			<!-- Fallback content - only shows on callback pages, otherwise shows generic loading -->
+			<div id="fallback-loading-screen" style="display: none; align-items: center; justify-content: center; min-height: 100vh; background: #f3f4f6; font-family: system-ui, -apple-system, sans-serif; padding: 20px;">
 				<div style="text-align: center; max-width: 400px;">
-					<div style="font-size: 18px; font-weight: 600; color: #1f2937; margin-bottom: 8px;">Loading Payment Verification...</div>
-					<div style="font-size: 14px; color: #6b7280; margin-bottom: 16px;">Please wait while we verify your payment</div>
+					<div id="fallback-title" style="font-size: 18px; font-weight: 600; color: #1f2937; margin-bottom: 8px;">Loading...</div>
+					<div id="fallback-message" style="font-size: 14px; color: #6b7280; margin-bottom: 16px;"></div>
 					<div style="width: 40px; height: 40px; border: 4px solid #e5e7eb; border-top-color: #3b82f6; border-radius: 50%; margin: 0 auto; animation: spin 1s linear infinite;"></div>
-					<div style="margin-top: 24px; padding: 12px; background: #f9fafb; border-radius: 8px; font-size: 12px; color: #4b5563; text-align: left;">
+					<div id="fallback-debug" style="display: none; margin-top: 24px; padding: 12px; background: #f9fafb; border-radius: 8px; font-size: 12px; color: #4b5563; text-align: left;">
 						<div><strong>URL:</strong> <span id="fallback-url"></span></div>
 						<div style="margin-top: 8px;"><strong>Status:</strong> <span id="fallback-status">Initializing...</span></div>
 					</div>
@@ -87,16 +142,40 @@
 				}
 			</style>
 			<script>
-				// Update fallback display immediately
+				// Only show fallback loading screen on callback pages
 				(function() {
 					try {
-						document.getElementById('fallback-url').textContent = window.location.href.substring(0, 80) + '...';
-						document.getElementById('fallback-status').textContent = 'Page loaded, waiting for React...';
+						const isCallbackPage = window.location.pathname.includes('paystack-callback') || 
+						                      window.location.pathname.includes('split-payment-callback') ||
+						                      window.location.pathname.includes('credit-purchase-callback');
 						
-						// Check if we're in the app
-						const isInApp = window.Capacitor || window.cordova || window.ionic;
-						if (isInApp) {
-							document.getElementById('fallback-status').textContent = 'In app - React should load soon...';
+						const fallbackScreen = document.getElementById('fallback-loading-screen');
+						
+						if (isCallbackPage && fallbackScreen) {
+							// Show callback-specific message
+							fallbackScreen.style.display = 'flex';
+							const titleEl = document.getElementById('fallback-title');
+							const messageEl = document.getElementById('fallback-message');
+							const debugEl = document.getElementById('fallback-debug');
+							
+							if (titleEl) titleEl.textContent = 'Loading Payment Verification...';
+							if (messageEl) messageEl.textContent = 'Please wait while we verify your payment';
+							if (debugEl) {
+								debugEl.style.display = 'block';
+								const urlEl = document.getElementById('fallback-url');
+								const statusEl = document.getElementById('fallback-status');
+								if (urlEl) urlEl.textContent = window.location.href.substring(0, 80) + '...';
+								if (statusEl) statusEl.textContent = 'Page loaded, waiting for React...';
+								
+								// Check if we're in the app
+								const isInApp = window.Capacitor || window.cordova || window.ionic;
+								if (isInApp && statusEl) {
+									statusEl.textContent = 'In app - React should load soon...';
+								}
+							}
+						} else if (fallbackScreen) {
+							// Don't show fallback screen for non-callback pages
+							fallbackScreen.style.display = 'none';
 						}
 						
 						// Hide fallback when React mounts (it will replace #root content)
@@ -104,9 +183,8 @@
 							const root = document.getElementById('root');
 							if (root && root.children.length > 1) {
 								// React has mounted, hide fallback
-								const fallback = root.querySelector('div[style*="Loading Payment Verification"]');
-								if (fallback) {
-									fallback.style.display = 'none';
+								if (fallbackScreen) {
+									fallbackScreen.style.display = 'none';
 								}
 								observer.disconnect();
 							}

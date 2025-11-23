@@ -113,7 +113,9 @@ const SplitPaymentCallbackPage = () => {
         console.log('📝 Processing split payment callback with reference:', reference);
 
         // Verify payment with Paystack
-        const verifyData = await verifySplitPaystackPayment(reference);
+        // Declare verifyData outside try block to ensure it's in scope throughout the function
+        let verifyData;
+        verifyData = await verifySplitPaystackPayment(reference);
         console.log('✅ Payment verification response:', {
           status: verifyData.data?.status,
           amount: verifyData.data?.amount,

@@ -79,6 +79,99 @@ const [locationLoading, setLocationLoading] = useState(true);
 const [showLocationOverride, setShowLocationOverride] = useState(false);
 
 
+// Detect if we're coming back from Paystack and redirect to callback page
+useEffect(() => {
+  const checkForPaystackCallback = () => {
+    const currentUrl = window.location.href;
+    const urlParams = new URLSearchParams(window.location.search);
+    const reference = urlParams.get('reference') || urlParams.get('trxref');
+    
+    // If we're on checkout page but URL has Paystack callback parameters, navigate to callback page
+    if (location.pathname.includes('/checkout') && reference) {
+      // Determine callback path from URL or default to regular payment
+      let callbackPath = '/paystack-callback';
+      let callbackType = 'Paystack';
+      if (currentUrl.includes('/split-payment-callback')) {
+        callbackPath = '/split-payment-callback';
+        callbackType = 'split-payment';
+      } else if (currentUrl.includes('/credit-purchase-callback')) {
+        callbackPath = '/credit-purchase-callback';
+        callbackType = 'credit-purchase';
+      }
+      console.log(`🔄 Detected ${callbackType} callback parameters on checkout page, redirecting to callback page...`);
+      console.log('Reference:', reference);
+      setIsSubmitting(false); // Reset submitting state
+      navigate(`${callbackPath}?reference=${reference}${urlParams.toString().includes('status') ? '&' + urlParams.toString().split('&').find(p => p.includes('status')) : ''}`, { replace: true });
+      return;
+    }
+    
+    // Also check if URL path is paystack-callback, split-payment-callback, or credit-purchase-callback but we're still on checkout (shouldn't happen but just in case)
+    if (currentUrl.includes('/paystack-callback') || currentUrl.includes('/split-payment-callback') || currentUrl.includes('/credit-purchase-callback')) {
+      let callbackPath = '/paystack-callback';
+      let callbackType = 'paystack';
+      let splitString = '/paystack-callback';
+      if (currentUrl.includes('/split-payment-callback')) {
+        callbackPath = '/split-payment-callback';
+        callbackType = 'split-payment';
+        splitString = '/split-payment-callback';
+      } else if (currentUrl.includes('/credit-purchase-callback')) {
+        callbackPath = '/credit-purchase-callback';
+        callbackType = 'credit-purchase';
+        splitString = '/credit-purchase-callback';
+      }
+      const pathAfterCallback = currentUrl.split(splitString)[1] || '';
+      console.log(`🔄 Detected ${callbackType}-callback in URL, navigating...`);
+      setIsSubmitting(false);
+      navigate(`${callbackPath}${pathAfterCallback}`, { replace: true });
+    }
+  };
+  
+  checkForPaystackCallback();
+  
+  // Also listen for Capacitor app URL open events (when app is opened via deep link)
+  if (typeof window !== 'undefined' && window.Capacitor) {
+    // Use dynamic import instead of require
+    import('@capacitor/app').then(({ App }) => {
+      const handleAppUrlOpen = (data) => {
+        console.log('📱 App opened with URL:', data.url);
+        if (data.url && (data.url.includes('/paystack-callback') || data.url.includes('/split-payment-callback') || data.url.includes('/credit-purchase-callback'))) {
+          let callbackType = 'Paystack';
+          if (data.url.includes('/split-payment-callback')) callbackType = 'split-payment';
+          else if (data.url.includes('/credit-purchase-callback')) callbackType = 'credit-purchase';
+          console.log(`🔄 Detected ${callbackType} callback in app URL open event`);
+          setIsSubmitting(false);
+          // Extract the path and query from the URL
+          const url = new URL(data.url);
+          navigate(`${url.pathname}${url.search}`, { replace: true });
+        }
+      };
+      
+      App.addListener('appUrlOpen', handleAppUrlOpen);
+      
+      // Also check launch URL
+      App.getLaunchUrl().then(({ url }) => {
+        if (url && (url.includes('/paystack-callback') || url.includes('/split-payment-callback') || url.includes('/credit-purchase-callback'))) {
+          let callbackType = 'Paystack';
+          if (url.includes('/split-payment-callback')) callbackType = 'split-payment';
+          else if (url.includes('/credit-purchase-callback')) callbackType = 'credit-purchase';
+          console.log(`🔄 Detected ${callbackType} callback in launch URL:`, url);
+          setIsSubmitting(false);
+          const urlObj = new URL(url);
+          navigate(`${urlObj.pathname}${urlObj.search}`, { replace: true });
+        }
+      }).catch(() => {
+        // No launch URL or error - that's fine
+      });
+      
+      return () => {
+        App.removeAllListeners();
+      };
+    }).catch((error) => {
+      console.warn('Could not load Capacitor App module in CheckoutPage:', error);
+    });
+  }
+}, [location.pathname, navigate]);
+
 // Detect user location and payment processor
 useEffect(() => {
   const initializeLocation = async () => {

@@ -11,10 +11,8 @@ import { redirectToMobileApp } from '@/lib/urlUtils';
 import { App } from '@capacitor/app';
 
 const PaystackCallbackPage = () => {
-  // FORCE LOG AT COMPONENT START
-  console.log('🚀 PAYSTACK CALLBACK PAGE COMPONENT LOADED - REACT IS WORKING');
-  console.log('Current URL:', window.location.href);
-  console.log('Current time:', new Date().toISOString());
+  // Log component load (reduced logging for production)
+  console.log('Paystack callback page loaded');
 
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -33,6 +31,24 @@ const PaystackCallbackPage = () => {
   useEffect(() => {
     verificationStartedRef.current = false;
     setDebugLogs(prev => [...prev, 'Component mounted - reset verification']);
+    
+    // AGGRESSIVE: Check if we're actually on the callback URL
+    const currentUrl = window.location.href;
+    const currentPath = window.location.pathname;
+    console.log('🔍 PaystackCallbackPage mount check:', {
+      currentUrl,
+      currentPath,
+      shouldBeHere: currentPath.includes('/paystack-callback') || currentUrl.includes('/paystack-callback')
+    });
+    
+    // If we're not on the callback path but URL suggests we should be, log it
+    if (!currentPath.includes('/paystack-callback') && currentUrl.includes('/paystack-callback')) {
+      console.error('⚠️ WARNING: PaystackCallbackPage loaded but pathname is wrong!', {
+        pathname: currentPath,
+        fullUrl: currentUrl
+      });
+      addDebugLog('WARNING: Path mismatch detected');
+    }
   }, []);
 
   // Helper function to add debug logs (visible on screen)
@@ -43,13 +59,7 @@ const PaystackCallbackPage = () => {
     console.log(logMessage);
   };
 
-  console.log('🔄 PaystackCallbackPage Component Mounted');
-  console.log('🔍 Initial state:', {
-    url: window.location.href,
-    search: window.location.search,
-    pathname: window.location.pathname,
-    isInApp: typeof window !== 'undefined' && (window.Capacitor || window.cordova || window.ionic)
-  });
+  // Component mounted - minimal logging for production
 
   // Get launch URL and listen for URL changes from Capacitor App plugin (for deep links)
   useEffect(() => {
@@ -254,7 +264,9 @@ const PaystackCallbackPage = () => {
     
     const verifyPayment = async () => {
       addDebugLog('🔥 VERIFYPAYMENT FUNCTION CALLED - STARTING VERIFICATION');
+      console.log('Verification started');
       setVerificationStep('Extracting payment reference...');
+
       try {
         // Paystack sends the reference as 'reference' OR 'trxref' parameter
         // Also check URL directly in case deep link format is different
@@ -334,9 +346,10 @@ const PaystackCallbackPage = () => {
         setVerificationStep('Calling Paystack verification API...');
         addDebugLog('Calling Paystack verification API...');
 
+        let verifyData;
         try {
           console.log('🔗 About to call verifyPaystackPayment with reference:', reference);
-          const verifyData = await callVerify(reference);
+          verifyData = await callVerify(reference);
           console.log('✅ API call succeeded:', verifyData);
           addDebugLog(`Verification response: status=${verifyData.data?.status}`);
         } catch (apiError) {
@@ -665,6 +678,7 @@ const PaystackCallbackPage = () => {
           console.error('⚠️ Error sending venue owner email:', error);
         }
 
+        console.log('🎉 VERIFICATION COMPLETED SUCCESSFULLY');
       } catch (error) {
         // Get reference for error reporting (try multiple methods)
         const urlParams = new URLSearchParams(window.location.search);
@@ -749,55 +763,13 @@ const PaystackCallbackPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center p-4">
-      {/* HUGE BANNER - Always visible to confirm component loaded */}
-      <div className="fixed top-0 left-0 right-0 bg-red-600 text-white p-2 text-center text-sm font-bold z-50">
-        🔴 PAYSTACK CALLBACK PAGE LOADED - React is Working! 🔴
-      </div>
-      
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.3 }}
-        className="w-full max-w-md mt-12"
+        className="w-full max-w-md"
       >
         <Card className="p-8">
-          {/* ALWAYS VISIBLE DEBUG PANEL AT TOP */}
-          <div className="mb-4 p-4 bg-yellow-50 border-2 border-yellow-300 rounded-lg text-left text-sm text-gray-800">
-            <p className="font-bold text-yellow-800 mb-2">🔍 DEBUG INFO (Always Visible):</p>
-            <p><strong>Current Step:</strong> <span className="text-blue-600">{verificationStep}</span></p>
-            <p><strong>Reference:</strong> <span className="text-purple-600">{(() => {
-              const urlParams = new URLSearchParams(window.location.search);
-              let ref = searchParams.get('reference') || 
-                     searchParams.get('trxref') || 
-                     urlParams.get('reference') || 
-                     urlParams.get('trxref') ||
-                     (window.location.href.match(/[?&#](?:reference|trxref)=([^&#]+)/)?.[1]);
-              
-              if (!ref && launchUrl) {
-                try {
-                  const launchUrlObj = new URL(launchUrl);
-                  ref = launchUrlObj.searchParams.get('reference') || launchUrlObj.searchParams.get('trxref');
-                } catch (e) {
-                  const match = launchUrl.match(/[?&#](?:reference|trxref)=([^&#]+)/);
-                  if (match) ref = decodeURIComponent(match[1]);
-                }
-              }
-              
-              return ref || 'Not found';
-            })()}</span></p>
-            <p><strong>Status:</strong> <span className="text-blue-600">{status}</span></p>
-            <p><strong>Verification Started:</strong> <span className={verificationStartedRef.current ? 'text-green-600' : 'text-red-600'}>{verificationStartedRef.current ? 'Yes' : 'No'}</span></p>
-            <p><strong>Recent Logs ({debugLogs.length}):</strong></p>
-            {debugLogs.length > 0 ? (
-              <div className="mt-1 max-h-32 overflow-y-auto bg-white p-2 rounded">
-                {debugLogs.slice(-5).map((log, idx) => (
-                  <p key={idx} className="text-xs text-gray-700 font-mono">{log}</p>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-gray-500 italic">No logs yet...</p>
-            )}
-          </div>
 
           {/* Verifying/Redirecting State */}
           {(status === 'verifying' || isRedirecting) && (

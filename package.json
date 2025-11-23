@@ -45,6 +45,7 @@
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.0.0",
     "date-fns": "^2.30.0",
+    "esbuild": "^0.27.0",
     "framer-motion": "^10.16.4",
     "jsqr": "^1.4.0",
     "lucide-react": "^0.285.0",
