@@ -260,8 +260,8 @@ const SplitPaymentSuccessPage = () => {
               bookingTotal: bookingData.total_amount
             });
 
-            // Ensure venue name is available for subject line (use fetched venue data)
-            const venueNameForSubject = venueDataForEmail?.name || 'Your Venue';
+            // Ensure venue name is always a string (never undefined) for subject line
+            const venueNameForSubject = String(venueDataForEmail?.name || 'Your Venue').trim() || 'Your Venue';
 
             // Debug: Log the email data being sent (NO QR CODE for split payment confirmation)
             const emailData = {
@@ -283,8 +283,8 @@ const SplitPaymentSuccessPage = () => {
               tableName: bookingData.table?.table_type || bookingData.venue_tables?.table_type || 'VIP Table',
               tableNumber: bookingData.table?.table_number || bookingData.venue_tables?.table_number || 'N/A',
               
-              // Venue details - use fetched venue data with fallbacks
-              venueName: venueDataForEmail?.name || 'Your Venue',
+              // Venue details - use fetched venue data with fallbacks (ensure always strings)
+              venueName: String(venueDataForEmail?.name || 'Your Venue').trim() || 'Your Venue',
               venueAddress: venueDataForEmail?.address || 'Address not available',
               venuePhone: venueDataForEmail?.contact_phone || 'N/A',
               
