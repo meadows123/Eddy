@@ -60,32 +60,41 @@ serve(async (req) => {
       data = {};
     }
 
-    // Skip booking-confirmation emails for split payment bookings
+    // Skip booking-confirmation emails for split payment bookings UNLESS all payments are complete
     // Split payments have their own email flow (individual "Split Payment Confirmed" emails)
+    // But when ALL payments are complete, send booking confirmation with QR codes
     if (template === 'booking-confirmation' && data.bookingId) {
       try {
         const { data: splitRequests, error: splitCheckError } = await supabaseClient
           .from('split_payment_requests')
-          .select('id')
-          .eq('booking_id', data.bookingId)
-          .limit(1);
+          .select('id, status')
+          .eq('booking_id', data.bookingId);
         
         // If error checking, log but continue (don't block email sending)
         if (splitCheckError) {
           console.log('⚠️ Error checking for split payments, continuing with email:', splitCheckError);
         } else if (splitRequests && splitRequests.length > 0) {
-          console.log('⏭️ Skipping booking-confirmation email - this is a split payment booking');
-          console.log('✅ Split payments have their own email flow (individual confirmation emails)');
-          return new Response(
-            JSON.stringify({ 
-              success: true, 
-              message: 'Email skipped - split payment booking (has individual confirmation emails)' 
-            }),
-            { 
-              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-              status: 200 
-            }
-          );
+          // Check if all split payments are complete
+          const allPaid = splitRequests.every(req => req.status === 'paid');
+          
+          if (allPaid) {
+            console.log('✅ All split payments complete - sending booking confirmation email with QR codes');
+            // Continue with email sending - don't skip
+          } else {
+            console.log('⏭️ Skipping booking-confirmation email - split payment booking not yet complete');
+            console.log(`📊 Payment status: ${splitRequests.filter(req => req.status === 'paid').length}/${splitRequests.length} paid`);
+            console.log('✅ Split payments have their own email flow (individual confirmation emails)');
+            return new Response(
+              JSON.stringify({ 
+                success: true, 
+                message: 'Email skipped - split payment booking not yet complete (has individual confirmation emails)' 
+              }),
+              { 
+                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                status: 200 
+              }
+            );
+          }
         }
       } catch (error) {
         // If any error occurs, log but continue (don't block email sending)

@@ -988,6 +988,87 @@ const SplitPaymentSuccessPage = () => {
             }
           }
 
+        // Send Booking Confirmed email with QR codes to the initiator/user when all payments are complete
+        if (completionBookingData && completionBookingData.profiles) {
+          console.log('📧 ========== SENDING BOOKING CONFIRMED EMAIL WITH QR CODES ==========');
+          console.log('📧 Sending booking confirmation email to initiator:', completionBookingData.profiles.email);
+          
+          try {
+            // Generate QR code for venue entry
+            console.log('📱 Generating QR code for booking confirmation:', completionBookingData.id);
+            const qrCodeData = await generateVenueEntryQR({
+              id: completionBookingData.id,
+              venue_id: completionBookingData.venue_id,
+              booking_date: completionBookingData.booking_date,
+              start_time: completionBookingData.start_time,
+              end_time: completionBookingData.end_time,
+              number_of_guests: completionBookingData.number_of_guests,
+              table_id: completionBookingData.table_id || null
+            });
+            
+            const qrCodeUrl = qrCodeData?.externalUrl || qrCodeData?.base64 || null;
+            console.log('📱 QR code generated successfully:', qrCodeUrl ? 'Yes' : 'No');
+            
+            // Prepare booking confirmation email data
+            const bookingConfirmationEmailData = {
+              to: completionBookingData.profiles.email,
+              template: 'booking-confirmation',
+              subject: `Booking Confirmed! - ${completionBookingData.venues?.name || 'Your Venue'}`,
+              data: {
+                email: completionBookingData.profiles.email,
+                customerName: `${completionBookingData.profiles.first_name || ''} ${completionBookingData.profiles.last_name || ''}`.trim() || 'Guest',
+                bookingId: completionBookingData.id,
+                bookingDate: new Date(completionBookingData.booking_date).toLocaleDateString(),
+                bookingTime: completionBookingData.start_time,
+                endTime: completionBookingData.end_time,
+                guestCount: completionBookingData.number_of_guests,
+                totalAmount: completionBookingData.total_amount,
+                venueName: completionBookingData.venues?.name || 'Your Venue',
+                venueAddress: completionBookingData.venues?.address || 'Address not available',
+                venuePhone: completionBookingData.venues?.contact_phone || 'N/A',
+                qrCodeImage: qrCodeUrl,
+                qrCodeUrl: qrCodeUrl
+              }
+            };
+            
+            console.log('📧 Booking confirmation email data:', {
+              to: bookingConfirmationEmailData.to,
+              template: bookingConfirmationEmailData.template,
+              hasQrCode: !!bookingConfirmationEmailData.data.qrCodeImage,
+              venueName: bookingConfirmationEmailData.data.venueName
+            });
+            
+            // Send booking confirmation email
+            const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://agydpkzfucicraedllgl.supabase.co';
+            const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+            
+            const bookingConfirmationResponse = await fetch(`${SUPABASE_URL}/functions/v1/send-email`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+              },
+              body: JSON.stringify(bookingConfirmationEmailData)
+            });
+            
+            const bookingConfirmationResponseData = await bookingConfirmationResponse.json().catch(() => ({}));
+            
+            if (bookingConfirmationResponse.ok) {
+              console.log('✅ Booking confirmation email with QR codes sent successfully to:', completionBookingData.profiles.email);
+            } else {
+              console.error('❌ Error sending booking confirmation email:', {
+                status: bookingConfirmationResponse.status,
+                statusText: bookingConfirmationResponse.statusText,
+                data: bookingConfirmationResponseData
+              });
+            }
+          } catch (bookingConfirmationError) {
+            console.error('❌ Exception sending booking confirmation email:', bookingConfirmationError);
+          }
+        } else {
+          console.warn('⚠️ Cannot send booking confirmation email - missing completionBookingData or profiles');
+        }
+
         console.log('✅ Split payment completion emails sent successfully');
         
         // Send confirmation notifications to all parties
