@@ -1877,10 +1877,13 @@ setShowShareDialog(true);
                               splitRequests.unshift(initiatorRequest); // Add to beginning so it's used as primary
 
                               // Send emails to recipients asking them to pay their share
+                              console.log('📧 ========== STARTING SPLIT PAYMENT REQUEST EMAIL SENDING ==========');
                               console.log('📧 Sending split payment request emails to recipients...');
                               console.log(`📧 Recipients count: ${paymentData.splitRecipients?.length || 0}`);
                               console.log(`📧 Split requests count: ${splitRequests.length}`);
                               console.log(`📧 Split requests: ${JSON.stringify(splitRequests.map(r => ({ id: r?.id })))}`);
+                              console.log(`📧 SUPABASE_URL: ${import.meta.env.VITE_SUPABASE_URL}`);
+                              console.log(`📧 SUPABASE_ANON_KEY exists: ${!!import.meta.env.VITE_SUPABASE_ANON_KEY}`);
                               
                               // Validate that we have the right number of requests (initiator + recipients)
                               if (splitRequests.length < paymentData.splitRecipients.length + 1) {
@@ -1889,6 +1892,13 @@ setShowShareDialog(true);
                                   recipientsCount: paymentData.splitRecipients.length,
                                   expectedTotal: paymentData.splitRecipients.length + 1
                                 });
+                                // Don't throw - continue anyway, but log the issue
+                              }
+                              
+                              if (!paymentData.splitRecipients || paymentData.splitRecipients.length === 0) {
+                                console.warn('⚠️ No recipients to send emails to!');
+                              } else {
+                                console.log(`📧 Starting email loop for ${paymentData.splitRecipients.length} recipients`);
                               }
                               
                               for (let i = 0; i < paymentData.splitRecipients.length; i++) {
@@ -1953,16 +1963,49 @@ setShowShareDialog(true);
                                   
                                   console.log(`📧 Email payload for ${recipient.email}:`, emailPayload);
                                   
-                                  const emailResponse = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email`, {
-                                    method: 'POST',
-                                    headers: {
-                                      'Content-Type': 'application/json',
-                                      'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-                                    },
-                                    body: JSON.stringify(emailPayload)
+                                  const emailUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-email`;
+                                  console.log(`📧 About to call Edge Function: ${emailUrl}`);
+                                  console.log(`📧 Request headers:`, {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY ? '***' : 'MISSING'}`
+                                  });
+                                  
+                                  // Add timeout to prevent hanging (10 seconds)
+                                  const controller = new AbortController();
+                                  const timeoutId = setTimeout(() => controller.abort(), 10000);
+                                  
+                                  let emailResponse;
+                                  try {
+                                    emailResponse = await fetch(emailUrl, {
+                                      method: 'POST',
+                                      headers: {
+                                        'Content-Type': 'application/json',
+                                        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+                                      },
+                                      body: JSON.stringify(emailPayload),
+                                      signal: controller.signal
+                                    });
+                                    clearTimeout(timeoutId);
+                                  } catch (fetchError) {
+                                    clearTimeout(timeoutId);
+                                    if (fetchError.name === 'AbortError') {
+                                      throw new Error('Email request timed out after 10 seconds');
+                                    }
+                                    throw fetchError;
+                                  }
+
+                                  console.log(`📧 Email response received:`, {
+                                    ok: emailResponse.ok,
+                                    status: emailResponse.status,
+                                    statusText: emailResponse.statusText
                                   });
 
-                                  const responseData = await emailResponse.json().catch(() => ({}));
+                                  const responseData = await emailResponse.json().catch((err) => {
+                                    console.error(`❌ Failed to parse response JSON:`, err);
+                                    return {};
+                                  });
+                                  
+                                  console.log(`📧 Email response data:`, responseData);
                                   
                                   if (!emailResponse.ok) {
                                     console.error(`❌ Email API error for ${recipient.email}:`, {
@@ -1996,7 +2039,8 @@ setShowShareDialog(true);
                                 }
                               }
                               
-                              console.log('📧 Finished sending split payment request emails to all recipients');
+                              console.log('📧 ========== FINISHED SPLIT PAYMENT REQUEST EMAIL SENDING ==========');
+                              console.log(`📧 Finished sending split payment request emails to all recipients (sent to ${paymentData.splitRecipients?.length || 0} recipients)`);
 
                               // Initiate Paystack payment for initiator
                               const result = await initiateSplitPaystackPayment({
