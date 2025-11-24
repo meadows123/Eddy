@@ -60,6 +60,62 @@ serve(async (req) => {
       data = {};
     }
 
+    // Skip booking-confirmation emails for split payment bookings
+    // Split payments have their own email flow (individual "Split Payment Confirmed" emails)
+    if (template === 'booking-confirmation' && data.bookingId) {
+      try {
+        const { data: splitRequests, error: splitCheckError } = await supabaseClient
+          .from('split_payment_requests')
+          .select('id')
+          .eq('booking_id', data.bookingId)
+          .limit(1);
+        
+        // If error checking, log but continue (don't block email sending)
+        if (splitCheckError) {
+          console.log('⚠️ Error checking for split payments, continuing with email:', splitCheckError);
+        } else if (splitRequests && splitRequests.length > 0) {
+          console.log('⏭️ Skipping booking-confirmation email - this is a split payment booking');
+          console.log('✅ Split payments have their own email flow (individual confirmation emails)');
+          return new Response(
+            JSON.stringify({ 
+              success: true, 
+              message: 'Email skipped - split payment booking (has individual confirmation emails)' 
+            }),
+            { 
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+              status: 200 
+            }
+          );
+        }
+      } catch (error) {
+        // If any error occurs, log but continue (don't block email sending)
+        console.log('⚠️ Exception checking for split payments, continuing with email:', error);
+      }
+    }
+
+    // Ensure venueName always has a fallback to prevent "undefined" in emails
+    if (data && (template === 'booking-confirmation' || template === 'split-payment-confirmation' || template === 'split-payment-request')) {
+      if (!data.venueName || data.venueName === 'undefined' || String(data.venueName).trim() === '') {
+        data.venueName = 'Your Venue';
+        console.log('⚠️ venueName was missing/undefined, setting fallback to "Your Venue"');
+      }
+    }
+
+    // Fix subject line to prevent "undefined" from appearing
+    if (subject && typeof subject === 'string' && subject.includes('undefined')) {
+      console.log('⚠️ Subject contains "undefined", fixing it...');
+      // Replace "undefined" with "Your Venue" in subject
+      subject = subject.replace(/undefined/g, 'Your Venue');
+    }
+
+    // Log template being processed for debugging
+    console.log(`📧 Processing email template: ${template}`, {
+      to: to,
+      template: template,
+      hasData: !!data,
+      dataKeys: data ? Object.keys(data) : []
+    });
+
     let html = ''
     switch (template) {
       case 'venue-approved':
@@ -105,8 +161,8 @@ serve(async (req) => {
         html = `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #FFF5E6;">
             <div style="background: linear-gradient(135deg, #800020 0%, #A71D2A 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
-              <h1 style="color: #FFF5E6; margin: 0; font-size: 28px; font-weight: bold;">Booking Confirmed!</h1>
-              <p style="color: #FFF5E6; margin: 10px 0 0 0; font-size: 16px;">Your Eddy experience awaits</p>
+              <h1 style="color: #800020; margin: 0; font-size: 28px; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.3);">Booking Confirmed!</h1>
+              <p style="color: #800020; margin: 10px 0 0 0; font-size: 16px; text-shadow: 0 1px 2px rgba(0,0,0,0.3);">Your Eddy experience awaits</p>
             </div>
             
             <div style="background: #FFF5E6; padding: 30px; border: 2px solid #800020; border-top: none;">
@@ -116,7 +172,7 @@ serve(async (req) => {
               
               <div style="background: rgba(255, 215, 0, 0.1); border: 2px solid #FFD700; padding: 20px; border-radius: 8px; margin: 20px 0;">
                 <h2 style="color: #800020; margin-top: 0; font-size: 20px; font-weight: bold;">Booking Details</h2>
-                <p style="color: #800020; margin: 8px 0;"><strong style="color: #800020;">Venue:</strong> ${data.venueName}</p>
+                <p style="color: #800020; margin: 8px 0;"><strong style="color: #800020;">Venue:</strong> ${data.venueName || 'Your Venue'}</p>
                 ${data.venueAddress ? `<p style="color: #800020; margin: 8px 0;"><strong style="color: #800020;">Address:</strong> ${data.venueAddress}</p>` : ''}
                 ${data.venuePhone ? `<p style="color: #800020; margin: 8px 0;"><strong style="color: #800020;">Contact:</strong> ${data.venuePhone}</p>` : ''}
                 <p style="color: #800020; margin: 8px 0;"><strong style="color: #800020;">Booking Date:</strong> ${data.bookingDate}</p>
@@ -491,6 +547,14 @@ serve(async (req) => {
         break
 
       case 'split-payment-request':
+        console.log('📧 Processing split-payment-request template', {
+          recipientEmail: to,
+          recipientName: data?.recipientName,
+          initiatorName: data?.initiatorName,
+          venueName: data?.venueName,
+          amount: data?.amount,
+          requestId: data?.requestId
+        });
         html = `<!DOCTYPE html>
 <html lang="en">
 <head>

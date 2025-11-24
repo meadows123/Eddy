@@ -1896,6 +1896,14 @@ setShowShareDialog(true);
                                 // splitRequests[0] is the initiator, so recipients start at index 1
                                 const recipientRequestId = splitRequests[i + 1]?.id;
                                 
+                                console.log(`📧 Processing recipient ${i + 1} of ${paymentData.splitRecipients.length}:`, {
+                                  email: recipient.email,
+                                  recipientIndex: i,
+                                  splitRequestsLength: splitRequests.length,
+                                  expectedRequestIndex: i + 1,
+                                  splitRequests: splitRequests.map((r, idx) => ({ index: idx, id: r?.id }))
+                                });
+                                
                                 if (!recipientRequestId) {
                                   console.error(`❌ Missing request ID for recipient ${i + 1} (${recipient.email})`, {
                                     recipientIndex: i,
@@ -1963,6 +1971,7 @@ setShowShareDialog(true);
                                       data: responseData,
                                       emailPayload: emailPayload
                                     });
+                                    // Continue to next recipient even if this one failed
                                   } else {
                                     console.log(`✅ Split payment request email sent successfully to ${recipient.email}`, {
                                       recipientEmail: recipient.email,
@@ -1978,6 +1987,12 @@ setShowShareDialog(true);
                                     recipientEmail: recipient.email,
                                     requestId: recipientRequestId
                                   });
+                                  // Continue to next recipient even if this one failed
+                                }
+                                
+                                // Small delay between emails to avoid rate limiting (only if not last recipient)
+                                if (i < paymentData.splitRecipients.length - 1) {
+                                  await new Promise(resolve => setTimeout(resolve, 100)); // 100ms delay
                                 }
                               }
                               
