@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Check, AlertCircle, ArrowLeft, CreditCard } from 'lucide-react';
@@ -19,6 +19,7 @@ const SplitPaymentSuccessPage = () => {
   const [error, setError] = useState(null);
   const [paymentDetails, setPaymentDetails] = useState(null);
   const [allPaymentsDone, setAllPaymentsDone] = useState(false);
+  const bookingConfirmationEmailSentRef = useRef(false); // Track if booking confirmation email has been sent
 
   const paymentIntentId = searchParams.get('payment_intent');
   const paystackReference = searchParams.get('reference');
@@ -33,6 +34,8 @@ const SplitPaymentSuccessPage = () => {
     try {
       console.log('🚀 Starting handlePaymentSuccess with:', { paymentIntentId, paystackReference, requestId, bookingId });
       setLoading(true);
+      // Reset email sent ref for new payment flow
+      bookingConfirmationEmailSentRef.current = false;
 
       // For Paystack: require reference and request_id
       // For Stripe: require payment_intent and request_id
@@ -989,7 +992,19 @@ const SplitPaymentSuccessPage = () => {
           }
 
         // Send Booking Confirmed email with QR codes to the initiator/user when all payments are complete
-        if (completionBookingData && completionBookingData.profiles) {
+        // CRITICAL: Only send once - use ref and sessionStorage to prevent duplicates
+        const bookingConfirmationKey = `booking_confirmation_sent_${completionBookingData?.id}`;
+        const alreadySentInSession = sessionStorage.getItem(bookingConfirmationKey);
+        
+        if (bookingConfirmationEmailSentRef.current || alreadySentInSession) {
+          console.log('⏭️ Skipping booking confirmation email - already sent', {
+            refCheck: bookingConfirmationEmailSentRef.current,
+            sessionCheck: !!alreadySentInSession,
+            bookingId: completionBookingData?.id
+          });
+        } else if (completionBookingData && completionBookingData.profiles) {
+          bookingConfirmationEmailSentRef.current = true; // Mark as sent before attempting
+          sessionStorage.setItem(bookingConfirmationKey, 'true'); // Mark in sessionStorage
           console.log('📧 ========== SENDING BOOKING CONFIRMED EMAIL WITH QR CODES ==========');
           console.log('📧 Sending booking confirmation email to initiator:', completionBookingData.profiles.email);
           
