@@ -38,7 +38,9 @@ const VenueOwnerSettings = () => {
     opening_hours: '',
     website_url: '',
     vibe: '',
-    music_genres: []
+    music_genres: [],
+    special_features: [],
+    amenities: []
   });
 
   const ALL_MUSIC_GENRES = ['Afrobeats', 'Hip Hop', 'R&B', 'House', 'Amapiano', 'Reggae', 'Pop', 'Jazz', 'Live Band', 'DJ Sets'];
@@ -260,7 +262,9 @@ const VenueOwnerSettings = () => {
         opening_hours: venueData.opening_hours || '',
         website_url: venueData.website_url || '',
         vibe: venueData.vibe || '',
-        music_genres: venueData.music_genres || venueData.musicGenres || []
+        music_genres: venueData.music_genres || venueData.musicGenres || [],
+        special_features: venueData.special_features || [],
+        amenities: venueData.amenities || []
       });
 
       // Fetch staff (simplified implementation)
@@ -309,6 +313,7 @@ const VenueOwnerSettings = () => {
       }
 
       // Only update columns that exist in the venues table
+      // IMPORTANT: Do NOT update status or is_active - these control venue visibility to users
       const updateData = {
         name: venueForm.name,
         description: venueForm.description,
@@ -322,13 +327,24 @@ const VenueOwnerSettings = () => {
         opening_hours: venueForm.opening_hours || null,
         website_url: venueForm.website_url || null,
         vibe: venueForm.vibe || null,
-        music_genres: venueForm.music_genres,
+        music_genres: venueForm.music_genres || [],
+        special_features: venueForm.special_features || [],
+        amenities: venueForm.amenities || [],
         updated_at: new Date().toISOString()
+        // Note: We intentionally do NOT update:
+        // - status (should remain 'active' or whatever it was)
+        // - is_active (should remain true to keep venue visible to users)
+        // - owner_id (should never change)
       };
 
       // Note: Removed ambiance and dress_code as they don't exist in venues table
       // Note: Removed capacity as it's not in the venues table (it's in venue_tables)
 
+      console.log('💾 Updating venue in database:', {
+        venueId: venue.id,
+        fieldsToUpdate: Object.keys(updateData),
+        updateData: updateData
+      });
 
       const { data, error } = await supabase
         .from('venues')
@@ -346,14 +362,19 @@ const VenueOwnerSettings = () => {
         throw new Error('No venue was updated. Please check that you own this venue.');
       }
 
+      console.log('✅ Venue updated successfully:', {
+        venueId: venue.id,
+        updatedFields: Object.keys(updateData),
+        updatedVenue: data[0]
+      });
 
       toast({
         title: 'Success!',
-        description: 'Saved settings',
+        description: 'Venue settings saved. Changes will be visible to users immediately.',
         className: 'bg-green-500 text-white'
       });
 
-      // Refresh venue data
+      // Refresh venue data to show updated values
       await fetchVenueData(currentUser.id);
 
     } catch (error) {
@@ -561,10 +582,8 @@ const VenueOwnerSettings = () => {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="restaurant">Restaurant</SelectItem>
-                          <SelectItem value="club">Nightclub</SelectItem>
                           <SelectItem value="lounge">Lounge</SelectItem>
-                          <SelectItem value="bar">Bar</SelectItem>
-                          <SelectItem value="cafe">Cafe</SelectItem>
+                          <SelectItem value="club">Club</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -618,6 +637,70 @@ const VenueOwnerSettings = () => {
                         ))}
                       </div>
                       <p className="text-xs text-brand-burgundy/60 mt-1">Select all that apply. These power customer music filters.</p>
+                    </div>
+
+                    {/* Special Features */}
+                    <div>
+                      <Label className="text-sm sm:text-base">What makes this place special</Label>
+                      <p className="text-xs text-brand-burgundy/60 mt-1 mb-2">Add up to 3 features that make your venue unique</p>
+                      <div className="space-y-2">
+                        {[0, 1, 2].map((index) => (
+                          <Input
+                            key={index}
+                            value={venueForm.special_features?.[index] || ''}
+                            onChange={(e) => {
+                              const newFeatures = [...(venueForm.special_features || [])];
+                              newFeatures[index] = e.target.value;
+                              // Remove empty strings from the end
+                              while (newFeatures.length > 0 && !newFeatures[newFeatures.length - 1]) {
+                                newFeatures.pop();
+                              }
+                              setVenueForm({...venueForm, special_features: newFeatures});
+                            }}
+                            placeholder={`Feature ${index + 1} (e.g., Premium dining experience with curated menu)`}
+                            className="mt-1"
+                          />
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Amenities */}
+                    <div>
+                      <Label className="text-sm sm:text-base">What this place offers</Label>
+                      <p className="text-xs text-brand-burgundy/60 mt-1 mb-2">Select amenities available at your venue</p>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {[
+                          'Fine Dining',
+                          'Live Music',
+                          'Free WiFi',
+                          'Valet Parking',
+                          'Security',
+                          'VIP Service',
+                          'Outdoor Seating',
+                          'Private Dining',
+                          'Bar Service',
+                          'Entertainment',
+                          'Parking',
+                          'Accessibility'
+                        ].map((amenity) => (
+                          <label key={amenity} className="flex items-center gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={venueForm.amenities?.includes(amenity)}
+                              onChange={(e) => {
+                                const checked = e.target.checked;
+                                setVenueForm(v => ({
+                                  ...v,
+                                  amenities: checked
+                                    ? Array.from(new Set([...(v.amenities || []), amenity]))
+                                    : (v.amenities || []).filter(x => x !== amenity)
+                                }));
+                              }}
+                            />
+                            <span>{amenity}</span>
+                          </label>
+                        ))}
+                      </div>
                     </div>
                   </div>
 

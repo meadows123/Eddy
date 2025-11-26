@@ -21,6 +21,41 @@ const VenueDetailPage = () => {
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const galleryRef = useRef(null);
+  const [mapCoordinates, setMapCoordinates] = useState({ lat: 6.5244, lng: 3.3792 }); // Default to Lagos center
+
+  // Geocode address to get coordinates
+  const geocodeAddress = async (venueData) => {
+    if (!venueData.address && !venueData.city) return;
+
+    try {
+      const addressString = [
+        venueData.address,
+        venueData.city,
+        venueData.country || 'Nigeria'
+      ].filter(Boolean).join(', ');
+
+      const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
+      if (!mapboxToken) {
+        console.warn('Mapbox token not found, using default coordinates');
+        return;
+      }
+
+      const geocodeUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(addressString)}.json?access_token=${mapboxToken}&limit=1`;
+      
+      const response = await fetch(geocodeUrl);
+      const data = await response.json();
+
+      if (data.features && data.features.length > 0) {
+        const [lng, lat] = data.features[0].center;
+        setMapCoordinates({ lat, lng });
+        console.log('📍 Geocoded address:', { address: addressString, lat, lng });
+      } else {
+        console.warn('⚠️ No geocoding results found for:', addressString);
+      }
+    } catch (error) {
+      console.error('❌ Error geocoding address:', error);
+    }
+  };
 
   useEffect(() => {
     const fetchVenue = async () => {
@@ -87,12 +122,24 @@ const VenueDetailPage = () => {
           reviewsData = [];
         }
 
-        setVenue({
+        const venueWithImages = {
           ...venueData,
           images: imagesData?.map(img => img.image_url) || []
-        });
+        };
 
+        setVenue(venueWithImages);
         setReviews(reviewsData);
+
+        // Set map coordinates - use existing coordinates or geocode address
+        if (venueData.latitude && venueData.longitude) {
+          setMapCoordinates({
+            lat: parseFloat(venueData.latitude),
+            lng: parseFloat(venueData.longitude)
+          });
+        } else if (venueData.address || venueData.city) {
+          // Geocode address if coordinates are missing
+          geocodeAddress(venueData);
+        }
 
         // Check if venue is in favorites
         const favorites = JSON.parse(localStorage.getItem('lagosvibe_favorites') || '[]');
@@ -256,10 +303,25 @@ const VenueDetailPage = () => {
           <div className="flex items-center gap-2 mb-4">
             <div className="flex items-center gap-1">
               <Star className="h-5 w-5 fill-brand-gold text-brand-gold" />
-              <span className="font-medium text-brand-burgundy">{venue.rating}</span>
+              <span className="font-medium text-brand-burgundy">
+                {reviews.length > 0 
+                  ? (reviews.reduce((sum, review) => sum + (review.rating || 0), 0) / reviews.length).toFixed(1)
+                  : venue.rating || '0.0'
+                }
+              </span>
             </div>
             <span className="text-brand-burgundy/60">·</span>
-            <span className="text-brand-burgundy/60 underline">Reviews</span>
+            <button
+              onClick={() => {
+                const reviewsSection = document.getElementById('reviews-section');
+                if (reviewsSection) {
+                  reviewsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+              }}
+              className="text-brand-burgundy/60 underline hover:text-brand-burgundy transition-colors"
+            >
+              {reviews.length} {reviews.length === 1 ? 'Review' : 'Reviews'}
+            </button>
             <span className="text-brand-burgundy/60">·</span>
             <div className="flex items-center gap-1">
               <MapPin className="h-4 w-4 text-brand-burgundy/60" />
@@ -282,53 +344,61 @@ const VenueDetailPage = () => {
           </div>
         )}
 
-        {/* Section Divider */}
-        <div className="border-t border-gray-200"></div>
-
         {/* What makes this place special */}
-        <div>
-          <h2 className="text-xl font-semibold text-brand-burgundy mb-4">What makes this place special</h2>
-          <div className="space-y-3">
-            <div className="flex items-center gap-3">
-              <CheckCircle className="h-5 w-5 text-brand-gold" />
-              <span className="text-brand-burgundy">Premium dining experience with curated menu</span>
+        {venue.special_features && venue.special_features.length > 0 && (
+          <>
+            {/* Section Divider */}
+            <div className="border-t border-gray-200"></div>
+            <div>
+              <h2 className="text-xl font-semibold text-brand-burgundy mb-4">What makes this place special</h2>
+              <div className="space-y-3">
+                {venue.special_features.map((feature, index) => (
+                  <div key={index} className="flex items-center gap-3">
+                    <CheckCircle className="h-5 w-5 text-brand-gold" />
+                    <span className="text-brand-burgundy">{feature}</span>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="flex items-center gap-3">
-              <CheckCircle className="h-5 w-5 text-brand-gold" />
-              <span className="text-brand-burgundy">Live entertainment and music performances</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <CheckCircle className="h-5 w-5 text-brand-gold" />
-              <span className="text-brand-burgundy">Exclusive VIP table service available</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Section Divider */}
-        <div className="border-t border-gray-200"></div>
+          </>
+        )}
 
         {/* What this place offers */}
-        <div>
-          <h2 className="text-xl font-semibold text-brand-burgundy mb-4">What this place offers</h2>
-          <div className="grid grid-cols-2 gap-4">
-            {[
-              { icon: Utensils, title: "Fine Dining" },
-              { icon: Music2, title: "Live Music" },
-              { icon: Wifi, title: "Free WiFi" },
-              { icon: Car, title: "Valet Parking" },
-              { icon: Shield, title: "Security" },
-              { icon: Users, title: "VIP Service" }
-            ].map((amenity, index) => (
-              <div key={index} className="flex items-center gap-3 py-2">
-                <amenity.icon className="h-5 w-5 text-brand-burgundy/60" />
-                <span className="text-brand-burgundy">{amenity.title}</span>
+        {venue.amenities && venue.amenities.length > 0 && (
+          <>
+            {/* Section Divider */}
+            <div className="border-t border-gray-200"></div>
+            <div>
+              <h2 className="text-xl font-semibold text-brand-burgundy mb-4">What this place offers</h2>
+              <div className="grid grid-cols-2 gap-4">
+                {venue.amenities.map((amenity, index) => {
+                  // Map amenity names to icons
+                  const amenityIconMap = {
+                    'Fine Dining': Utensils,
+                    'Live Music': Music2,
+                    'Free WiFi': Wifi,
+                    'Valet Parking': Car,
+                    'Parking': Car,
+                    'Security': Shield,
+                    'VIP Service': Users,
+                    'Outdoor Seating': Utensils,
+                    'Private Dining': Utensils,
+                    'Bar Service': Utensils,
+                    'Entertainment': Music2,
+                    'Accessibility': Users
+                  };
+                  const IconComponent = amenityIconMap[amenity] || Utensils;
+                  return (
+                    <div key={index} className="flex items-center gap-3 py-2">
+                      <IconComponent className="h-5 w-5 text-brand-burgundy/60" />
+                      <span className="text-brand-burgundy">{amenity}</span>
+                    </div>
+                  );
+                })}
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Section Divider */}
-        <div className="border-t border-gray-200"></div>
+            </div>
+          </>
+        )}
 
         {/* Location */}
         <div>
@@ -336,8 +406,8 @@ const VenueDetailPage = () => {
           <div className="aspect-video rounded-2xl overflow-hidden mb-3 border border-gray-200 shadow-lg">
             <Map
               initialViewState={{
-                latitude: venue.latitude || 6.5244, // Default to Lagos center
-                longitude: venue.longitude || 3.3792,
+                latitude: mapCoordinates.lat,
+                longitude: mapCoordinates.lng,
                 zoom: 15
               }}
               style={{ width: "100%", height: "100%" }}
@@ -351,8 +421,8 @@ const VenueDetailPage = () => {
             >
               {/* Venue marker */}
               <Marker 
-                latitude={venue.latitude || 6.5244} 
-                longitude={venue.longitude || 3.3792}
+                latitude={mapCoordinates.lat} 
+                longitude={mapCoordinates.lng}
               >
                 <div className="relative">
                   <div className="w-8 h-8 bg-brand-burgundy rounded-full border-4 border-white shadow-lg flex items-center justify-center">
@@ -363,15 +433,26 @@ const VenueDetailPage = () => {
               </Marker>
             </Map>
           </div>
-          <p className="text-brand-burgundy font-medium">{venue.city}, Lagos</p>
+          <p className="text-brand-burgundy font-medium">
+            {venue.address ? `${venue.address}, ` : ''}{venue.city}
+            {venue.country && venue.country !== 'Nigeria' && `, ${venue.country}`}
+          </p>
           <p className="text-brand-burgundy/60 text-sm mt-1">
-            {venue.address ? `${venue.address}, ` : ''}{venue.city}, Lagos
+            {venue.city}{venue.country && `, ${venue.country}`}
           </p>
           <Button 
             variant="outline" 
             className="w-full mt-3 border-brand-burgundy/20 text-brand-burgundy hover:bg-brand-burgundy/5"
             onClick={() => {
-              const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${venue.latitude || 6.5244},${venue.longitude || 3.3792}`;
+              // Use coordinates if available, otherwise use address string
+              const query = venue.latitude && venue.longitude
+                ? `${venue.latitude},${venue.longitude}`
+                : encodeURIComponent([
+                    venue.address,
+                    venue.city,
+                    venue.country || 'Nigeria'
+                  ].filter(Boolean).join(', '));
+              const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${query}`;
               window.open(mapsUrl, '_blank');
             }}
           >
@@ -384,7 +465,9 @@ const VenueDetailPage = () => {
         <div className="border-t border-gray-200"></div>
 
         {/* Reviews */}
-        <VenueReviews venueId={venue.id} venueName={venue.name} />
+        <div id="reviews-section">
+          <VenueReviews venueId={venue.id} venueName={venue.name} />
+        </div>
 
         {/* Bottom padding for fixed button */}
         <div className="h-20"></div>

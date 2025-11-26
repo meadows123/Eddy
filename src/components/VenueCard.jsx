@@ -163,22 +163,31 @@ const VenueCard = ({ venue }) => {
 
         <CardHeader className="pb-3">
           <CardTitle className="text-xl font-heading text-brand-burgundy">{venue.name}</CardTitle>
-          {/* Location under the name */}
-          {venue.city && (
+          {/* Full location under the name - address, city */}
+          {(venue.address || venue.city) && (
             <div className="flex items-center text-sm text-brand-burgundy/70 mt-1">
-              <MapPin className="h-4 w-4 mr-1 text-brand-gold" />
-              {venue.city}
+              <MapPin className="h-4 w-4 mr-1 text-brand-gold flex-shrink-0" />
+              <span className="line-clamp-1">
+                {venue.address && `${venue.address}, `}
+                {venue.city}
+                {venue.country && venue.country !== 'Nigeria' && `, ${venue.country}`}
+              </span>
             </div>
           )}
         </CardHeader>
 
         <CardContent className="flex-grow pt-0">
-          <p className="text-sm text-brand-burgundy/70 mb-3 line-clamp-2">{venue.description}</p>
+          {/* Description - show prominently */}
+          {venue.description && venue.description.trim() && (
+            <p className="text-sm text-brand-burgundy/70 mb-3 line-clamp-2 leading-relaxed">
+              {venue.description}
+            </p>
+          )}
           
           {/* Venue type as a tag */}
           {venue.type && (
             <div className="flex items-center text-xs text-brand-burgundy/80 mb-2">
-              <span className="bg-brand-cream text-brand-burgundy px-2 py-1 rounded-full">{venue.type}</span>
+              <span className="bg-brand-cream text-brand-burgundy px-2 py-1 rounded-full capitalize">{venue.type}</span>
             </div>
           )}
           
@@ -202,15 +211,17 @@ const VenueCard = ({ venue }) => {
             </div>
           )}
           
-          {venue.music && Array.isArray(venue.music) && venue.music.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {venue.music.slice(0, 2).map((music, index) => (
+          {/* Music genres - only show for clubs and lounges */}
+          {venue.music_genres && Array.isArray(venue.music_genres) && venue.music_genres.length > 0 && 
+           (venue.type === 'club' || venue.type === 'lounge') && (
+            <div className="flex flex-wrap gap-1 mb-2">
+              {venue.music_genres.slice(0, 2).map((genre, index) => (
                 <span key={index} className="text-xs bg-brand-cream text-brand-burgundy px-2 py-1 rounded-full">
-                  {music}
+                  {genre}
                 </span>
               ))}
-              {venue.music.length > 2 && (
-                <span className="text-xs text-brand-burgundy/60">+{venue.music.length - 2} more</span>
+              {venue.music_genres.length > 2 && (
+                <span className="text-xs text-brand-burgundy/60">+{venue.music_genres.length - 2} more</span>
               )}
             </div>
           )}

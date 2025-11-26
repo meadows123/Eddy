@@ -929,8 +929,8 @@ const VenueOwnerRegister = () => {
                     className="w-full pl-10 pr-3 py-2 bg-white border border-brand-burgundy/20 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-burgundy focus:border-transparent"
                   >
                     <option value="restaurant">Restaurant</option>
-                    <option value="club">Club</option>
                     <option value="lounge">Lounge</option>
+                    <option value="club">Club</option>
                   </select>
                 </div>
               </div>
