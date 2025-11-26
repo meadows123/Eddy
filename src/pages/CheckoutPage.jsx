@@ -1924,7 +1924,8 @@ setShowShareDialog(true);
                                   continue;
                                 }
                                 
-                                const paymentLink = getFullUrl(`/split-payment/${pendingBooking.id}/${recipientRequestId}`);
+                                // Always use production URL for email links (never localhost)
+                                const paymentLink = `https://oneeddy.com/split-payment/${pendingBooking.id}/${recipientRequestId}`;
                                 
                                 console.log(`📧 Sending email to recipient ${i + 1}:`, {
                                   email: recipient.email,
@@ -1948,6 +1949,7 @@ setShowShareDialog(true);
                                       bookingTime: selection?.time,
                                       amount: recipient.amount,
                                       paymentUrl: paymentLink,
+                                      bookingId: pendingBooking.id, // Include for Edge Function fallback
                                       requestId: recipientRequestId,
                                       totalAmount: paymentData.amount
                                       // Explicitly NOT including qrCodeImage or qrCodeUrl - QR codes should only be sent when all payments are complete

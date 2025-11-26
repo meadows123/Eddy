@@ -328,7 +328,16 @@ const VenueOwnerAnalytics = () => {
       endLocal: end.toLocaleString(),
       startUTC: startUTC.toISOString(),
       endUTC: endUTC.toISOString(),
-      now: now.toLocaleString()
+      startDateOnly: startUTC.toISOString().split('T')[0],
+      endDateOnly: endUTC.toISOString().split('T')[0],
+      now: now.toLocaleString(),
+      // For lastMonth, show the calculated month explicitly
+      ...(timeRange === 'lastMonth' && {
+        calculatedLastMonth: {
+          lastMonthDate: subMonths(now, 1).toISOString().split('T')[0],
+          monthName: subMonths(now, 1).toLocaleString('default', { month: 'long', year: 'numeric' })
+        }
+      })
     });
     
     return { start: startUTC, end: endUTC };
@@ -362,14 +371,22 @@ const VenueOwnerAnalytics = () => {
         start: startUTC.toISOString().split('T')[0],
         end: endUTC.toISOString().split('T')[0],
         startUTC: startUTC.toISOString(),
-        endUTC: endUTC.toISOString()
+        endUTC: endUTC.toISOString(),
+        startTimestamp: startUTC.getTime(),
+        endTimestamp: endUTC.getTime()
       },
-      sampleBookingDates: bookings.slice(0, 5).map(b => ({
-        id: b.id,
-        bookingDate: b.booking_date,
-        createdAt: b.created_at,
-        status: b.status
-      }))
+      sampleBookingDates: bookings.slice(0, 10).map(b => {
+        const parsed = parseDateToUTC(b.booking_date || b.created_at);
+        return {
+          id: b.id,
+          bookingDate: b.booking_date,
+          createdAt: b.created_at,
+          parsedUTC: parsed ? parsed.toISOString() : null,
+          parsedTimestamp: parsed ? parsed.getTime() : null,
+          status: b.status,
+          inRange: parsed ? (parsed >= startUTC && parsed <= endUTC) : false
+        };
+      })
     });
 
     // Filter bookings for current period
@@ -378,18 +395,61 @@ const VenueOwnerAnalytics = () => {
       const bookingDateUTC = parseDateToUTC(booking.booking_date || booking.created_at);
       if (!bookingDateUTC) return false;
       
-      const isInPeriod = bookingDateUTC >= startUTC && bookingDateUTC <= endUTC;
+      // Compare dates by extracting date components to avoid time-of-day issues
+      // This ensures we're comparing calendar dates, not timestamps
+      const bookingYear = bookingDateUTC.getUTCFullYear();
+      const bookingMonth = bookingDateUTC.getUTCMonth();
+      const bookingDay = bookingDateUTC.getUTCDate();
       
-      // Debug logging for first few bookings
-      if (bookings.indexOf(booking) < 5) {
+      const startYear = startUTC.getUTCFullYear();
+      const startMonth = startUTC.getUTCMonth();
+      const startDay = startUTC.getUTCDate();
+      
+      const endYear = endUTC.getUTCFullYear();
+      const endMonth = endUTC.getUTCMonth();
+      const endDay = endUTC.getUTCDate();
+      
+      // Create date objects for comparison
+      // Start date is at midnight UTC (start of day)
+      // End date needs to include the full last day, so we add 1 day and compare with < instead of <=
+      const bookingDate = new Date(Date.UTC(bookingYear, bookingMonth, bookingDay));
+      const startDate = new Date(Date.UTC(startYear, startMonth, startDay));
+      // For end date, create a date for the day AFTER the end day, so we can use < comparison
+      // This ensures we include the full last day (e.g., Oct 31 is included when endDate is Nov 1)
+      const endDateExclusive = new Date(Date.UTC(endYear, endMonth, endDay + 1));
+      
+      // Compare dates (>= start and < end+1, which effectively means <= end)
+      const isInPeriod = bookingDate >= startDate && bookingDate < endDateExclusive;
+      
+      // Debug logging for first few bookings and ALL bookings in lastMonth to help diagnose
+      if (bookings.indexOf(booking) < 5 || timeRange === 'lastMonth') {
         console.log('📦 Booking date check:', {
           bookingId: booking.id,
           bookingDate: booking.booking_date,
           createdAt: booking.created_at,
           parsedDateUTC: bookingDateUTC.toISOString(),
+          bookingDateOnly: bookingDate.toISOString().split('T')[0],
           startUTC: startUTC.toISOString(),
+          startDateOnly: startDate.toISOString().split('T')[0],
           endUTC: endUTC.toISOString(),
+          endDateOnly: endDateExclusive.toISOString().split('T')[0] + ' (exclusive)',
           isInPeriod,
+          comparison: {
+            bookingVsStart: bookingDate >= startDate,
+            bookingVsEnd: bookingDate < endDateExclusive,
+            bookingDateTimestamp: bookingDate.getTime(),
+            startDateTimestamp: startDate.getTime(),
+            endDateExclusiveTimestamp: endDateExclusive.getTime(),
+            bookingYear,
+            bookingMonth: bookingMonth + 1, // Show as 1-12 for readability
+            bookingDay,
+            startYear,
+            startMonth: startMonth + 1,
+            startDay,
+            endYear,
+            endMonth: endMonth + 1,
+            endDay
+          },
           totalAmount: booking.total_amount,
           status: booking.status,
           timeRange
@@ -399,11 +459,59 @@ const VenueOwnerAnalytics = () => {
       return isInPeriod;
     });
 
+    // For lastMonth, find all bookings that should be in October
+    const octoberBookings = timeRange === 'lastMonth' ? bookings.map(b => {
+      const parsed = parseDateToUTC(b.booking_date || b.created_at);
+      if (!parsed) return null;
+      const bookingYear = parsed.getUTCFullYear();
+      const bookingMonth = parsed.getUTCMonth();
+      return {
+        id: b.id,
+        bookingDate: b.booking_date,
+        parsedDate: parsed.toISOString().split('T')[0],
+        year: bookingYear,
+        month: bookingMonth + 1, // 1-12
+        isOctober: bookingYear === 2025 && bookingMonth === 9, // October is month 9 (0-indexed)
+        status: b.status
+      };
+    }).filter(b => b !== null) : [];
+
     console.log('✅ Current period bookings:', {
       count: currentPeriodBookings.length,
       outOfTotal: bookings.length,
       dateRange: `${startUTC.toISOString().split('T')[0]} to ${endUTC.toISOString().split('T')[0]}`,
-      matchingBookingDates: currentPeriodBookings.slice(0, 5).map(b => b.booking_date || b.created_at)
+      matchingBookingDates: currentPeriodBookings.slice(0, 10).map(b => ({
+        id: b.id,
+        bookingDate: b.booking_date,
+        createdAt: b.created_at,
+        status: b.status,
+        amount: b.total_amount
+      })),
+      // For lastMonth, show all October bookings found
+      ...(timeRange === 'lastMonth' && {
+        allOctoberBookings: octoberBookings.filter(b => b.isOctober),
+        octoberBookingsCount: octoberBookings.filter(b => b.isOctober).length,
+        allBookingsByMonth: octoberBookings.reduce((acc, b) => {
+          const key = `${b.year}-${String(b.month).padStart(2, '0')}`;
+          acc[key] = (acc[key] || 0) + 1;
+          return acc;
+        }, {})
+      }),
+      // For lastMonth, also show bookings that are close but not matching
+      nearMissBookings: timeRange === 'lastMonth' ? bookings.filter(b => {
+        const parsed = parseDateToUTC(b.booking_date || b.created_at);
+        if (!parsed) return false;
+        // Show bookings within 3 days of the range
+        const daysBeforeStart = (startUTC.getTime() - parsed.getTime()) / (1000 * 60 * 60 * 24);
+        const daysAfterEnd = (parsed.getTime() - endUTC.getTime()) / (1000 * 60 * 60 * 24);
+        return (daysBeforeStart >= 0 && daysBeforeStart <= 3) || (daysAfterEnd >= 0 && daysAfterEnd <= 3);
+      }).slice(0, 5).map(b => ({
+        id: b.id,
+        bookingDate: b.booking_date,
+        createdAt: b.created_at,
+        parsed: parseDateToUTC(b.booking_date || b.created_at)?.toISOString(),
+        status: b.status
+      })) : []
     });
 
     // Get comparison period (previous month/week)
@@ -412,13 +520,19 @@ const VenueOwnerAnalytics = () => {
     let prevStartLocal, prevEndLocal;
     
     if (timeRange.includes('Month')) {
-      const lastMonth = subMonths(now, 1);
-      prevStartLocal = startOfMonth(lastMonth);
-      prevEndLocal = endOfMonth(lastMonth);
+      // For 'thisMonth', compare to lastMonth (1 month ago)
+      // For 'lastMonth', compare to 2 months ago
+      const monthsBack = timeRange === 'lastMonth' ? 2 : 1;
+      const comparisonMonth = subMonths(now, monthsBack);
+      prevStartLocal = startOfMonth(comparisonMonth);
+      prevEndLocal = endOfMonth(comparisonMonth);
     } else {
-      const lastWeek = subWeeks(now, 1);
-      prevStartLocal = startOfWeek(lastWeek, { weekStartsOn: 1 });
-      prevEndLocal = endOfWeek(lastWeek, { weekStartsOn: 1 });
+      // For 'thisWeek', compare to lastWeek (1 week ago)
+      // For 'lastWeek', compare to 2 weeks ago
+      const weeksBack = timeRange === 'lastWeek' ? 2 : 1;
+      const comparisonWeek = subWeeks(now, weeksBack);
+      prevStartLocal = startOfWeek(comparisonWeek, { weekStartsOn: 1 });
+      prevEndLocal = endOfWeek(comparisonWeek, { weekStartsOn: 1 });
     }
 
     // Normalize comparison period dates to UTC using local date components (same as getDateRange)
@@ -442,7 +556,26 @@ const VenueOwnerAnalytics = () => {
     const prevPeriodBookings = bookings.filter(booking => {
       const bookingDateUTC = parseDateToUTC(booking.booking_date || booking.created_at);
       if (!bookingDateUTC) return false;
-      return bookingDateUTC >= prevStartUTC && bookingDateUTC <= prevEndUTC;
+      
+      // Use the same date component comparison approach for consistency
+      const bookingYear = bookingDateUTC.getUTCFullYear();
+      const bookingMonth = bookingDateUTC.getUTCMonth();
+      const bookingDay = bookingDateUTC.getUTCDate();
+      
+      const prevStartYear = prevStartUTC.getUTCFullYear();
+      const prevStartMonth = prevStartUTC.getUTCMonth();
+      const prevStartDay = prevStartUTC.getUTCDate();
+      
+      const prevEndYear = prevEndUTC.getUTCFullYear();
+      const prevEndMonth = prevEndUTC.getUTCMonth();
+      const prevEndDay = prevEndUTC.getUTCDate();
+      
+      const bookingDate = new Date(Date.UTC(bookingYear, bookingMonth, bookingDay));
+      const prevStartDate = new Date(Date.UTC(prevStartYear, prevStartMonth, prevStartDay));
+      // Use exclusive end date for consistency with current period filtering
+      const prevEndDateExclusive = new Date(Date.UTC(prevEndYear, prevEndMonth, prevEndDay + 1));
+      
+      return bookingDate >= prevStartDate && bookingDate < prevEndDateExclusive;
     });
     
     console.log('⬅️ Previous period bookings:', {

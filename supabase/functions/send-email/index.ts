@@ -218,7 +218,18 @@ serve(async (req) => {
               <p style="color: #800020; line-height: 1.6; font-size: 16px;">If you have any questions or need to make changes to your booking, please contact our support team.</p>
               
               <div style="text-align: center; margin: 30px 0;">
-                <a href="https://oneeddy.com/profile" style="background: #FFD700; color: #800020; padding: 14px 32px; text-decoration: none; border-radius: 25px; font-weight: bold; font-size: 16px; display: inline-block; border: 2px solid #800020;">View My Bookings</a>
+                <a href="${(() => {
+                  // Always use production URL - App Links will open app if installed, otherwise opens in browser
+                  // Include bookingId if available to view specific booking
+                  const bookingId = data.bookingId || '';
+                  if (bookingId) {
+                    return 'https://oneeddy.com/profile?bookingId=' + bookingId;
+                  }
+                  return 'https://oneeddy.com/profile';
+                })()}" style="background: #FFD700; color: #800020; padding: 14px 32px; text-decoration: none; border-radius: 25px; font-weight: bold; font-size: 16px; display: inline-block; border: 2px solid #800020;">View My Booking</a>
+                <p style="color: #800020; font-size: 12px; margin-top: 12px; text-align: center;">
+                  💡 <strong>Tip:</strong> Open this link on your phone to view in the Eddy app!
+                </p>
               </div>
               
               <p style="color: #800020; font-size: 16px; font-weight: bold;">Thank you for choosing Eddy!</p>
@@ -267,7 +278,15 @@ serve(async (req) => {
               </div>
               
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${data.viewUrl || data.adminUrl || 'https://www.oneeddy.com/admin/venue-approvals'}" style="background: #FFD700; color: #800020; padding: 14px 32px; text-decoration: none; border-radius: 25px; font-weight: bold; font-size: 16px; display: inline-block; border: 2px solid #800020;">🏢 VIEW FULL DETAILS</a>
+                <a href="${(() => {
+                  // Always use production URL - App Links will open app if installed, otherwise opens in browser
+                  const url = data.viewUrl || data.adminUrl || 'https://oneeddy.com/admin/venue-approvals';
+                  // Ensure we use the correct domain (without www for app links)
+                  return url.replace('www.oneeddy.com', 'oneeddy.com');
+                })()}" style="background: #FFD700; color: #800020; padding: 14px 32px; text-decoration: none; border-radius: 25px; font-weight: bold; font-size: 16px; display: inline-block; border: 2px solid #800020;">🏢 VIEW FULL DETAILS</a>
+                <p style="color: #800020; font-size: 12px; margin-top: 12px; text-align: center;">
+                  💡 <strong>Tip:</strong> Open this link on your phone to view in the Eddy app!
+                </p>
               </div>
               
               <p style="color: #800020; line-height: 1.6; font-size: 16px;">Please review this registration in the admin dashboard and approve or reject the venue owner.</p>
@@ -477,7 +496,17 @@ serve(async (req) => {
       </div>
       ` : ''}
       <div style="text-align:center;margin-top:32px">
-        <a href="${data.dashboardUrl}" style="display:inline-block;background:#FFD700;color:#800020;text-decoration:none;padding:12px 24px;border-radius:6px;font-weight:600;border:2px solid #800020">View Your Credits</a>
+        <a href="${(() => {
+          // Always use production URL - App Links will open app if installed, otherwise opens in browser
+          // Direct to profile with wallet tab to view credits
+          if (data.dashboardUrl && !data.dashboardUrl.includes('localhost')) {
+            return data.dashboardUrl;
+          }
+          return 'https://oneeddy.com/profile?tab=wallet';
+        })()}" style="display:inline-block;background:#FFD700;color:#800020;text-decoration:none;padding:12px 24px;border-radius:6px;font-weight:600;border:2px solid #800020">View Your Credits</a>
+        <p style="color: #800020; font-size: 12px; margin-top: 12px; text-align: center;">
+          💡 <strong>Tip:</strong> Open this link on your phone to view in the Eddy app!
+        </p>
       </div>
       <p style="text-align:center;color:#800020;margin-top:32px;font-size:13px;font-weight:bold">Thank you for choosing Eddy. Your credits are now available in your account.</p>
     </div>
@@ -621,7 +650,19 @@ serve(async (req) => {
       </div>
       <!-- QR code removed from split payment request email - QR codes are only sent when all payments are complete -->
       <div style="text-align: center; margin: 24px 0;">
-        <a href="${data.paymentUrl || (Deno.env.get('APP_URL') || '') + '/split-payment/' + (data.requestId || '')}" class="btn">💳 Pay Your Share</a>
+        <a href="${data.paymentUrl || (() => {
+          // Fallback: construct production URL if paymentUrl not provided
+          // App Links will automatically open the app if installed, otherwise opens in browser
+          const bookingId = data.bookingId || '';
+          const requestId = data.requestId || '';
+          if (bookingId && requestId) {
+            return 'https://oneeddy.com/split-payment/' + bookingId + '/' + requestId;
+          }
+          return 'https://oneeddy.com/profile';
+        })()}" class="btn">💳 Pay Your Share</a>
+        <p style="color: #800020; font-size: 12px; margin-top: 12px; text-align: center;">
+          💡 <strong>Tip:</strong> Open this link on your phone to pay directly in the Eddy app!
+        </p>
       </div>
     </div>
   </div>
@@ -906,7 +947,18 @@ serve(async (req) => {
       </div>
       ` : ''}
       <div style="text-align: center; margin: 24px 0;">
-        <a href="${data.ownerUrl || (Deno.env.get('APP_URL') || '') + '/venue-owner/dashboard'}" class="btn">📊 Open Venue Dashboard</a>
+        <a href="${(() => {
+          // Always use production URL - App Links will open app if installed, otherwise opens in browser
+          // Include bookingId if available to view specific booking
+          const bookingId = data.bookingId || '';
+          if (bookingId) {
+            return 'https://oneeddy.com/venue-owner/dashboard?bookingId=' + bookingId;
+          }
+          return 'https://oneeddy.com/venue-owner/dashboard';
+        })()}" class="btn">📊 View Booking in Dashboard</a>
+        <p style="color: #800020; font-size: 12px; margin-top: 12px; text-align: center;">
+          💡 <strong>Tip:</strong> Open this link on your phone to view in the Eddy app!
+        </p>
       </div>
     </div>
   </div>
@@ -1129,7 +1181,15 @@ serve(async (req) => {
                 </div>
             </div>
             <div style="text-align: center;">
-                <a href="${data.viewUrl || (Deno.env.get('APP_URL') || 'https://oneeddy.com') + '/admin/venue-approvals'}" class="cta-button">VIEW FULL DETAILS</a>
+                <a href="${(() => {
+                  // Always use production URL - App Links will open app if installed, otherwise opens in browser
+                  const url = data.viewUrl || (Deno.env.get('APP_URL') || 'https://oneeddy.com') + '/admin/venue-approvals';
+                  // Ensure we use the correct domain (without www for app links)
+                  return url.replace('www.oneeddy.com', 'oneeddy.com');
+                })()}" class="cta-button">VIEW FULL DETAILS</a>
+                <p style="color: #800020; font-size: 12px; margin-top: 12px; text-align: center;">
+                  💡 <strong>Tip:</strong> Open this link on your phone to view in the Eddy app!
+                </p>
             </div>
             <div style="background-color: rgba(255, 215, 0, 0.2); border: 2px solid #FFD700; border-radius: 6px; padding: 15px; margin: 20px 0; color: #800020;">
                 <strong style="font-weight: bold;">⏰ Please review and respond to this application within 48 hours</strong>

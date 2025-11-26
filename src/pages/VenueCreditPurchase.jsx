@@ -96,27 +96,92 @@ const VenueCreditPurchase = () => {
 
   const fetchUserCredits = async (userId) => {
     try {
-      const { data: creditsData, error } = await supabase
+      console.log('🔍 Fetching user credits for userId:', userId);
+      
+      // First, fetch all credits for the user to see what we have
+      const { data: allCreditsData, error: allCreditsError } = await supabase
         .from('venue_credits')
-        .select(`
-          *,
-          venues (
-            id,
-            name,
-            address,
-            type
-          )
-        `)
+        .select('*')
         .eq('user_id', userId)
-        .eq('status', 'active')
-        .gt('remaining_balance', 0)
-        .gt('expires_at', new Date().toISOString())
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setUserCredits(creditsData || []);
+      if (allCreditsError) {
+        console.error('❌ Error fetching all credits:', allCreditsError);
+        throw allCreditsError;
+      }
+
+      console.log('📊 All credits found:', {
+        total: allCreditsData?.length || 0,
+        credits: allCreditsData?.map(c => ({
+          id: c.id,
+          venue_id: c.venue_id,
+          status: c.status,
+          amount: c.amount,
+          used_amount: c.used_amount,
+          remaining_balance: c.remaining_balance,
+          expires_at: c.expires_at
+        }))
+      });
+
+      // Filter active credits with remaining balance and not expired
+      const now = new Date().toISOString();
+      const activeCredits = (allCreditsData || []).filter(credit => {
+        const remainingBalance = credit.remaining_balance || (credit.amount - (credit.used_amount || 0));
+        const isActive = credit.status === 'active';
+        const hasBalance = remainingBalance > 0;
+        const notExpired = !credit.expires_at || new Date(credit.expires_at) > new Date(now);
+        
+        return isActive && hasBalance && notExpired;
+      });
+
+      console.log('✅ Active credits after filtering:', {
+        count: activeCredits.length,
+        credits: activeCredits.map(c => ({
+          id: c.id,
+          venue_id: c.venue_id,
+          remaining_balance: c.remaining_balance || (c.amount - (c.used_amount || 0))
+        }))
+      });
+
+      // Now fetch venue data for the active credits (using optional join)
+      if (activeCredits.length > 0) {
+        const venueIds = [...new Set(activeCredits.map(c => c.venue_id).filter(Boolean))];
+        const { data: venuesData, error: venuesError } = await supabase
+          .from('venues')
+          .select('id, name, address, type')
+          .in('id', venueIds);
+
+        if (venuesError) {
+          console.warn('⚠️ Error fetching venues:', venuesError);
+        }
+
+        // Create a map of venue_id -> venue for quick lookup
+        const venuesMap = new Map((venuesData || []).map(v => [v.id, v]));
+
+        // Attach venue data to credits
+        const creditsWithVenues = activeCredits.map(credit => {
+          const remainingBalance = credit.remaining_balance || (credit.amount - (credit.used_amount || 0));
+          return {
+            ...credit,
+            remaining_balance: remainingBalance,
+            venues: venuesMap.get(credit.venue_id) || {
+              id: credit.venue_id,
+              name: 'Unknown Venue',
+              address: 'Address not available',
+              type: 'Unknown'
+            }
+          };
+        });
+
+        console.log('✅ Credits with venue data:', creditsWithVenues.length);
+        setUserCredits(creditsWithVenues);
+      } else {
+        console.log('⚠️ No active credits found for user');
+        setUserCredits([]);
+      }
     } catch (error) {
-      console.error('Error fetching user credits:', error);
+      console.error('❌ Error fetching user credits:', error);
+      setUserCredits([]);
     }
   };
 

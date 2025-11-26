@@ -7,7 +7,6 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
-        android:debuggable="true"
         android:usesCleartextTraffic="true">
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation"
@@ -29,17 +28,20 @@
                 <data android:scheme="com.oneeddy.members" />
             </intent-filter>
 
-            <!-- App Links: HTTPS URLs -->
+            <!-- App Links: HTTPS URLs - oneeddy.com -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="oneeddy.com" />
+            </intent-filter>
 
-                <!-- Main domain -->
-                <data android:scheme="https" android:host="oneeddy.com" android:pathPrefix="" />
-
-                <!-- WWW subdomain -->
-                <data android:scheme="https" android:host="www.oneeddy.com" android:pathPrefix="" />
+            <!-- App Links: HTTPS URLs - www.oneeddy.com -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="www.oneeddy.com" />
             </intent-filter>
 
             <!-- Development: localhost deep links (for testing) -->

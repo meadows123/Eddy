@@ -309,7 +309,7 @@ export async function notifyAdminOfVenueSubmission(newVenue, venueOwner, user) {
         month: 'long',
         day: 'numeric'
       }),
-      viewUrl: 'https://oneeddy.com/admin/venue-approvals', // Updated to correct production URL
+      viewUrl: 'https://oneeddy.com/admin/venue-approvals', // Always use production URL for app links
       
       // Email routing (for EmailJS)
       to_email: ADMIN_EMAIL,
@@ -449,6 +449,13 @@ export async function testEmailJSConnection() {
 // Check available time slots for a specific date and venue
 export const getAvailableTimeSlots = async (venueId, date, tableId = null) => {
   try {
+    // Get venue opening hours
+    const openingHours = await getVenueOpeningHours(venueId);
+    const defaultStartTime = '18:00';
+    const defaultEndTime = '02:00';
+    const startTime = openingHours?.startTime || defaultStartTime;
+    const endTime = openingHours?.endTime || defaultEndTime;
+
     // Get all existing bookings for this venue and date
     const { data: existingBookings, error } = await supabase
       .from('bookings')
@@ -459,8 +466,8 @@ export const getAvailableTimeSlots = async (venueId, date, tableId = null) => {
 
     if (error) throw error;
 
-    // Generate all possible time slots (e.g., every 30 minutes from opening to closing)
-    const allTimeSlots = generateTimeSlots('18:00', '02:00'); // Adjust based on your venue hours
+    // Generate all possible time slots using venue's opening hours
+    const allTimeSlots = generateTimeSlots(startTime, endTime);
     
     // Filter out unavailable time slots
     const availableSlots = allTimeSlots.filter(slot => {
@@ -508,6 +515,13 @@ export const getAvailableTimeSlots = async (venueId, date, tableId = null) => {
 // Add this function to check real-time table availability
 export const checkTableAvailability = async (venueId, tableId, date) => {
   try {
+    // Get venue opening hours
+    const openingHours = await getVenueOpeningHours(venueId);
+    const defaultStartTime = '18:00';
+    const defaultEndTime = '02:00';
+    const startTime = openingHours?.startTime || defaultStartTime;
+    const endTime = openingHours?.endTime || defaultEndTime;
+
     // Get all existing bookings for this specific table and date
     const { data: existingBookings, error } = await supabase
       .from('bookings')
@@ -523,9 +537,10 @@ export const checkTableAvailability = async (venueId, tableId, date) => {
     console.log('🔍 Checking availability for:', { venueId, tableId, date });
     console.log('📅 Existing bookings:', existingBookings);
     console.log('📊 Booking statuses found:', existingBookings.map(b => ({ time: b.start_time, status: b.status })));
+    console.log('🕐 Using opening hours:', { startTime, endTime, fromVenue: !!openingHours });
 
-    // Generate all possible time slots
-    const allTimeSlots = generateTimeSlots('18:00', '02:00'); // Adjust based on your venue hours
+    // Generate all possible time slots using venue's opening hours
+    const allTimeSlots = generateTimeSlots(startTime, endTime);
     console.log('⏰ Generated time slots:', allTimeSlots);
     
     // Check which times are available
@@ -587,6 +602,142 @@ export const checkTableAvailability = async (venueId, tableId, date) => {
   } catch (error) {
     console.error('Error checking table availability:', error);
     return { data: null, error };
+  }
+};
+
+// Helper function to parse opening hours text and extract start/end times
+// Handles formats like: "Mon-Sun 9AM-11PM", "Mon-Fri 7pm-12pm", "18:00-02:00", "9:00 AM - 11:00 PM", etc.
+const parseOpeningHours = (openingHoursText) => {
+  if (!openingHoursText || typeof openingHoursText !== 'string') {
+    return null;
+  }
+
+  // First, try to extract time range from various formats
+  // Pattern 1: "7pm-12pm" or "7pm-12am" or "9AM-11PM" (lowercase or uppercase, with or without day prefix)
+  // This pattern handles "Mon-Fri 7pm-12pm" by ignoring the day part
+  // Note: "12pm" is noon, but venues often mean "12am" (midnight) - we'll parse what they type
+  const amPmPattern = /(\d{1,2})(?::(\d{2}))?\s*(am|pm)\s*[-–—]\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i;
+  const amPmMatch = openingHoursText.match(amPmPattern);
+  
+  if (amPmMatch) {
+    let startHour = parseInt(amPmMatch[1]);
+    const startMin = amPmMatch[2] ? parseInt(amPmMatch[2]) : 0;
+    const startPeriod = amPmMatch[3].toUpperCase();
+    let endHour = parseInt(amPmMatch[4]);
+    const endMin = amPmMatch[5] ? parseInt(amPmMatch[5]) : 0;
+    const endPeriod = amPmMatch[6].toUpperCase();
+
+    // Convert to 24-hour format for start time
+    if (startPeriod === 'PM' && startHour !== 12) startHour += 12;
+    if (startPeriod === 'AM' && startHour === 12) startHour = 0;
+    
+    // For end time, check for common mistakes BEFORE converting
+    // If start is PM (evening) and end is "12pm", they almost certainly mean "12am" (midnight)
+    let actualEndPeriod = endPeriod;
+    if (startPeriod === 'PM' && endPeriod === 'PM' && endHour === 12) {
+      console.warn('⚠️ Opening hours parsing: "12pm" detected after PM start time. Assuming midnight (12am) was intended.');
+      actualEndPeriod = 'AM'; // Treat as AM for conversion
+    }
+    
+    // Now convert end time using the corrected period
+    if (actualEndPeriod === 'PM' && endHour !== 12) endHour += 12;
+    if (actualEndPeriod === 'AM' && endHour === 12) endHour = 0;
+
+    // Handle overnight hours (e.g., 7pm-12am means 19:00 to 00:00, which is next day)
+    // If end time is earlier than start time, it's overnight
+    if (endHour < startHour || (endHour === startHour && endMin < startMin)) {
+      // For overnight, we'll set end time to 00:00 (midnight next day)
+      // This will be handled correctly in generateTimeSlots
+      // endHour is already 0 if it was 12am, so we're good
+    }
+
+    const startTime = `${String(startHour).padStart(2, '0')}:${String(startMin).padStart(2, '0')}`;
+    const endTime = `${String(endHour).padStart(2, '0')}:${String(endMin).padStart(2, '0')}`;
+    
+    console.log('🕐 Parsed opening hours:', {
+      original: openingHoursText,
+      parsed: { startTime, endTime },
+      startHour24: startHour,
+      endHour24: endHour,
+      startPeriod: startPeriod,
+      endPeriod: endPeriod,
+      actualEndPeriod: actualEndPeriod || endPeriod,
+      isOvernight: endHour < startHour || (endHour === startHour && endMin < startMin)
+    });
+    
+    return { startTime, endTime };
+  }
+
+  // Pattern 2: "18:00-02:00" or "18:00 - 02:00" (24-hour format)
+  const time24Pattern = /(\d{1,2}):(\d{2})\s*[-–—]\s*(\d{1,2}):(\d{2})/;
+  const time24Match = openingHoursText.match(time24Pattern);
+  
+  if (time24Match) {
+    const startHour = parseInt(time24Match[1]);
+    const startMin = parseInt(time24Match[2]);
+    const endHour = parseInt(time24Match[3]);
+    const endMin = parseInt(time24Match[4]);
+
+    const startTime = `${String(startHour).padStart(2, '0')}:${String(startMin).padStart(2, '0')}`;
+    const endTime = `${String(endHour).padStart(2, '0')}:${String(endMin).padStart(2, '0')}`;
+    
+    return { startTime, endTime };
+  }
+
+  // If no pattern matches, return null to use defaults
+  return null;
+};
+
+// Helper function to get venue opening hours with fallback
+const getVenueOpeningHours = async (venueId) => {
+  try {
+    const { data: venue, error } = await supabase
+      .from('venues')
+      .select('opening_hours')
+      .eq('id', venueId)
+      .single();
+
+    if (error || !venue) {
+      console.warn('⚠️ Could not fetch venue opening hours, using defaults:', error?.message);
+      return null;
+    }
+
+    // If opening_hours is a JSON object, try to extract times
+    if (typeof venue.opening_hours === 'object' && venue.opening_hours !== null) {
+      // Try common JSON structures
+      if (venue.opening_hours.startTime && venue.opening_hours.endTime) {
+        return {
+          startTime: venue.opening_hours.startTime,
+          endTime: venue.opening_hours.endTime
+        };
+      }
+      // If it's a day-based structure, use the first available day or default
+      const firstDay = Object.values(venue.opening_hours)[0];
+      if (firstDay && firstDay.startTime && firstDay.endTime) {
+        return {
+          startTime: firstDay.startTime,
+          endTime: firstDay.endTime
+        };
+      }
+    }
+
+    // If opening_hours is a string, parse it
+    if (typeof venue.opening_hours === 'string') {
+      console.log('🔍 Parsing opening hours string:', venue.opening_hours);
+      const parsed = parseOpeningHours(venue.opening_hours);
+      if (parsed) {
+        console.log('✅ Successfully parsed opening hours:', parsed);
+        return parsed;
+      } else {
+        console.warn('⚠️ Could not parse opening hours format:', venue.opening_hours);
+      }
+    }
+
+    console.warn('⚠️ No valid opening hours found, using defaults (18:00-02:00)');
+    return null;
+  } catch (error) {
+    console.warn('⚠️ Error fetching venue opening hours, using defaults:', error);
+    return null;
   }
 };
 

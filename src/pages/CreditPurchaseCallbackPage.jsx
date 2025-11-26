@@ -446,7 +446,7 @@ const CreditPurchaseCallbackPage = () => {
                 totalPaid: Math.round(totalAmount),
                 platformCommission: Math.round(totalAmount * 0.1),
                 venueName,
-                dashboardUrl: `${window.location.origin}/profile?tab=wallet`,
+                dashboardUrl: `https://oneeddy.com/profile?tab=wallet`,
                 memberTier: 'VIP',
                 qrCodeImage: qrCodeUrl
               }

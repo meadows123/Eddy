@@ -481,7 +481,7 @@ const CreditPurchaseCheckout = () => {
               customerName: formData.fullName,
               amount: creditData.amount * 1000,
               venueName: creditData.venue.name,
-              dashboardUrl: `${window.location.origin}/profile?tab=wallet`,
+              dashboardUrl: `https://oneeddy.com/profile?tab=wallet`,
               qrCodeImage: qrCodeUrl,
               memberTier: 'VIP'
             }
