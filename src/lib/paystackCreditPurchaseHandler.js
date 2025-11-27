@@ -3,7 +3,7 @@ import { getPaystackCallbackUrl } from './urlUtils';
 
 /**
  * Initiates a credit purchase payment through Paystack
- * Takes a commission before crediting the venue
+ * No commission is taken - full amount goes to venue credits
  */
 export const initiateCreditPurchasePayment = async ({
   email,
@@ -23,15 +23,9 @@ export const initiateCreditPurchasePayment = async ({
   });
 
   try {
-    // Calculate 10% commission for platform
-    const commissionPercentage = 0.10;
-    const platformCommission = Math.round(amount * commissionPercentage);
-    const amountAfterCommission = amount - platformCommission;
-
-    console.log('💰 Credit purchase calculation:', {
-      totalAmount: amount,
-      platformCommission,
-      amountAfterCommission
+    // No commission - full amount goes to venue credits
+    console.log('💰 Credit purchase - full amount:', {
+      totalAmount: amount
     });
 
     // Prepare metadata for Paystack
@@ -40,8 +34,7 @@ export const initiateCreditPurchasePayment = async ({
       venueName,
       paymentType: 'credit_purchase',
       callbackType: 'credit', // Indicates this should go to credit purchase callback
-      platformCommission,
-      amountAfterCommission,
+      amount: amount, // Full amount (no commission deducted)
       customerName: fullName,
       customerPhone: phone,
       timestamp: new Date().toISOString()
@@ -148,7 +141,7 @@ export const completeCreditPurchase = async ({
     const creditDataToInsert = {
       user_id: bookingData.userId,
       venue_id: bookingData.venueId,
-      amount: paymentData.amountAfterCommission, // Amount after commission
+      amount: paymentData.amount, // Full amount (no commission deducted)
       used_amount: 0,
       status: 'active'
     };

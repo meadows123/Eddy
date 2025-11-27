@@ -43,14 +43,6 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="www.oneeddy.com" />
             </intent-filter>
-
-            <!-- Development: localhost deep links (for testing) -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="localhost" android:pathPrefix="" />
-            </intent-filter>
         </activity>
 
         <provider

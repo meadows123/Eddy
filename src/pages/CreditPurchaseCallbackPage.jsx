@@ -396,8 +396,7 @@ const CreditPurchaseCallbackPage = () => {
           },
           paymentData: {
             reference,
-            amountAfterCommission: Math.round(totalAmount * 0.9), // 10% commission already taken
-            platformCommission: Math.round(totalAmount * 0.1)
+            amount: totalAmount // Full amount (no commission deducted)
           },
           supabaseClient: supabase
         });
@@ -416,7 +415,7 @@ const CreditPurchaseCallbackPage = () => {
               userId: user.id,
               venueId: venueId,
               creditId: creditRecord.id,
-              amount: Math.round(totalAmount * 0.9)
+              amount: totalAmount // Full amount (no commission)
             });
             qrCodeUrl = qrCodeData?.externalUrl || qrCodeData?.base64 || null;
             console.log('📱 QR code generated successfully for credit purchase');
@@ -442,9 +441,8 @@ const CreditPurchaseCallbackPage = () => {
               data: {
                 customerName: fullName,
                 email,
-                amount: Math.round(totalAmount * 0.9),
-                totalPaid: Math.round(totalAmount),
-                platformCommission: Math.round(totalAmount * 0.1),
+                amount: totalAmount, // Full amount (no commission deducted)
+                totalPaid: totalAmount,
                 venueName,
                 dashboardUrl: `https://oneeddy.com/profile?tab=wallet`,
                 memberTier: 'VIP',

@@ -8,7 +8,7 @@ import { Heart, Calendar, Settings, Clipboard, XCircle, CheckCircle, Send, Link 
 import { supabase } from '../lib/supabase.js';
 import { Elements, useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
 import { Input } from "../components/ui/input";
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { Badge } from '../components/ui/badge';
 import { useToast } from "@/components/ui/use-toast";
 import { getFullUrl } from '@/lib/urlUtils';
@@ -20,6 +20,7 @@ const UserProfilePage = () => {
   const { user, signIn, signUp, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   
   const [isSignup, setIsSignup] = useState(false);
   const [form, setForm] = useState({ email: '', password: '' });
@@ -627,7 +628,19 @@ const UserProfilePage = () => {
     }
   };
 
-  const [activeTab, setActiveTab] = useState(location.state?.activeTab || "profile");
+  // Initialize activeTab from URL params, location state, or default to "profile"
+  const [activeTab, setActiveTab] = useState(() => {
+    const urlTab = searchParams.get('tab');
+    return urlTab || location.state?.activeTab || "profile";
+  });
+
+  // Update activeTab when URL tab parameter changes
+  useEffect(() => {
+    const urlTab = searchParams.get('tab');
+    if (urlTab && urlTab !== activeTab) {
+      setActiveTab(urlTab);
+    }
+  }, [searchParams, activeTab]);
 
   // Add a debug effect for tab changes
   useEffect(() => {

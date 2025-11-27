@@ -219,13 +219,14 @@ serve(async (req) => {
               
               <div style="text-align: center; margin: 30px 0;">
                 <a href="${(() => {
-                  // Always use production URL - App Links will open app if installed, otherwise opens in browser
+                  // Always use production URL with bookings tab - App Links will open app if installed, otherwise opens in browser
                   // Include bookingId if available to view specific booking
                   const bookingId = data.bookingId || '';
+                  let url = 'https://oneeddy.com/profile?tab=bookings';
                   if (bookingId) {
-                    return 'https://oneeddy.com/profile?bookingId=' + bookingId;
+                    url += '&bookingId=' + bookingId;
                   }
-                  return 'https://oneeddy.com/profile';
+                  return url;
                 })()}" style="background: #FFD700; color: #800020; padding: 14px 32px; text-decoration: none; border-radius: 25px; font-weight: bold; font-size: 16px; display: inline-block; border: 2px solid #800020;">View My Booking</a>
                 <p style="color: #800020; font-size: 12px; margin-top: 12px; text-align: center;">
                   💡 <strong>Tip:</strong> Open this link on your phone to view in the Eddy app!
@@ -496,14 +497,7 @@ serve(async (req) => {
       </div>
       ` : ''}
       <div style="text-align:center;margin-top:32px">
-        <a href="${(() => {
-          // Always use production URL - App Links will open app if installed, otherwise opens in browser
-          // Direct to profile with wallet tab to view credits
-          if (data.dashboardUrl && !data.dashboardUrl.includes('localhost')) {
-            return data.dashboardUrl;
-          }
-          return 'https://oneeddy.com/profile?tab=wallet';
-        })()}" style="display:inline-block;background:#FFD700;color:#800020;text-decoration:none;padding:12px 24px;border-radius:6px;font-weight:600;border:2px solid #800020">View Your Credits</a>
+        <a href="https://oneeddy.com/profile?tab=wallet" style="display:inline-block;background:#FFD700;color:#800020;text-decoration:none;padding:12px 24px;border-radius:6px;font-weight:600;border:2px solid #800020">View Your Credits</a>
         <p style="color: #800020; font-size: 12px; margin-top: 12px; text-align: center;">
           💡 <strong>Tip:</strong> Open this link on your phone to view in the Eddy app!
         </p>
@@ -811,7 +805,19 @@ serve(async (req) => {
     </div>
     ` : ''}
       <div style="text-align: center; margin: 24px 0;">
-        <a href="${data.dashboardUrl || (Deno.env.get('APP_URL') || '') + '/profile'}" class="btn">📊 View Booking Details</a>
+        <a href="${(() => {
+          // Always use production URL, include bookingId if available
+          const bookingId = data.bookingId || '';
+          if (bookingId) {
+            return 'https://oneeddy.com/profile?bookingId=' + bookingId;
+          }
+          return data.dashboardUrl && !data.dashboardUrl.includes('localhost') 
+            ? data.dashboardUrl 
+            : 'https://oneeddy.com/profile';
+        })()}" class="btn">📊 View Booking Details</a>
+        <p style="color: #800020; font-size: 12px; margin-top: 12px; text-align: center;">
+          💡 <strong>Tip:</strong> Open this link on your phone to view in the Eddy app!
+        </p>
       </div>
     </div>
   </div>
