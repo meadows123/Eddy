@@ -295,8 +295,7 @@ const SplitPaymentSuccessPage = () => {
               // QR codes are only sent when all payments are complete
               
               // Dashboard URL - always use production URL with bookingId for deep linking
-              dashboardUrl: `https://oneeddy.com/profile${bookingData.id ? `?bookingId=${bookingData.id}` : ''}`,
-              bookingId: bookingData.id // Include bookingId for email template
+              dashboardUrl: `https://oneeddy.com/profile${bookingData.id ? `?bookingId=${bookingData.id}` : ''}`
             };
             
             console.log('📧 Individual split payment email data being sent (NO QR CODE):', emailData);
