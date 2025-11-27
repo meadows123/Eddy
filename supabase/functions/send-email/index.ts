@@ -138,7 +138,7 @@ serve(async (req) => {
             <li>Manage your tables and bookings</li>
             <li>Update your venue information</li>
           </ul>
-          <p>Login to your account to get started: <a href="https://oneeddy.com/venue-owner/login">Login Here</a></p>
+          <p>Login to your account to get started: <a href="https://www.oneeddy.com/venue-owner/login">Login Here</a></p>
           <p>Best regards,<br>The Eddy Team</p>
         `
         break
@@ -222,7 +222,7 @@ serve(async (req) => {
                   // Always use production URL with bookings tab - App Links will open app if installed, otherwise opens in browser
                   // Include bookingId if available to view specific booking
                   const bookingId = data.bookingId || '';
-                  let url = 'https://oneeddy.com/profile?tab=bookings';
+                  let url = 'https://www.oneeddy.com/profile?tab=bookings';
                   if (bookingId) {
                     url += '&bookingId=' + bookingId;
                   }
@@ -281,9 +281,9 @@ serve(async (req) => {
               <div style="text-align: center; margin: 30px 0;">
                 <a href="${(() => {
                   // Always use production URL - App Links will open app if installed, otherwise opens in browser
-                  const url = data.viewUrl || data.adminUrl || 'https://oneeddy.com/admin/venue-approvals';
-                  // Ensure we use the correct domain (without www for app links)
-                  return url.replace('www.oneeddy.com', 'oneeddy.com');
+                  const url = data.viewUrl || data.adminUrl || 'https://www.oneeddy.com/admin/venue-approvals';
+                  // Ensure we use www.oneeddy.com for App Links
+                  return url.replace('oneeddy.com', 'www.oneeddy.com').replace('http://', 'https://');
                 })()}" style="background: #FFD700; color: #800020; padding: 14px 32px; text-decoration: none; border-radius: 25px; font-weight: bold; font-size: 16px; display: inline-block; border: 2px solid #800020;">🏢 VIEW FULL DETAILS</a>
                 <p style="color: #800020; font-size: 12px; margin-top: 12px; text-align: center;">
                   💡 <strong>Tip:</strong> Open this link on your phone to view in the Eddy app!
@@ -333,7 +333,7 @@ serve(async (req) => {
     <div class="email-container">
         <div class="header">
             <div class="logo">
-                <img src="https://oneeddy.com/logo.png" alt="Eddys Members Logo" class="logo-image">
+                <img src="https://www.oneeddy.com/logo.png" alt="Eddys Members Logo" class="logo-image">
                 <h1 class="brand-name">Eddys Members</h1>
                 <p class="tagline">Exclusive Venue Bookings</p>
             </div>
@@ -366,7 +366,7 @@ serve(async (req) => {
             </div>
             
             <div style="text-align: center; margin: 30px 0;">
-                <a href="${data.registrationUrl || `https://oneeddy.com/venue-owner/login?approved=true&email=${encodeURIComponent(data.email)}`}" class="cta-button">
+                <a href="${data.registrationUrl || `https://www.oneeddy.com/venue-owner/login?approved=true&email=${encodeURIComponent(data.email)}`}" class="cta-button">
                     Access Your Dashboard
                 </a>
             </div>
@@ -391,7 +391,7 @@ serve(async (req) => {
         // Use Supabase's built-in inviteUserByEmail function to trigger "Confirm signup" template
         try {
           const { data: inviteData, error: inviteError } = await supabaseClient.auth.admin.inviteUserByEmail(data.email, {
-            redirectTo: `https://oneeddy.com/venue-owner/register`,
+            redirectTo: `https://www.oneeddy.com/venue-owner/register`,
             data: {
               venue_name: data.venueName,
               contact_name: data.contactName,
@@ -497,7 +497,7 @@ serve(async (req) => {
       </div>
       ` : ''}
       <div style="text-align:center;margin-top:32px">
-        <a href="https://oneeddy.com/profile?tab=wallet" style="display:inline-block;background:#FFD700;color:#800020;text-decoration:none;padding:12px 24px;border-radius:6px;font-weight:600;border:2px solid #800020">View Your Credits</a>
+        <a href="https://www.oneeddy.com/profile?tab=wallet" style="display:inline-block;background:#FFD700;color:#800020;text-decoration:none;padding:12px 24px;border-radius:6px;font-weight:600;border:2px solid #800020">View Your Credits</a>
         <p style="color: #800020; font-size: 12px; margin-top: 12px; text-align: center;">
           💡 <strong>Tip:</strong> Open this link on your phone to view in the Eddy app!
         </p>
@@ -650,9 +650,9 @@ serve(async (req) => {
           const bookingId = data.bookingId || '';
           const requestId = data.requestId || '';
           if (bookingId && requestId) {
-            return 'https://oneeddy.com/split-payment/' + bookingId + '/' + requestId;
+            return 'https://www.oneeddy.com/split-payment/' + bookingId + '/' + requestId;
           }
-          return 'https://oneeddy.com/profile';
+          return 'https://www.oneeddy.com/profile';
         })()}" class="btn">💳 Pay Your Share</a>
         <p style="color: #800020; font-size: 12px; margin-top: 12px; text-align: center;">
           💡 <strong>Tip:</strong> Open this link on your phone to pay directly in the Eddy app!
@@ -809,11 +809,11 @@ serve(async (req) => {
           // Always use production URL, include bookingId if available
           const bookingId = data.bookingId || '';
           if (bookingId) {
-            return 'https://oneeddy.com/profile?bookingId=' + bookingId;
+            return 'https://www.oneeddy.com/profile?bookingId=' + bookingId;
           }
           return data.dashboardUrl && !data.dashboardUrl.includes('localhost') 
-            ? data.dashboardUrl 
-            : 'https://oneeddy.com/profile';
+            ? (data.dashboardUrl.replace('oneeddy.com', 'www.oneeddy.com'))
+            : 'https://www.oneeddy.com/profile';
         })()}" class="btn">📊 View Booking Details</a>
         <p style="color: #800020; font-size: 12px; margin-top: 12px; text-align: center;">
           💡 <strong>Tip:</strong> Open this link on your phone to view in the Eddy app!
@@ -958,9 +958,9 @@ serve(async (req) => {
           // Include bookingId if available to view specific booking
           const bookingId = data.bookingId || '';
           if (bookingId) {
-            return 'https://oneeddy.com/venue-owner/dashboard?bookingId=' + bookingId;
+            return 'https://www.oneeddy.com/venue-owner/dashboard?bookingId=' + bookingId;
           }
-          return 'https://oneeddy.com/venue-owner/dashboard';
+          return 'https://www.oneeddy.com/venue-owner/dashboard';
         })()}" class="btn">📊 View Booking in Dashboard</a>
         <p style="color: #800020; font-size: 12px; margin-top: 12px; text-align: center;">
           💡 <strong>Tip:</strong> Open this link on your phone to view in the Eddy app!
@@ -1035,8 +1035,8 @@ serve(async (req) => {
             </div>
             ` : ''}
             <div style="text-align: center; margin: 30px 0;">
-                <a href="${data.dashboardUrl || 'https://oneeddy.com/profile'}" class="action-button">View My Bookings</a>
-                <a href="https://oneeddy.com/venues" class="action-button">Book Another Venue</a>
+                <a href="${data.dashboardUrl || 'https://www.oneeddy.com/profile'}" class="action-button">View My Bookings</a>
+                <a href="https://www.oneeddy.com/venues" class="action-button">Book Another Venue</a>
             </div>
         </div>
     </div>
@@ -1189,9 +1189,9 @@ serve(async (req) => {
             <div style="text-align: center;">
                 <a href="${(() => {
                   // Always use production URL - App Links will open app if installed, otherwise opens in browser
-                  const url = data.viewUrl || (Deno.env.get('APP_URL') || 'https://oneeddy.com') + '/admin/venue-approvals';
-                  // Ensure we use the correct domain (without www for app links)
-                  return url.replace('www.oneeddy.com', 'oneeddy.com');
+                  const url = data.viewUrl || (Deno.env.get('APP_URL') || 'https://www.oneeddy.com') + '/admin/venue-approvals';
+                  // Ensure we use www.oneeddy.com for App Links
+                  return url.replace('oneeddy.com', 'www.oneeddy.com').replace('http://', 'https://');
                 })()}" class="cta-button">VIEW FULL DETAILS</a>
                 <p style="color: #800020; font-size: 12px; margin-top: 12px; text-align: center;">
                   💡 <strong>Tip:</strong> Open this link on your phone to view in the Eddy app!

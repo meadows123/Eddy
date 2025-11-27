@@ -58,7 +58,7 @@ const VenueOwnerRegister = () => {
         email: testEmail,
         password: 'testpassword123',
         options: {
-          emailRedirectTo: `https://oneeddy.com/venue-owner/login`
+          emailRedirectTo: `https://www.oneeddy.com/venue-owner/login`
         }
       });
       
@@ -148,7 +148,7 @@ const VenueOwnerRegister = () => {
           email: formData.email,
           password: formData.password,
           options: {
-            emailRedirectTo: `https://oneeddy.com/venue-owner/login`,
+            emailRedirectTo: `https://www.oneeddy.com/venue-owner/login`,
             data: {
               full_name: formData.full_name,
               phone: formData.phone,
@@ -373,7 +373,7 @@ const VenueOwnerRegister = () => {
         email: formData.email,
         password: formData.password,
         options: {
-          emailRedirectTo: `https://oneeddy.com/venue-owner/login`,
+          emailRedirectTo: `https://www.oneeddy.com/venue-owner/login`,
           data: {
             full_name: formData.full_name,
             phone: formData.phone,

@@ -444,7 +444,7 @@ const CreditPurchaseCallbackPage = () => {
                 amount: totalAmount, // Full amount (no commission deducted)
                 totalPaid: totalAmount,
                 venueName,
-                dashboardUrl: `https://oneeddy.com/profile?tab=wallet`,
+                dashboardUrl: `https://www.oneeddy.com/profile?tab=wallet`,
                 memberTier: 'VIP',
                 qrCodeImage: qrCodeUrl
               }

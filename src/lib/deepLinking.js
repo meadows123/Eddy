@@ -13,7 +13,7 @@ const APP_CONFIG = {
   appScheme: 'oneeddy://',
   
   // Universal link domain (your actual domain)
-  universalLinkDomain: 'https://oneeddy.com',
+  universalLinkDomain: 'https://www.oneeddy.com',
   
   // Web fallback URLs
   webUrls: {

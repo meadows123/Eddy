@@ -427,7 +427,7 @@ export const notifyAdminOfVenueOwnerRegistration = async (venueOwnerData) => {
           venueType: venueOwnerData.venue_type || 'Not specified',
           venueAddress: venueOwnerData.venue_address || 'Not provided',
           venueCity: venueOwnerData.venue_city || 'Not provided',
-          viewUrl: 'https://oneeddy.com/admin/venue-approvals'
+          viewUrl: 'https://www.oneeddy.com/admin/venue-approvals'
         }
       })
     });

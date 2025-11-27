@@ -1925,7 +1925,7 @@ setShowShareDialog(true);
                                 }
                                 
                                 // Always use production URL for email links (never localhost)
-                                const paymentLink = `https://oneeddy.com/split-payment/${pendingBooking.id}/${recipientRequestId}`;
+                                const paymentLink = `https://www.oneeddy.com/split-payment/${pendingBooking.id}/${recipientRequestId}`;
                                 
                                 console.log(`📧 Sending email to recipient ${i + 1}:`, {
                                   email: recipient.email,

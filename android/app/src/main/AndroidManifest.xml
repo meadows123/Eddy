@@ -28,14 +28,6 @@
                 <data android:scheme="com.oneeddy.members" />
             </intent-filter>
 
-            <!-- App Links: HTTPS URLs - oneeddy.com -->
-            <intent-filter android:autoVerify="true">
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="https" android:host="oneeddy.com" />
-            </intent-filter>
-
             <!-- App Links: HTTPS URLs - www.oneeddy.com -->
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />

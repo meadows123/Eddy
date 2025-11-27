@@ -214,7 +214,7 @@ const VenueOwnerLogin = () => {
       setError(null);
       
       const { error } = await supabase.auth.resetPasswordForEmail(formData.email, {
-        redirectTo: `https://oneeddy.com/venue-owner/reset-password`
+        redirectTo: `https://www.oneeddy.com/venue-owner/reset-password`
       });
       
       if (error) throw error;
@@ -262,7 +262,7 @@ const VenueOwnerLogin = () => {
         type: 'signup',
         email: formData.email,
         options: {
-          emailRedirectTo: `https://oneeddy.com/venue-owner/login`
+          emailRedirectTo: `https://www.oneeddy.com/venue-owner/login`
         }
       });
       

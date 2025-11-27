@@ -309,7 +309,7 @@ export async function notifyAdminOfVenueSubmission(newVenue, venueOwner, user) {
         month: 'long',
         day: 'numeric'
       }),
-      viewUrl: 'https://oneeddy.com/admin/venue-approvals', // Always use production URL for app links
+      viewUrl: 'https://www.oneeddy.com/admin/venue-approvals', // Always use production URL for app links
       
       // Email routing (for EmailJS)
       to_email: ADMIN_EMAIL,

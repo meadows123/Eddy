@@ -116,7 +116,7 @@ const JoinVenuePage = () => {
               priceRange: '$$', // Default price range
               openingHours: 'Not specified',
               venuePhone: formData.phone,
-              viewUrl: 'https://oneeddy.com/admin/venue-approvals'
+              viewUrl: 'https://www.oneeddy.com/admin/venue-approvals'
             }
           }
         });

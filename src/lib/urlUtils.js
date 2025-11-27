@@ -16,8 +16,8 @@ export const getBaseUrl = () => {
     return window.location.origin;
   }
   
-  // In production, use the configured production URL
-  return 'https://oneeddy.com';
+  // In production, use the configured production URL (www.oneeddy.com for App Links)
+  return 'https://www.oneeddy.com';
 };
 
 /**
@@ -98,11 +98,11 @@ export const getPaystackCallbackUrl = (path = '/paystack-callback', params = {})
   const query = queryString ? `?${queryString}` : '';
   
   // Always use production URL for Paystack callbacks (required for deep linking in mobile apps)
-  // Paystack requires HTTPS, and the app must be configured to handle https://oneeddy.com URLs
+  // Paystack requires HTTPS, and the app must be configured to handle https://www.oneeddy.com URLs
   // In mobile apps, window.location.hostname is 'localhost', but we need the production URL
   // so Android/iOS can intercept it via App Links
   const isInApp = typeof window !== 'undefined' && (window.Capacitor || window.cordova || window.ionic);
-  const baseUrl = isInApp ? 'https://oneeddy.com' : getBaseUrl();
+  const baseUrl = isInApp ? 'https://www.oneeddy.com' : getBaseUrl();
   
   console.log('🔗 Generating Paystack callback URL:', {
     isInApp,
