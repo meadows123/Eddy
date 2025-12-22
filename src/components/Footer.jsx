@@ -100,12 +100,12 @@ const Footer = () => {
           <p className="mt-2 text-brand-cream/80">
             Developed by{' '}
             <a
-              href="https://www.cisconnects.com"
+              href="https://www.conxiea.com"
               target="_blank"
               rel="noopener noreferrer"
               className="text-white hover:text-brand-gold transition-colors underline font-semibold"
             >
-              Cisconnects
+              Conxiea
             </a>
           </p>
         </div>

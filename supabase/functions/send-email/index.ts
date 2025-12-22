@@ -226,6 +226,8 @@ serve(async (req) => {
                   if (bookingId) {
                     url += '&bookingId=' + bookingId;
                   }
+                  // Add timestamp to force navigation even if already on profile page
+                  url += '&t=' + Date.now();
                   return url;
                 })()}" style="background: #FFD700; color: #800020; padding: 14px 32px; text-decoration: none; border-radius: 25px; font-weight: bold; font-size: 16px; display: inline-block; border: 2px solid #800020;">View My Booking</a>
                 <p style="color: #800020; font-size: 12px; margin-top: 12px; text-align: center;">
@@ -570,7 +572,17 @@ serve(async (req) => {
       </div>
       <!-- QR code removed from split payment initiation email - QR codes are only sent when all payments are complete -->
       <div style="text-align: center; margin: 24px 0;">
-        <a href="${data.dashboardUrl || (Deno.env.get('APP_URL') || '') + '/profile'}" class="btn">📊 View Booking Details</a>
+        <a href="${(() => {
+          // Always use production URL with bookings tab - force navigation with timestamp
+          const bookingId = data.bookingId || '';
+          let url = 'https://www.oneeddy.com/profile?tab=bookings';
+          if (bookingId) {
+            url += '&bookingId=' + bookingId;
+          }
+          // Add timestamp to force navigation even if already on profile page
+          url += '&t=' + Date.now();
+          return url;
+        })()}" class="btn">📊 View Booking Details</a>
       </div>
     </div>
   </div>
@@ -644,15 +656,25 @@ serve(async (req) => {
       </div>
       <!-- QR code removed from split payment request email - QR codes are only sent when all payments are complete -->
       <div style="text-align: center; margin: 24px 0;">
-        <a href="${data.paymentUrl || (() => {
-          // Fallback: construct production URL if paymentUrl not provided
+        <a href="${(() => {
+          // Always use production URL - force navigation with timestamp
           // App Links will automatically open the app if installed, otherwise opens in browser
           const bookingId = data.bookingId || '';
           const requestId = data.requestId || '';
-          if (bookingId && requestId) {
-            return 'https://www.oneeddy.com/split-payment/' + bookingId + '/' + requestId;
+          let url;
+          if (data.paymentUrl && !data.paymentUrl.includes('localhost')) {
+            // Use provided paymentUrl if it's a production URL
+            url = data.paymentUrl.replace('oneeddy.com', 'www.oneeddy.com');
+          } else if (bookingId && requestId) {
+            // Construct URL from bookingId and requestId
+            url = 'https://www.oneeddy.com/split-payment/' + bookingId + '/' + requestId;
+          } else {
+            // Fallback to profile
+            url = 'https://www.oneeddy.com/profile?tab=bookings';
           }
-          return 'https://www.oneeddy.com/profile';
+          // Add timestamp to force navigation even if already on the page
+          url += (url.includes('?') ? '&' : '?') + 't=' + Date.now();
+          return url;
         })()}" class="btn">💳 Pay Your Share</a>
         <p style="color: #800020; font-size: 12px; margin-top: 12px; text-align: center;">
           💡 <strong>Tip:</strong> Open this link on your phone to pay directly in the Eddy app!
@@ -731,7 +753,17 @@ serve(async (req) => {
       </div>
       ` : ''}
       <div style="text-align: center; margin: 24px 0;">
-        <a href="${data.dashboardUrl || (Deno.env.get('APP_URL') || '') + '/profile'}" class="btn">📊 View Booking Details</a>
+        <a href="${(() => {
+          // Always use production URL with bookings tab - force navigation with timestamp
+          const bookingId = data.bookingId || '';
+          let url = 'https://www.oneeddy.com/profile?tab=bookings';
+          if (bookingId) {
+            url += '&bookingId=' + bookingId;
+          }
+          // Add timestamp to force navigation even if already on profile page
+          url += '&t=' + Date.now();
+          return url;
+        })()}" class="btn">📊 View Booking Details</a>
       </div>
     </div>
   </div>
@@ -806,14 +838,15 @@ serve(async (req) => {
     ` : ''}
       <div style="text-align: center; margin: 24px 0;">
         <a href="${(() => {
-          // Always use production URL, include bookingId if available
+          // Always use production URL with bookings tab - force navigation with timestamp
           const bookingId = data.bookingId || '';
+          let url = 'https://www.oneeddy.com/profile?tab=bookings';
           if (bookingId) {
-            return 'https://www.oneeddy.com/profile?bookingId=' + bookingId;
+            url += '&bookingId=' + bookingId;
           }
-          return data.dashboardUrl && !data.dashboardUrl.includes('localhost') 
-            ? (data.dashboardUrl.replace('oneeddy.com', 'www.oneeddy.com'))
-            : 'https://www.oneeddy.com/profile';
+          // Add timestamp to force navigation even if already on profile page
+          url += '&t=' + Date.now();
+          return url;
         })()}" class="btn">📊 View Booking Details</a>
         <p style="color: #800020; font-size: 12px; margin-top: 12px; text-align: center;">
           💡 <strong>Tip:</strong> Open this link on your phone to view in the Eddy app!
@@ -876,6 +909,32 @@ serve(async (req) => {
             }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
           );
+        }
+
+        // Fetch table information if tableInfo is missing or shows "Table not specified" and we have bookingId
+        if ((!data.tableInfo || data.tableInfo === 'Table not specified' || data.tableInfo === 'N/A') && data.bookingId) {
+          try {
+            const { data: bookingData, error: bookingError } = await supabaseClient
+              .from('bookings')
+              .select('table_id')
+              .eq('id', data.bookingId)
+              .maybeSingle();
+            
+            if (!bookingError && bookingData?.table_id) {
+              const { data: tableData, error: tableError } = await supabaseClient
+                .from('venue_tables')
+                .select('table_number')
+                .eq('id', bookingData.table_id)
+                .single();
+              
+              if (!tableError && tableData?.table_number) {
+                data.tableInfo = `Table ${tableData.table_number}`;
+              }
+            }
+          } catch (err) {
+            console.error('Error fetching table information in Edge Function:', err);
+            // Keep existing tableInfo or default
+          }
         }
 
         to = ownerEmail;
@@ -1035,7 +1094,17 @@ serve(async (req) => {
             </div>
             ` : ''}
             <div style="text-align: center; margin: 30px 0;">
-                <a href="${data.dashboardUrl || 'https://www.oneeddy.com/profile'}" class="action-button">View My Bookings</a>
+                <a href="${(() => {
+                  // Always use production URL with bookings tab - force navigation with timestamp
+                  const bookingId = data.bookingId || '';
+                  let url = 'https://www.oneeddy.com/profile?tab=bookings';
+                  if (bookingId) {
+                    url += '&bookingId=' + bookingId;
+                  }
+                  // Add timestamp to force navigation even if already on profile page
+                  url += '&t=' + Date.now();
+                  return url;
+                })()}" class="action-button">View My Bookings</a>
                 <a href="https://www.oneeddy.com/venues" class="action-button">Book Another Venue</a>
             </div>
         </div>

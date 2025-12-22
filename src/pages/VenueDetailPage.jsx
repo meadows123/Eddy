@@ -47,10 +47,11 @@ const VenueDetailPage = () => {
 
       if (data.features && data.features.length > 0) {
         const [lng, lat] = data.features[0].center;
-        setMapCoordinates({ lat, lng });
-        console.log('📍 Geocoded address:', { address: addressString, lat, lng });
+        const coords = { lat, lng };
+        setMapCoordinates(coords);
       } else {
         console.warn('⚠️ No geocoding results found for:', addressString);
+        setMapCoordinates({ lat: 6.5244, lng: 3.3792 });
       }
     } catch (error) {
       console.error('❌ Error geocoding address:', error);
@@ -132,10 +133,11 @@ const VenueDetailPage = () => {
 
         // Set map coordinates - use existing coordinates or geocode address
         if (venueData.latitude && venueData.longitude) {
-          setMapCoordinates({
+          const coords = {
             lat: parseFloat(venueData.latitude),
             lng: parseFloat(venueData.longitude)
-          });
+          };
+          setMapCoordinates(coords);
         } else if (venueData.address || venueData.city) {
           // Geocode address if coordinates are missing
           geocodeAddress(venueData);
@@ -403,11 +405,12 @@ const VenueDetailPage = () => {
         {/* Location */}
         <div>
           <h2 className="text-xl font-semibold text-brand-burgundy mb-4">Where you'll be</h2>
-          <div className="aspect-video rounded-2xl overflow-hidden mb-3 border border-gray-200 shadow-lg">
+          <div className="aspect-video rounded-2xl overflow-hidden mb-3 border border-gray-200 shadow-lg relative">
             <Map
+              key={`map-${mapCoordinates.lat}-${mapCoordinates.lng}`}
               initialViewState={{
-                latitude: mapCoordinates.lat,
-                longitude: mapCoordinates.lng,
+                latitude: mapCoordinates.lat || 6.5244,
+                longitude: mapCoordinates.lng || 3.3792,
                 zoom: 15
               }}
               style={{ width: "100%", height: "100%" }}
@@ -419,18 +422,55 @@ const VenueDetailPage = () => {
               doubleClickZoom={false}
               touchZoomRotate={false}
             >
-              {/* Venue marker */}
-              <Marker 
-                latitude={mapCoordinates.lat} 
-                longitude={mapCoordinates.lng}
-              >
-                <div className="relative">
-                  <div className="w-8 h-8 bg-brand-burgundy rounded-full border-4 border-white shadow-lg flex items-center justify-center">
-                    <MapPin className="h-4 w-4 text-white" />
+              {/* Venue marker - Custom styled pin */}
+              {mapCoordinates.lat && mapCoordinates.lng && (
+                <Marker 
+                  latitude={mapCoordinates.lat} 
+                  longitude={mapCoordinates.lng}
+                  anchor="bottom"
+                >
+                  <div 
+                    style={{ 
+                      position: 'relative',
+                      cursor: 'pointer',
+                      zIndex: 1000,
+                      transform: 'translateY(-100%)'
+                    }}
+                  >
+                    {/* Main pin circle */}
+                    <div 
+                      style={{ 
+                        backgroundColor: '#800020',
+                        width: '48px',
+                        height: '48px',
+                        borderRadius: '50%',
+                        border: '4px solid white',
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.4)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      <MapPin className="h-6 w-6 text-white" fill="white" />
+                    </div>
+                    {/* Pin point/tail */}
+                    <div 
+                      style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        width: 0,
+                        height: 0,
+                        borderLeft: '8px solid transparent',
+                        borderRight: '8px solid transparent',
+                        borderTop: '12px solid #800020',
+                        filter: 'drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3))'
+                      }}
+                    ></div>
                   </div>
-                  <div className="absolute -top-1 -left-1 w-10 h-10 bg-brand-burgundy/20 rounded-full animate-ping"></div>
-                </div>
-              </Marker>
+                </Marker>
+              )}
             </Map>
           </div>
           <p className="text-brand-burgundy font-medium">

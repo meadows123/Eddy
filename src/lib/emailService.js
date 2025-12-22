@@ -137,10 +137,29 @@ export const sendVenueOwnerNotification = async (booking, venue, customer, venue
     const venueId = venue?.id || booking?.venue_id || venueIdOverride;
     const normalizedOwnerEmail = ownerData.email?.toLowerCase() === 'info@oneeddy.com' ? undefined : ownerData.email;
 
-    // Use Supabase Edge Function for venue owner notifications
-    const tableInfo = booking.table_number
-      ? `Table ${booking.table_number}`
-      : (booking.table?.table_number ? `Table ${booking.table.table_number}` : 'Table not specified');
+    // Fetch table information if table_id exists but table data is not loaded
+    let tableInfo = 'Table not specified';
+    if (booking.table_number) {
+      tableInfo = `Table ${booking.table_number}`;
+    } else if (booking.table?.table_number) {
+      tableInfo = `Table ${booking.table.table_number}`;
+    } else if (booking.table_id) {
+      // Fetch table information from venue_tables
+      try {
+        const { data: tableData, error: tableError } = await supabase
+          .from('venue_tables')
+          .select('table_number')
+          .eq('id', booking.table_id)
+          .single();
+        
+        if (!tableError && tableData?.table_number) {
+          tableInfo = `Table ${tableData.table_number}`;
+        }
+      } catch (err) {
+        console.error('Error fetching table information:', err);
+        // Keep default 'Table not specified'
+      }
+    }
 
     console.log('📧 Sending single payment venue owner notification:', {
       to: normalizedOwnerEmail || 'info@oneeddy.com',
