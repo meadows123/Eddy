@@ -5,6 +5,7 @@ import './lib/testLocationOverride'; // Test location override utility
 import Navigation from './components/Navigation';
 import Footer from './components/Footer';
 import ScrollToTop from './components/ScrollToTop';
+import ChatBot from './components/ChatBot';
 
 // Component to handle Paystack callback detection
 const PaystackCallbackHandler = () => {
@@ -318,6 +319,7 @@ const App = () => {
           </Routes>
         </main>
         <Footer />
+        <ChatBot />
         <Toaster />
       </div>
     </AuthProvider>
