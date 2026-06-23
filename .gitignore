@@ -3,12 +3,8 @@
 .env.development
 .env.production
 dist/
+build/
 node_modules
-<<<<<<< HEAD
-=======
-*.sql
-*.md
 
 # Windows Zone.Identifier files (alternate data streams)
 *:Zone.Identifier
->>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
