@@ -16,12 +16,6 @@
 		<meta http-equiv="Expires" content="0" />
 		<title>Eddy's Members - Lagos Premier Nightlife & VIP Booking</title>
 		<meta name="description" content="Discover exclusive Lagos nightclubs, restaurants, and lounges. Book VIP tables, RSVP to elite events, and experience the best of Lagos nightlife. Your ultimate guide to luxury experiences in Victoria Island, Ikoyi, Lekki, and more." />
-<<<<<<< HEAD
-		<meta name="keywords" content="Lagos nightlife, VIP clubbing Lagos, book VIP table Lagos, Lagos clubs, Lagos restaurants, luxury nightlife Nigeria, premium nightlife Lagos, RSVP events Lagos" />
-		<link rel="preconnect" href="https://fonts.googleapis.com">
-		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-		<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-=======
 		<meta name="keywords" content="best lounges in Lagos, best restaurants in Lagos, best nightclubs in Lagos, Lagos nightlife, top restaurants Lagos, top lounges Lagos, Lagos nightclubs, Lagos restaurants, Lagos bars and lounges, Lagos dining, where to eat in Lagos, cool lounges in Lagos, romantic restaurants in Lagos, fun places in Lagos, Lagos rooftop bars, fine dining in Lagos, luxury lounges in Lagos, Lagos party spots, weekend hangout Lagos, Lagos nightlife guide, best rooftop restaurants in Lagos, best dinner date spots in Lagos, where to party in Lagos tonight, best Sunday brunch in Lagos, top VIP nightclubs in Lagos, quiet restaurants in Lagos for meetings, Lagos restaurant deals, exclusive lounges in Lagos, trendy restaurants in Lagos, best beach clubs in Lagos, book lounges in Lagos, reserve restaurant Lagos, nightlife app Lagos, Lagos events and parties, dining deals Lagos, best Lagos food app, Eddy, eddymemebers" />
 		<link rel="preconnect" href="https://fonts.googleapis.com">
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -34,57 +28,57 @@
 			console.log('🔥🔥🔥 INLINE SCRIPT LOADED - PAGE:', window.location.href);
 			console.log('🔥🔥🔥 Pathname:', window.location.pathname);
 			console.log('🔥🔥🔥 Search:', window.location.search);
-			
+
 			(function() {
 				try {
 					// Only run on callback pages
-					const isCallbackPage = window.location.pathname.includes('paystack-callback') || 
+					const isCallbackPage = window.location.pathname.includes('paystack-callback') ||
 					                      window.location.pathname.includes('split-payment-callback') ||
 					                      window.location.pathname.includes('credit-purchase-callback');
-					
+
 					console.log('🔍 Inline script check:', {
 						pathname: window.location.pathname,
 						isCallbackPage: isCallbackPage,
 						url: window.location.href
 					});
-					
+
 					if (!isCallbackPage) {
 						console.log('⏸️ Not a callback page, skipping redirect logic');
 						return;
 					}
-					
+
 					// Check if we're on mobile but NOT in the app
 					const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 					const isInApp = window.Capacitor || window.cordova || window.ionic;
-					
+
 					console.log('🔍 Inline script redirect check:', {
 						isMobile: isMobile,
 						isInApp: isInApp,
 						shouldRedirect: isMobile && !isInApp
 					});
-					
+
 					// ALWAYS try to redirect if we're on a callback page and on mobile
 					// Even if we're in the app, we want to ensure the deep link works
 					if (isMobile) {
 						const currentPath = window.location.pathname;
 						const query = window.location.search;
 						const fullPath = currentPath + query;
-						
+
 						console.log('🚨 INLINE SCRIPT: Mobile detected, attempting redirect:', {
 							fullPath: fullPath,
 							isInApp: isInApp,
 							userAgent: navigator.userAgent
 						});
-						
+
 						// Build app deep link
 						const appUrl = 'com.oneeddy.members://' + fullPath.substring(1); // Remove leading /
-						
+
 						// For Android, use Intent URL (works even if already in app)
 						if (/Android/i.test(navigator.userAgent)) {
 							const intentUrl = 'intent://oneeddy.com' + fullPath + '#Intent;scheme=https;package=com.oneeddy.members;end';
 							console.log('🚨 INLINE SCRIPT: Android Intent URL:', intentUrl);
 							console.log('🚨 INLINE SCRIPT: Attempting redirect NOW...');
-							
+
 							// Try Intent URL first - this should open the app immediately
 							try {
 								window.location.href = intentUrl; // Use href instead of replace for better compatibility
@@ -92,7 +86,7 @@
 								console.error('❌ Intent URL failed, trying custom scheme:', e);
 								window.location.href = appUrl;
 							}
-							
+
 							// Also try custom scheme as fallback after a short delay
 							setTimeout(function() {
 								console.log('🚨 INLINE SCRIPT: Android fallback custom scheme:', appUrl);
@@ -111,7 +105,7 @@
 								console.error('❌ iOS custom scheme failed:', e);
 							}
 						}
-						
+
 						// If we're already in app, log but still allow redirect attempt (it will just reload the page)
 						if (isInApp) {
 							console.log('✅ INLINE SCRIPT: Already in app, redirect will reload page in app');
@@ -125,7 +119,6 @@
 				}
 			})();
 		</script>
->>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
 	</head>
 	<body>
 		<div id="root">
