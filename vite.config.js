@@ -33,7 +33,13 @@ export default defineConfig({
 				if (warning.code === 'CIRCULAR_DEPENDENCY') return;
 				warn(warning);
 			}
+		},
+		commonjsOptions: {
+			include: [/qrcode/, /node_modules/]
 		}
+	},
+	optimizeDeps: {
+		include: ['qrcode']
 	},
 	preview: {
 		host: '0.0.0.0',

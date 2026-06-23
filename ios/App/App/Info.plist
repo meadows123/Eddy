@@ -45,5 +45,24 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>We need access to your camera to scan QR codes for venue entry.</string>
+	<!-- Custom URL Scheme for Deep Linking -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.oneeddy.members</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.oneeddy.members</string>
+			</array>
+		</dict>
+	</array>
+	<!-- Associated Domains for Universal Links -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:www.oneeddy.com</string>
+	</array>
 </dict>
 </plist>

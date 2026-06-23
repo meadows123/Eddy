@@ -46,7 +46,7 @@ const VenueOwnerRegister = () => {
     };
   });
 
-  const ADMIN_EMAIL = "sales@oneeddy.com"; // Replace with your admin's email
+  const ADMIN_EMAIL = "info@oneeddy.com"; // Replace with your admin's email
 
   // Test function to check Supabase email configuration
   const testSupabaseEmail = async () => {
@@ -58,7 +58,7 @@ const VenueOwnerRegister = () => {
         email: testEmail,
         password: 'testpassword123',
         options: {
-          emailRedirectTo: `${window.location.origin}/venue-owner/login`
+          emailRedirectTo: `https://www.oneeddy.com/venue-owner/login`
         }
       });
       
@@ -148,7 +148,7 @@ const VenueOwnerRegister = () => {
           email: formData.email,
           password: formData.password,
           options: {
-            emailRedirectTo: `${window.location.origin}/venue-owner/login`,
+            emailRedirectTo: `https://www.oneeddy.com/venue-owner/login`,
             data: {
               full_name: formData.full_name,
               phone: formData.phone,
@@ -373,7 +373,7 @@ const VenueOwnerRegister = () => {
         email: formData.email,
         password: formData.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/venue-owner/login`,
+          emailRedirectTo: `https://www.oneeddy.com/venue-owner/login`,
           data: {
             full_name: formData.full_name,
             phone: formData.phone,
@@ -395,37 +395,142 @@ const VenueOwnerRegister = () => {
       }
 
       console.log('✅ User account created successfully:', signUpData.user.id);
+      console.log('📊 Signup data:', {
+        hasUser: !!signUpData.user,
+        userId: signUpData.user.id,
+        hasSession: !!signUpData.session,
+        sessionUser: signUpData.session?.user?.id
+      });
 
-      // Create venue owner record directly (foreign key constraints should work with new users)
-      const { data: venueOwnerData, error: venueOwnerError } = await supabase
-        .from('venue_owners')
-        .insert([{
-          user_id: signUpData.user.id,
-          venue_name: formData.venue_name,
-          venue_description: formData.venue_description,
-          venue_address: formData.venue_address,
-          venue_city: formData.venue_city,
-          venue_country: formData.venue_country,
-          venue_phone: formData.phone,
-          owner_name: formData.full_name,
-          owner_email: formData.email,
-          owner_phone: formData.phone,
-          venue_type: formData.venue_type,
-          opening_hours: formData.opening_hours || '',
-          capacity: formData.capacity || '',
-          price_range: formData.price_range || '$$',
-          status: 'pending_approval'
-        }])
-        .select()
-        .single();
+      // If we have a session, set it so the user is authenticated for the next operations
+      if (signUpData.session) {
+        console.log('🔐 Setting session for newly created user...');
+        const { error: sessionError } = await supabase.auth.setSession({
+          access_token: signUpData.session.access_token,
+          refresh_token: signUpData.session.refresh_token
+        });
+        if (sessionError) {
+          console.warn('⚠️ Could not set session:', sessionError);
+        } else {
+          console.log('✅ Session set successfully');
+        }
+      }
 
-      if (venueOwnerError) {
-        console.error('❌ Venue owner creation failed:', venueOwnerError);
-        setError(`Failed to create venue owner record: ${venueOwnerError.message}`);
+      // Small delay to ensure user is fully committed to database before foreign key check
+      console.log('⏳ Waiting for user to be committed to database...');
+      await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
+
+      // Create venue owner record using Edge Function (bypasses RLS with service role)
+      // This is necessary because the session might not be fully established after signup
+      console.log('📝 Creating venue owner record via Edge Function...');
+      try {
+        const { data: functionResponse, error: functionError } = await supabase.functions.invoke('create-venue-owner', {
+          body: {
+            user_id: signUpData.user.id,
+            full_name: formData.full_name,
+            email: formData.email,
+            phone: formData.phone
+          }
+        });
+
+        if (functionError) {
+          console.error('❌ Edge Function error:', functionError);
+          console.error('❌ Edge Function error details:', {
+            message: functionError.message,
+            status: functionError.status,
+            context: functionError.context
+          });
+          
+          // If Edge Function fails, try direct insert as fallback (only if session is set)
+          if (signUpData.session) {
+            console.log('🔄 Falling back to direct insert (session available)...');
+            const { data: venueOwnerData, error: venueOwnerError } = await supabase
+              .from('venue_owners')
+              .insert([{
+                user_id: signUpData.user.id,
+                full_name: formData.full_name,
+                email: formData.email,
+                phone: formData.phone
+              }])
+              .select()
+              .single();
+
+            if (venueOwnerError) {
+              if (venueOwnerError.code === '23505') {
+                console.log('⚠️ Venue owner already exists, continuing...');
+              } else {
+                console.error('❌ Fallback also failed:', venueOwnerError);
+                setError(`Failed to create venue owner record: ${venueOwnerError.message}. Please check RLS policies or deploy Edge Function.`);
+                return;
+              }
+            } else {
+              console.log('✅ Venue owner created via fallback:', venueOwnerData.id);
+            }
+          } else {
+            setError(`Failed to create venue owner record: ${functionError.message}. Please deploy the create-venue-owner Edge Function or run the RLS fix SQL.`);
+            return;
+          }
+        } else if (functionResponse?.success && functionResponse?.data) {
+          console.log('✅ Venue owner record created successfully:', functionResponse.data.id);
+        } else {
+          console.error('❌ Venue owner creation failed:', functionResponse?.error);
+          setError(`Failed to create venue owner record: ${functionResponse?.details || 'Unknown error'}`);
+          return;
+        }
+      } catch (err) {
+        console.error('❌ Exception creating venue owner:', err);
+        setError(`Failed to create venue owner record: ${err.message}`);
         return;
       }
 
-      console.log('✅ Venue owner record created successfully');
+      // Check if venue already exists for this owner
+      console.log('🔍 Checking for existing venue...');
+      const { data: existingVenueList, error: existingVenueError } = await supabase
+        .from('venues')
+        .select('id')
+        .eq('owner_id', signUpData.user.id)
+        .limit(1);
+
+      let venueData = null;
+      
+      if (existingVenueList && existingVenueList.length > 0) {
+        console.log('⚠️ Venue already exists for this owner, skipping creation:', existingVenueList[0].id);
+        venueData = existingVenueList[0];
+      } else {
+        // Now create the venue record with venue details
+        console.log('📝 Creating venue record...');
+        const { data: newVenueList, error: venueError } = await supabase
+          .from('venues')
+          .insert([{
+            owner_id: signUpData.user.id,
+            name: formData.venue_name,
+            description: formData.venue_description,
+            address: formData.venue_address,
+            city: formData.venue_city,
+            state: formData.venue_city || 'Not specified', // Use city as state if not provided
+            country: formData.venue_country,
+            contact_phone: formData.venue_phone,
+            contact_email: formData.venue_email,
+            type: formData.venue_type,
+            opening_hours: formData.opening_hours || '{}',
+            price_range: formData.price_range || '$$',
+            is_active: false,
+            latitude: 0, // Placeholder - can be updated later with actual coordinates
+            longitude: 0, // Placeholder - can be updated later with actual coordinates
+            rating: null
+          }])
+          .select()
+          .limit(1);
+
+        if (venueError) {
+          console.error('❌ Venue creation failed:', venueError);
+          console.error('Venue error details:', venueError);
+          // Don't return here - venue owner was created successfully, this is secondary
+        } else if (newVenueList && newVenueList.length > 0) {
+          venueData = newVenueList[0];
+          console.log('✅ Venue record created successfully:', venueData.id);
+        }
+      }
 
       // Also create the pending request for admin tracking
       const requestData = {
@@ -455,45 +560,22 @@ const VenueOwnerRegister = () => {
       }
 
       // Send admin notification email
-      const SERVICE_ID = import.meta.env.VITE_EMAILJS_SERVICE_ID;
-      const TEMPLATE_ID = import.meta.env.VITE_EMAILJS_VENUE_OWNER_REQUEST_TEMPLATE;
-      const PUBLIC_KEY = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
-      
-      if (SERVICE_ID && TEMPLATE_ID && PUBLIC_KEY) {
-        try {
-          emailjs.init(PUBLIC_KEY);
-          await emailjs.send(
-            SERVICE_ID,
-            TEMPLATE_ID,
-            {
-              email: 'info@oneeddy.com',
-              to_name: 'Admin',
-              from_name: 'Eddys Members',
-              subject: 'New Venue Owner Application',
-              ownerName: formData.full_name,
-              ownerEmail: formData.email,
-              ownerPhone: formData.phone,
-              applicationDate: new Date().toLocaleDateString('en-US', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-              }),
-              venueName: formData.venue_name,
-              venueDescription: formData.venue_description,
-              venueType: formData.venue_type || 'Not specified',
-              venueCapacity: formData.capacity || 'Not specified',
-              venueAddress: formData.venue_address,
-              priceRange: formData.price_range || 'Not specified',
-              openingHours: formData.opening_hours || 'Not specified',
-              venuePhone: formData.phone
-            }
-          );
-          console.log('✅ Admin notification email sent');
-        } catch (emailError) {
-          console.error('❌ Failed to send admin notification:', emailError);
-          // Don't fail the registration if email fails
-        }
+      try {
+        const venueOwnerData = {
+          owner_name: formData.full_name,
+          email: formData.email,
+          phone: formData.phone,
+          venue_name: formData.venue_name,
+          venue_type: formData.venue_type || 'Not specified',
+          venue_address: formData.venue_address,
+          venue_city: formData.venue_city
+        };
+        
+        await notifyAdminOfVenueOwnerRegistration(venueOwnerData);
+        console.log('✅ Admin notification email sent successfully');
+      } catch (emailError) {
+        console.error('❌ Failed to send admin notification email:', emailError);
+        // Don't fail the registration if email fails
       }
 
       // Check if email confirmation is required
@@ -847,10 +929,8 @@ const VenueOwnerRegister = () => {
                     className="w-full pl-10 pr-3 py-2 bg-white border border-brand-burgundy/20 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-burgundy focus:border-transparent"
                   >
                     <option value="restaurant">Restaurant</option>
-                    <option value="bar">Bar</option>
-                    <option value="club">Club</option>
                     <option value="lounge">Lounge</option>
-                    <option value="other">Other</option>
+                    <option value="club">Club</option>
                   </select>
                 </div>
               </div>

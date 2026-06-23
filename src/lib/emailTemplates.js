@@ -122,6 +122,26 @@ export const bookingConfirmationTemplate = (bookingData) => {
         </ul>
       </div>
 
+      ${bookingData.hasQrCode && bookingData.qrCodeImage ? `
+      <!-- QR Code Section -->
+      <div style="margin-top: 24px; padding: 20px; background: linear-gradient(135deg, #FFF5E6 0%, #ffffff 100%); border: 2px solid #FFD700; border-radius: 15px; text-align: center;" class="mobile-padding">
+        <h3 style="margin: 0 0 20px 0; color: #5B0202; font-size: 18px;" class="mobile-title">📱 Your Entry QR Code</h3>
+        <div style="background: #ffffff; padding: 20px; border-radius: 10px; box-shadow: 0 4px 15px rgba(128, 0, 32, 0.1); border: 2px solid #FFD700; display: inline-block;">
+          <img src="${bookingData.qrCodeImage}" alt="QR Code for Venue Entry" style="width: 180px; height: 180px; display: block; margin: 0 auto;" />
+        </div>
+        <div style="margin-top: 15px; max-width: 400px; margin-left: auto; margin-right: auto;">
+          <p style="color: #333; font-size: 14px; line-height: 1.6; margin: 0 0 10px 0;" class="mobile-text">
+            📋 Present this QR code at the venue entrance for quick check-in
+          </p>
+          <div style="background: rgba(128, 0, 32, 0.1); border: 1px solid #5B0202; border-radius: 8px; padding: 12px; margin-top: 15px;">
+            <p style="color: #5B0202; font-size: 12px; font-weight: bold; margin: 0;" class="mobile-text">
+              🔒 This QR code is unique to your booking and contains security verification
+            </p>
+          </div>
+        </div>
+      </div>
+      ` : ''}
+
       <!-- Contact Information -->
       <div style="margin-top: 24px; padding: 16px; border: 1px solid #ddd; border-radius: 8px;" class="mobile-padding">
         <h3 style="margin: 0 0 12px 0; color: #5B0202;" class="mobile-title">Venue Contact</h3>

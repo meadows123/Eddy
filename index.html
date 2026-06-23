@@ -10,15 +10,197 @@
 		<meta name="theme-color" content="#800020" />
 		<meta name="generator" content="Hostinger Horizons" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<!-- Cache busting meta tags -->
+		<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+		<meta http-equiv="Pragma" content="no-cache" />
+		<meta http-equiv="Expires" content="0" />
 		<title>Eddy's Members - Lagos Premier Nightlife & VIP Booking</title>
 		<meta name="description" content="Discover exclusive Lagos nightclubs, restaurants, and lounges. Book VIP tables, RSVP to elite events, and experience the best of Lagos nightlife. Your ultimate guide to luxury experiences in Victoria Island, Ikoyi, Lekki, and more." />
+<<<<<<< HEAD
 		<meta name="keywords" content="Lagos nightlife, VIP clubbing Lagos, book VIP table Lagos, Lagos clubs, Lagos restaurants, luxury nightlife Nigeria, premium nightlife Lagos, RSVP events Lagos" />
 		<link rel="preconnect" href="https://fonts.googleapis.com">
 		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 		<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+=======
+		<meta name="keywords" content="best lounges in Lagos, best restaurants in Lagos, best nightclubs in Lagos, Lagos nightlife, top restaurants Lagos, top lounges Lagos, Lagos nightclubs, Lagos restaurants, Lagos bars and lounges, Lagos dining, where to eat in Lagos, cool lounges in Lagos, romantic restaurants in Lagos, fun places in Lagos, Lagos rooftop bars, fine dining in Lagos, luxury lounges in Lagos, Lagos party spots, weekend hangout Lagos, Lagos nightlife guide, best rooftop restaurants in Lagos, best dinner date spots in Lagos, where to party in Lagos tonight, best Sunday brunch in Lagos, top VIP nightclubs in Lagos, quiet restaurants in Lagos for meetings, Lagos restaurant deals, exclusive lounges in Lagos, trendy restaurants in Lagos, best beach clubs in Lagos, book lounges in Lagos, reserve restaurant Lagos, nightlife app Lagos, Lagos events and parties, dining deals Lagos, best Lagos food app, Eddy, eddymemebers" />
+		<link rel="preconnect" href="https://fonts.googleapis.com">
+		<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+		<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+		<!-- App Redirect: Try to open mobile app first, fallback to web -->
+		<script src="/app-redirect.js"></script>
+		<!-- Immediate redirect for Paystack callbacks on mobile -->
+		<script>
+			// FORCE LOG AT PAGE LOAD - this should ALWAYS run
+			console.log('🔥🔥🔥 INLINE SCRIPT LOADED - PAGE:', window.location.href);
+			console.log('🔥🔥🔥 Pathname:', window.location.pathname);
+			console.log('🔥🔥🔥 Search:', window.location.search);
+			
+			(function() {
+				try {
+					// Only run on callback pages
+					const isCallbackPage = window.location.pathname.includes('paystack-callback') || 
+					                      window.location.pathname.includes('split-payment-callback') ||
+					                      window.location.pathname.includes('credit-purchase-callback');
+					
+					console.log('🔍 Inline script check:', {
+						pathname: window.location.pathname,
+						isCallbackPage: isCallbackPage,
+						url: window.location.href
+					});
+					
+					if (!isCallbackPage) {
+						console.log('⏸️ Not a callback page, skipping redirect logic');
+						return;
+					}
+					
+					// Check if we're on mobile but NOT in the app
+					const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+					const isInApp = window.Capacitor || window.cordova || window.ionic;
+					
+					console.log('🔍 Inline script redirect check:', {
+						isMobile: isMobile,
+						isInApp: isInApp,
+						shouldRedirect: isMobile && !isInApp
+					});
+					
+					// ALWAYS try to redirect if we're on a callback page and on mobile
+					// Even if we're in the app, we want to ensure the deep link works
+					if (isMobile) {
+						const currentPath = window.location.pathname;
+						const query = window.location.search;
+						const fullPath = currentPath + query;
+						
+						console.log('🚨 INLINE SCRIPT: Mobile detected, attempting redirect:', {
+							fullPath: fullPath,
+							isInApp: isInApp,
+							userAgent: navigator.userAgent
+						});
+						
+						// Build app deep link
+						const appUrl = 'com.oneeddy.members://' + fullPath.substring(1); // Remove leading /
+						
+						// For Android, use Intent URL (works even if already in app)
+						if (/Android/i.test(navigator.userAgent)) {
+							const intentUrl = 'intent://oneeddy.com' + fullPath + '#Intent;scheme=https;package=com.oneeddy.members;end';
+							console.log('🚨 INLINE SCRIPT: Android Intent URL:', intentUrl);
+							console.log('🚨 INLINE SCRIPT: Attempting redirect NOW...');
+							
+							// Try Intent URL first - this should open the app immediately
+							try {
+								window.location.href = intentUrl; // Use href instead of replace for better compatibility
+							} catch (e) {
+								console.error('❌ Intent URL failed, trying custom scheme:', e);
+								window.location.href = appUrl;
+							}
+							
+							// Also try custom scheme as fallback after a short delay
+							setTimeout(function() {
+								console.log('🚨 INLINE SCRIPT: Android fallback custom scheme:', appUrl);
+								try {
+									window.location.href = appUrl;
+								} catch (e) {
+									console.error('❌ Custom scheme also failed:', e);
+								}
+							}, 500);
+						} else {
+							// For iOS, try custom scheme
+							console.log('🚨 INLINE SCRIPT: iOS custom scheme:', appUrl);
+							try {
+								window.location.href = appUrl;
+							} catch (e) {
+								console.error('❌ iOS custom scheme failed:', e);
+							}
+						}
+						
+						// If we're already in app, log but still allow redirect attempt (it will just reload the page)
+						if (isInApp) {
+							console.log('✅ INLINE SCRIPT: Already in app, redirect will reload page in app');
+						}
+					} else {
+						console.log('⏸️ INLINE SCRIPT: Not mobile, skipping redirect');
+					}
+				} catch (e) {
+					// Log error but let page load
+					console.error('❌ Inline script redirect error:', e);
+				}
+			})();
+		</script>
+>>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
 	</head>
 	<body>
-		<div id="root"></div>
+		<div id="root">
+			<!-- Fallback content - only shows on callback pages, otherwise shows generic loading -->
+			<div id="fallback-loading-screen" style="display: none; align-items: center; justify-content: center; min-height: 100vh; background: #f3f4f6; font-family: system-ui, -apple-system, sans-serif; padding: 20px;">
+				<div style="text-align: center; max-width: 400px;">
+					<div id="fallback-title" style="font-size: 18px; font-weight: 600; color: #1f2937; margin-bottom: 8px;">Loading...</div>
+					<div id="fallback-message" style="font-size: 14px; color: #6b7280; margin-bottom: 16px;"></div>
+					<div style="width: 40px; height: 40px; border: 4px solid #e5e7eb; border-top-color: #3b82f6; border-radius: 50%; margin: 0 auto; animation: spin 1s linear infinite;"></div>
+					<div id="fallback-debug" style="display: none; margin-top: 24px; padding: 12px; background: #f9fafb; border-radius: 8px; font-size: 12px; color: #4b5563; text-align: left;">
+						<div><strong>URL:</strong> <span id="fallback-url"></span></div>
+						<div style="margin-top: 8px;"><strong>Status:</strong> <span id="fallback-status">Initializing...</span></div>
+					</div>
+				</div>
+			</div>
+			<style>
+				@keyframes spin {
+					to { transform: rotate(360deg); }
+				}
+			</style>
+			<script>
+				// Only show fallback loading screen on callback pages
+				(function() {
+					try {
+						const isCallbackPage = window.location.pathname.includes('paystack-callback') || 
+						                      window.location.pathname.includes('split-payment-callback') ||
+						                      window.location.pathname.includes('credit-purchase-callback');
+						
+						const fallbackScreen = document.getElementById('fallback-loading-screen');
+						
+						if (isCallbackPage && fallbackScreen) {
+							// Show callback-specific message
+							fallbackScreen.style.display = 'flex';
+							const titleEl = document.getElementById('fallback-title');
+							const messageEl = document.getElementById('fallback-message');
+							const debugEl = document.getElementById('fallback-debug');
+							
+							if (titleEl) titleEl.textContent = 'Loading Payment Verification...';
+							if (messageEl) messageEl.textContent = 'Please wait while we verify your payment';
+							if (debugEl) {
+								debugEl.style.display = 'block';
+								const urlEl = document.getElementById('fallback-url');
+								const statusEl = document.getElementById('fallback-status');
+								if (urlEl) urlEl.textContent = window.location.href.substring(0, 80) + '...';
+								if (statusEl) statusEl.textContent = 'Page loaded, waiting for React...';
+								
+								// Check if we're in the app
+								const isInApp = window.Capacitor || window.cordova || window.ionic;
+								if (isInApp && statusEl) {
+									statusEl.textContent = 'In app - React should load soon...';
+								}
+							}
+						} else if (fallbackScreen) {
+							// Don't show fallback screen for non-callback pages
+							fallbackScreen.style.display = 'none';
+						}
+						
+						// Hide fallback when React mounts (it will replace #root content)
+						const observer = new MutationObserver(function(mutations) {
+							const root = document.getElementById('root');
+							if (root && root.children.length > 1) {
+								// React has mounted, hide fallback
+								if (fallbackScreen) {
+									fallbackScreen.style.display = 'none';
+								}
+								observer.disconnect();
+							}
+						});
+						observer.observe(document.getElementById('root'), { childList: true, subtree: true });
+					} catch (e) {
+						console.error('Fallback script error:', e);
+					}
+				})();
+			</script>
+		</div>
 		<script type="module" src="/src/main.jsx"></script>
 	</body>
 </html>

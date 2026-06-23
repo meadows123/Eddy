@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Store, Lock, Eye, EyeOff, ArrowRight, CheckCircle } from 'lucide-react';
+import { Store, Lock, Eye, EyeOff, ArrowRight, CheckCircle, AlertCircle } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
@@ -17,6 +17,7 @@ const VenueOwnerResetPassword = () => {
   const [success, setSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isStandardReset, setIsStandardReset] = useState(false);
   
   const [formData, setFormData] = useState({
     password: '',
@@ -27,7 +28,18 @@ const VenueOwnerResetPassword = () => {
   useEffect(() => {
     const accessToken = searchParams.get('access_token');
     const refreshToken = searchParams.get('refresh_token');
+    const standardToken = searchParams.get('token');
+    const type = searchParams.get('type');
     
+
+
+    // Handle standard Supabase password reset (token parameter)
+    if (standardToken) {
+      setIsStandardReset(true);
+      return;
+    }
+
+    // Handle venue owner specific reset (access_token/refresh_token)
     if (!accessToken || !refreshToken) {
       setError('Invalid or missing reset link. Please request a new password reset.');
       return;
@@ -42,11 +54,18 @@ const VenueOwnerResetPassword = () => {
         });
 
         if (error) {
-          console.error('Session error:', error);
           setError('Invalid reset link. Please request a new password reset.');
+          return;
         }
+        
+        // Verify we have a user
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+        if (userError || !user) {
+          setError('Unable to verify user. Please request a new password reset.');
+          return;
+        }
+        
       } catch (error) {
-        console.error('Error setting session:', error);
         setError('Failed to validate reset link. Please try again.');
       }
     };
@@ -84,14 +103,12 @@ const VenueOwnerResetPassword = () => {
     setLoading(true);
     setError(null);
 
-    // Validate passwords match
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       setLoading(false);
       return;
     }
 
-    // Validate password strength
     const passwordErrors = validatePassword(formData.password);
     if (passwordErrors.length > 0) {
       setError(`Password must contain: ${passwordErrors.join(', ')}`);
@@ -100,32 +117,53 @@ const VenueOwnerResetPassword = () => {
     }
 
     try {
-      console.log('🔄 Updating password...');
-      
-      const { error } = await supabase.auth.updateUser({
-        password: formData.password
-      });
+      let result;
+      if (isStandardReset) {
+        const token = searchParams.get('token');
+        if (!token) throw new Error('Missing reset token');
 
-      if (error) throw error;
+        // Try to get the user/session
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
 
-      console.log('✅ Password updated successfully');
+        if (userError || !user) {
+          // No session, verify the token
+          const { error: verifyError } = await supabase.auth.verifyOtp({
+            token_hash: token,
+            type: 'recovery'
+          });
+          if (verifyError) {
+            setError('Invalid or expired reset token. Please request a new password reset.');
+            setLoading(false);
+            return;
+          }
+        }
+
+        // Now update the password
+        result = await supabase.auth.updateUser({ password: formData.password });
+      } else {
+        // Venue owner flow (session already set)
+        result = await supabase.auth.updateUser({ password: formData.password });
+      }
+
+      if (result.error) throw result.error;
+
       setSuccess(true);
-      
       toast({
         title: 'Password Updated',
         description: 'Your password has been successfully updated.',
         variant: 'default',
       });
 
-      // Redirect to login after a short delay
       setTimeout(() => {
-        navigate('/venue-owner/login');
+        if (isStandardReset) {
+          navigate('/');
+        } else {
+          navigate('/venue-owner/login');
+        }
       }, 2000);
 
     } catch (error) {
-      console.error('❌ Password update error:', error);
       setError(error.message || 'Failed to update password');
-      
       toast({
         title: 'Error',
         description: error.message || 'Failed to update password',
@@ -136,34 +174,42 @@ const VenueOwnerResetPassword = () => {
     }
   };
 
+  const handleRequestNewReset = () => {
+    if (isStandardReset) {
+      navigate('/'); // Redirect to main site for regular users
+    } else {
+      navigate('/venue-owner/login'); // Redirect to venue owner login
+    }
+  };
+
   if (success) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <motion.div 
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-lg text-center"
+          className="w-full max-w-sm sm:max-w-md space-y-6 sm:space-y-8 bg-white p-4 sm:p-6 lg:p-8 rounded-xl shadow-lg text-center"
         >
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2 }}
-            className="mx-auto h-16 w-16 bg-green-100 rounded-full flex items-center justify-center"
+            className="mx-auto h-12 w-12 sm:h-16 sm:w-16 bg-green-100 rounded-full flex items-center justify-center"
           >
-            <CheckCircle className="h-8 w-8 text-green-600" />
+            <CheckCircle className="h-6 w-6 sm:h-8 sm:w-8 text-green-600" />
           </motion.div>
           
           <div>
-            <h2 className="text-2xl font-heading text-gray-900">
+            <h2 className="text-xl sm:text-2xl font-heading text-gray-900">
               Password Updated Successfully!
             </h2>
-            <p className="mt-2 text-sm text-gray-600">
+            <p className="mt-2 text-xs sm:text-sm text-gray-600">
               Your password has been updated. You will be redirected to the login page shortly.
             </p>
           </div>
 
           <Button
-            onClick={() => navigate('/venue-owner/login')}
+            onClick={() => isStandardReset ? navigate('/') : navigate('/venue-owner/login')}
             className="w-full bg-brand-burgundy text-white hover:bg-brand-burgundy/90"
           >
             Go to Login
@@ -175,25 +221,25 @@ const VenueOwnerResetPassword = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-md w-full space-y-8 bg-white p-8 rounded-xl shadow-lg"
+        className="w-full max-w-sm sm:max-w-md space-y-6 sm:space-y-8 bg-white p-4 sm:p-6 lg:p-8 rounded-xl shadow-lg"
       >
         <div className="text-center">
           <motion.div
             initial={{ scale: 0 }}
             animate={{ scale: 1 }}
             transition={{ delay: 0.2 }}
-            className="mx-auto h-12 w-12 bg-brand-burgundy/10 rounded-full flex items-center justify-center"
+            className="mx-auto h-10 w-10 sm:h-12 sm:w-12 bg-brand-burgundy/10 rounded-full flex items-center justify-center"
           >
-            <Store className="h-6 w-6 text-brand-burgundy" />
+            <Store className="h-5 w-5 sm:h-6 sm:w-6 text-brand-burgundy" />
           </motion.div>
-          <h2 className="mt-6 text-3xl font-heading text-brand-burgundy">
+          <h2 className="mt-4 sm:mt-6 text-2xl sm:text-3xl font-heading text-brand-burgundy">
             Reset Your Password
           </h2>
-          <p className="mt-2 text-sm text-brand-burgundy/70">
+          <p className="mt-2 text-xs sm:text-sm text-brand-burgundy/70">
             Enter your new password below
           </p>
         </div>
@@ -204,12 +250,35 @@ const VenueOwnerResetPassword = () => {
             animate={{ opacity: 1, y: 0 }}
             className="bg-red-50 border border-red-200 rounded-md p-4"
           >
-            <p className="text-sm text-red-600">{error}</p>
+            <div className="flex">
+              <AlertCircle className="h-5 w-5 text-red-400 mr-2 mt-0.5" />
+              <div>
+                <p className="text-sm text-red-600">{error}</p>
+                <button
+                  onClick={handleRequestNewReset}
+                  className="text-sm text-red-500 hover:text-red-700 underline mt-1"
+                >
+                  Request new password reset
+                </button>
+              </div>
+            </div>
           </motion.div>
         )}
 
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="space-y-4">
+        {debugInfo && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-blue-50 border border-blue-200 rounded-md p-4"
+          >
+            <p className="text-xs text-blue-600 font-mono">
+              Debug: {JSON.stringify(debugInfo, null, 2)}
+            </p>
+          </motion.div>
+        )}
+
+        <form className="mt-6 sm:mt-8 space-y-4 sm:space-y-6" onSubmit={handleSubmit}>
+          <div className="space-y-3 sm:space-y-4">
             <div>
               <Label htmlFor="password" className="text-brand-burgundy">
                 New Password
@@ -281,7 +350,7 @@ const VenueOwnerResetPassword = () => {
             <Button
               type="submit"
               className="w-full bg-brand-burgundy text-white hover:bg-brand-burgundy/90"
-              disabled={loading}
+              disabled={loading || !!error}
             >
               {loading ? 'Updating Password...' : 'Update Password'}
               <ArrowRight className="ml-2 h-4 w-4" />
@@ -289,11 +358,11 @@ const VenueOwnerResetPassword = () => {
           </div>
         </form>
 
-        <div className="text-center mt-6">
-          <p className="text-sm text-brand-burgundy/70">
+        <div className="text-center mt-4 sm:mt-6">
+          <p className="text-xs sm:text-sm text-brand-burgundy/70">
             Remember your password?{' '}
             <button
-              onClick={() => navigate('/venue-owner/login')}
+              onClick={() => isStandardReset ? navigate('/') : navigate('/venue-owner/login')}
               className="text-brand-burgundy hover:text-brand-gold font-medium"
             >
               Back to login

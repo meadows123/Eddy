@@ -1,3 +1,23 @@
+// Phone number validation - Accepts only 10-20 digits with optional +, spaces, hyphens, and parentheses
+export const isValidPhoneNumber = (phone) => {
+  if (!phone) return false;
+  // Remove all non-digit characters except the leading + sign
+  const cleaned = phone.replace(/[\s\-\(\)]/g, '');
+  // Check if it has between 10-20 digits (including country code)
+  const digitCount = cleaned.replace(/\D/g, '').length;
+  return digitCount >= 10 && digitCount <= 20;
+};
+
+// Sanitize phone input - only allow digits, +, spaces, hyphens, and parentheses
+export const sanitizePhoneInput = (value) => {
+  return value.replace(/[^\d\+\s\-\(\)]/g, '');
+};
+
+// Get only the digits from a phone number
+export const getPhoneDigits = (phone) => {
+  return phone.replace(/\D/g, '');
+};
+
 export const validateCheckoutForm = (formData, isAuthenticated = false) => {
   const errors = {};
   
@@ -13,6 +33,8 @@ export const validateCheckoutForm = (formData, isAuthenticated = false) => {
   
   if (!formData.phone.trim()) {
     errors.phone = 'Phone number is required';
+  } else if (!isValidPhoneNumber(formData.phone)) {
+    errors.phone = 'Phone number must contain 10-20 digits';
   }
   
   // Only validate password for non-authenticated users
@@ -22,24 +44,6 @@ export const validateCheckoutForm = (formData, isAuthenticated = false) => {
     } else if (formData.password.length < 6) {
       errors.password = 'Password must be at least 6 characters';
     }
-  }
-  
-  if (!formData.cardNumber.trim()) {
-    errors.cardNumber = 'Card number is required';
-  } else if (!/^\d{16}$/.test(formData.cardNumber.replace(/\s/g, ''))) {
-    errors.cardNumber = 'Card number must be 16 digits';
-  }
-  
-  if (!formData.expiryDate.trim()) {
-    errors.expiryDate = 'Expiry date is required';
-  } else if (!/^(0[1-9]|1[0-2])\/?([0-9]{2})$/.test(formData.expiryDate)) {
-    errors.expiryDate = 'Format must be MM/YY';
-  }
-  
-  if (!formData.cvv.trim()) {
-    errors.cvv = 'CVV is required';
-  } else if (!/^\d{3,4}$/.test(formData.cvv)) {
-    errors.cvv = 'CVV must be 3 or 4 digits';
   }
   
   if (!formData.agreeToTerms) {

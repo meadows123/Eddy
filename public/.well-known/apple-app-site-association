@@ -1,0 +1,21 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "TEAM_ID.com.oneeddy.members",
+        "paths": [
+          "*",
+          "/*",
+          "/venues/*",
+          "/profile/*",
+          "/checkout/*",
+          "/paystack-callback*",
+          "/split-payment-callback*",
+          "/credit-purchase-callback*"
+        ]
+      }
+    ]
+  }
+}
+

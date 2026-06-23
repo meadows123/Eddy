@@ -95,8 +95,19 @@ const Footer = () => {
             </ul>
           </div>
         </div>
-        <div className="border-t border-brand-cream/10 mt-8 pt-8 text-center text-brand-cream/60">
-          <p>&copy; {currentYear} Eddys Members. All rights reserved. Built in memory of Eddy.</p>
+        <div className="border-t border-brand-cream/10 mt-8 pt-8 text-center">
+          <p className="text-brand-cream/80">&copy; {currentYear} Eddys Members. All rights reserved. Built in memory of Eddy.</p>
+          <p className="mt-2 text-brand-cream/80">
+            Developed by{' '}
+            <a
+              href="https://www.conxiea.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-white hover:text-brand-gold transition-colors underline font-semibold"
+            >
+              Conxiea
+            </a>
+          </p>
         </div>
       </div>
     </footer>

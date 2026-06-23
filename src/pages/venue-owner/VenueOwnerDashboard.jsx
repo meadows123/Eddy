@@ -11,7 +11,8 @@ import {
   Table2,
   Users,
   Wallet,
-  Receipt
+  Receipt,
+  Zap
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -50,7 +51,6 @@ const VenueOwnerDashboard = () => {
   const subscriptionRef = useRef(null);
   const autoRefreshRef = useRef(null);
 
-  console.log('Dashboard currentUser (top-level):', currentUser);
 
   useEffect(() => {
     checkAuth();
@@ -59,7 +59,6 @@ const VenueOwnerDashboard = () => {
     // Set up auto-refresh every 60 seconds
     autoRefreshRef.current = setInterval(() => {
       if (currentUser && !loading) {
-        console.log('Auto-refreshing dashboard data...');
         fetchVenueData(true); // silent refresh
       }
     }, 60000);
@@ -80,7 +79,6 @@ const VenueOwnerDashboard = () => {
       if (sessionError) throw sessionError;
       
       if (!session) {
-        console.log('No session found, redirecting to login...');
         toast({
           title: 'Authentication Required',
           description: 'Please log in to access the dashboard',
@@ -94,14 +92,41 @@ const VenueOwnerDashboard = () => {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError) throw userError;
 
-      const { data: venueOwner, error: venueOwnerError } = await supabase
+      // Try to find venue owner by user_id first (without .single() to avoid 406 errors)
+      let venueOwner = null;
+      const { data: venueOwnersByUserId, error: errorByUserId } = await supabase
         .from('venue_owners')
         .select('*')
         .eq('user_id', user.id)
-        .single();
+        .order('created_at', { ascending: false });
 
-      if (venueOwnerError || !venueOwner) {
-        console.log('User is not a venue owner, redirecting to register...');
+      if (venueOwnersByUserId && venueOwnersByUserId.length > 0 && !errorByUserId) {
+        venueOwner = venueOwnersByUserId[0]; // Use first result if multiple found
+      } else {
+        // Fallback: try by email
+        const { data: venueOwnersByEmail, error: errorByEmail } = await supabase
+          .from('venue_owners')
+          .select('*')
+          .eq('owner_email', user.email)
+          .order('created_at', { ascending: false });
+
+        if (venueOwnersByEmail && venueOwnersByEmail.length > 0) {
+          // Pick the best match (active/approved status, or most recent)
+          const activeRecord = venueOwnersByEmail.find(vo => vo.status === 'active' || vo.status === 'approved');
+          venueOwner = activeRecord || venueOwnersByEmail[0];
+          
+          // If found by email but user_id doesn't match, update it
+          if (venueOwner.user_id !== user.id) {
+            await supabase
+              .from('venue_owners')
+              .update({ user_id: user.id })
+              .eq('id', venueOwner.id);
+            venueOwner.user_id = user.id;
+          }
+        }
+      }
+
+      if (!venueOwner) {
         toast({
           title: 'Venue Owner Account Required',
           description: 'Please register as a venue owner to access the dashboard',
@@ -111,10 +136,21 @@ const VenueOwnerDashboard = () => {
         return;
       }
 
+      // Check if venue owner is active (allow both 'active' and 'approved' status)
+      const validStatuses = ['active', 'approved'];
+      if (!validStatuses.includes(venueOwner.status)) {
+        toast({
+          title: 'Account Pending Approval',
+          description: `Your venue owner account status is "${venueOwner.status}". Please wait for admin approval or contact support.`,
+          variant: 'destructive',
+        });
+        navigate('/venue-owner/register');
+        return;
+      }
+
       // If we get here, user is authenticated and is a venue owner
       fetchVenueData();
     } catch (error) {
-      console.error('Auth check error:', error);
       setError(error.message);
       toast({
         title: 'Error',
@@ -126,28 +162,30 @@ const VenueOwnerDashboard = () => {
 
   const fetchVenueData = async (silent = false) => {
     try {
-      console.log('Fetching venue data...');
       setLoading(true);
       setError(null);
 
       // Get current user
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError) {
-        console.error('User fetch error:', userError);
         throw userError;
       }
       setCurrentUser(user);
 
       // Get venue owned by this user
-      const { data: venueData, error: venueError } = await supabase
+      const { data: venueDataList, error: venueError } = await supabase
         .from('venues')
         .select('*')
         .eq('owner_id', user.id)
-        .single();
+        .limit(1);
 
       if (venueError) {
-        console.error('Venue fetch error:', venueError);
         throw venueError;
+      }
+
+      const venueData = venueDataList && venueDataList.length > 0 ? venueDataList[0] : null;
+      if (!venueData) {
+        throw new Error('No venue found for this user');
       }
 
       setVenue(venueData);
@@ -162,7 +200,6 @@ const VenueOwnerDashboard = () => {
         .eq('venue_id', venueData.id);
 
       if (bookingsError) {
-        console.error('Bookings fetch error:', bookingsError);
         throw bookingsError;
       }
 
@@ -278,7 +315,6 @@ const VenueOwnerDashboard = () => {
 
   const cleanupSubscriptions = () => {
     if (subscriptionRef.current) {
-      console.log('Cleaning up dashboard real-time subscription...');
       subscriptionRef.current.unsubscribe();
       subscriptionRef.current = null;
     }
@@ -289,11 +325,9 @@ const VenueOwnerDashboard = () => {
     cleanupSubscriptions();
 
     if (!venueIds || venueIds.length === 0) {
-      console.log('No venue IDs provided for dashboard subscription');
       return;
     }
 
-    console.log('Setting up dashboard real-time subscription for venues:', venueIds);
 
     try {
       // Subscribe to bookings changes for this venue owner's venues
@@ -308,7 +342,6 @@ const VenueOwnerDashboard = () => {
             filter: `venue_id=in.(${venueIds.join(',')})` // Filter by venue IDs
           },
           (payload) => {
-            console.log('Real-time booking change detected in dashboard:', payload);
             
             // Refresh data after a short delay to allow DB changes to propagate
             setTimeout(() => {
@@ -319,10 +352,6 @@ const VenueOwnerDashboard = () => {
           }
         )
         .subscribe((status) => {
-          console.log('Dashboard subscription status:', status);
-          if (status === 'SUBSCRIBED') {
-            console.log('Successfully subscribed to dashboard real-time updates');
-          }
         });
     } catch (error) {
       console.error('Error setting up dashboard real-time subscription:', error);
@@ -419,10 +448,22 @@ const VenueOwnerDashboard = () => {
               <span className="hidden sm:inline">Receipt Management</span>
               <span className="sm:hidden">Receipts</span>
             </Button>
-            <Button className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90 w-full sm:w-auto text-sm sm:text-base py-2 sm:py-2">
+            <Button 
+              variant="outline" 
+              className="border-yellow-500 text-yellow-600 hover:bg-yellow-50 w-full sm:w-auto text-sm sm:text-base py-2 sm:py-2"
+              onClick={() => navigate('/venue-owner/stripe-setup')}
+            >
+              <Zap className="h-4 w-4 mr-2" />
+              <span className="hidden sm:inline">Stripe Setup</span>
+              <span className="sm:hidden">Stripe</span>
+            </Button>
+            <Button 
+              className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90 w-full sm:w-auto text-sm sm:text-base py-2 sm:py-2"
+              onClick={() => navigate('/venue-owner/qr-scanner')}
+            >
               <QrCode className="h-4 w-4 mr-2" />
-              <span className="hidden sm:inline">Generate QR Code</span>
-              <span className="sm:hidden">QR Code</span>
+              <span className="hidden sm:inline">QR Scanner</span>
+              <span className="sm:hidden">QR Scanner</span>
             </Button>
             <Button 
               variant="outline" 

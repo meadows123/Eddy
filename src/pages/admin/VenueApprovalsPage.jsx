@@ -173,6 +173,7 @@ const VenueApprovalsPage = () => {
     setProcessing(true);
     try {
       
+<<<<<<< HEAD
       // First delete any existing venue owner records for this email
       const { error: deleteError } = await supabase
         .from('venue_owners')
@@ -238,6 +239,250 @@ const VenueApprovalsPage = () => {
       }
 
       console.log('✅ Venue owner record created/updated successfully:', venueOwner);
+=======
+      // Check if venue owner already exists (by user_id - most reliable)
+      console.log('🔍 Checking for existing venue owner record...');
+      const { data: existingVenueOwnerList, error: checkError } = await supabase
+        .from('venue_owners')
+        .select('id, user_id, email, owner_email')
+        .eq('user_id', req.user_id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (checkError) {
+        console.error('❌ Error checking existing venue owner:', checkError);
+      }
+
+      const existingVenueOwner = existingVenueOwnerList && existingVenueOwnerList.length > 0 
+        ? existingVenueOwnerList[0] 
+        : null;
+
+      // Check if venue already exists for this owner
+      console.log('🔍 Checking for existing venue...');
+      const { data: existingVenueList, error: existingVenueError } = await supabase
+        .from('venues')
+        .select('id')
+        .eq('owner_id', req.user_id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      let newVenue = null;
+      
+      if (existingVenueList && existingVenueList.length > 0) {
+        console.log('⚠️ Venue already exists, updating status to active:', existingVenueList[0].id);
+        // Update existing venue to be active and visible
+        const { data: updatedVenueList, error: updateVenueError } = await supabase
+          .from('venues')
+          .update({
+            status: 'active',
+            is_active: true,
+            name: req.venue_name,
+            description: req.additional_info,
+            type: req.venue_type || 'restaurant',
+            price_range: req.price_range || '$$',
+            address: req.venue_address,
+            city: req.venue_city,
+            state: req.venue_city,
+            country: req.venue_country
+          })
+          .eq('id', existingVenueList[0].id)
+          .select();
+
+        if (updateVenueError) {
+          console.error('❌ Failed to update existing venue:', updateVenueError);
+          throw new Error(`Failed to update existing venue: ${updateVenueError.message}`);
+        }
+
+        if (updatedVenueList && updatedVenueList.length > 0) {
+          newVenue = updatedVenueList[0];
+          console.log('✅ Existing venue updated to active:', newVenue.id);
+        } else {
+          // Fallback: use existing venue if update didn't return data
+          newVenue = existingVenueList[0];
+        }
+      } else {
+        // Create new venue record
+        console.log('🏗️ Creating venue record...');
+        const { data: createdVenueList, error: venueError } = await supabase
+          .from('venues')
+          .insert([{
+            name: req.venue_name,
+            description: req.additional_info,
+            type: req.venue_type || 'restaurant',
+            price_range: req.price_range || '$$',
+            address: req.venue_address,
+            city: req.venue_city,
+            state: req.venue_city,
+            country: req.venue_country,
+            status: 'active',
+            is_active: true,
+            owner_id: req.user_id
+          }])
+          .select()
+          .order('id', { ascending: false })
+          .limit(1);
+
+        if (venueError) {
+          console.error('❌ Failed to create venue:', venueError);
+          throw new Error(`Failed to create venue: ${venueError.message}`);
+        }
+
+        if (createdVenueList && createdVenueList.length > 0) {
+          newVenue = createdVenueList[0];
+          console.log('✅ Venue created successfully:', newVenue.id);
+        }
+      }
+
+      if (!newVenue) {
+        throw new Error('Failed to get or create venue');
+      }
+
+      // Update existing venue owner record OR create new one
+      let venueOwner = null;
+      
+      if (existingVenueOwner) {
+        // Update existing record
+        console.log('🔄 Updating existing venue owner record:', existingVenueOwner.id);
+        console.log('📝 Update data:', {
+          id: existingVenueOwner.id,
+          owner_email: req.email,
+          email: req.email,
+          owner_name: req.contact_name,
+          full_name: req.contact_name,
+          venue_id: newVenue.id,
+          status: 'active'
+        });
+        
+        try {
+          const { data: updatedVenueOwnerList, error: updateError } = await supabase
+            .from('venue_owners')
+            .update({
+              owner_email: req.email,
+              email: req.email, // Also set email field for consistency
+              owner_name: req.contact_name,
+              full_name: req.contact_name, // Also set full_name field for consistency
+              venue_id: newVenue.id,
+              status: 'active',
+              phone: req.contact_phone,
+              venue_name: req.venue_name,
+              venue_type: req.venue_type || 'restaurant',
+              venue_description: req.additional_info,
+              venue_address: req.venue_address,
+              venue_city: req.venue_city,
+              venue_country: req.venue_country,
+              venue_phone: req.contact_phone,
+              owner_phone: req.contact_phone,
+              price_range: req.price_range || '$$'
+            })
+            .eq('id', existingVenueOwner.id)
+            .select();
+
+          console.log('📊 Update response received:', { 
+            hasError: !!updateError,
+            hasData: !!updatedVenueOwnerList, 
+            dataLength: updatedVenueOwnerList?.length,
+            error: updateError,
+            data: updatedVenueOwnerList 
+          });
+
+          if (updateError) {
+            console.error('❌ Failed to update venue owner:', updateError);
+            console.error('❌ Update error details:', JSON.stringify(updateError, null, 2));
+            throw new Error(`Failed to update venue owner: ${updateError.message}`);
+          }
+
+          if (updatedVenueOwnerList && updatedVenueOwnerList.length > 0) {
+            venueOwner = updatedVenueOwnerList[0];
+            console.log('✅ Venue owner record updated successfully:', venueOwner.id);
+          } else {
+            console.warn('⚠️ Update succeeded but no data returned, fetching record...');
+            // Fetch the record directly
+            const { data: fetchedVenueOwner, error: fetchError } = await supabase
+              .from('venue_owners')
+              .select('*')
+              .eq('id', existingVenueOwner.id)
+              .single();
+            
+            console.log('📊 Fetch response:', {
+              hasError: !!fetchError,
+              hasData: !!fetchedVenueOwner,
+              error: fetchError,
+              data: fetchedVenueOwner
+            });
+            
+            if (fetchError) {
+              console.error('❌ Failed to fetch updated venue owner:', fetchError);
+              throw new Error(`Update succeeded but failed to fetch record: ${fetchError.message}`);
+            }
+            venueOwner = fetchedVenueOwner;
+            console.log('✅ Fetched venue owner record:', venueOwner?.id);
+          }
+        } catch (updateException) {
+          console.error('❌ Exception during update:', updateException);
+          throw updateException;
+        }
+      } else {
+        // Create new venue owner record
+        console.log('📝 Creating new venue owner record...');
+        console.log('📝 Insert data:', {
+          user_id: req.user_id,
+          owner_email: req.email,
+          email: req.email,
+          owner_name: req.contact_name,
+          full_name: req.contact_name,
+          venue_id: newVenue.id,
+          status: 'active',
+          phone: req.contact_phone
+        });
+        
+        const { data: createdVenueOwnerList, error: venueOwnerError } = await supabase
+          .from('venue_owners')
+          .insert([{
+            user_id: req.user_id,
+            owner_email: req.email,
+            email: req.email, // Set both fields for consistency
+            owner_name: req.contact_name,
+            full_name: req.contact_name, // Set both fields for consistency
+            venue_id: newVenue.id,
+            status: 'active',
+            phone: req.contact_phone,
+            venue_name: req.venue_name,
+            venue_type: req.venue_type || 'restaurant',
+            venue_description: req.additional_info,
+            venue_address: req.venue_address,
+            venue_city: req.venue_city,
+            venue_country: req.venue_country,
+            venue_phone: req.contact_phone,
+            owner_phone: req.contact_phone,
+            price_range: req.price_range || '$$'
+          }])
+          .select();
+
+        if (venueOwnerError) {
+          console.error('❌ Failed to create venue owner:', venueOwnerError);
+          console.error('❌ Error details:', JSON.stringify(venueOwnerError, null, 2));
+          throw new Error(`Failed to create venue owner: ${venueOwnerError.message}`);
+        }
+
+        console.log('📊 Insert response:', { 
+          hasData: !!createdVenueOwnerList, 
+          dataLength: createdVenueOwnerList?.length,
+          data: createdVenueOwnerList 
+        });
+
+        if (createdVenueOwnerList && createdVenueOwnerList.length > 0) {
+          venueOwner = createdVenueOwnerList[0];
+          console.log('✅ Venue owner record created successfully:', venueOwner.id);
+        } else {
+          console.error('❌ Insert succeeded but no data returned');
+          throw new Error('Insert succeeded but no data returned from database');
+        }
+      }
+
+      if (!venueOwner) {
+        throw new Error('Failed to create or update venue owner record');
+      }
+>>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
 
       // Update the pending request status
       console.log('🔄 Updating pending request status...');

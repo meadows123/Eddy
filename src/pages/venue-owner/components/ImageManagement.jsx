@@ -18,7 +18,6 @@ const ImageManagement = ({ currentUser }) => {
   const [addingUrl, setAddingUrl] = useState(false);
 
   useEffect(() => {
-    console.log('ImageManagement currentUser:', currentUser);
     if (currentUser && currentUser.id) {
       fetchVenueAndImages();
     } else if (currentUser === null) {
@@ -27,19 +26,20 @@ const ImageManagement = ({ currentUser }) => {
       // Still loading user data
       setLoading(true);
     }
-  }, [currentUser]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.id]);
 
   const fetchVenueAndImages = async () => {
     try {
       setLoading(true);
       
-      console.log('Fetching venue for user:', currentUser?.id);
-      
-      const { data: venueData, error: venueError } = await supabase
+      const { data: venueDataList, error: venueError } = await supabase
         .from('venues')
         .select('*')
         .eq('owner_id', currentUser.id)
-        .single();
+        .limit(1);
+      
+      const venueData = venueDataList && venueDataList.length > 0 ? venueDataList[0] : null;
 
       if (venueError) {
         console.error('Error fetching venue:', venueError);
@@ -59,7 +59,6 @@ const ImageManagement = ({ currentUser }) => {
         return;
       }
 
-      console.log('Venue data:', venueData);
       setVenue(venueData);
 
       const { data: imagesData, error: imagesError } = await supabase
@@ -79,7 +78,6 @@ const ImageManagement = ({ currentUser }) => {
         return;
       }
 
-      console.log('Images data:', imagesData);
       setImages(imagesData || []);
     } catch (error) {
       console.error('Error in fetchVenueAndImages:', error);
@@ -180,17 +178,44 @@ const ImageManagement = ({ currentUser }) => {
       const fileExt = file.name.split('.').pop();
       const fileName = `${venue.id}/${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
 
-      // Upload to Supabase Storage
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('venue-images')
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
+      // Upload using direct fetch to Supabase Storage REST API
+      // This bypasses the client library's FormData handling
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Not authenticated');
+      }
 
-      if (uploadError) throw uploadError;
+      const arrayBuffer = await file.arrayBuffer();
+      
+      // Get Supabase project URL and anon key
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://agydpkzfucicraedllgl.supabase.co';
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      // Upload directly to Storage REST API
+      // Note: Supabase Storage API expects the path to be URL-encoded
+      const encodedPath = encodeURIComponent(fileName);
+      const uploadUrl = `${supabaseUrl}/storage/v1/object/venue-images/${encodedPath}`;
+      
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': file.type,
+          'x-upsert': 'false',
+          'apikey': supabaseKey
+        },
+        body: arrayBuffer
+      });
 
-      // Get public URL
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        throw new Error(`Upload failed: ${uploadResponse.status} - ${errorText}`);
+      }
+
+      // The upload response should contain the path
+      await uploadResponse.json();
+      
+      // Get public URL using Supabase client
       const { data: { publicUrl } } = supabase.storage
         .from('venue-images')
         .getPublicUrl(fileName);
@@ -210,6 +235,9 @@ const ImageManagement = ({ currentUser }) => {
 
       setImages(prev => [imageData, ...prev]);
       
+      // Refresh the images list to ensure the new image is displayed
+      await fetchVenueAndImages();
+      
       toast({
         title: 'Success',
         description: 'Image uploaded successfully!',
@@ -218,12 +246,6 @@ const ImageManagement = ({ currentUser }) => {
 
     } catch (error) {
       console.error('Error uploading image:', error);
-      console.error('Full error details:', {
-        message: error.message,
-        name: error.name,
-        stack: error.stack,
-        details: error
-      });
       
       let errorMessage = 'Failed to upload image. Please try again.';
       
@@ -481,24 +503,36 @@ const ImageManagement = ({ currentUser }) => {
       {/* Images Grid */}
       {images.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {images.map((image) => (
-            <Card key={image.id} className="overflow-hidden">
-              <div className="relative aspect-video">
-                <img
-                  src={image.image_url}
-                  alt="Venue"
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.target.style.display = 'none';
-                    e.target.nextSibling.style.display = 'flex';
-                  }}
-                />
-                <div className="absolute inset-0 bg-gray-200 flex items-center justify-center text-gray-500 hidden">
-                  <div className="text-center">
-                    <ImageIcon className="h-8 w-8 mx-auto mb-2" />
-                    <p className="text-sm">Image failed to load</p>
-                  </div>
-                </div>
+          {images.map((image) => {
+            const ImageCard = ({ image }) => {
+              const [hasError, setHasError] = useState(false);
+              const [hasLoaded, setHasLoaded] = useState(false);
+              
+              return (
+                <Card key={image.id} className="overflow-hidden">
+                  <div className="relative aspect-video overflow-hidden">
+                    <img
+                      src={image.image_url}
+                      alt="Venue"
+                      className="w-full h-full object-cover"
+                      onLoad={() => {
+                        setHasLoaded(true);
+                        setHasError(false);
+                      }}
+                      onError={() => {
+                        setHasError(true);
+                        setHasLoaded(false);
+                      }}
+                    />
+                    {hasError && (
+                      <div className="absolute inset-0 bg-gray-200 flex items-center justify-center text-gray-500 error-message">
+                        <div className="text-center">
+                          <ImageIcon className="h-8 w-8 mx-auto mb-2" />
+                          <p className="text-sm">Image failed to load</p>
+                          <p className="text-xs text-gray-400 mt-1 break-all">{image.image_url}</p>
+                        </div>
+                      </div>
+                    )}
                 {image.is_primary && (
                   <div className="absolute top-2 left-2">
                     <span className="bg-brand-gold text-brand-burgundy px-2 py-1 rounded text-xs font-semibold">
@@ -550,8 +584,12 @@ const ImageManagement = ({ currentUser }) => {
                   </Dialog>
                 </div>
               </div>
-            </Card>
-          ))}
+                </Card>
+              );
+            };
+            
+            return <ImageCard key={image.id} image={image} />;
+          })}
         </div>
       )}
 

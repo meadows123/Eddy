@@ -2,11 +2,25 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.oneeddy.members',
+<<<<<<< HEAD
   appName: 'Eddys Members',
   webDir: 'dist',
   server: {
     androidScheme: 'https'
   },
+=======
+  appName: 'Eddy',
+  webDir: 'dist',
+  // Server config removed for production
+  // Uncomment below for local development testing
+  // server: {
+  //   url: 'http://localhost:3000',
+  //   cleartext: true
+  // }
+  // Deep linking is configured in:
+  // - Android: android/app/src/main/AndroidManifest.xml
+  // - iOS: ios/App/App/Info.plist
+>>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
   plugins: {
     SplashScreen: {
       launchShowDuration: 0, // Disable native splash duration

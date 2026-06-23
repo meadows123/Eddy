@@ -15,8 +15,9 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../components/ui/use-toast';
-import { format, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek } from 'date-fns';
+import { format, startOfMonth, endOfMonth, subMonths, startOfWeek, endOfWeek, subWeeks } from 'date-fns';
 import BackToDashboardButton from '../../components/BackToDashboardButton';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 const VenueOwnerAnalytics = () => {
   const { toast } = useToast();
@@ -65,8 +66,13 @@ const VenueOwnerAnalytics = () => {
   }, []);
 
   useEffect(() => {
-    if (currentUser && bookings.length > 0) {
-      calculateAnalytics();
+    if (currentUser) {
+      if (bookings.length > 0) {
+        calculateAnalytics();
+      } else {
+        // Calculate analytics even with no bookings to show empty chart
+        calculateAnalytics();
+      }
     }
   }, [bookings, timeRange, currentUser]);
 
@@ -209,9 +215,8 @@ const VenueOwnerAnalytics = () => {
         await setupRealtimeSubscription(venueIds);
       }
 
-      // Fetch bookings for the last 6 months to calculate trends
-      const sixMonthsAgo = subMonths(new Date(), 6);
-      
+      // Fetch ALL bookings (remove date restriction to show all data)
+      // We'll filter by date range in the calculateAnalytics function instead
       const { data: bookingsData, error: bookingsError } = await supabase
         .from('bookings')
         .select(`
@@ -232,15 +237,23 @@ const VenueOwnerAnalytics = () => {
           )
         `)
         .in('venue_id', venueIds)
-        .gte('created_at', sixMonthsAgo.toISOString())
         .order('created_at', { ascending: false });
 
-      if (bookingsError) throw bookingsError;
+      if (bookingsError) {
+        console.error('Error fetching bookings:', bookingsError);
+        throw bookingsError;
+      }
+
+      console.log('📥 Fetched ALL bookings:', {
+        totalBookings: bookingsData?.length || 0,
+        venueIds,
+        sampleBooking: bookingsData?.[0]
+      });
 
       setBookings(bookingsData || []);
-      
+
       if (!silentRefresh) {
-        console.log('Analytics data refreshed successfully');
+        // Analytics data refreshed
       }
     } catch (error) {
       console.error('Error fetching bookings:', error);
@@ -268,52 +281,347 @@ const VenueOwnerAnalytics = () => {
 
   const getDateRange = () => {
     const now = new Date();
+    let start, end;
+    
     switch (timeRange) {
       case 'thisMonth':
-        return { start: startOfMonth(now), end: endOfMonth(now) };
+        start = startOfMonth(now);
+        end = endOfMonth(now);
+        break;
       case 'lastMonth':
         const lastMonth = subMonths(now, 1);
-        return { start: startOfMonth(lastMonth), end: endOfMonth(lastMonth) };
+        start = startOfMonth(lastMonth);
+        end = endOfMonth(lastMonth);
+        break;
       case 'thisWeek':
-        return { start: startOfWeek(now), end: endOfWeek(now) };
+        start = startOfWeek(now, { weekStartsOn: 1 });
+        end = endOfWeek(now, { weekStartsOn: 1 });
+        break;
       case 'lastWeek':
-        const lastWeek = subMonths(now, 1);
-        return { start: startOfWeek(lastWeek), end: endOfWeek(lastWeek) };
+        const lastWeek = subWeeks(now, 1);
+        start = startOfWeek(lastWeek, { weekStartsOn: 1 });
+        end = endOfWeek(lastWeek, { weekStartsOn: 1 });
+        break;
       default:
-        return { start: startOfMonth(now), end: endOfMonth(now) };
+        start = startOfMonth(now);
+        end = endOfMonth(now);
     }
+    
+    // Normalize to UTC dates using LOCAL date components to preserve calendar dates
+    // Extract LOCAL date components from the date-fns result (preserves calendar date regardless of timezone)
+    const startYear = start.getFullYear();
+    const startMonth = start.getMonth();
+    const startDay = start.getDate();
+    const endYear = end.getFullYear();
+    const endMonth = end.getMonth();
+    const endDay = end.getDate();
+    
+    // Create UTC dates at midnight using the local calendar date components
+    // This ensures "October 1st" matches "October 1st" regardless of timezone
+    const startUTC = new Date(Date.UTC(startYear, startMonth, startDay));
+    const endUTC = new Date(Date.UTC(endYear, endMonth, endDay, 23, 59, 59, 999));
+    
+    // Debug logging to verify date ranges
+    console.log(`📅 Date range for ${timeRange}:`, {
+      timeRange,
+      startLocal: start.toLocaleString(),
+      endLocal: end.toLocaleString(),
+      startUTC: startUTC.toISOString(),
+      endUTC: endUTC.toISOString(),
+      startDateOnly: startUTC.toISOString().split('T')[0],
+      endDateOnly: endUTC.toISOString().split('T')[0],
+      now: now.toLocaleString(),
+      // For lastMonth, show the calculated month explicitly
+      ...(timeRange === 'lastMonth' && {
+        calculatedLastMonth: {
+          lastMonthDate: subMonths(now, 1).toISOString().split('T')[0],
+          monthName: subMonths(now, 1).toLocaleString('default', { month: 'long', year: 'numeric' })
+        }
+      })
+    });
+    
+    return { start: startUTC, end: endUTC };
   };
 
   const calculateAnalytics = () => {
     const { start, end } = getDateRange();
     
+    // Dates are already normalized to UTC in getDateRange()
+    const startUTC = start;
+    const endUTC = end;
+    
+    // Helper function to parse date string and create UTC date
+    const parseDateToUTC = (dateString) => {
+      if (!dateString) return null;
+      // If it's a date-only string (YYYY-MM-DD), parse it directly
+      if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+        const [year, month, day] = dateString.split('-').map(Number);
+        return new Date(Date.UTC(year, month - 1, day)); // month is 0-indexed
+      }
+      // Otherwise, parse as ISO string and extract UTC components
+      const date = new Date(dateString);
+      return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+    };
+
+    // Log summary of all bookings for debugging
+    console.log('📊 Analytics Summary:', {
+      timeRange,
+      totalBookingsAvailable: bookings.length,
+      dateRange: {
+        start: startUTC.toISOString().split('T')[0],
+        end: endUTC.toISOString().split('T')[0],
+        startUTC: startUTC.toISOString(),
+        endUTC: endUTC.toISOString(),
+        startTimestamp: startUTC.getTime(),
+        endTimestamp: endUTC.getTime()
+      },
+      sampleBookingDates: bookings.slice(0, 10).map(b => {
+        const parsed = parseDateToUTC(b.booking_date || b.created_at);
+        return {
+          id: b.id,
+          bookingDate: b.booking_date,
+          createdAt: b.created_at,
+          parsedUTC: parsed ? parsed.toISOString() : null,
+          parsedTimestamp: parsed ? parsed.getTime() : null,
+          status: b.status,
+          inRange: parsed ? (parsed >= startUTC && parsed <= endUTC) : false
+        };
+      })
+    });
+
     // Filter bookings for current period
     const currentPeriodBookings = bookings.filter(booking => {
-      const bookingDate = new Date(booking.booking_date || booking.created_at);
-      return bookingDate >= start && bookingDate <= end;
+      // Use booking_date for revenue calculations, fallback to created_at for display
+      const bookingDateUTC = parseDateToUTC(booking.booking_date || booking.created_at);
+      if (!bookingDateUTC) return false;
+      
+      // Compare dates by extracting date components to avoid time-of-day issues
+      // This ensures we're comparing calendar dates, not timestamps
+      const bookingYear = bookingDateUTC.getUTCFullYear();
+      const bookingMonth = bookingDateUTC.getUTCMonth();
+      const bookingDay = bookingDateUTC.getUTCDate();
+      
+      const startYear = startUTC.getUTCFullYear();
+      const startMonth = startUTC.getUTCMonth();
+      const startDay = startUTC.getUTCDate();
+      
+      const endYear = endUTC.getUTCFullYear();
+      const endMonth = endUTC.getUTCMonth();
+      const endDay = endUTC.getUTCDate();
+      
+      // Create date objects for comparison
+      // Start date is at midnight UTC (start of day)
+      // End date needs to include the full last day, so we add 1 day and compare with < instead of <=
+      const bookingDate = new Date(Date.UTC(bookingYear, bookingMonth, bookingDay));
+      const startDate = new Date(Date.UTC(startYear, startMonth, startDay));
+      // For end date, create a date for the day AFTER the end day, so we can use < comparison
+      // This ensures we include the full last day (e.g., Oct 31 is included when endDate is Nov 1)
+      const endDateExclusive = new Date(Date.UTC(endYear, endMonth, endDay + 1));
+      
+      // Compare dates (>= start and < end+1, which effectively means <= end)
+      const isInPeriod = bookingDate >= startDate && bookingDate < endDateExclusive;
+      
+      // Debug logging for first few bookings and ALL bookings in lastMonth to help diagnose
+      if (bookings.indexOf(booking) < 5 || timeRange === 'lastMonth') {
+        console.log('📦 Booking date check:', {
+          bookingId: booking.id,
+          bookingDate: booking.booking_date,
+          createdAt: booking.created_at,
+          parsedDateUTC: bookingDateUTC.toISOString(),
+          bookingDateOnly: bookingDate.toISOString().split('T')[0],
+          startUTC: startUTC.toISOString(),
+          startDateOnly: startDate.toISOString().split('T')[0],
+          endUTC: endUTC.toISOString(),
+          endDateOnly: endDateExclusive.toISOString().split('T')[0] + ' (exclusive)',
+          isInPeriod,
+          comparison: {
+            bookingVsStart: bookingDate >= startDate,
+            bookingVsEnd: bookingDate < endDateExclusive,
+            bookingDateTimestamp: bookingDate.getTime(),
+            startDateTimestamp: startDate.getTime(),
+            endDateExclusiveTimestamp: endDateExclusive.getTime(),
+            bookingYear,
+            bookingMonth: bookingMonth + 1, // Show as 1-12 for readability
+            bookingDay,
+            startYear,
+            startMonth: startMonth + 1,
+            startDay,
+            endYear,
+            endMonth: endMonth + 1,
+            endDay
+          },
+          totalAmount: booking.total_amount,
+          status: booking.status,
+          timeRange
+        });
+      }
+      
+      return isInPeriod;
+    });
+
+    // For lastMonth, find all bookings that should be in October
+    const octoberBookings = timeRange === 'lastMonth' ? bookings.map(b => {
+      const parsed = parseDateToUTC(b.booking_date || b.created_at);
+      if (!parsed) return null;
+      const bookingYear = parsed.getUTCFullYear();
+      const bookingMonth = parsed.getUTCMonth();
+      return {
+        id: b.id,
+        bookingDate: b.booking_date,
+        parsedDate: parsed.toISOString().split('T')[0],
+        year: bookingYear,
+        month: bookingMonth + 1, // 1-12
+        isOctober: bookingYear === 2025 && bookingMonth === 9, // October is month 9 (0-indexed)
+        status: b.status
+      };
+    }).filter(b => b !== null) : [];
+
+    console.log('✅ Current period bookings:', {
+      count: currentPeriodBookings.length,
+      outOfTotal: bookings.length,
+      dateRange: `${startUTC.toISOString().split('T')[0]} to ${endUTC.toISOString().split('T')[0]}`,
+      matchingBookingDates: currentPeriodBookings.slice(0, 10).map(b => ({
+        id: b.id,
+        bookingDate: b.booking_date,
+        createdAt: b.created_at,
+        status: b.status,
+        amount: b.total_amount
+      })),
+      // For lastMonth, show all October bookings found
+      ...(timeRange === 'lastMonth' && {
+        allOctoberBookings: octoberBookings.filter(b => b.isOctober),
+        octoberBookingsCount: octoberBookings.filter(b => b.isOctober).length,
+        allBookingsByMonth: octoberBookings.reduce((acc, b) => {
+          const key = `${b.year}-${String(b.month).padStart(2, '0')}`;
+          acc[key] = (acc[key] || 0) + 1;
+          return acc;
+        }, {})
+      }),
+      // For lastMonth, also show bookings that are close but not matching
+      nearMissBookings: timeRange === 'lastMonth' ? bookings.filter(b => {
+        const parsed = parseDateToUTC(b.booking_date || b.created_at);
+        if (!parsed) return false;
+        // Show bookings within 3 days of the range
+        const daysBeforeStart = (startUTC.getTime() - parsed.getTime()) / (1000 * 60 * 60 * 24);
+        const daysAfterEnd = (parsed.getTime() - endUTC.getTime()) / (1000 * 60 * 60 * 24);
+        return (daysBeforeStart >= 0 && daysBeforeStart <= 3) || (daysAfterEnd >= 0 && daysAfterEnd <= 3);
+      }).slice(0, 5).map(b => ({
+        id: b.id,
+        bookingDate: b.booking_date,
+        createdAt: b.created_at,
+        parsed: parseDateToUTC(b.booking_date || b.created_at)?.toISOString(),
+        status: b.status
+      })) : []
     });
 
     // Get comparison period (previous month/week)
-    const prevStart = timeRange.includes('Month') 
-      ? startOfMonth(subMonths(start, 1))
-      : startOfWeek(subMonths(start, 1));
-    const prevEnd = timeRange.includes('Month')
-      ? endOfMonth(subMonths(start, 1))
-      : endOfWeek(subMonths(start, 1));
+    // Use the same approach as getDateRange - calculate from local date, then normalize to UTC
+    const now = new Date();
+    let prevStartLocal, prevEndLocal;
+    
+    if (timeRange.includes('Month')) {
+      // For 'thisMonth', compare to lastMonth (1 month ago)
+      // For 'lastMonth', compare to 2 months ago
+      const monthsBack = timeRange === 'lastMonth' ? 2 : 1;
+      const comparisonMonth = subMonths(now, monthsBack);
+      prevStartLocal = startOfMonth(comparisonMonth);
+      prevEndLocal = endOfMonth(comparisonMonth);
+    } else {
+      // For 'thisWeek', compare to lastWeek (1 week ago)
+      // For 'lastWeek', compare to 2 weeks ago
+      const weeksBack = timeRange === 'lastWeek' ? 2 : 1;
+      const comparisonWeek = subWeeks(now, weeksBack);
+      prevStartLocal = startOfWeek(comparisonWeek, { weekStartsOn: 1 });
+      prevEndLocal = endOfWeek(comparisonWeek, { weekStartsOn: 1 });
+    }
 
+    // Normalize comparison period dates to UTC using local date components (same as getDateRange)
+    const prevStartYear = prevStartLocal.getFullYear();
+    const prevStartMonth = prevStartLocal.getMonth();
+    const prevStartDay = prevStartLocal.getDate();
+    const prevEndYear = prevEndLocal.getFullYear();
+    const prevEndMonth = prevEndLocal.getMonth();
+    const prevEndDay = prevEndLocal.getDate();
+    
+    const prevStartUTC = new Date(Date.UTC(prevStartYear, prevStartMonth, prevStartDay));
+    const prevEndUTC = new Date(Date.UTC(prevEndYear, prevEndMonth, prevEndDay, 23, 59, 59, 999));
+    
+    console.log('📊 Comparison period:', {
+      timeRange,
+      prevStartUTC: prevStartUTC.toISOString(),
+      prevEndUTC: prevEndUTC.toISOString(),
+      dateRange: `${prevStartUTC.toISOString().split('T')[0]} to ${prevEndUTC.toISOString().split('T')[0]}`
+    });
+    
     const prevPeriodBookings = bookings.filter(booking => {
-      const bookingDate = new Date(booking.booking_date || booking.created_at);
-      return bookingDate >= prevStart && bookingDate <= prevEnd;
+      const bookingDateUTC = parseDateToUTC(booking.booking_date || booking.created_at);
+      if (!bookingDateUTC) return false;
+      
+      // Use the same date component comparison approach for consistency
+      const bookingYear = bookingDateUTC.getUTCFullYear();
+      const bookingMonth = bookingDateUTC.getUTCMonth();
+      const bookingDay = bookingDateUTC.getUTCDate();
+      
+      const prevStartYear = prevStartUTC.getUTCFullYear();
+      const prevStartMonth = prevStartUTC.getUTCMonth();
+      const prevStartDay = prevStartUTC.getUTCDate();
+      
+      const prevEndYear = prevEndUTC.getUTCFullYear();
+      const prevEndMonth = prevEndUTC.getUTCMonth();
+      const prevEndDay = prevEndUTC.getUTCDate();
+      
+      const bookingDate = new Date(Date.UTC(bookingYear, bookingMonth, bookingDay));
+      const prevStartDate = new Date(Date.UTC(prevStartYear, prevStartMonth, prevStartDay));
+      // Use exclusive end date for consistency with current period filtering
+      const prevEndDateExclusive = new Date(Date.UTC(prevEndYear, prevEndMonth, prevEndDay + 1));
+      
+      return bookingDate >= prevStartDate && bookingDate < prevEndDateExclusive;
+    });
+    
+    console.log('⬅️ Previous period bookings:', {
+      count: prevPeriodBookings.length,
+      outOfTotal: bookings.length,
+      dateRange: `${prevStartUTC.toISOString().split('T')[0]} to ${prevEndUTC.toISOString().split('T')[0]}`,
+      matchingBookingDates: prevPeriodBookings.slice(0, 5).map(b => b.booking_date || b.created_at)
     });
 
-    // Calculate metrics
-    const totalRevenue = currentPeriodBookings.reduce((sum, booking) => 
-      sum + (booking.total_amount || 0), 0
-    );
+    // Calculate metrics - only count revenue from confirmed/completed bookings
+    const totalRevenue = currentPeriodBookings.reduce((sum, booking) => {
+      // Only count revenue from confirmed or completed bookings
+      if (booking.status !== 'confirmed' && booking.status !== 'completed') {
+        return sum;
+      }
+      
+      let amount = parseFloat(booking.total_amount) || 0;
+      
+      // Check if total_amount is stored in kobo (very small values) and convert to naira
+      if (amount > 0 && amount < 1000) {
+        console.log('⚠️ Small amount detected, converting from kobo to naira:', {
+          bookingId: booking.id,
+          originalAmount: amount,
+          convertedAmount: amount * 100
+        });
+        amount = amount * 100; // Convert kobo to naira
+      }
+      
+      return sum + amount;
+    }, 0);
     
-    const prevRevenue = prevPeriodBookings.reduce((sum, booking) => 
-      sum + (booking.total_amount || 0), 0
-    );
+    const prevRevenue = prevPeriodBookings.reduce((sum, booking) => {
+      // Only count revenue from confirmed or completed bookings
+      if (booking.status !== 'confirmed' && booking.status !== 'completed') {
+        return sum;
+      }
+      
+      let amount = parseFloat(booking.total_amount) || 0;
+      
+      // Check if total_amount is stored in kobo (very small values) and convert to naira
+      if (amount > 0 && amount < 1000) {
+        amount = amount * 100; // Convert kobo to naira
+      }
+      
+      return sum + amount;
+    }, 0);
 
     const totalBookings = currentPeriodBookings.length;
     const prevBookings = prevPeriodBookings.length;
@@ -333,25 +641,55 @@ const VenueOwnerAnalytics = () => {
       ? ((totalBookings - prevBookings) / prevBookings) * 100 
       : totalBookings > 0 ? 100 : 0;
 
-    // Daily revenue for chart (last 30 days)
-    const last30Days = Array.from({ length: 30 }, (_, i) => {
-      const date = new Date();
-      date.setDate(date.getDate() - (29 - i));
-      return date;
+    // Daily revenue for chart - use selected time range
+    const { start: chartStart, end: chartEnd } = getDateRange();
+    const daysInRange = Math.ceil((chartEnd - chartStart) / (1000 * 60 * 60 * 24)) + 1;
+    
+    // Create date range using UTC to avoid timezone issues
+    const dateRange = Array.from({ length: daysInRange }, (_, i) => {
+      const startYear = chartStart.getUTCFullYear();
+      const startMonth = chartStart.getUTCMonth();
+      const startDay = chartStart.getUTCDate();
+      return new Date(Date.UTC(startYear, startMonth, startDay + i));
     });
 
-    const dailyRevenue = last30Days.map(date => {
-      const dayBookings = bookings.filter(booking => {
-        const bookingDate = new Date(booking.booking_date || booking.created_at);
-        return bookingDate.toDateString() === date.toDateString();
+    const dailyRevenue = dateRange.map(date => {
+      // Only use bookings from the current period (already filtered by time range)
+      const dayBookings = currentPeriodBookings.filter(booking => {
+        const bookingDateUTC = parseDateToUTC(booking.booking_date || booking.created_at);
+        if (!bookingDateUTC) return false;
+        // Normalize chart date to UTC for comparison
+        const dateUTC = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+        const isMatch = bookingDateUTC.getTime() === dateUTC.getTime();
+        
+        return isMatch;
       });
+      
+      const dayRevenue = dayBookings.reduce((sum, booking) => {
+        // Only count revenue from confirmed or completed bookings
+        if (booking.status !== 'confirmed' && booking.status !== 'completed') {
+          return sum;
+        }
+        
+        let amount = parseFloat(booking.total_amount) || 0;
+        
+        // Check if total_amount is stored in kobo (very small values) and convert to naira
+        if (amount > 0 && amount < 1000) {
+          amount = amount * 100; // Convert kobo to naira
+        }
+        
+        return sum + amount;
+      }, 0);
       
       return {
         date: format(date, 'MMM dd'),
-        revenue: dayBookings.reduce((sum, booking) => sum + (booking.total_amount || 0), 0),
+        revenue: dayRevenue,
         bookings: dayBookings.length
       };
     });
+
+    // Only show bookings within the selected time range - no fallback to all bookings
+    // If there's no revenue in the selected period, show empty chart (already handled by dailyRevenue calculation)
 
     // Status breakdown
     const statusBreakdown = {
@@ -364,7 +702,7 @@ const VenueOwnerAnalytics = () => {
     // Recent bookings (last 5)
     const recentBookings = currentPeriodBookings.slice(0, 5);
 
-    setAnalytics({
+    const newAnalytics = {
       totalRevenue,
       totalBookings,
       averageBookingValue,
@@ -376,7 +714,9 @@ const VenueOwnerAnalytics = () => {
       dailyRevenue,
       statusBreakdown,
       recentBookings
-    });
+    };
+
+    setAnalytics(newAnalytics);
   };
 
   const formatCurrency = (amount) => {
@@ -393,6 +733,32 @@ const VenueOwnerAnalytics = () => {
     if (growth > 0) return 'text-green-600';
     if (growth < 0) return 'text-red-600';
     return 'text-gray-500';
+  };
+
+  const getDateRangeDisplay = () => {
+    const now = new Date();
+    switch (timeRange) {
+      case 'thisWeek':
+        const startOfThisWeek = startOfWeek(now, { weekStartsOn: 1 }); // Monday
+        const endOfThisWeek = endOfWeek(now, { weekStartsOn: 1 });
+        return `${format(startOfThisWeek, 'MMM dd')} - ${format(endOfThisWeek, 'MMM dd, yyyy')}`;
+      case 'lastWeek':
+        const lastWeek = subWeeks(now, 1);
+        const startOfLastWeek = startOfWeek(lastWeek, { weekStartsOn: 1 });
+        const endOfLastWeek = endOfWeek(lastWeek, { weekStartsOn: 1 });
+        return `${format(startOfLastWeek, 'MMM dd')} - ${format(endOfLastWeek, 'MMM dd, yyyy')}`;
+      case 'thisMonth':
+        const startOfThisMonth = startOfMonth(now);
+        const endOfThisMonth = endOfMonth(now);
+        return `${format(startOfThisMonth, 'MMM dd')} - ${format(endOfThisMonth, 'MMM dd, yyyy')}`;
+      case 'lastMonth':
+        const lastMonth = subMonths(now, 1);
+        const startOfLastMonth = startOfMonth(lastMonth);
+        const endOfLastMonth = endOfMonth(lastMonth);
+        return `${format(startOfLastMonth, 'MMM dd')} - ${format(endOfLastMonth, 'MMM dd, yyyy')}`;
+      default:
+        return '';
+    }
   };
 
   if (loading) {
@@ -421,19 +787,56 @@ const VenueOwnerAnalytics = () => {
             </div>
             <h1 className="text-2xl sm:text-3xl font-heading text-brand-burgundy mb-2">Analytics Dashboard</h1>
             <p className="text-sm sm:text-base text-brand-burgundy/70">Track your venue's performance and revenue</p>
+            <div className="mt-2 p-2 bg-brand-gold/10 rounded-lg border border-brand-gold/20">
+              <p className="text-xs font-medium text-brand-burgundy">
+                📅 Currently viewing: <span className="font-semibold">{getDateRangeDisplay()}</span>
+              </p>
+            </div>
           </div>
           <div className="flex flex-col space-y-2 sm:flex-row sm:items-center sm:space-y-0 sm:space-x-4">
             {/* Time Range Selector */}
-            <select
-              value={timeRange}
-              onChange={(e) => setTimeRange(e.target.value)}
-              className="px-3 py-2 border border-brand-burgundy/20 rounded-lg bg-white text-brand-burgundy w-full sm:w-auto"
-            >
-              <option value="thisWeek">This Week</option>
-              <option value="lastWeek">Last Week</option>
-              <option value="thisMonth">This Month</option>
-              <option value="lastMonth">Last Month</option>
-            </select>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setTimeRange('thisWeek')}
+                className={`px-3 py-2 rounded-lg border transition-all duration-200 text-sm font-medium ${
+                  timeRange === 'thisWeek'
+                    ? 'bg-brand-gold text-brand-burgundy border-brand-gold shadow-md'
+                    : 'bg-white text-brand-burgundy/70 border-brand-burgundy/20 hover:bg-brand-gold/10 hover:border-brand-gold/50'
+                }`}
+              >
+                This Week
+              </button>
+              <button
+                onClick={() => setTimeRange('lastWeek')}
+                className={`px-3 py-2 rounded-lg border transition-all duration-200 text-sm font-medium ${
+                  timeRange === 'lastWeek'
+                    ? 'bg-brand-gold text-brand-burgundy border-brand-gold shadow-md'
+                    : 'bg-white text-brand-burgundy/70 border-brand-burgundy/20 hover:bg-brand-gold/10 hover:border-brand-gold/50'
+                }`}
+              >
+                Last Week
+              </button>
+              <button
+                onClick={() => setTimeRange('thisMonth')}
+                className={`px-3 py-2 rounded-lg border transition-all duration-200 text-sm font-medium ${
+                  timeRange === 'thisMonth'
+                    ? 'bg-brand-gold text-brand-burgundy border-brand-gold shadow-md'
+                    : 'bg-white text-brand-burgundy/70 border-brand-burgundy/20 hover:bg-brand-gold/10 hover:border-brand-gold/50'
+                }`}
+              >
+                This Month
+              </button>
+              <button
+                onClick={() => setTimeRange('lastMonth')}
+                className={`px-3 py-2 rounded-lg border transition-all duration-200 text-sm font-medium ${
+                  timeRange === 'lastMonth'
+                    ? 'bg-brand-gold text-brand-burgundy border-brand-gold shadow-md'
+                    : 'bg-white text-brand-burgundy/70 border-brand-burgundy/20 hover:bg-brand-gold/10 hover:border-brand-gold/50'
+                }`}
+              >
+                Last Month
+              </button>
+            </div>
             
             <Button
               onClick={refreshData}
@@ -547,48 +950,85 @@ const VenueOwnerAnalytics = () => {
             <CardHeader>
               <CardTitle className="flex items-center text-sm sm:text-base">
                 <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 mr-2" />
-                Daily Revenue Trend (Last 30 Days)
+                Bookings & Revenue Chart
+                <span className="ml-2 text-xs font-normal text-brand-burgundy/60">
+                  ({getDateRangeDisplay()})
+                </span>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-3 sm:p-6">
-              {/* Chart Container with horizontal scroll on mobile */}
-              <div className="w-full overflow-x-auto">
-                <div className="min-w-[600px] sm:min-w-full h-48 sm:h-64 flex items-end justify-between space-x-1 px-2">
-                  {analytics.dailyRevenue.map((day, index) => {
-                    const maxRevenue = Math.max(...analytics.dailyRevenue.map(d => d.revenue));
-                    const height = maxRevenue > 0 ? (day.revenue / maxRevenue) * 100 : 0;
-                    
-                    return (
-                      <div key={index} className="flex flex-col items-center flex-1 min-w-[16px] group">
-                        <div
-                          className="bg-brand-gold rounded-t w-full min-h-[4px] transition-all duration-300 hover:bg-brand-burgundy cursor-pointer"
-                          style={{ height: `${Math.max(height, 4)}%` }}
-                          title={`${day.date}: ${formatCurrency(day.revenue)} (${day.bookings} bookings)`}
-                        />
-                        <span className="text-[10px] sm:text-xs text-brand-burgundy/70 mt-1 sm:mt-2 transform sm:rotate-45 sm:origin-top-left whitespace-nowrap">
-                          {/* Show abbreviated date on mobile, full on desktop */}
-                          <span className="sm:hidden">{day.date.split(' ')[1]}</span>
-                          <span className="hidden sm:inline">{day.date}</span>
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-              
-              {/* Mobile scroll indicator */}
-              <div className="sm:hidden text-center mt-2">
-                <p className="text-xs text-brand-burgundy/50">← Swipe to see more data →</p>
-              </div>
-              
-              {/* Legend for mobile */}
-              <div className="mt-4 sm:hidden">
-                <div className="flex items-center justify-center space-x-4 text-xs">
-                  <div className="flex items-center">
-                    <div className="w-3 h-3 bg-brand-gold rounded mr-1"></div>
-                    <span className="text-brand-burgundy/70">Daily Revenue</span>
+              <div className="h-64 sm:h-80">
+                {analytics.dailyRevenue && analytics.dailyRevenue.length > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={analytics.dailyRevenue}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis 
+                        dataKey="date" 
+                        stroke="#6b7280"
+                        fontSize={12}
+                      />
+                      <YAxis 
+                        yAxisId="left"
+                        stroke="#8b5cf6"
+                        fontSize={12}
+                      />
+                      <YAxis 
+                        yAxisId="right"
+                        orientation="right"
+                        stroke="#f59e0b"
+                        fontSize={12}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          backgroundColor: '#fff', 
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '8px'
+                        }}
+                        formatter={(value, name, props) => {
+                          // Check if this is the bookings series
+                          // The name can be 'Bookings', 'bookings', or the dataKey
+                          // Also check the payload dataKey if available
+                          const dataKey = props?.payload?.dataKey || name;
+                          const isBookings = 
+                            name === 'bookings' || 
+                            name === 'Bookings' || 
+                            dataKey === 'bookings' ||
+                            (typeof name === 'string' && name.toLowerCase().includes('booking'));
+                          
+                          return [
+                            isBookings ? `${value} ${value === 1 ? 'booking' : 'bookings'}` : `₦${value.toLocaleString()}`,
+                            isBookings ? 'Bookings' : 'Revenue'
+                          ];
+                        }}
+                      />
+                      <Legend />
+                      <Bar 
+                        yAxisId="left"
+                        dataKey="bookings" 
+                        fill="#8b5cf6" 
+                        radius={[4, 4, 0, 0]}
+                        name="Bookings"
+                        barSize={40}
+                      />
+                      <Bar 
+                        yAxisId="right"
+                        dataKey="revenue" 
+                        fill="#f59e0b" 
+                        radius={[4, 4, 0, 0]}
+                        name="Revenue (₦)"
+                        barSize={40}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-center text-gray-500">
+                      <div className="text-4xl mb-2">📊</div>
+                      <p className="text-sm">No revenue data available</p>
+                      <p className="text-xs text-gray-400">Check if you have any confirmed bookings</p>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </CardContent>
           </Card>

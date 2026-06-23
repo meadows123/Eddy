@@ -100,82 +100,98 @@ const VenueOwnerCredits = () => {
       if (!silent) setRefreshing(true);
 
       // First get the venue owned by this user
-      const { data: venueData, error: venueError } = await supabase
+      const { data: venueDataList, error: venueError } = await supabase
         .from('venues')
         .select('*')
         .eq('owner_id', userId)
-        .single();
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      const venueData = venueDataList && venueDataList.length > 0 ? venueDataList[0] : null;
 
       if (venueError) {
-        if (venueError.code === 'PGRST116') {
-          // No venue found
-          setVenue(null);
-          setVenueCredits([]);
-          return;
-        }
-        throw venueError;
+        console.error('Error fetching venue:', venueError);
+        setVenue(null);
+        setVenueCredits([]);
+        return;
+      }
+
+      if (!venueData) {
+        setVenue(null);
+        setVenueCredits([]);
+        return;
       }
 
       setVenue(venueData);
 
-      // Try to fetch credits with user profile data (falls back if profiles table not ready)
+      // Fetch credits first
       let creditsData;
       let creditsError;
       
-      try {
-        // Attempt to fetch with profiles join
-        const { data, error } = await supabase
-          .from('venue_credits')
-          .select(`
-            *,
-            profiles:user_id (
-              id,
-              full_name,
-              email,
-              first_name,
-              last_name
-            )
-          `)
-          .eq('venue_id', venueData.id)
-          .order('created_at', { ascending: false });
-        
-        creditsData = data;
-        creditsError = error;
-        
-        if (creditsError && creditsError.code === 'PGRST200') {
-          // Profiles table not ready yet, fall back to basic query
-          console.log('🔄 Profiles table not ready, using fallback...');
-          const fallbackResult = await supabase
-            .from('venue_credits')
-            .select('*')
-            .eq('venue_id', venueData.id)
-            .order('created_at', { ascending: false });
-          
-          creditsData = fallbackResult.data;
-          creditsError = fallbackResult.error;
-        }
-      } catch (error) {
-        console.error('Error fetching credits:', error);
-        creditsError = error;
+      const { data: credits, error: creditsErr } = await supabase
+        .from('venue_credits')
+        .select('*')
+        .eq('venue_id', venueData.id)
+        .order('created_at', { ascending: false });
+      
+      creditsData = credits;
+      creditsError = creditsErr;
+      
+      if (creditsError) {
+        console.error('Error fetching credits:', creditsError);
+        throw creditsError;
       }
 
-      if (creditsError) throw creditsError;
+      // Fetch profiles for all unique user_ids
+      if (creditsData && creditsData.length > 0) {
+        const uniqueUserIds = [...new Set(creditsData.map(credit => credit.user_id).filter(Boolean))];
+        
+        if (uniqueUserIds.length > 0) {
+          console.log('🔍 Fetching profiles for user IDs:', uniqueUserIds);
+          
+          const { data: profilesData, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, full_name, email, first_name, last_name')
+            .in('id', uniqueUserIds);
+          
+          if (profilesError) {
+            console.warn('⚠️ Error fetching profiles:', profilesError);
+            // Continue without profiles - will use fallback display
+          } else if (profilesData) {
+            // Create a map of user_id -> profile for quick lookup
+            const profilesMap = new Map(profilesData.map(profile => [profile.id, profile]));
+            
+            // Attach profile data to each credit
+            creditsData = creditsData.map(credit => ({
+              ...credit,
+              profiles: profilesMap.get(credit.user_id) || null
+            }));
+            
+            console.log('✅ Profiles attached to credits:', creditsData.length);
+          }
+        }
+      }
 
       // Process the credits data based on whether we have profiles or not
       const processedCredits = (creditsData || []).map((credit) => {
+        // Calculate remaining balance (amount - used_amount)
+        const amount = Number(credit.amount) || 0;
+        const usedAmount = Number(credit.used_amount) || 0;
+        credit.remaining_balance = amount - usedAmount;
+        
         if (credit.profiles) {
           // We have profile data - use it
           credit.display_data = {
-            name: credit.profiles.full_name || `${credit.profiles.first_name || ''} ${credit.profiles.last_name || ''}`.trim() || `Member ${credit.user_id.substring(0, 8)}...`,
-            email: credit.profiles.email || `member-${credit.user_id.substring(0, 8)}@hidden`,
-            initials: (credit.profiles.full_name || credit.profiles.first_name || credit.user_id).substring(0, 2).toUpperCase()
+            name: credit.profiles.full_name || `${credit.profiles.first_name || ''} ${credit.profiles.last_name || ''}`.trim() || `Member ${credit.user_id?.substring(0, 8) || 'unknown'}...`,
+            email: credit.profiles.email || `member-${credit.user_id?.substring(0, 8) || 'unknown'}@hidden`,
+            initials: (credit.profiles.full_name || credit.profiles.first_name || credit.user_id || 'M').substring(0, 2).toUpperCase()
           };
         } else {
           // No profile data - use fallback
           credit.display_data = {
-            name: `Member ${credit.user_id.substring(0, 8)}...`,
-            email: `member-${credit.user_id.substring(0, 8)}@hidden`,
-            initials: credit.user_id.substring(0, 2).toUpperCase()
+            name: `Member ${credit.user_id?.substring(0, 8) || 'unknown'}...`,
+            email: `member-${credit.user_id?.substring(0, 8) || 'unknown'}@hidden`,
+            initials: (credit.user_id || 'M').substring(0, 2).toUpperCase()
           };
         }
         return credit;
@@ -188,7 +204,7 @@ const VenueOwnerCredits = () => {
         
         toast({
           title: "New Member Credit! 🎉",
-          description: `${latestCredit.display_data.name} purchased ₦${(latestCredit.amount / 100).toLocaleString()} credits${newCreditsCount > 1 ? ` (+${newCreditsCount - 1} more)` : ''}`,
+          description: `${latestCredit.display_data.name} purchased ₦${(latestCredit.amount || 0).toLocaleString()} credits${newCreditsCount > 1 ? ` (+${newCreditsCount - 1} more)` : ''}`,
           className: "bg-green-500 text-white",
         });
       }
@@ -234,10 +250,22 @@ const VenueOwnerCredits = () => {
     const now = new Date();
     const thirtyDaysAgo = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
     
-    const totalCredits = credits.reduce((sum, credit) => sum + (credit.amount / 100), 0);
-    const usedCredits = credits.reduce((sum, credit) => sum + (credit.used_amount / 100), 0);
-    const activeMembers = new Set(credits.filter(c => c.status === 'active' && c.remaining_balance > 0).map(c => c.user_id)).size;
-    const recentCredits = credits.filter(c => new Date(c.created_at) >= thirtyDaysAgo).reduce((sum, credit) => sum + (credit.amount / 100), 0);
+    const totalCredits = credits.reduce((sum, credit) => sum + (Number(credit.amount) || 0), 0);
+    const usedCredits = credits.reduce((sum, credit) => sum + (Number(credit.used_amount) || 0), 0);
+    const activeMembers = new Set(credits.filter(c => {
+      const amount = Number(c.amount) || 0;
+      const usedAmount = Number(c.used_amount) || 0;
+      const remaining = amount - usedAmount;
+      return c.status === 'active' && remaining > 0;
+    }).map(c => c.user_id)).size;
+    const recentCredits = credits.filter(c => {
+      if (!c.created_at) return false;
+      try {
+        return new Date(c.created_at) >= thirtyDaysAgo;
+      } catch {
+        return false;
+      }
+    }).reduce((sum, credit) => sum + (Number(credit.amount) || 0), 0);
 
     setStatsData({
       totalCredits,
@@ -380,7 +408,7 @@ const VenueOwnerCredits = () => {
                 <div>
                   <p className="text-sm font-medium text-brand-burgundy/70">Total Credits</p>
                   <p className="text-2xl font-bold text-brand-burgundy">
-                    ₦{statsData.totalCredits.toLocaleString()}
+                    ₦{(statsData.totalCredits || 0).toLocaleString()}
                   </p>
                 </div>
                 <div className="p-2 bg-green-100 rounded-full">
@@ -412,7 +440,7 @@ const VenueOwnerCredits = () => {
                 <div>
                   <p className="text-sm font-medium text-brand-burgundy/70">Used Credits</p>
                   <p className="text-2xl font-bold text-brand-burgundy">
-                    ₦{statsData.usedCredits.toLocaleString()}
+                    ₦{(statsData.usedCredits || 0).toLocaleString()}
                   </p>
                 </div>
                 <div className="p-2 bg-purple-100 rounded-full">
@@ -428,7 +456,7 @@ const VenueOwnerCredits = () => {
                 <div>
                   <p className="text-sm font-medium text-brand-burgundy/70">This Month</p>
                   <p className="text-2xl font-bold text-brand-burgundy">
-                    ₦{statsData.recentCredits.toLocaleString()}
+                    ₦{(statsData.recentCredits || 0).toLocaleString()}
                   </p>
                 </div>
                 <div className="p-2 bg-yellow-100 rounded-full">
@@ -494,14 +522,18 @@ const VenueOwnerCredits = () => {
                             {getUserEmail(credit)}
                           </p>
                           <div className="flex items-center space-x-4 mt-2 text-xs text-brand-burgundy/60">
-                            <div className="flex items-center">
-                              <Calendar className="h-3 w-3 mr-1" />
-                              {new Date(credit.created_at).toLocaleDateString()}
-                            </div>
-                            <div className="flex items-center">
-                              <Clock className="h-3 w-3 mr-1" />
-                              Expires: {new Date(credit.expires_at).toLocaleDateString()}
-                            </div>
+                            {credit.created_at && (
+                              <div className="flex items-center">
+                                <Calendar className="h-3 w-3 mr-1" />
+                                {new Date(credit.created_at).toLocaleDateString()}
+                              </div>
+                            )}
+                            {credit.expires_at && (
+                              <div className="flex items-center">
+                                <Clock className="h-3 w-3 mr-1" />
+                                Expires: {new Date(credit.expires_at).toLocaleDateString()}
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -510,14 +542,14 @@ const VenueOwnerCredits = () => {
                         <div className="flex items-center space-x-4">
                           <div className="text-right">
                             <div className="font-bold text-brand-burgundy">
-                              ₦{(credit.remaining_balance / 100).toLocaleString()} remaining
+                              ₦{(credit.remaining_balance || 0).toLocaleString()} remaining
                             </div>
                             <div className="text-sm text-brand-burgundy/70">
-                              of ₦{(credit.amount / 100).toLocaleString()} total
+                              of ₦{(credit.amount || 0).toLocaleString()} total
                             </div>
-                            {credit.used_amount > 0 && (
+                            {(credit.used_amount || 0) > 0 && (
                               <div className="text-xs text-brand-burgundy/60">
-                                Used: ₦{(credit.used_amount / 100).toLocaleString()}
+                                Used: ₦{(credit.used_amount || 0).toLocaleString()}
                               </div>
                             )}
                           </div>
@@ -532,7 +564,12 @@ const VenueOwnerCredits = () => {
                             <div
                               className="bg-brand-gold rounded-full h-2 transition-all duration-300"
                               style={{
-                                width: `${Math.max(0, Math.min(100, ((credit.amount - credit.used_amount) / credit.amount) * 100))}%`
+                                width: `${(() => {
+                                  const amount = Number(credit.amount) || 0;
+                                  const usedAmount = Number(credit.used_amount) || 0;
+                                  if (amount === 0) return 0;
+                                  return Math.max(0, Math.min(100, ((amount - usedAmount) / amount) * 100));
+                                })()}%`
                               }}
                             ></div>
                           </div>

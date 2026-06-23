@@ -9,11 +9,13 @@ import { Input } from '../../components/ui/input';
 import { Label } from '../../components/ui/label';
 import { supabase } from '../../lib/supabase';
 import { useToast } from '../../components/ui/use-toast';
+import { useAuth } from '../../contexts/AuthContext';
 import { sendVenueOwnerPasswordReset } from '../../lib/venueOwnerEmailService.js';
 
 const VenueOwnerLogin = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { user, loading: authLoading } = useAuth();
   const [loading, setLoading] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [formData, setFormData] = useState({
@@ -23,6 +25,7 @@ const VenueOwnerLogin = () => {
   const [error, setError] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
 
+<<<<<<< HEAD
   // Check if user is already logged in and redirect automatically
   useEffect(() => {
     const checkExistingSession = async () => {
@@ -55,12 +58,73 @@ const VenueOwnerLogin = () => {
         
         setCheckingAuth(false);
       } catch (error) {
+=======
+  // Check if user is already logged in and is a venue owner
+  useEffect(() => {
+    const checkExistingAuth = async () => {
+      // Wait for auth context to finish loading
+      if (authLoading) {
+        return;
+      }
+
+      // If no user, they need to log in
+      if (!user) {
+        setCheckingAuth(false);
+        return;
+      }
+
+      try {
+        // Check if user is a venue owner
+        let venueOwner = null;
+        
+        // Try to find venue owner by user_id first
+        const { data: venueOwners, error: venueOwnerError } = await supabase
+          .from('venue_owners')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (venueOwnerError) {
+          // If error, try email fallback
+          const { data: venueOwnersByEmail, error: emailError } = await supabase
+            .from('venue_owners')
+            .select('*')
+            .eq('owner_email', user.email)
+            .order('created_at', { ascending: false });
+          
+          if (!emailError && venueOwnersByEmail && venueOwnersByEmail.length > 0) {
+            venueOwner = venueOwnersByEmail[0];
+          }
+        } else if (venueOwners && venueOwners.length > 0) {
+          venueOwner = venueOwners[0];
+        }
+
+        // If user is a venue owner with active/approved status, redirect to dashboard
+        if (venueOwner) {
+          const validStatuses = ['active', 'approved'];
+          if (validStatuses.includes(venueOwner.status)) {
+            console.log('✅ User is already logged in as venue owner, redirecting to dashboard');
+            navigate('/venue-owner/dashboard');
+            return;
+          }
+        }
+
+        // If we get here, user is logged in but not a venue owner (or not active)
+        setCheckingAuth(false);
+      } catch (error) {
+        console.error('Error checking existing auth:', error);
+>>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
         setCheckingAuth(false);
       }
     };
 
+<<<<<<< HEAD
     checkExistingSession();
   }, [navigate, toast]);
+=======
+    checkExistingAuth();
+  }, [user, authLoading, navigate]);
+>>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -68,13 +132,19 @@ const VenueOwnerLogin = () => {
     setError(null);
 
     try {
+<<<<<<< HEAD
       
+=======
+>>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
       const { data, error } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
       });
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
       if (error) {
         throw error;
       }
@@ -83,16 +153,27 @@ const VenueOwnerLogin = () => {
         throw new Error('No user data returned from authentication');
       }
 
+<<<<<<< HEAD
 
       // Check if user is a venue owner - modified to handle multiple records
+=======
+      // Check if user is a venue owner (without .single() to avoid 406 errors)
+>>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
       const { data: venueOwners, error: venueOwnerError } = await supabase
         .from('venue_owners')
         .select('*')
         .eq('user_id', data.user.id)
+<<<<<<< HEAD
         .eq('status', 'active'); // Only get active records
 
+=======
+        .order('created_at', { ascending: false });
+>>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
 
+      let venueOwner = null;
+      
       if (venueOwnerError) {
+<<<<<<< HEAD
         throw new Error('Failed to verify venue owner status');
       }
 
@@ -110,6 +191,52 @@ const VenueOwnerLogin = () => {
       // Provide more specific and helpful error messages
       if (error.message === 'Invalid login credentials' || error.message.includes('Invalid login credentials')) {
         setError('The email or password you entered is incorrect. Please check your credentials and try again. If you\'ve forgotten your password, click "Forgot Password?" below to reset it.');
+=======
+        // If error, try email fallback
+        const { data: venueOwnersByEmail, error: emailError } = await supabase
+          .from('venue_owners')
+          .select('*')
+          .eq('owner_email', data.user.email)
+          .order('created_at', { ascending: false });
+        
+        if (!emailError && venueOwnersByEmail && venueOwnersByEmail.length > 0) {
+          venueOwner = venueOwnersByEmail[0];
+        } else {
+          throw new Error(`Venue owner profile not found. Please ensure your account has been approved. Error: ${venueOwnerError.message}`);
+        }
+      } else {
+        venueOwner = venueOwners && venueOwners.length > 0 ? venueOwners[0] : null;
+        if (!venueOwner) {
+          throw new Error(`No venue owner profile found for this user. Please contact support or ensure you have completed registration.`);
+        }
+      }
+
+      // Check if venue owner is active (allow both 'active' and 'approved' status)
+      const validStatuses = ['active', 'approved'];
+      if (!validStatuses.includes(venueOwner.status)) {
+        throw new Error(`Venue owner account status is "${venueOwner.status}". Your account must be approved by an admin before you can log in. Please contact support if you believe this is an error.`);
+      }
+
+      // If status is 'approved', update it to 'active' for consistency
+      if (venueOwner.status === 'approved') {
+        const { error: statusUpdateError } = await supabase
+          .from('venue_owners')
+          .update({ status: 'active' })
+          .eq('id', venueOwner.id);
+        
+        if (!statusUpdateError) {
+          venueOwner.status = 'active'; // Update local reference
+        }
+      }
+      
+      // Navigate to dashboard
+      navigate('/venue-owner/dashboard');
+      
+    } catch (error) {
+      // Provide more specific error messages
+      if (error.message === 'Invalid login credentials') {
+        setError('Invalid email or password. If you recently registered, please check your email for a confirmation link and click it before logging in. You can also use the "Resend confirmation email" button below.');
+>>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
       } else if (error.message.includes('Email not confirmed')) {
         setError('Please check your email and click the confirmation link before logging in. If you didn\'t receive the email, use the "Resend confirmation email" button below.');
       } else if (error.message.includes('Too many requests')) {
@@ -123,7 +250,11 @@ const VenueOwnerLogin = () => {
       // Show toast with helpful guidance
       toast({
         title: 'Login Failed',
+<<<<<<< HEAD
         description: 'Please check your credentials or use "Forgot Password?" to reset your password.',
+=======
+        description: 'If you recently registered, please check your email for a confirmation link.',
+>>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
         variant: 'destructive',
       });
     } finally {
@@ -166,9 +297,12 @@ const VenueOwnerLogin = () => {
       setLoading(true);
       setError(null);
       
+<<<<<<< HEAD
       
+=======
+>>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
       const { error } = await supabase.auth.resetPasswordForEmail(formData.email, {
-        redirectTo: `${window.location.origin}/venue-owner/reset-password`
+        redirectTo: `https://www.oneeddy.com/venue-owner/reset-password`
       });
       
       if (error) throw error;
@@ -189,6 +323,7 @@ const VenueOwnerLogin = () => {
       });
       
     } catch (error) {
+<<<<<<< HEAD
       
       // Provide more helpful error messages for password reset
       if (error.message.includes('User not found')) {
@@ -200,6 +335,9 @@ const VenueOwnerLogin = () => {
       } else {
         setError(error.message || 'Failed to send password reset email. Please try again or contact support.');
       }
+=======
+      setError(error.message || 'Failed to send password reset email');
+>>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
       
       toast({
         title: 'Password Reset Failed',
@@ -226,7 +364,7 @@ const VenueOwnerLogin = () => {
         type: 'signup',
         email: formData.email,
         options: {
-          emailRedirectTo: `${window.location.origin}/venue-owner/login`
+          emailRedirectTo: `https://www.oneeddy.com/venue-owner/login`
         }
       });
       
@@ -241,6 +379,10 @@ const VenueOwnerLogin = () => {
       setError(null);
       
     } catch (error) {
+<<<<<<< HEAD
+=======
+      console.error('Resend confirmation error:', error);
+>>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
       setError(error.message || 'Failed to resend confirmation email');
       
       toast({
@@ -253,7 +395,10 @@ const VenueOwnerLogin = () => {
     }
   };
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
   const checkAuth = async () => {
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -275,15 +420,88 @@ const VenueOwnerLogin = () => {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError) throw new Error('User error: ' + userError.message);
 
-      const { data: venueOwner, error: venueOwnerError } = await supabase
-        .from('venue_owners')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
+      // Try querying without .single() first to avoid 406 errors with RLS
+      // If we get one result, we'll use it; if multiple, we'll pick the first
+      let finalVenueOwner = null;
+      let venueOwnerError = null;
+      
+      try {
+        const { data: venueOwners, error: error } = await supabase
+          .from('venue_owners')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+        
+        if (error) {
+          venueOwnerError = error;
+        } else if (venueOwners && venueOwners.length > 0) {
+          finalVenueOwner = venueOwners[0];
+        }
+      } catch (err) {
+        // Catch any network errors or other issues
+        venueOwnerError = err;
+      }
 
+<<<<<<< HEAD
 
       if (venueOwnerError) throw new Error('Venue owner error: ' + venueOwnerError.message);
       if (!venueOwner) {
+=======
+      // Handle 406/403 errors (Not Acceptable/Forbidden) - usually RLS policy issues
+      if (venueOwnerError) {
+        // Check if it's a 406 or 403 error - check status code, message, and any nested properties
+        const errorStatus = venueOwnerError.status || venueOwnerError.statusCode || venueOwnerError.code || '';
+        const errorMessage = venueOwnerError.message || String(venueOwnerError) || '';
+        const errorString = JSON.stringify(venueOwnerError);
+        
+        const isPolicyError = errorMessage.includes('406') || 
+                              errorMessage.includes('403') ||
+                              errorMessage.includes('Not Acceptable') ||
+                              errorMessage.includes('Forbidden') ||
+                              errorString.includes('406') ||
+                              errorString.includes('403') ||
+                              errorStatus === 406 || 
+                              errorStatus === 403 ||
+                              errorStatus === '406' ||
+                              errorStatus === '403' ||
+                              venueOwnerError.code === 'PGRST116' ||
+                              venueOwnerError.code === '42501'; // Permission denied
+        
+        if (isPolicyError) {
+          // Try querying by email as fallback (if user_id doesn't match or RLS blocks by user_id)
+          const { data: venueOwnersByEmail, error: emailError } = await supabase
+            .from('venue_owners')
+            .select('*')
+            .eq('owner_email', user.email)
+            .order('created_at', { ascending: false });
+          
+          if (!emailError && venueOwnersByEmail && venueOwnersByEmail.length > 0) {
+            // Use the first result if multiple found
+            finalVenueOwner = venueOwnersByEmail[0];
+            
+            // If found by email but user_id doesn't match, update it
+            if (finalVenueOwner.user_id !== user.id) {
+              // Update the user_id if it's NULL or different
+              if (finalVenueOwner.user_id === null || finalVenueOwner.user_id !== user.id) {
+                const { error: updateError } = await supabase
+                  .from('venue_owners')
+                  .update({ user_id: user.id })
+                  .eq('id', finalVenueOwner.id);
+                
+                if (!updateError) {
+                  finalVenueOwner.user_id = user.id;
+                }
+              }
+            }
+          } else {
+            throw new Error('Venue owner not found. RLS policy may be blocking access. Error: ' + venueOwnerError.message);
+          }
+        } else {
+          throw new Error('Venue owner error: ' + venueOwnerError.message);
+        }
+      }
+      if (!finalVenueOwner) {
+>>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
         toast({
           title: 'Venue Owner Account Required',
           description: 'No venue owner profile found. Please register as a venue owner.',
@@ -295,6 +513,7 @@ const VenueOwnerLogin = () => {
       }
 
       // If we get here, user is authenticated and is a venue owner
+      // Use finalVenueOwner instead of venueOwner
       fetchVenueData();
     } catch (error) {
       setError(error.message);
@@ -317,14 +536,19 @@ const VenueOwnerLogin = () => {
       if (userError) throw new Error('User error: ' + userError.message);
 
       // Get venue details
-      const { data: venueData, error: venueError } = await supabase
+      const { data: venueDataList, error: venueError } = await supabase
         .from('venues')
         .select('*')
         .eq('owner_id', user.id)
+<<<<<<< HEAD
         .single();
 
+=======
+        .limit(1);
+>>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
 
       if (venueError) throw new Error('Venue error: ' + venueError.message);
+      const venueData = venueDataList && venueDataList.length > 0 ? venueDataList[0] : null;
       if (!venueData) throw new Error('No venue found for this user.');
 
       // ...rest of your code...
@@ -340,10 +564,17 @@ const VenueOwnerLogin = () => {
     }
   };
 
+<<<<<<< HEAD
   // Show loading screen while checking for existing session
   if (checkingAuth) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+=======
+  // Show loading state while checking authentication
+  if (checkingAuth || authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center py-4 px-4 sm:py-12 sm:px-6 lg:px-8">
+>>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-burgundy mx-auto mb-4"></div>
           <p className="text-brand-burgundy/70">Checking authentication...</p>
@@ -491,7 +722,10 @@ const VenueOwnerLogin = () => {
               >
                 Resend confirmation email
               </button>
+<<<<<<< HEAD
               
+=======
+>>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
             </div>
           </div>
         </div>

@@ -6,23 +6,17 @@ import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
 import { Badge } from '../../components/ui/badge';
 import { useToast } from '../../components/ui/use-toast';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '../../components/ui/dialog';
 import { 
   Receipt, 
-  Upload, 
   Search, 
-  User,
-  CreditCard,
-  DollarSign,
   Calendar,
   Clock,
-  Plus,
-  Minus,
   Eye,
-  RefreshCw,
   AlertCircle,
-  CheckCircle
+  CheckCircle,
+  Plus,
+  Minus
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { motion } from 'framer-motion';
@@ -41,6 +35,7 @@ const VenueOwnerReceipts = () => {
   const [selectedMember, setSelectedMember] = useState(null);
   const [memberSearchResults, setMemberSearchResults] = useState([]);
   const [memberSearchTerm, setMemberSearchTerm] = useState('');
+  
   
   // Receipt form state
   const [receiptForm, setReceiptForm] = useState({
@@ -94,19 +89,23 @@ const VenueOwnerReceipts = () => {
   const fetchVenueAndReceipts = async (userId) => {
     try {
       // Get venue owned by this user
-      const { data: venueData, error: venueError } = await supabase
+      const { data: venueDataList, error: venueError } = await supabase
         .from('venues')
         .select('*')
         .eq('owner_id', userId)
-        .single();
+        .order('created_at', { ascending: false })
+        .limit(1);
+      
+      const venueData = venueDataList && venueDataList.length > 0 ? venueDataList[0] : null;
 
       if (venueError) {
-        if (venueError.code === 'PGRST116') {
-          setVenue(null);
-          setReceipts([]);
-          return;
-        }
         throw venueError;
+      }
+
+      if (!venueData) {
+        setVenue(null);
+        setReceipts([]);
+        return;
       }
 
       setVenue(venueData);
@@ -162,44 +161,72 @@ const VenueOwnerReceipts = () => {
 
     try {
       // Search for members who have credits at this venue
-      const { data: membersData, error } = await supabase
+      // First fetch credits with available balance (amount - used_amount > 0)
+      const { data: creditsData, error: creditsError } = await supabase
         .from('venue_credits')
-        .select(`
-          user_id,
-          remaining_balance,
-          profiles:user_id (
-            id,
-            full_name,
-            email,
-            first_name,
-            last_name
-          )
-        `)
+        .select('user_id, amount, used_amount, status')
         .eq('venue_id', venue.id)
-        .eq('status', 'active')
-        .gt('remaining_balance', 0)
-        .gt('expires_at', new Date().toISOString());
+        .eq('status', 'active');
 
-      if (error) {
-        console.error('Error searching members:', error);
+      if (creditsError) {
+        console.error('Error fetching credits:', creditsError);
         return;
       }
 
-      // Filter results based on search term
-      const filteredMembers = (membersData || [])
-        .filter(member => {
-          if (!member.profiles) return false;
-          const fullName = member.profiles.full_name || `${member.profiles.first_name || ''} ${member.profiles.last_name || ''}`.trim();
-          const email = member.profiles.email || '';
-          
-          return fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                 email.toLowerCase().includes(searchTerm.toLowerCase());
+      // Calculate remaining balance and filter for members with available credits
+      const membersWithCredits = (creditsData || [])
+        .map(credit => {
+          const amount = Number(credit.amount) || 0;
+          const usedAmount = Number(credit.used_amount) || 0;
+          const remainingBalance = amount - usedAmount;
+          return {
+            ...credit,
+            remaining_balance: remainingBalance
+          };
         })
-        .map(member => ({
-          ...member,
-          display_name: member.profiles.full_name || `${member.profiles.first_name || ''} ${member.profiles.last_name || ''}`.trim() || 'Unknown Member',
-          display_email: member.profiles.email || 'No email'
-        }));
+        .filter(credit => credit.remaining_balance > 0);
+
+      // Get unique user IDs
+      const uniqueUserIds = [...new Set(membersWithCredits.map(c => c.user_id).filter(Boolean))];
+
+      if (uniqueUserIds.length === 0) {
+        setMemberSearchResults([]);
+        return;
+      }
+
+      // Fetch profiles for these users
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, first_name, last_name')
+        .in('id', uniqueUserIds);
+
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        // Continue without profiles - will show user IDs
+      }
+
+      // Create a map of user_id -> profile
+      const profilesMap = new Map((profilesData || []).map(profile => [profile.id, profile]));
+
+      // Combine credits with profiles and filter by search term
+      const filteredMembers = membersWithCredits
+        .map(credit => {
+          const profile = profilesMap.get(credit.user_id);
+          const fullName = profile?.full_name || (profile ? `${profile.first_name || ''} ${profile.last_name || ''}`.trim() : '') || `Member ${credit.user_id?.substring(0, 8) || 'unknown'}...`;
+          const email = profile?.email || `member-${credit.user_id?.substring(0, 8) || 'unknown'}@hidden`;
+          
+          return {
+            ...credit,
+            profiles: profile,
+            display_name: fullName,
+            display_email: email
+          };
+        })
+        .filter(member => {
+          // Filter by search term
+          return member.display_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                 member.display_email.toLowerCase().includes(searchTerm.toLowerCase());
+        });
 
       setMemberSearchResults(filteredMembers);
 
@@ -215,19 +242,43 @@ const VenueOwnerReceipts = () => {
     
     // Get full credit balance for this member
     try {
-      const { data: balanceData, error } = await supabase
-        .rpc('get_member_credit_balance', {
-          p_venue_id: venue.id,
-          p_member_user_id: member.user_id
-        });
+      // Fetch all active credits for this member at this venue
+      const { data: creditsData, error: creditsError } = await supabase
+        .from('venue_credits')
+        .select('id, amount, used_amount, status, created_at')
+        .eq('venue_id', venue.id)
+        .eq('user_id', member.user_id)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false });
 
-      if (!error && balanceData) {
-        setSelectedMember(prev => ({
-          ...prev,
-          total_balance: balanceData.total_balance,
-          active_credits: balanceData.active_credits || []
-        }));
+      if (creditsError) {
+        console.error('Error fetching member credits:', creditsError);
+        return;
       }
+
+      // Calculate total balance and active credits
+      const activeCredits = (creditsData || []).map(credit => {
+        const amount = Number(credit.amount) || 0;
+        const usedAmount = Number(credit.used_amount) || 0;
+        const remainingBalance = amount - usedAmount;
+        return {
+          ...credit,
+          remaining_balance: remainingBalance
+        };
+      }).filter(credit => credit.remaining_balance > 0);
+
+      const totalBalance = activeCredits.reduce((sum, credit) => sum + credit.remaining_balance, 0);
+
+      setSelectedMember(prev => ({
+        ...prev,
+        total_balance: totalBalance,
+        active_credits: activeCredits
+      }));
+
+      console.log('✅ Member balance calculated:', {
+        totalBalance,
+        activeCreditsCount: activeCredits.length
+      });
     } catch (error) {
       console.error('Error fetching member balance:', error);
     }
@@ -260,22 +311,63 @@ const VenueOwnerReceipts = () => {
 
   const uploadReceiptImage = async (file) => {
     try {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        throw new Error('Please select an image file');
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        throw new Error('Image must be less than 5MB');
+      }
+
       const fileExt = file.name.split('.').pop();
-      const fileName = `receipt-${Date.now()}.${fileExt}`;
+      const fileName = `receipts/receipt-${Date.now()}.${fileExt}`;
       
-      const { data: uploadData, error: uploadError } = await supabase.storage
+      // Check authentication
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        throw new Error('Not authenticated');
+      }
+
+      console.log('📤 Uploading receipt image:', {
+        fileName,
+        fileSize: file.size,
+        fileType: file.type,
+        isMobile: /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+      });
+
+      // Use Supabase client library for better mobile compatibility
+      // This handles file conversion and authentication automatically
+      const { data, error: uploadError } = await supabase.storage
         .from('venue-images')
-        .upload(`receipts/${fileName}`, file);
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: file.type
+        });
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('❌ Upload error:', uploadError);
+        throw new Error(`Upload failed: ${uploadError.message}`);
+      }
 
-      const { data: urlData } = supabase.storage
+      if (!data) {
+        throw new Error('Upload failed: No data returned');
+      }
+
+      console.log('✅ Upload successful:', data);
+
+      // Get public URL using Supabase client
+      const { data: { publicUrl } } = supabase.storage
         .from('venue-images')
-        .getPublicUrl(`receipts/${fileName}`);
+        .getPublicUrl(data.path);
 
-      return urlData.publicUrl;
+      console.log('✅ Public URL generated:', publicUrl);
+
+      return publicUrl;
     } catch (error) {
-      console.error('Error uploading receipt image:', error);
+      console.error('❌ Error uploading receipt image:', error);
       throw error;
     }
   };
@@ -325,8 +417,8 @@ const VenueOwnerReceipts = () => {
       ).map(item => ({
         item_name: item.itemName,
         quantity: parseInt(item.quantity),
-        unit_price: Math.round(parseFloat(item.unitPrice) * 100), // Convert to kobo
-        total_price: Math.round(parseInt(item.quantity) * parseFloat(item.unitPrice) * 100),
+        unit_price: Math.round(parseFloat(item.unitPrice)), // Store in full naira
+        total_price: Math.round(parseInt(item.quantity) * parseFloat(item.unitPrice)),
         category: item.category
       }));
 
@@ -338,9 +430,9 @@ const VenueOwnerReceipts = () => {
           p_processed_by_user_id: currentUser.id,
           p_receipt_number: receiptForm.receiptNumber || `R-${Date.now()}`,
           p_receipt_image_url: receiptImageUrl,
-          p_total_amount: Math.round(parseFloat(receiptForm.totalAmount) * 100),
-          p_credit_amount_used: Math.round(parseFloat(receiptForm.creditAmountUsed) * 100),
-          p_cash_amount_paid: Math.round(parseFloat(receiptForm.cashAmountPaid || 0) * 100),
+                  p_total_amount: Math.round(parseFloat(receiptForm.totalAmount)),
+        p_credit_amount_used: Math.round(parseFloat(receiptForm.creditAmountUsed)),
+        p_cash_amount_paid: Math.round(parseFloat(receiptForm.cashAmountPaid || 0)),
           p_receipt_date: receiptForm.receiptDate,
           p_notes: receiptForm.notes,
           p_receipt_items: validItems // <-- pass as array, not JSON.stringify(validItems)
@@ -367,7 +459,7 @@ const VenueOwnerReceipts = () => {
       // Replace `memberUserId`, `venueId`, and `amount` with the actual values from your receipt form.
       const memberUserId = selectedMember.user_id;
       const venueId = venue.id;
-      const amount = Math.round(parseFloat(receiptForm.creditAmountUsed) * 100);
+      const amount = Math.round(parseFloat(receiptForm.creditAmountUsed));
 
       console.log('Processing receipt for member:', memberUserId, 'venue:', venueId, 'amount:', amount);
 
@@ -421,6 +513,7 @@ const VenueOwnerReceipts = () => {
     }
   };
 
+
   const filteredReceipts = receipts.filter(receipt => {
     if (!searchTerm) return true;
     const memberName = receipt.profiles?.full_name || 'Unknown Member';
@@ -456,34 +549,38 @@ const VenueOwnerReceipts = () => {
 
   return (
     <div className="bg-brand-cream/50 min-h-screen">
-      <div className="container py-4 sm:py-8 px-4 sm:px-6">
+      <div className="w-full py-2 sm:py-4 md:py-8 px-2 sm:px-4 md:px-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 sm:mb-8">
-          <div className="text-center sm:text-left mb-4 sm:mb-0">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 sm:mb-6 md:mb-8">
+          <div className="text-center sm:text-left mb-3 sm:mb-0">
             <div className="flex items-center justify-center sm:justify-start mb-2">
-              <BackToDashboardButton className="mr-4" />
+              <BackToDashboardButton className="mr-2 sm:mr-4" />
             </div>
-            <h1 className="text-2xl sm:text-3xl font-heading text-brand-burgundy mb-2">Receipt Management</h1>
-            <p className="text-sm sm:text-base text-brand-burgundy/70">
+            <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-heading text-brand-burgundy mb-1 sm:mb-2">Receipt Management</h1>
+            <p className="text-xs sm:text-sm md:text-base text-brand-burgundy/70">
               Process member purchases and manage credit redemptions for <span className="font-semibold">{venue.name}</span>
             </p>
           </div>
-          <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
-            <DialogTrigger asChild>
-              <Button className="bg-brand-burgundy text-white hover:bg-brand-burgundy/90 w-full sm:w-auto">
-                <Receipt className="h-4 w-4 mr-2" />
-                Process Receipt
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Process Member Receipt</DialogTitle>
-              </DialogHeader>
-              
-              <div className="space-y-6">
-                {/* Member Selection */}
-                <div className="space-y-2">
-                  <Label>Select Member</Label>
+        </div>
+
+        {/* Receipt Management */}
+        <div className="space-y-6">
+            <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
+              <DialogTrigger asChild>
+                <Button className="bg-brand-burgundy text-white hover:bg-brand-burgundy/90 w-full sm:w-auto text-xs sm:text-sm py-1.5 sm:py-2 px-3 sm:px-4">
+                  <Receipt className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
+                  Process Receipt
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto mx-2 sm:mx-0">
+                <DialogHeader>
+                  <DialogTitle>Process Member Receipt</DialogTitle>
+                </DialogHeader>
+                
+                <div className="space-y-4 sm:space-y-6">
+                  {/* Member Selection */}
+                  <div className="space-y-1.5 sm:space-y-2">
+                  <Label className="text-xs sm:text-sm">Select Member</Label>
                   <div className="relative">
                     <Input
                       value={memberSearchTerm}
@@ -492,20 +589,20 @@ const VenueOwnerReceipts = () => {
                         searchMembers(e.target.value);
                       }}
                       placeholder="Search member by name or email..."
-                      className="border-brand-burgundy/20"
+                      className="border-brand-burgundy/20 text-xs sm:text-sm"
                     />
                     {memberSearchResults.length > 0 && (
-                      <div className="absolute z-10 w-full bg-white border border-brand-burgundy/20 rounded-md mt-1 max-h-48 overflow-y-auto">
+                      <div className="absolute z-10 w-full bg-white border border-brand-burgundy/20 rounded-md mt-1 max-h-40 sm:max-h-48 overflow-y-auto">
                         {memberSearchResults.map((member) => (
                           <button
                             key={member.user_id}
                             onClick={() => selectMember(member)}
-                            className="w-full text-left px-4 py-3 hover:bg-brand-cream/50 border-b border-brand-burgundy/10 last:border-b-0"
+                            className="w-full text-left px-3 sm:px-4 py-2 sm:py-3 hover:bg-brand-cream/50 border-b border-brand-burgundy/10 last:border-b-0"
                           >
-                            <div className="font-medium text-brand-burgundy text-sm sm:text-base">{member.display_name}</div>
+                            <div className="font-medium text-brand-burgundy text-xs sm:text-sm md:text-base">{member.display_name}</div>
                             <div className="text-xs sm:text-sm text-brand-burgundy/70">{member.display_email}</div>
                             <div className="text-xs sm:text-sm text-brand-gold font-semibold">
-                              Available: ₦{(member.remaining_balance / 100).toLocaleString()}
+                                                             Available: ₦{(member.remaining_balance || 0).toLocaleString()}
                             </div>
                           </button>
                         ))}
@@ -514,25 +611,25 @@ const VenueOwnerReceipts = () => {
                   </div>
                   
                   {selectedMember && (
-                    <div className="p-4 bg-brand-cream/30 rounded-lg">
+                    <div className="p-3 sm:p-4 bg-brand-cream/30 rounded-lg">
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
                         <div className="flex-1">
-                          <h4 className="font-semibold text-brand-burgundy text-sm sm:text-base">{selectedMember.display_name}</h4>
+                          <h4 className="font-semibold text-brand-burgundy text-xs sm:text-sm md:text-base">{selectedMember.display_name}</h4>
                           <p className="text-xs sm:text-sm text-brand-burgundy/70">{selectedMember.display_email}</p>
                         </div>
                         <div className="text-left sm:text-right">
-                          <div className="text-lg font-bold text-brand-gold">
-                            ₦{((selectedMember.total_balance || 0) / 100).toLocaleString()}
+                          <div className="text-sm sm:text-lg font-bold text-brand-gold">
+                            ₦{(selectedMember.total_balance || 0).toLocaleString()}
                           </div>
                           <div className="text-xs sm:text-sm text-brand-burgundy/70">Available Credits</div>
                         </div>
                       </div>
-                      <div className="flex justify-end mt-3">
+                      <div className="flex justify-end mt-2 sm:mt-3">
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
-                          className="border-red-300 text-red-600 hover:bg-red-50"
+                          className="border-red-300 text-red-600 hover:bg-red-50 text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3"
                           onClick={() => {
                             setSelectedMember(null);
                             setMemberSearchTerm('');
@@ -546,85 +643,85 @@ const VenueOwnerReceipts = () => {
                 </div>
 
                 {/* Receipt Details */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Receipt Number</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                  <div className="space-y-1.5 sm:space-y-2">
+                    <Label className="text-xs sm:text-sm">Receipt Number</Label>
                     <Input
                       value={receiptForm.receiptNumber}
                       onChange={(e) => setReceiptForm({ ...receiptForm, receiptNumber: e.target.value })}
                       placeholder="e.g., R-001 (optional)"
-                      className="border-brand-burgundy/20"
+                      className="border-brand-burgundy/20 text-xs sm:text-sm"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Receipt Date</Label>
+                  <div className="space-y-1.5 sm:space-y-2">
+                    <Label className="text-xs sm:text-sm">Receipt Date</Label>
                     <Input
                       type="date"
                       value={receiptForm.receiptDate}
                       onChange={(e) => setReceiptForm({ ...receiptForm, receiptDate: e.target.value })}
-                      className="border-brand-burgundy/20"
+                      className="border-brand-burgundy/20 text-xs sm:text-sm"
                     />
                   </div>
                 </div>
 
                 {/* Amount Details */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                  <div className="space-y-2">
-                    <Label>Total Amount (₦)</Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+                  <div className="space-y-1.5 sm:space-y-2">
+                    <Label className="text-xs sm:text-sm">Total Amount (₦)</Label>
                     <Input
                       type="number"
                       value={receiptForm.totalAmount}
                       onChange={(e) => setReceiptForm({ ...receiptForm, totalAmount: e.target.value })}
                       placeholder="0.00"
-                      className="border-brand-burgundy/20"
+                      className="border-brand-burgundy/20 text-xs sm:text-sm"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Credit Amount Used (₦)</Label>
+                  <div className="space-y-1.5 sm:space-y-2">
+                    <Label className="text-xs sm:text-sm">Credit Amount Used (₦)</Label>
                     <Input
                       type="number"
                       value={receiptForm.creditAmountUsed}
                       onChange={(e) => setReceiptForm({ ...receiptForm, creditAmountUsed: e.target.value })}
                       placeholder="0.00"
-                      className="border-brand-burgundy/20"
+                      className="border-brand-burgundy/20 text-xs sm:text-sm"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Cash Paid (₦)</Label>
+                  <div className="space-y-1.5 sm:space-y-2">
+                    <Label className="text-xs sm:text-sm">Cash Paid (₦)</Label>
                     <Input
                       type="number"
                       value={receiptForm.cashAmountPaid}
                       onChange={(e) => setReceiptForm({ ...receiptForm, cashAmountPaid: e.target.value })}
                       placeholder="0.00"
-                      className="border-brand-burgundy/20"
+                      className="border-brand-burgundy/20 text-xs sm:text-sm"
                     />
                   </div>
                 </div>
 
                 {/* Receipt Items */}
-                <div className="space-y-4">
+                <div className="space-y-3 sm:space-y-4">
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
-                    <Label>Receipt Items (Optional)</Label>
+                    <Label className="text-xs sm:text-sm">Receipt Items (Optional)</Label>
                     <Button
                       type="button"
                       onClick={addReceiptItem}
                       variant="outline"
                       size="sm"
-                      className="border-brand-gold text-brand-gold hover:bg-brand-gold/10 w-full sm:w-auto"
+                      className="border-brand-gold text-brand-gold hover:bg-brand-gold/10 w-full sm:w-auto text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3"
                     >
-                      <Plus className="h-4 w-4 mr-1" />
+                      <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                       Add Item
                     </Button>
                   </div>
                   
                   {receiptItems.map((item, index) => (
-                    <div key={index} className="grid grid-cols-1 sm:grid-cols-6 gap-2 p-3 border border-brand-burgundy/10 rounded-lg">
+                    <div key={index} className="grid grid-cols-1 sm:grid-cols-6 gap-2 p-2 sm:p-3 border border-brand-burgundy/10 rounded-lg">
                       <div className="sm:col-span-2">
                         <Input
                           value={item.itemName}
                           onChange={(e) => updateReceiptItem(index, 'itemName', e.target.value)}
                           placeholder="Item name"
-                          className="border-brand-burgundy/20"
+                          className="border-brand-burgundy/20 text-xs sm:text-sm"
                         />
                       </div>
                       <div>
@@ -633,7 +730,7 @@ const VenueOwnerReceipts = () => {
                           value={item.quantity}
                           onChange={(e) => updateReceiptItem(index, 'quantity', e.target.value)}
                           placeholder="Qty"
-                          className="border-brand-burgundy/20"
+                          className="border-brand-burgundy/20 text-xs sm:text-sm"
                         />
                       </div>
                       <div>
@@ -642,14 +739,14 @@ const VenueOwnerReceipts = () => {
                           value={item.unitPrice}
                           onChange={(e) => updateReceiptItem(index, 'unitPrice', e.target.value)}
                           placeholder="Unit Price"
-                          className="border-brand-burgundy/20"
+                          className="border-brand-burgundy/20 text-xs sm:text-sm"
                         />
                       </div>
                       <div>
                         <select
                           value={item.category}
                           onChange={(e) => updateReceiptItem(index, 'category', e.target.value)}
-                          className="w-full p-2 border border-brand-burgundy/20 rounded-md"
+                          className="w-full p-1.5 sm:p-2 border border-brand-burgundy/20 rounded-md text-xs sm:text-sm"
                         >
                           <option value="drinks">Drinks</option>
                           <option value="food">Food</option>
@@ -664,9 +761,9 @@ const VenueOwnerReceipts = () => {
                             onClick={() => removeReceiptItem(index)}
                             variant="outline"
                             size="sm"
-                            className="border-red-300 text-red-600 hover:bg-red-50"
+                            className="border-red-300 text-red-600 hover:bg-red-50 h-8 w-8 sm:h-9 sm:w-9"
                           >
-                            <Minus className="h-4 w-4" />
+                            <Minus className="h-3 w-3 sm:h-4 sm:w-4" />
                           </Button>
                         )}
                       </div>
@@ -674,33 +771,33 @@ const VenueOwnerReceipts = () => {
                   ))}
                   
                   {receiptItems.some(item => item.itemName && item.unitPrice) && (
-                    <div className="text-right text-brand-burgundy">
+                    <div className="text-right text-brand-burgundy text-xs sm:text-sm">
                       <strong>Items Total: ₦{calculateItemsTotal().toFixed(2)}</strong>
                     </div>
                   )}
                 </div>
 
                 {/* Receipt Image Upload */}
-                <div className="space-y-2">
-                  <Label>
+                <div className="space-y-1.5 sm:space-y-2">
+                  <Label className="text-xs sm:text-sm">
                     Receipt Image
                   </Label>
                   <Input
                     type="file"
                     accept="image/*"
                     onChange={(e) => setReceiptForm({ ...receiptForm, receiptImage: e.target.files[0] })}
-                    className="border-brand-burgundy/20"
+                    className="border-brand-burgundy/20 text-xs sm:text-sm"
                   />
                 </div>
 
                 {/* Notes */}
-                <div className="space-y-2">
-                  <Label>Notes (Optional)</Label>
+                <div className="space-y-1.5 sm:space-y-2">
+                  <Label className="text-xs sm:text-sm">Notes (Optional)</Label>
                   <Textarea
                     value={receiptForm.notes}
                     onChange={(e) => setReceiptForm({ ...receiptForm, notes: e.target.value })}
                     placeholder="Additional notes about this transaction..."
-                    className="border-brand-burgundy/20"
+                    className="border-brand-burgundy/20 text-xs sm:text-sm"
                   />
                 </div>
 
@@ -708,69 +805,68 @@ const VenueOwnerReceipts = () => {
                 <Button
                   onClick={processReceipt}
                   disabled={processing || !selectedMember}
-                  className="w-full bg-brand-burgundy text-white hover:bg-brand-burgundy/90"
+                  className="w-full bg-brand-burgundy text-white hover:bg-brand-burgundy/90 text-xs sm:text-sm py-2 sm:py-3"
                 >
                   {processing ? (
                     <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white mr-1 sm:mr-2"></div>
                       Processing...
                     </>
                   ) : (
                     <>
-                      <CheckCircle className="h-4 w-4 mr-2" />
+                      <CheckCircle className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                       Process Receipt
                     </>
                   )}
                 </Button>
               </div>
-            </DialogContent>
-          </Dialog>
-        </div>
+                </DialogContent>
+              </Dialog>
 
-        {/* Search and Filter */}
-        <div className="mb-6">
-          <div className="relative max-w-md">
-            <Search className="absolute left-3 top-3 h-4 w-4 text-brand-burgundy/40" />
-            <Input
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Search receipts by member name or receipt number..."
-              className="pl-10 border-brand-burgundy/20"
-            />
-          </div>
-        </div>
+            {/* Search and Filter */}
+            <div className="mb-4 sm:mb-6">
+              <div className="relative max-w-md">
+                <Search className="absolute left-2 sm:left-3 top-2.5 sm:top-3 h-3 w-3 sm:h-4 sm:w-4 text-brand-burgundy/40" />
+                <Input
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search receipts by member name or receipt number..."
+                  className="pl-8 sm:pl-10 border-brand-burgundy/20 text-xs sm:text-sm"
+                />
+              </div>
+            </div>
 
-        {/* Receipts List */}
-        <Card className="bg-white border-brand-burgundy/10">
-          <CardHeader className="px-4 sm:px-6 py-4 sm:py-6">
-            <CardTitle className="flex items-center text-lg sm:text-xl">
-              <Receipt className="h-5 w-5 mr-2" />
-              Recent Receipts ({filteredReceipts.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 sm:px-6 pb-4 sm:pb-6">
-            {filteredReceipts.length > 0 ? (
-              <div className="space-y-4">
-                {filteredReceipts.map((receipt) => (
-                  <motion.div
-                    key={receipt.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="border border-brand-burgundy/10 rounded-lg p-4 hover:shadow-md transition-shadow"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
-                      <div className="flex items-start space-x-4">
-                        <div className="p-2 bg-brand-burgundy/10 rounded-full">
-                          <Receipt className="h-5 w-5 text-brand-burgundy" />
+            {/* Receipts List */}
+            <Card className="bg-white border-brand-burgundy/10">
+              <CardHeader className="px-2 sm:px-4 md:px-6 py-3 sm:py-4 md:py-6">
+                <CardTitle className="flex items-center text-sm sm:text-lg md:text-xl">
+                  <Receipt className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" />
+                  Recent Receipts ({filteredReceipts.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-2 sm:px-4 md:px-6 pb-3 sm:pb-4 md:pb-6">
+                {filteredReceipts.length > 0 ? (
+                  <div className="space-y-3 sm:space-y-4">
+                    {filteredReceipts.map((receipt) => (
+                      <motion.div
+                        key={receipt.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="border border-brand-burgundy/10 rounded-lg p-3 sm:p-4 hover:shadow-md transition-shadow"
+                      >
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-3 sm:space-y-0">
+                      <div className="flex items-start space-x-3 sm:space-x-4">
+                        <div className="p-1.5 sm:p-2 bg-brand-burgundy/10 rounded-full">
+                          <Receipt className="h-4 w-4 sm:h-5 sm:w-5 text-brand-burgundy" />
                         </div>
                         <div className="flex-1">
-                          <h4 className="font-semibold text-brand-burgundy text-sm sm:text-base">
+                          <h4 className="font-semibold text-brand-burgundy text-xs sm:text-sm md:text-base">
                             {receipt.profiles?.full_name || 'Unknown Member'}
                           </h4>
                           <p className="text-xs sm:text-sm text-brand-burgundy/70">
                             Receipt #{receipt.receipt_number || 'N/A'}
                           </p>
-                          <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 mt-2 text-xs text-brand-burgundy/60">
+                          <div className="flex flex-col sm:flex-row sm:items-center space-y-1 sm:space-y-0 sm:space-x-4 mt-1 sm:mt-2 text-xs text-brand-burgundy/60">
                             <div className="flex items-center">
                               <Calendar className="h-3 w-3 mr-1" />
                               {new Date(receipt.created_at).toLocaleDateString()}
@@ -786,20 +882,20 @@ const VenueOwnerReceipts = () => {
                       <div className="flex flex-col sm:items-end space-y-2">
                         <div className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-4">
                           <div className="text-left sm:text-right">
-                            <div className="font-bold text-brand-burgundy text-sm sm:text-base">
-                              Total: ₦{(receipt.total_amount / 100).toLocaleString()}
+                            <div className="font-bold text-brand-burgundy text-xs sm:text-sm md:text-base">
+                              Total: ₦{receipt.total_amount.toLocaleString()}
                             </div>
                             <div className="text-xs sm:text-sm text-brand-gold">
-                              Credits: ₦{(receipt.credit_amount_used / 100).toLocaleString()}
+                              Credits: ₦{receipt.credit_amount_used.toLocaleString()}
                             </div>
                             {receipt.cash_amount_paid > 0 && (
                               <div className="text-xs sm:text-sm text-brand-burgundy/70">
-                                Cash: ₦{(receipt.cash_amount_paid / 100).toLocaleString()}
+                                Cash: ₦{receipt.cash_amount_paid.toLocaleString()}
                               </div>
                             )}
                           </div>
                           <Badge
-                            className={`${
+                            className={`text-xs ${
                               receipt.status === 'completed' ? 'bg-green-100 text-green-800' :
                               receipt.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                               receipt.status === 'refunded' ? 'bg-blue-100 text-blue-800' :
@@ -814,9 +910,9 @@ const VenueOwnerReceipts = () => {
                             variant="outline"
                             size="sm"
                             onClick={() => window.open(receipt.receipt_image_url, '_blank')}
-                            className="border-brand-burgundy/20 text-brand-burgundy hover:bg-brand-burgundy/10 w-full sm:w-auto"
+                            className="border-brand-burgundy/20 text-brand-burgundy hover:bg-brand-burgundy/10 w-full sm:w-auto text-xs sm:text-sm py-1 sm:py-2 px-2 sm:px-3"
                           >
-                            <Eye className="h-4 w-4 mr-1" />
+                            <Eye className="h-3 w-3 sm:h-4 sm:w-4 mr-1" />
                             View Image
                           </Button>
                         )}
@@ -824,26 +920,26 @@ const VenueOwnerReceipts = () => {
                     </div>
                     
                     {receipt.notes && (
-                      <div className="mt-3 p-3 bg-brand-cream/30 rounded-lg">
-                        <p className="text-sm text-brand-burgundy/70">{receipt.notes}</p>
+                      <div className="mt-2 sm:mt-3 p-2 sm:p-3 bg-brand-cream/30 rounded-lg">
+                        <p className="text-xs sm:text-sm text-brand-burgundy/70">{receipt.notes}</p>
                       </div>
                     )}
                   </motion.div>
                 ))}
               </div>
             ) : (
-              <div className="text-center py-12">
-                <Receipt className="h-16 w-16 text-brand-burgundy/30 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-brand-burgundy mb-2">No Receipts Found</h3>
-                <p className="text-brand-burgundy/60 mb-6 text-sm sm:text-base">
+              <div className="text-center py-8 sm:py-12">
+                <Receipt className="h-12 w-12 sm:h-16 sm:w-16 text-brand-burgundy/30 mx-auto mb-3 sm:mb-4" />
+                <h3 className="text-sm sm:text-lg font-semibold text-brand-burgundy mb-1 sm:mb-2">No Receipts Found</h3>
+                <p className="text-brand-burgundy/60 mb-4 sm:mb-6 text-xs sm:text-sm md:text-base">
                   {searchTerm ? 'No receipts match your search criteria.' : 'Start processing member receipts to see them here.'}
                 </p>
                 {!searchTerm && (
                   <Button 
                     onClick={() => setShowUploadDialog(true)}
-                    className="bg-brand-burgundy text-white hover:bg-brand-burgundy/90"
+                    className="bg-brand-burgundy text-white hover:bg-brand-burgundy/90 text-xs sm:text-sm py-1.5 sm:py-2 px-3 sm:px-4"
                   >
-                    <Receipt className="h-4 w-4 mr-2" />
+                    <Receipt className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-2" />
                     Process First Receipt
                   </Button>
                 )}
@@ -851,6 +947,7 @@ const VenueOwnerReceipts = () => {
             )}
           </CardContent>
         </Card>
+        </div>
       </div>
     </div>
   );

@@ -122,7 +122,7 @@ const HomePage = () => {
             is_primary
           )
         `)
-        .eq('status', 'approved')
+        .eq('status', 'active')
         .eq('is_active', true)
         .limit(6);
 

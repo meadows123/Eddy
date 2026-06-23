@@ -174,8 +174,9 @@ export const bookingsApi = {
   }
 }
 
-// Stripe Elements setup (frontend only)
-export const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
+// Stripe Elements setup (frontend only) - only if key is configured
+const stripeKey = import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || import.meta.env.VITE_STRIPE_TEST_PUBLISHABLE_KEY;
+export const stripePromise = stripeKey ? loadStripe(stripeKey) : null;
 
 // Get authentication header for API calls
 const getAuthHeaders = async () => {
@@ -262,7 +263,7 @@ export async function removeStripePaymentMethod(id) {
 
 export async function notifyAdminOfVenueSubmission(newVenue, venueOwner, user) {
   
-  const ADMIN_EMAIL = "sales@oneeddy.com";
+  const ADMIN_EMAIL = "info@oneeddy.com";
   
   const EMAILJS_CONFIG = {
     serviceId: import.meta.env.VITE_EMAILJS_SERVICE_ID,
@@ -308,7 +309,11 @@ export async function notifyAdminOfVenueSubmission(newVenue, venueOwner, user) {
         month: 'long',
         day: 'numeric'
       }),
+<<<<<<< HEAD
       viewUrl: 'https://oneeddy.com/admin/venue-approvals', // Updated to correct production URL
+=======
+      viewUrl: 'https://www.oneeddy.com/admin/venue-approvals', // Always use production URL for app links
+>>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
       
       // Email routing (for EmailJS)
       to_email: ADMIN_EMAIL,
@@ -444,6 +449,7 @@ export async function testEmailJSConnection() {
 }
 
 // Add this function to your existing api.jsx file
+<<<<<<< HEAD
 
 // Check available time slots for a specific date and venue
 export const getAvailableTimeSlots = async (venueId, date, tableId = null) => {
@@ -586,6 +592,301 @@ export const checkTableAvailability = async (venueId, tableId, date) => {
   } catch (error) {
     console.error('Error checking table availability:', error);
     return { data: null, error };
+=======
+
+// Check available time slots for a specific date and venue
+export const getAvailableTimeSlots = async (venueId, date, tableId = null) => {
+  try {
+    // Get venue opening hours
+    const openingHours = await getVenueOpeningHours(venueId);
+    const defaultStartTime = '18:00';
+    const defaultEndTime = '02:00';
+    const startTime = openingHours?.startTime || defaultStartTime;
+    const endTime = openingHours?.endTime || defaultEndTime;
+
+    // Get all existing bookings for this venue and date
+    const { data: existingBookings, error } = await supabase
+      .from('bookings')
+      .select('start_time, end_time, table_id, status')
+      .eq('venue_id', venueId)
+      .eq('booking_date', date)
+      .in('status', ['confirmed', 'pending']); // Count both confirmed and pending bookings
+
+    if (error) throw error;
+
+    // Generate all possible time slots using venue's opening hours
+    const allTimeSlots = generateTimeSlots(startTime, endTime);
+    
+    // Filter out unavailable time slots
+    const availableSlots = allTimeSlots.filter(slot => {
+      // Create slot time as minutes since midnight for easier comparison
+      const [hours, minutes] = slot.split(':').map(Number);
+      const slotMinutes = hours * 60 + minutes;
+      
+      // Check if this specific time slot conflicts with existing bookings
+      const isAvailable = !existingBookings.some(booking => {
+        // Convert booking times to minutes since midnight
+        const [startHours, startMins] = booking.start_time.split(':').map(Number);
+        const [endHours, endMins] = booking.end_time.split(':').map(Number);
+        
+        let bookingStartMinutes = startHours * 60 + startMins;
+        let bookingEndMinutes = endHours * 60 + endMins;
+        
+        // Handle bookings that cross midnight
+        if (bookingEndMinutes < bookingStartMinutes) {
+          bookingEndMinutes += 24 * 60; // Add 24 hours (1440 minutes)
+        }
+        
+        // Check if the slot time falls within the existing booking time range
+        // A slot is unavailable if it falls within an existing booking period
+        let slotMinutesToCheck = slotMinutes;
+        
+        // If booking crosses midnight and slot is in the early morning (00:00-06:00),
+        // we need to add 24 hours to the slot time for comparison
+        if (bookingEndMinutes > 24 * 60 && slotMinutes < 6 * 60) {
+          slotMinutesToCheck += 24 * 60;
+        }
+        
+        return slotMinutesToCheck >= bookingStartMinutes && slotMinutesToCheck < bookingEndMinutes;
+      });
+      
+      return isAvailable;
+    });
+
+    return { data: availableSlots, error: null };
+  } catch (error) {
+    console.error('Error getting available time slots:', error);
+    return { data: null, error };
+  }
+};
+
+// Add this function to check real-time table availability
+export const checkTableAvailability = async (venueId, tableId, date) => {
+  try {
+    // Get venue opening hours
+    const openingHours = await getVenueOpeningHours(venueId);
+    const defaultStartTime = '18:00';
+    const defaultEndTime = '02:00';
+    const startTime = openingHours?.startTime || defaultStartTime;
+    const endTime = openingHours?.endTime || defaultEndTime;
+
+    // Get all existing bookings for this specific table and date
+    const { data: existingBookings, error } = await supabase
+      .from('bookings')
+      .select('start_time, end_time, status')
+      .eq('venue_id', venueId)
+      .eq('table_id', tableId)
+      .eq('booking_date', date)
+      .in('status', ['confirmed', 'pending', 'paid']); // Count confirmed, pending, and paid bookings
+
+    if (error) throw error;
+
+    // Debug logging
+    console.log('🔍 Checking availability for:', { venueId, tableId, date });
+    console.log('📅 Existing bookings:', existingBookings);
+    console.log('📊 Booking statuses found:', existingBookings.map(b => ({ time: b.start_time, status: b.status })));
+    console.log('🕐 Using opening hours:', { startTime, endTime, fromVenue: !!openingHours });
+
+    // Generate all possible time slots using venue's opening hours
+    const allTimeSlots = generateTimeSlots(startTime, endTime);
+    console.log('⏰ Generated time slots:', allTimeSlots);
+    
+    // Check which times are available
+    const availability = allTimeSlots.map(time => {
+      // Create slot time as minutes since midnight for easier comparison
+      const [hours, minutes] = time.split(':').map(Number);
+      const slotMinutes = hours * 60 + minutes;
+      
+      // Check if this specific time slot conflicts with existing bookings
+      const conflictingBooking = existingBookings.find(booking => {
+        // Convert booking times to minutes since midnight
+        const [startHours, startMins] = booking.start_time.split(':').map(Number);
+        const [endHours, endMins] = booking.end_time.split(':').map(Number);
+        
+        let bookingStartMinutes = startHours * 60 + startMins;
+        let bookingEndMinutes = endHours * 60 + endMins;
+        
+        // Handle bookings that cross midnight
+        if (bookingEndMinutes < bookingStartMinutes) {
+          bookingEndMinutes += 24 * 60; // Add 24 hours (1440 minutes)
+        }
+        
+        // Check if the slot time falls within the existing booking time range
+        // A slot is unavailable if it falls within an existing booking period
+        let slotMinutesToCheck = slotMinutes;
+        
+        // If booking crosses midnight and slot is in the early morning (00:00-06:00),
+        // we need to add 24 hours to the slot time for comparison
+        if (bookingEndMinutes > 24 * 60 && slotMinutes < 6 * 60) {
+          slotMinutesToCheck += 24 * 60;
+        }
+        
+        const slotFallsWithinBooking = slotMinutesToCheck >= bookingStartMinutes && slotMinutesToCheck < bookingEndMinutes;
+        
+        return slotFallsWithinBooking;
+      });
+      
+      const isAvailable = !conflictingBooking;
+      
+      const result = {
+        time,
+        available: isAvailable,
+        reason: isAvailable ? null : `Table already booked from ${conflictingBooking?.start_time} to ${conflictingBooking?.end_time} (Status: ${conflictingBooking?.status})`
+      };
+      
+      if (!isAvailable) {
+        console.log(`❌ Time slot ${time} is unavailable due to booking:`, {
+          slotTime: time,
+          conflictingBooking: `${conflictingBooking?.start_time} to ${conflictingBooking?.end_time}`,
+          bookingStatus: conflictingBooking?.status
+        });
+      }
+      
+      return result;
+    });
+
+    console.log('✅ Final availability result:', availability);
+    return { data: availability, error: null };
+  } catch (error) {
+    console.error('Error checking table availability:', error);
+    return { data: null, error };
+  }
+};
+
+// Helper function to parse opening hours text and extract start/end times
+// Handles formats like: "Mon-Sun 9AM-11PM", "Mon-Fri 7pm-12pm", "18:00-02:00", "9:00 AM - 11:00 PM", etc.
+const parseOpeningHours = (openingHoursText) => {
+  if (!openingHoursText || typeof openingHoursText !== 'string') {
+    return null;
+  }
+
+  // First, try to extract time range from various formats
+  // Pattern 1: "7pm-12pm" or "7pm-12am" or "9AM-11PM" (lowercase or uppercase, with or without day prefix)
+  // This pattern handles "Mon-Fri 7pm-12pm" by ignoring the day part
+  // Note: "12pm" is noon, but venues often mean "12am" (midnight) - we'll parse what they type
+  const amPmPattern = /(\d{1,2})(?::(\d{2}))?\s*(am|pm)\s*[-–—]\s*(\d{1,2})(?::(\d{2}))?\s*(am|pm)/i;
+  const amPmMatch = openingHoursText.match(amPmPattern);
+  
+  if (amPmMatch) {
+    let startHour = parseInt(amPmMatch[1]);
+    const startMin = amPmMatch[2] ? parseInt(amPmMatch[2]) : 0;
+    const startPeriod = amPmMatch[3].toUpperCase();
+    let endHour = parseInt(amPmMatch[4]);
+    const endMin = amPmMatch[5] ? parseInt(amPmMatch[5]) : 0;
+    const endPeriod = amPmMatch[6].toUpperCase();
+
+    // Convert to 24-hour format for start time
+    if (startPeriod === 'PM' && startHour !== 12) startHour += 12;
+    if (startPeriod === 'AM' && startHour === 12) startHour = 0;
+    
+    // For end time, check for common mistakes BEFORE converting
+    // If start is PM (evening) and end is "12pm", they almost certainly mean "12am" (midnight)
+    let actualEndPeriod = endPeriod;
+    if (startPeriod === 'PM' && endPeriod === 'PM' && endHour === 12) {
+      console.warn('⚠️ Opening hours parsing: "12pm" detected after PM start time. Assuming midnight (12am) was intended.');
+      actualEndPeriod = 'AM'; // Treat as AM for conversion
+    }
+    
+    // Now convert end time using the corrected period
+    if (actualEndPeriod === 'PM' && endHour !== 12) endHour += 12;
+    if (actualEndPeriod === 'AM' && endHour === 12) endHour = 0;
+
+    // Handle overnight hours (e.g., 7pm-12am means 19:00 to 00:00, which is next day)
+    // If end time is earlier than start time, it's overnight
+    if (endHour < startHour || (endHour === startHour && endMin < startMin)) {
+      // For overnight, we'll set end time to 00:00 (midnight next day)
+      // This will be handled correctly in generateTimeSlots
+      // endHour is already 0 if it was 12am, so we're good
+    }
+
+    const startTime = `${String(startHour).padStart(2, '0')}:${String(startMin).padStart(2, '0')}`;
+    const endTime = `${String(endHour).padStart(2, '0')}:${String(endMin).padStart(2, '0')}`;
+    
+    console.log('🕐 Parsed opening hours:', {
+      original: openingHoursText,
+      parsed: { startTime, endTime },
+      startHour24: startHour,
+      endHour24: endHour,
+      startPeriod: startPeriod,
+      endPeriod: endPeriod,
+      actualEndPeriod: actualEndPeriod || endPeriod,
+      isOvernight: endHour < startHour || (endHour === startHour && endMin < startMin)
+    });
+    
+    return { startTime, endTime };
+  }
+
+  // Pattern 2: "18:00-02:00" or "18:00 - 02:00" (24-hour format)
+  const time24Pattern = /(\d{1,2}):(\d{2})\s*[-–—]\s*(\d{1,2}):(\d{2})/;
+  const time24Match = openingHoursText.match(time24Pattern);
+  
+  if (time24Match) {
+    const startHour = parseInt(time24Match[1]);
+    const startMin = parseInt(time24Match[2]);
+    const endHour = parseInt(time24Match[3]);
+    const endMin = parseInt(time24Match[4]);
+
+    const startTime = `${String(startHour).padStart(2, '0')}:${String(startMin).padStart(2, '0')}`;
+    const endTime = `${String(endHour).padStart(2, '0')}:${String(endMin).padStart(2, '0')}`;
+    
+    return { startTime, endTime };
+  }
+
+  // If no pattern matches, return null to use defaults
+  return null;
+};
+
+// Helper function to get venue opening hours with fallback
+const getVenueOpeningHours = async (venueId) => {
+  try {
+    const { data: venue, error } = await supabase
+      .from('venues')
+      .select('opening_hours')
+      .eq('id', venueId)
+      .single();
+
+    if (error || !venue) {
+      console.warn('⚠️ Could not fetch venue opening hours, using defaults:', error?.message);
+      return null;
+    }
+
+    // If opening_hours is a JSON object, try to extract times
+    if (typeof venue.opening_hours === 'object' && venue.opening_hours !== null) {
+      // Try common JSON structures
+      if (venue.opening_hours.startTime && venue.opening_hours.endTime) {
+        return {
+          startTime: venue.opening_hours.startTime,
+          endTime: venue.opening_hours.endTime
+        };
+      }
+      // If it's a day-based structure, use the first available day or default
+      const firstDay = Object.values(venue.opening_hours)[0];
+      if (firstDay && firstDay.startTime && firstDay.endTime) {
+        return {
+          startTime: firstDay.startTime,
+          endTime: firstDay.endTime
+        };
+      }
+    }
+
+    // If opening_hours is a string, parse it
+    if (typeof venue.opening_hours === 'string') {
+      console.log('🔍 Parsing opening hours string:', venue.opening_hours);
+      const parsed = parseOpeningHours(venue.opening_hours);
+      if (parsed) {
+        console.log('✅ Successfully parsed opening hours:', parsed);
+        return parsed;
+      } else {
+        console.warn('⚠️ Could not parse opening hours format:', venue.opening_hours);
+      }
+    }
+
+    console.warn('⚠️ No valid opening hours found, using defaults (18:00-02:00)');
+    return null;
+  } catch (error) {
+    console.warn('⚠️ Error fetching venue opening hours, using defaults:', error);
+    return null;
+>>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
   }
 };
 
@@ -627,3 +928,80 @@ export const getAvailableTables = async (venueId) => {
     return { data: null, error };
   }
 };
+<<<<<<< HEAD
+=======
+
+/**
+ * Call Paystack initialize Edge Function
+ */
+export const initializePaystackPayment = async (paymentData) => {
+  try {
+    console.log('🔗 Calling Supabase Edge Function: paystack-initialize');
+    
+    // Get Supabase URL from environment or client
+    const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://agydpkzfucicraedllgl.supabase.co';
+    const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+    const response = await fetch(
+      `${SUPABASE_URL}/functions/v1/paystack-initialize`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify(paymentData),
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ Edge Function response:', data);
+    return data;
+  } catch (error) {
+    console.error('❌ Paystack initialize error:', error);
+    throw error;
+  }
+};
+
+/**
+ * Call Paystack verify Edge Function
+ */
+export const verifyPaystackPayment = async (reference) => {
+  try {
+    console.log('🔗 Calling Supabase Edge Function: paystack-verify with reference:', reference);
+    
+    // Get Supabase URL from environment or client
+    const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://agydpkzfucicraedllgl.supabase.co';
+    const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+    const response = await fetch(
+      `${SUPABASE_URL}/functions/v1/paystack-verify`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        },
+        body: JSON.stringify({ reference }),
+      }
+    );
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ Verification response:', data);
+    return data;
+  } catch (error) {
+    console.error('❌ Paystack verify error:', error);
+    throw error;
+  }
+};
+>>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5

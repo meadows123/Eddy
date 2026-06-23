@@ -5,7 +5,8 @@ const OrderSummary = ({ selection, totalAmount, vipPerks }) => {
   // Handle both old format and new booking modal format
   const venueName = selection.clubName || selection.venueName || 'Venue';
   const isFromModal = selection.isFromModal;
-  const hasTable = isFromModal ? selection.selectedTable : selection.table;
+  const hasTable = isFromModal ? (selection.selectedTable && Object.keys(selection.selectedTable).length > 0) : (selection.table && Object.keys(selection.table).length > 0);
+  
   
   return (
     <div className="bg-secondary/20 border border-border/50 rounded-lg p-6">
@@ -65,8 +66,8 @@ const OrderSummary = ({ selection, totalAmount, vipPerks }) => {
             <div className="flex justify-between items-start mb-1">
               <h4 className="font-medium">
                 {isFromModal 
-                  ? `Table ${selection.selectedTable?.table_number || 'Reservation'}`
-                  : `${selection.table.tableName} Table`
+                  ? `Table ${selection.selectedTable?.table_number || selection.selectedTable?.name || selection.selectedTable?.id || 'Reservation'}`
+                  : `${selection.table?.tableName || 'Table'}`
                 }
               </h4>
               <span className="font-bold">

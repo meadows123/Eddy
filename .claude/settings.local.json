@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git pull *)",
+      "Bash(rm -f /home/cisco/VIPCLub/.git/refs/remotes/origin/main.lock && git pull origin main --no-rebase)",
+      "Bash(sudo chown cisco:cisco /home/cisco/VIPCLub/.git/refs/remotes/origin/main)",
+      "Bash(git checkout *)",
+      "Bash(git add *)",
+      "Bash(git rm *)"
+    ],
+    "additionalDirectories": [
+      "/home/cisco/VIPCLub/.git/refs/remotes/origin"
+    ]
+  }
+}
