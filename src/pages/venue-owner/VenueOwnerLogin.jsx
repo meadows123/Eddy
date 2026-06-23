@@ -105,7 +105,7 @@ const VenueOwnerLogin = () => {
       }
 
       // Use the first active venue owner record
-      const venueOwner = venueOwners[0];
+      venueOwner = venueOwners[0];
 
       navigate('/venue-owner/dashboard');
       

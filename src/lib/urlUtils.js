@@ -58,6 +58,15 @@ export const copyUrlToClipboard = async (url, toast) => {
 };
 
 /**
+ * Get the Paystack callback URL for the current environment
+ * @param {string} path - The callback path (e.g. 'paystack-callback')
+ * @returns {string} - The full callback URL
+ */
+export const getPaystackCallbackUrl = (path = 'paystack-callback') => {
+  return getFullUrl(path);
+};
+
+/**
  * Share a URL using native sharing if available, otherwise copy to clipboard
  * @param {Object} shareData - The share data object
  * @param {string} shareData.title - The title

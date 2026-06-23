@@ -203,6 +203,28 @@ const getSupabaseFunctionUrl = (functionName) => {
   return `https://${projectRef}.functions.supabase.co/${functionName}`;
 };
 
+// Initialize a Paystack payment via Supabase Edge Function
+export async function initializePaystackPayment({ email, amount, metadata, firstName, lastName, phone, userId, callbackUrl }) {
+  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || 'https://agydpkzfucicraedllgl.supabase.co';
+  const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+  const response = await fetch(`${SUPABASE_URL}/functions/v1/paystack-initialize`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+    },
+    body: JSON.stringify({ email, amount, metadata, firstName, lastName, phone, userId, callbackUrl }),
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.error || `Paystack initialization failed: ${response.status}`);
+  }
+
+  return response.json();
+}
+
 // Call your Supabase Edge Function to create a SetupIntent
 export async function createStripeSetupIntent(email) {
   const headers = await getAuthHeaders();
