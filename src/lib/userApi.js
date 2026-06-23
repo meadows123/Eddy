@@ -8,40 +8,36 @@ const handleError = (error, operation) => {
 
 // User Profile API
 export const userApi = {
-  // Get user profile
-  getProfile: async (userId) => {
+  async getProfile(userId) {
     try {
-      console.log('Fetching profile for user:', userId)
       const { data, error } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single()
+        .single();
       
-      if (error) handleError(error, 'getProfile')
-      console.log('Profile data:', data)
-      return data
+      if (error) throw error;
+      return data;
     } catch (error) {
-      handleError(error, 'getProfile')
+      console.error('Error fetching profile:', error);
+      throw error;
     }
   },
 
-  // Update user profile
-  updateProfile: async (userId, updates) => {
+  async updateProfile(userId, updates) {
     try {
-      console.log('Updating profile for user:', userId, 'with updates:', updates)
       const { data, error } = await supabase
-        .from('user_profiles')
+        .from('profiles')
         .update(updates)
         .eq('id', userId)
         .select()
-        .single()
+        .single();
       
-      if (error) handleError(error, 'updateProfile')
-      console.log('Updated profile:', data)
-      return data
+      if (error) throw error;
+      return data;
     } catch (error) {
-      handleError(error, 'updateProfile')
+      console.error('Error updating profile:', error);
+      throw error;
     }
   }
 }
@@ -51,7 +47,6 @@ export const savedVenuesApi = {
   // Get user's saved venues
   getSavedVenues: async (userId) => {
     try {
-      console.log('Fetching saved venues for user:', userId)
       const { data, error } = await supabase
         .from('saved_venues')
         .select(`
@@ -61,7 +56,6 @@ export const savedVenuesApi = {
         .eq('user_id', userId)
       
       if (error) handleError(error, 'getSavedVenues')
-      console.log('Saved venues:', data)
       return data
     } catch (error) {
       handleError(error, 'getSavedVenues')
@@ -71,14 +65,12 @@ export const savedVenuesApi = {
   // Save a venue
   saveVenue: async (userId, venueId) => {
     try {
-      console.log('Saving venue:', venueId, 'for user:', userId)
       const { data, error } = await supabase
         .from('saved_venues')
         .insert([{ user_id: userId, venue_id: venueId }])
         .select()
       
       if (error) handleError(error, 'saveVenue')
-      console.log('Saved venue:', data)
       return data
     } catch (error) {
       handleError(error, 'saveVenue')

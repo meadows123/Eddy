@@ -7,9 +7,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/components/ui/use-toast';
 import { Building, Users, Music, MapPin } from 'lucide-react';
+import { supabase } from '@/lib/supabase'; // Add this import
 
 const JoinVenuePage = () => {
   const { toast } = useToast();
+  const [loading, setLoading] = useState(false); // Add loading state
   const [formData, setFormData] = useState({
     venueName: '',
     contactPerson: '',
@@ -56,19 +58,102 @@ const JoinVenuePage = () => {
     return Object.keys(newErrors).length === 0;
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (validateForm()) {
-      console.log("Venue submission data:", formData);
-      toast({
-        title: "Application Submitted!",
-        description: "Thank you for your interest! We'll review your application and get back to you soon.",
-        className: "bg-primary text-primary-foreground"
-      });
-      setFormData({
-        venueName: '', contactPerson: '', email: '', phone: '',
-        address: '', city: '', venueType: '', capacity: '', musicGenres: '', venueDescription: '',
-      });
+      setLoading(true);
+      try {
+        console.log("Submitting venue application:", formData);
+        
+        // 1. Save the application to the database
+        const { data: applicationData, error: dbError } = await supabase
+          .from('pending_venue_owner_requests')
+          .insert([{
+            venue_name: formData.venueName,
+            contact_name: formData.contactPerson,
+            email: formData.email,
+            contact_phone: formData.phone,
+            venue_address: formData.address,
+            venue_city: formData.city,
+            venue_type: formData.venueType,
+            capacity: formData.capacity,
+            additional_info: formData.venueDescription,
+            music_genres: formData.musicGenres,
+            status: 'pending',
+            created_at: new Date().toISOString()
+          }])
+          .select()
+          .single();
+
+        if (dbError) {
+          console.error('Database error:', dbError);
+          throw new Error('Failed to save application. Please try again.');
+        }
+
+        console.log('✅ Application saved to database:', applicationData);
+
+        // 2. Send admin notification email
+        const { data: emailData, error: emailError } = await supabase.functions.invoke('send-email', {
+          body: {
+            to: 'info@oneeddy.com', // Admin email
+            subject: 'New Venue Owner Application - ' + formData.venueName,
+            template: 'venue-owner-application',
+            data: {
+              ownerName: formData.contactPerson,
+              ownerEmail: formData.email,
+              ownerPhone: formData.phone,
+              applicationDate: new Date().toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+              }),
+              venueName: formData.venueName,
+              venueDescription: formData.venueDescription,
+              venueType: formData.venueType,
+              venueCapacity: formData.capacity,
+              venueAddress: formData.address,
+              priceRange: '$$', // Default price range
+              openingHours: 'Not specified',
+              venuePhone: formData.phone,
+              viewUrl: 'https://oneeddy.com/admin/venue-approvals'
+            }
+          }
+        });
+
+        if (emailError) {
+          console.error('Email error:', emailError);
+          // Don't throw here - the application was saved successfully
+          toast({
+            title: "Application Submitted!",
+            description: "Your application has been saved. We'll review it and get back to you soon.",
+            variant: "default"
+          });
+        } else {
+          console.log('✅ Admin notification email sent:', emailData);
+          toast({
+            title: "Application Submitted!",
+            description: "Thank you for your interest! We'll review your application and get back to you soon.",
+            className: "bg-primary text-primary-foreground"
+          });
+        }
+
+        // 3. Reset form
+        setFormData({
+          venueName: '', contactPerson: '', email: '', phone: '',
+          address: '', city: '', venueType: '', capacity: '', musicGenres: '', venueDescription: '',
+        });
+
+      } catch (error) {
+        console.error('Submission error:', error);
+        toast({
+          title: "Error!",
+          description: error.message || "Failed to submit application. Please try again.",
+          variant: "destructive"
+        });
+      } finally {
+        setLoading(false);
+      }
     } else {
       toast({
         title: "Error!",
@@ -176,8 +261,12 @@ const JoinVenuePage = () => {
               <Textarea id="venueDescription" name="venueDescription" value={formData.venueDescription} onChange={handleChange} placeholder="Describe what makes your venue unique..." rows={5} className="mt-1" />
             </div>
 
-            <Button type="submit" className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity text-accent-foreground text-lg py-3">
-              Submit Application
+            <Button 
+              type="submit" 
+              className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity text-accent-foreground text-lg py-3"
+              disabled={loading}
+            >
+              {loading ? 'Submitting...' : 'Submit Application'}
             </Button>
           </form>
         </motion.div>

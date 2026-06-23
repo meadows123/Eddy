@@ -23,7 +23,6 @@ const Footer = () => {
                 className="h-12 w-auto object-contain"
                 style={{ maxWidth: '180px', minHeight: '48px' }}
                 onError={(e) => {
-                  console.log('❌ Footer logo failed to load from:', e.target.src);
                   // Try alternative logos in build order
                   if (e.target.src.includes('Logo1-Trans.png')) {
                     e.target.src = '/logos/Logo-Trans.png';
@@ -34,10 +33,8 @@ const Footer = () => {
                     e.target.style.display = 'none';
                   }
                 }}
-                onLoad={(e) => {
-                  console.log('✅ Footer logo loaded successfully from:', e.target.src);
-                  console.log('📏 Footer logo dimensions:', e.target.naturalWidth, 'x', e.target.naturalHeight);
-                  console.log('📐 Footer logo display size:', e.target.width, 'x', e.target.height);
+                onLoad={() => {
+                  // Logo loaded successfully
                 }}
               />
             </div>

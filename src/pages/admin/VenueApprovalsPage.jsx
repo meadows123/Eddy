@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useToast } from '@/components/ui/use-toast';
 import { 
   Building2, 
   User, 
@@ -19,33 +22,148 @@ import {
   Eye,
   Store,
   Globe,
-  FileText
+  FileText,
+  Shield,
+  Lock
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const VenueApprovalsPage = () => {
   console.log('🚨 ADMIN VenueApprovalsPage component loaded - this should ONLY be at /admin/venue-approvals');
   
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [processing, setProcessing] = useState(false);
+  const [approvalCompleted, setApprovalCompleted] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [adminRole, setAdminRole] = useState(null);
 
   useEffect(() => {
-    loadRequests();
+    checkAuth();
   }, []);
+
+  const checkAuth = async () => {
+    try {
+      console.log('🔐 Checking admin authentication...');
+      
+      // Check if user is logged in
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error('❌ Session error:', sessionError);
+        throw sessionError;
+      }
+      
+      if (!session) {
+        console.log('❌ No session found, redirecting to login...');
+        toast({
+          title: 'Authentication Required',
+          description: 'Please log in to access the admin panel',
+          variant: 'destructive',
+        });
+        navigate('/venue-owner/login');
+        return;
+      }
+
+      // Get current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) {
+        console.error('❌ User error:', userError);
+        throw userError;
+      }
+
+      console.log('👤 Current user:', user.email);
+
+      // Check if user is an admin using the database function
+      const { data: isAdminResult, error: adminCheckError } = await supabase
+        .rpc('is_admin', { user_email: user.email });
+
+      if (adminCheckError) {
+        console.error('❌ Admin check error:', adminCheckError);
+        // Fallback to hardcoded list if database function fails
+        const adminEmails = [
+          'info@oneeddy.com',
+          'admin@oneeddy.com',
+          'owner@nightvibe.com',
+          'zakmeadows1@hotmail.com'
+        ];
+        const isUserAdmin = adminEmails.includes(user.email?.toLowerCase());
+        
+        if (!isUserAdmin) {
+          throw new Error('User is not an admin');
+        }
+      } else if (!isAdminResult) {
+        console.log('❌ User is not an admin, redirecting...');
+        toast({
+          title: 'Access Denied',
+          description: 'You do not have permission to access the admin panel',
+          variant: 'destructive',
+        });
+        navigate('/');
+        return;
+      }
+
+      // Get admin role
+      const { data: adminRoleResult, error: roleError } = await supabase
+        .rpc('get_admin_role', { user_email: user.email });
+
+      if (!roleError && adminRoleResult) {
+        setAdminRole(adminRoleResult);
+        console.log('👑 Admin role:', adminRoleResult);
+      }
+
+      console.log('✅ User is authenticated as admin');
+      setIsAdmin(true);
+      loadRequests();
+      
+    } catch (error) {
+      console.error('❌ Auth check error:', error);
+      toast({
+        title: 'Authentication Error',
+        description: 'Failed to verify admin access. Please contact support if you believe this is an error.',
+        variant: 'destructive',
+      });
+      navigate('/');
+    } finally {
+      setAuthLoading(false);
+    }
+  };
 
   const loadRequests = async () => {
     try {
+      
       const { data, error } = await supabase
         .from('pending_venue_owner_requests')
         .select('*')
         .order('created_at', { ascending: false });
       
       if (error) throw error;
+      
+      
       setRequests(data || []);
+      
+      // If approval was just completed, force a second refresh after a delay
+      if (approvalCompleted) {
+        setTimeout(async () => {
+          const { data: finalData, error: finalError } = await supabase
+            .from('pending_venue_owner_requests')
+            .select('*')
+            .order('created_at', { ascending: false });
+          
+          if (!finalError) {
+            setRequests(finalData || []);
+          }
+        }, 3000);
+        
+        // Reset the flag
+        setApprovalCompleted(false);
+      }
     } catch (error) {
-      console.error('Error loading requests:', error);
     } finally {
       setLoading(false);
     }
@@ -54,100 +172,122 @@ const VenueApprovalsPage = () => {
   const handleApprove = async (req) => {
     setProcessing(true);
     try {
-      // Use the actual venue type from the request, with a reasonable fallback
-      const venueType = req.venue_type || 'restaurant';
       
-      console.log('🏢 Venue type from request:', {
-        original: req.venue_type,
-        using: venueType
-      });
-
-      // Find the existing venue owner record that was created during registration
-      const { data: existingVenueOwner, error: venueOwnerFindError } = await supabase
+      // First delete any existing venue owner records for this email
+      const { error: deleteError } = await supabase
         .from('venue_owners')
-        .select('*')
-        .eq('owner_email', req.email)
-        .eq('status', 'pending_approval')
-        .single();
+          .delete()
+        .eq('owner_email', req.email);
 
-      if (venueOwnerFindError || !existingVenueOwner) {
-        console.error('❌ Could not find existing venue owner record:', venueOwnerFindError);
-        throw new Error(`Could not find venue owner record for ${req.email}. Make sure they have completed the registration process first.`);
+      if (deleteError) {
+        console.error('❌ Failed to cleanup existing venue owner records:', deleteError);
+        throw new Error('Failed to cleanup existing records');
       }
 
-      console.log('✅ Found existing venue owner record:', existingVenueOwner);
-
-      // Create a venue record with the correct owner_id (user already exists!)
+      // Create or update the venue
+      console.log('🏗️ Creating venue record...');
       const { data: newVenue, error: venueError } = await supabase
         .from('venues')
         .insert([{
           name: req.venue_name,
           description: req.additional_info,
-          type: venueType,
+          type: req.venue_type || 'restaurant',
           price_range: req.price_range || '$$',
           address: req.venue_address,
           city: req.venue_city,
-          state: req.venue_city, // Using city as state for now
+          state: req.venue_city,
           country: req.venue_country,
-          latitude: 6.5244, // Default Lagos coordinates - can be updated later
-          longitude: 3.3792,
-          contact_phone: req.contact_phone,
-          contact_email: req.email,
-          owner_id: existingVenueOwner.user_id, // THIS IS THE KEY FIX!
-          status: 'approved',
-          is_active: true
+          status: 'active',
+          is_active: true,  // Add this line since both fields are used
+          owner_id: req.user_id
         }])
         .select()
         .single();
 
-      if (venueError) throw venueError;
+      if (venueError) {
+        console.error('❌ Failed to create venue:', venueError);
+        throw new Error(`Failed to create venue: ${venueError.message}`);
+      }
 
-      console.log('✅ Venue created with owner_id:', newVenue.owner_id);
-
-      // Update the venue owner record: set status to active and link venue
-      const { error: venueOwnerUpdateError } = await supabase
+      // Create new venue owner record
+      const { data: venueOwner, error: venueOwnerError } = await supabase
         .from('venue_owners')
-        .update({ 
+        .insert([{
+          owner_email: req.email,
+          owner_name: req.contact_name,
           venue_id: newVenue.id,
-          status: 'active' // Now active since admin approved
-        })
-        .eq('id', existingVenueOwner.id);
+          status: 'active',
+          phone: req.contact_phone,
+          user_id: req.user_id,
+          venue_name: req.venue_name,
+          venue_type: req.venue_type || 'restaurant',
+          venue_description: req.additional_info,
+          venue_address: req.venue_address,
+          venue_city: req.venue_city,
+          venue_country: req.venue_country,
+          venue_phone: req.contact_phone,
+          owner_phone: req.contact_phone,
+          price_range: req.price_range || '$$'
+        }])
+        .select()
+        .single();
 
-      if (venueOwnerUpdateError) throw venueOwnerUpdateError;
+      if (venueOwnerError) {
+        console.error('❌ Failed to update venue owner:', venueOwnerError);
+        throw new Error(`Failed to update venue owner: ${venueOwnerError.message}`);
+      }
 
-      // Update request status
-      await supabase
+      console.log('✅ Venue owner record created/updated successfully:', venueOwner);
+
+      // Update the pending request status
+      console.log('🔄 Updating pending request status...');
+      const { error: pendingUpdateError } = await supabase
         .from('pending_venue_owner_requests')
         .update({ status: 'approved' })
         .eq('id', req.id);
 
-      // Send approval notification email to venue owner
+      if (pendingUpdateError) {
+        console.error('❌ Failed to update pending request:', pendingUpdateError);
+        throw new Error(`Failed to update pending request: ${pendingUpdateError.message}`);
+      }
+
+      console.log('✅ Pending request status updated successfully');
+
+      // Send approval notification email
       try {
         const venueOwnerData = {
           email: req.email,
           contact_name: req.contact_name,
           owner_name: req.contact_name,
           venue_name: req.venue_name,
-          venue_type: venueType,
+          venue_type: req.venue_type || 'restaurant',
           venue_address: req.venue_address,
           venue_city: req.venue_city
         };
         
-        // Import the email service
         const { sendVenueOwnerApplicationApproved } = await import('../../lib/venueOwnerEmailService');
         await sendVenueOwnerApplicationApproved(venueOwnerData);
         console.log('✅ Approval notification email sent');
       } catch (emailError) {
         console.error('❌ Failed to send approval email:', emailError);
-        // Don't fail the approval if email fails
       }
 
-      // Refresh the list
-      await loadRequests();
+      // Set approval completed and refresh
+      setApprovalCompleted(true);
+      setTimeout(async () => {
+        console.log('🔄 Refreshing requests list after approval...');
+        try {
+          await loadRequests();
+          console.log('✅ Requests list refreshed successfully');
+        } catch (error) {
+          console.error('❌ Failed to refresh requests:', error);
+        }
+      }, 2000);
       
       alert(`Venue owner approved successfully! ${req.contact_name} can now access their venue dashboard. The venue "${req.venue_name}" is now live with proper owner linking.`);
     } catch (error) {
-      console.error('Error approving request:', error);
+      console.error('❌ Error in approval process:', error);
+      console.error('❌ Error stack:', error.stack);
       alert('Error approving request: ' + error.message);
     } finally {
       setProcessing(false);
@@ -192,6 +332,42 @@ const VenueApprovalsPage = () => {
     });
   };
 
+  // Show loading state while checking authentication
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-brand-cream/50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-burgundy mx-auto"></div>
+          <p className="mt-4 text-brand-burgundy">Verifying admin access...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show access denied if not admin
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-brand-cream/50 flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto p-8">
+          <div className="p-4 bg-red-100 rounded-full w-20 h-20 mx-auto mb-6 flex items-center justify-center">
+            <Lock className="h-10 w-10 text-red-600" />
+          </div>
+          <h1 className="text-2xl font-bold text-brand-burgundy mb-4">Access Denied</h1>
+          <p className="text-brand-burgundy/70 mb-6">
+            You do not have permission to access the admin panel. Only authorized administrators can view venue applications.
+          </p>
+          <Button 
+            onClick={() => navigate('/')}
+            className="bg-brand-burgundy hover:bg-brand-burgundy/90"
+          >
+            Return to Home
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Show loading state while loading requests
   if (loading) {
     return (
       <div className="min-h-screen bg-brand-cream/50 flex items-center justify-center">
@@ -208,13 +384,19 @@ const VenueApprovalsPage = () => {
       <div className="container mx-auto py-8 px-4">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="p-3 bg-brand-burgundy/10 rounded-full">
-              <Store className="h-8 w-8 text-brand-burgundy" />
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 bg-brand-burgundy/10 rounded-full">
+                <Store className="h-8 w-8 text-brand-burgundy" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-brand-burgundy">Venue Owner Applications</h1>
+                <p className="text-brand-burgundy/70">Review and manage venue partnership requests</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-3xl font-bold text-brand-burgundy">Venue Owner Applications</h1>
-              <p className="text-brand-burgundy/70">Review and manage venue partnership requests</p>
+            <div className="flex items-center gap-2 bg-green-100 px-3 py-2 rounded-full">
+              <Shield className="h-4 w-4 text-green-600" />
+              <span className="text-sm font-medium text-green-700">Admin Access</span>
             </div>
           </div>
           

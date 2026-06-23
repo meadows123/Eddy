@@ -18,6 +18,11 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { sendBookingConfirmation, sendVenueOwnerNotification, debugBookingEmail } from '../lib/emailService.js';
+import { checkTableAvailability } from '../lib/api.jsx';
+import { Elements, CardElement } from '@stripe/react-stripe-js';
+import { stripePromise } from '@/lib/stripe';
+import { generateSecurityCode, generateVenueEntryQR } from '@/lib/qrCodeService';
+import { getFullUrl } from '@/lib/urlUtils';
 
 const CheckoutPage = () => {
 const { id } = useParams();
@@ -37,11 +42,9 @@ fullName: '',
 email: '',
 phone: '',
 password: '',
-cardNumber: '',
-expiryDate: '',
-cvv: '',
 agreeToTerms: false,
 referralCode: ''
+  // Remove cardNumber, expiryDate, and cvv since we're using Stripe Elements
 });
 const [userProfile, setUserProfile] = useState(null);
 const [errors, setErrors] = useState({});
@@ -57,138 +60,420 @@ const [showShareDialog, setShowShareDialog] = useState(false);
 const [splitPaymentRequests, setSplitPaymentRequests] = useState([]);
 const [currentUserForSplit, setCurrentUserForSplit] = useState(null);
 
-// Fetch user profile if authenticated
-useEffect(() => {
-const fetchUserProfile = async () => {
-if (user) {
-try {
-  const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', user.id)
-    .single();
+// Add this state to store the booking data from location.state
+const [bookingData, setBookingData] = useState(null);
 
-  if (error && error.code !== 'PGRST116') {
-    console.error('Error fetching user profile:', error);
-  } else if (data) {
-    setUserProfile(data);
-    // Pre-fill form with user data
-    setFormData(prev => ({
-      ...prev,
-      fullName: `${data.first_name || ''} ${data.last_name || ''}`.trim() || user.user_metadata?.full_name || '',
-      email: user.email || '',
-      phone: data.phone || user.user_metadata?.phone || ''
-    }));
+// Add Stripe instance state
+const [stripe, setStripe] = useState(null);
+
+
+// Initialize Stripe
+useEffect(() => {
+  const initStripe = async () => {
+    const stripeInstance = await stripePromise;
+    setStripe(stripeInstance);
+  };
+  initStripe();
+}, []);
+
+// Add this helper function at the top
+const ensureTimeFormat = (time) => {
+  if (!time) return null;
+  
+  // If time is in HH:MM format, add :00 for seconds
+  if (/^\d{2}:\d{2}$/.test(time)) {
+    return `${time}:00`;
   }
-} catch (error) {
-  console.error('Error fetching user profile:', error);
-}
-}
+  // If time is already in HH:MM:SS format, return as is
+  if (/^\d{2}:\d{2}:\d{2}$/.test(time)) {
+    return time;
+  }
+  // If time is just hours, add minutes and seconds
+  if (/^\d{2}$/.test(time)) {
+    return `${time}:00:00`;
+  }
+  return time;
 };
 
-fetchUserProfile();
-}, [user]);
-
-// Initialize current user for split payments if user is already authenticated
-useEffect(() => {
-  if (user && !currentUserForSplit) {
-    setCurrentUserForSplit(user);
-  }
-}, [user, currentUserForSplit]);
-
-useEffect(() => {
-console.log('CheckoutPage useEffect triggered');
-console.log('isDepositFlow:', isDepositFlow);
-console.log('id from params:', id);
-console.log('location.pathname:', location.pathname);
-console.log('location.state:', location.state);
-
-// Check if this is a credit purchase flow
-const isCreditPurchase = location.state?.creditPurchase;
-
-if (isDepositFlow) {
-// For deposit flow, we don't need venue selection
-if (!depositAmount) {
-console.log('No deposit amount, redirecting to profile');
-navigate('/profile'); // Redirect back to profile if no deposit amount
-return;
-}
-setSelection({ 
-depositAmount, 
-isDeposit: true,
-venueName: 'VIP Credit Deposit'
-});
-} else if (isCreditPurchase) {
-// For credit purchase flow, use data from location.state
-console.log('Credit purchase flow detected');
-const { venueId, venueName, amount, purchaseAmount, venue } = location.state;
-setSelection({
-isCreditPurchase: true,
-venueId,
-venueName,
-creditAmount: amount,
-purchaseAmount,
-venue
-});
-} else {
-// Check for new booking data from modal first
-const pendingBooking = sessionStorage.getItem('pendingBooking');
-console.log('pendingBooking from sessionStorage:', pendingBooking);
-
-if (pendingBooking) {
-const bookingData = JSON.parse(pendingBooking);
-console.log('Found pendingBooking data:', bookingData);
-
-// Convert booking data to selection format
-setSelection({
-  venueId: bookingData.venueId,
-  venueName: bookingData.venueName,
-  venueImage: bookingData.venueImage,
-  venueLocation: bookingData.venueLocation,
-  date: bookingData.date,
-  time: bookingData.time,
-  guests: parseInt(bookingData.guests),
-  tableId: bookingData.tableId,
-  selectedTable: bookingData.selectedTable,
-  specialRequests: bookingData.specialRequests,
-  isFromModal: true // Flag to identify this came from the modal
-});
-
-// Clear the pending booking data after using it
-sessionStorage.removeItem('pendingBooking');
-} else {
-// Original venue booking flow - check localStorage
-if (!id) {
-  console.log('No venue ID provided, redirecting to venues');
-  navigate('/venues');
-  return;
-}
-
-const savedSelection = localStorage.getItem('lagosvibe_booking_selection');
-console.log('savedSelection from localStorage:', savedSelection);
-
-if (savedSelection) {
-  const parsedSelection = JSON.parse(savedSelection);
-  console.log('parsedSelection:', parsedSelection);
-  console.log('parsedSelection.venueId:', parsedSelection.venueId);
-  console.log('id from params:', id);
-  console.log('Comparison result:', parsedSelection.venueId === id);
+// Add this function near the top of the file
+const validateBookingTimes = (startTime, endTime) => {
   
-  if (parsedSelection.venueId === id) {
-    console.log('Venue ID matches, setting selection');
-    setSelection(parsedSelection);
-  } else {
-    console.log('Venue ID mismatch, redirecting to venue page');
-    navigate(`/venues/${id}`); // Redirect if venue ID doesn't match
+  // Ensure times are in HH:MM:SS format
+  const timeFormat = /^\d{2}:\d{2}:\d{2}$/;
+
+  if (!timeFormat.test(startTime) || !timeFormat.test(endTime)) {
+    throw new Error('Times must be in HH:MM:SS format');
   }
-} else {
-  console.log('No saved selection, redirecting to venue page');
-  navigate(`/venues/${id}`); // Redirect if no selection
-}
-}
-}
-setLoading(false);
-}, [id, navigate, isDepositFlow, depositAmount, location.state]);
+
+  // Convert times to comparable format
+  const start = new Date(`1970-01-01T${startTime}`);
+  let end = new Date(`1970-01-01T${endTime}`);
+  
+  // If end time is before start time, assume it's the next day
+  if (end <= start) {
+    end = new Date(`1970-01-02T${endTime}`);
+  }
+
+  // Ensure the booking is exactly 4 hours
+  const expectedEnd = new Date(start.getTime() + 4 * 60 * 60 * 1000); // Add exactly 4 hours
+  
+  // If the provided end time doesn't match the expected 4-hour duration, use the calculated one
+  if (Math.abs(end.getTime() - expectedEnd.getTime()) > 60000) { // Allow 1 minute tolerance
+    endTime = expectedEnd.toTimeString().slice(0, 8); // Format as HH:MM:SS
+  }
+  
+  return {
+    startTime,
+    endTime
+  };
+};
+
+const handleAuthSubmit = async (e) => {
+  e.preventDefault();
+  setAuthLoading(true);
+  setAuthError('');
+
+  try {
+    if (authMode === 'login') {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: authForm.email,
+        password: authForm.password
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        setLoginOpen(false);
+        toast({
+          title: "Login successful!",
+          description: "Welcome back!",
+        });
+      }
+    } else {
+      // Signup
+      const { data, error } = await supabase.auth.signUp({
+        email: authForm.email,
+        password: authForm.password,
+        options: {
+          data: {
+            full_name: authForm.fullName,
+            phone: authForm.phone
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      if (data.user) {
+        setAwaitingConfirm(true);
+        toast({
+          title: "Account created!",
+          description: "Please check your email to confirm your account.",
+        });
+      }
+    }
+  } catch (error) {
+    setAuthError(error.message);
+  } finally {
+    setAuthLoading(false);
+  }
+};
+
+const checkEmailConfirmed = async () => {
+  setAuthLoading(true);
+  setAuthError('');
+
+  try {
+    const { data, error } = await supabase.auth.getUser();
+    if (error) throw error;
+
+    if (data.user?.email_confirmed_at) {
+      setAwaitingConfirm(false);
+      setLoginOpen(false);
+      toast({
+        title: "Email confirmed!",
+        description: "Your account is now active.",
+      });
+    } else {
+      setAuthError('Email not yet confirmed. Please check your inbox and click the confirmation link.');
+    }
+  } catch (error) {
+    setAuthError(error.message);
+  } finally {
+    setAuthLoading(false);
+  }
+};
+
+const resendConfirmation = async () => {
+  setAuthLoading(true);
+  setAuthError('');
+
+  try {
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: authForm.email
+    });
+
+    if (error) throw error;
+
+    toast({
+      title: "Confirmation email sent!",
+      description: "Please check your inbox.",
+    });
+  } catch (error) {
+    setAuthError(error.message);
+  } finally {
+    setAuthLoading(false);
+  }
+};
+
+const ensureSession = async () => {
+  const { data: { user }, error } = await supabase.auth.getUser();
+  if (error || !user) {
+    throw new Error('No authenticated user found');
+  }
+  return user;
+};
+
+// Add this helper function to handle times that cross midnight
+const adjustTimeForMidnight = (startTime, endTime) => {
+  // Add seconds if missing
+  startTime = ensureTimeFormat(startTime);
+  endTime = ensureTimeFormat(endTime);
+
+  // If end time is less than start time, it means it's the next day
+  // Instead of adding 24 hours (which creates invalid times like 26:00:00),
+  // we'll keep the original end time and handle midnight crossing in the database
+  if (endTime < startTime) {
+    // Keep the original end time - the database can handle midnight crossing
+    // by storing the time as-is and interpreting it as next day
+  }
+
+  return { startTime, endTime };
+};
+
+const createBooking = async () => {
+  try {
+    // Prepare booking data for database - use the correct data structure
+    const venueId = selection?.venue?.id || bookingData?.venue?.id || selection?.venueId || selection?.id;
+    const tableId = selection?.table?.id || bookingData?.table?.id || selection?.selectedTable?.id || selection?.tableId || null;
+
+
+    // Validate required fields
+    if (!venueId) {
+      throw new Error('Venue ID is required for booking');
+    }
+
+    const sessionCheckUser = await ensureSession();
+    const bookingDataToInsert = {
+      user_id: sessionCheckUser.id,
+      venue_id: venueId,
+      table_id: tableId,
+      booking_date: selection?.date || bookingData?.date || new Date().toISOString().split('T')[0],
+      number_of_guests: parseInt(selection?.guests) || parseInt(bookingData?.guestCount) || 2,
+      status: 'pending',
+      total_amount: parseFloat(calculateTotal())
+    };
+
+    // Handle the times - check multiple possible sources
+    const rawStartTime = selection?.time || bookingData?.time || formData?.startTime || '19:00';
+    let rawEndTime = selection?.endTime || bookingData?.endTime || formData?.endTime;
+    
+    // If no end time is provided, calculate it as 4 hours from start time
+    if (!rawEndTime) {
+      const startTimeObj = new Date(`2000-01-01 ${rawStartTime}`);
+      const endTimeObj = new Date(startTimeObj.getTime() + 4 * 60 * 60 * 1000); // Add 4 hours
+      rawEndTime = endTimeObj.toTimeString().slice(0, 8); // Format as HH:MM:SS
+    }
+
+    const { startTime, endTime } = adjustTimeForMidnight(rawStartTime, rawEndTime);
+
+    bookingDataToInsert.start_time = startTime;
+    bookingDataToInsert.end_time = endTime;
+
+    console.log('�� Attempting booking with data:', {
+      ...bookingDataToInsert,
+      crossesMidnight: endTime.includes('+1')
+    });
+
+    // Validate the times are in order
+    if (!bookingDataToInsert.start_time || !bookingDataToInsert.end_time) {
+      throw new Error('Start time and end time are required');
+    }
+
+    // If booking goes past midnight, adjust end time for comparison
+    let endTimeForComparison = bookingDataToInsert.end_time;
+    if (endTimeForComparison < bookingDataToInsert.start_time) {
+      // Booking spans midnight, end time is actually next day
+      endTimeForComparison = '23:59:59'; // Set to end of day
+    }
+
+    // Ensure end time is after start time
+    if (bookingDataToInsert.start_time >= endTimeForComparison) {
+      throw new Error('End time must be after start time');
+    }
+
+
+    // Validate and potentially adjust times
+    try {
+      const { startTime, endTime } = validateBookingTimes(
+        bookingDataToInsert.start_time, 
+        bookingDataToInsert.end_time
+      );
+      bookingDataToInsert.start_time = startTime;
+      bookingDataToInsert.end_time = endTime;
+    } catch (error) {
+      throw new Error(`Invalid booking times: ${error.message}`);
+    }
+
+    // Final availability check before booking creation with retry logic
+    let finalAvailabilityCheck = null;
+    let availabilityError = null;
+    let retryCount = 0;
+    const maxRetries = 2;
+    
+    while (retryCount <= maxRetries) {
+      const result = await checkTableAvailability(
+        venueId, 
+        tableId, 
+        bookingDataToInsert.booking_date
+      );
+      
+      finalAvailabilityCheck = result.data;
+      availabilityError = result.error;
+      
+      if (!availabilityError) break;
+      
+      retryCount++;
+      if (retryCount <= maxRetries) {
+        console.log(`Availability check failed, retrying (${retryCount}/${maxRetries})...`);
+        await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second before retry
+      }
+    }
+
+    if (availabilityError) {
+      throw new Error('Failed to verify table availability after multiple attempts');
+    }
+
+    // Check if the selected time slot is still available
+    // Normalize time formats for comparison
+    const normalizedStartTime = bookingDataToInsert.start_time.includes(':') 
+      ? bookingDataToInsert.start_time 
+      : `${bookingDataToInsert.start_time}:00`;
+    
+    const selectedTimeSlot = finalAvailabilityCheck?.find(slot => {
+      // Normalize slot time format for comparison
+      const normalizedSlotTime = slot.time.includes(':') 
+        ? slot.time 
+        : `${slot.time}:00`;
+      return normalizedSlotTime === normalizedStartTime;
+    });
+    
+    if (!selectedTimeSlot?.available) {
+      throw new Error(`Time slot ${bookingDataToInsert.start_time} is no longer available. Please select a different time.`);
+    }
+
+    // Save booking to database
+    const { data: bookingRecord, error: bookingError } = await supabase
+      .from('bookings')
+      .insert([bookingDataToInsert])
+      .select()
+      .single();
+
+    if (bookingError) {
+      throw new Error(`Failed to create booking: ${bookingError.message}`);
+    }
+
+    return bookingRecord.id;
+
+  } catch (error) {
+    throw error;
+  }
+};
+
+// inside component top-level
+const { user: sessionUser, signIn, signUp } = useAuth();
+const [loginOpen, setLoginOpen] = useState(false);
+const [authMode, setAuthMode] = useState('login'); // 'login' | 'signup'
+const [authForm, setAuthForm] = useState({ email: '', password: '', fullName: '', phone: '' });
+const [authLoading, setAuthLoading] = useState(false);
+const [authError, setAuthError] = useState('');
+const [awaitingConfirm, setAwaitingConfirm] = useState(false);
+
+// Add the useEffect to handle booking data from location.state
+useEffect(() => {
+  
+  if (location.state) {
+    // Get booking data from navigation state
+    const incomingData = location.state;
+    
+    
+    if (incomingData.venue && incomingData.date && incomingData.time) {
+      // Regular booking flow
+      
+      // Set the booking data for display
+      setBookingData(incomingData);
+      
+      // CRITICAL FIX: Set selection state for OrderSummary component
+      setSelection({
+        ...incomingData,
+        venueName: incomingData.venue?.name || incomingData.venueName,
+        venueLocation: incomingData.venue?.city || incomingData.venueLocation,
+        isFromModal: true
+      });
+      
+      // Set form data from booking - match the actual data structure
+      setFormData(prev => ({
+        ...prev,
+        venueId: incomingData.venue.id,
+        tableId: incomingData.table?.id || incomingData.selectedTable?.id,
+        date: incomingData.date,
+        startTime: incomingData.time,
+        endTime: incomingData.endTime,
+        numberOfGuests: incomingData.guestCount
+      }));
+      
+      
+      // 🚨 CRITICAL FIX: Set loading to false when we have data
+      setLoading(false);
+      
+    } else {
+      navigate('/venues');
+    }
+  } else {
+    navigate('/venues');
+  }
+}, [location.state, navigate, user]);
+
+
+// Add this useEffect to handle loading state
+useEffect(() => {
+}, [loading, selection, bookingData, formData]);
+
+  // Add a safety timeout to prevent infinite loading
+  useEffect(() => {
+    const loadingTimeout = setTimeout(() => {
+      if (loading) {
+        setLoading(false);
+      }
+    }, 5000); // 5 second timeout
+
+    return () => clearTimeout(loadingTimeout);
+  }, [loading]);
+
+// Add this useEffect after your existing useEffects to populate form data for authenticated users
+useEffect(() => {
+  if (user && !formData.fullName && !formData.email) {
+    // Populate form with user's profile information
+    setFormData(prev => ({
+      ...prev,
+      fullName: user.user_metadata?.full_name || user.user_metadata?.name || '',
+      email: user.email || '',
+      phone: user.user_metadata?.phone || ''
+    }));
+    
+  }
+}, [user, formData.fullName, formData.email]);
 
 const handleInputChange = (e) => {
 const { name, value, type, checked } = e.target;
@@ -242,25 +527,40 @@ const { data: venueData, error: venueError } = await supabase
 
 if (!venueError && venueData) {
   venue = venueData;
+  
+  // Get venue owner information separately
+  if (venue.owner_id) {
+    const { data: ownerData, error: ownerError } = await supabase
+      .from('venue_owners')
+      .select('owner_email, owner_name, email')
+      .eq('user_id', venue.owner_id)
+      .single();
+    
+    if (!ownerError && ownerData) {
+      venue.venue_owners = ownerData;
+    } else {
+    }
+  }
 } else {
-  console.warn('Could not fetch venue data, using fallback:', venueError);
+  const dataSource = selection || bookingData;
   venue = {
-    name: bookingData.venueName || selection.venueName,
-    address: selection.venueAddress || 'Lagos, Nigeria',
-    contact_phone: selection.venuePhone || '+234 XXX XXX XXXX',
-    contact_email: selection.venueEmail || 'info@oneeddy.com',
-    images: selection.venueImage ? [selection.venueImage] : [],
+    name: bookingData.venueName || dataSource?.venueName,
+    address: dataSource?.venueAddress || 'Lagos, Nigeria',
+    contact_phone: dataSource?.venuePhone || '+234 XXX XXX XXXX',
+    contact_email: dataSource?.venueEmail || 'info@oneeddy.com',
+    images: dataSource?.venueImage ? [dataSource.venueImage] : [],
     dress_code: 'Smart casual'
   };
 }
 } else {
-// Fallback venue data
+// Fallback venue data - use both selection and bookingData
+const dataSource = selection || bookingData;
 venue = {
-  name: bookingData.venueName || selection.venueName,
-  address: selection.venueAddress || 'Lagos, Nigeria',
-  contact_phone: selection.venuePhone || '+234 XXX XXX XXXX',
-  contact_email: selection.venueEmail || 'info@oneeddy.com',
-  images: selection.venueImage ? [selection.venueImage] : [],
+  name: bookingData.venueName || dataSource?.venueName,
+  address: dataSource?.venueAddress || 'Lagos, Nigeria',
+  contact_phone: dataSource?.venuePhone || '+234 XXX XXX XXXX',
+  contact_email: dataSource?.venueEmail || 'info@oneeddy.com',
+  images: dataSource?.venueImage ? [dataSource.venueImage] : [],
   dress_code: 'Smart casual'
 };
 }
@@ -272,30 +572,46 @@ email: bookingData.customerEmail || formData.email,
 phone: bookingData.customerPhone || formData.phone
 };
 
-// Send customer confirmation email using EmailJS
-const customerEmailResult = await sendBookingConfirmation(booking, venue, customer);
+// Send customer confirmation email using EmailJS with QR code
+const customerEmailResult = await sendBookingConfirmation(booking, venue, customer, bookingData.qrCodeImage);
 
 // Get venue owner info if available for notification
-const venueOwnerEmail = venue.contact_email || selection.ownerEmail || 'info@oneeddy.com';
-if (venueOwnerEmail) {
-const venueOwner = {
-  full_name: 'Venue Owner',
-  email: venueOwnerEmail
-};
+const dataSource = selection || bookingData;
+const venueOwnerEmail = bookingData?.venueOwnerEmail || venue?.venue_owners?.owner_email || venue?.venue_owners?.email || venue?.contact_email || dataSource?.ownerEmail || venue?.owner_email;
 
-// Send venue owner notification (non-blocking)
-sendVenueOwnerNotification(booking, venue, customer, venueOwner)
-  .catch(error => console.log('Venue owner notification failed:', error));
+// Debug logging for venue owner email
+console.log('🔍 Venue owner email sources:', {
+  bookingDataVenueOwnerEmail: bookingData?.venueOwnerEmail,
+  venueOwnersOwnerEmail: venue?.venue_owners?.owner_email,
+  venueOwnersEmail: venue?.venue_owners?.email,
+  venueContactEmail: venue?.contact_email,
+  dataSourceOwnerEmail: dataSource?.ownerEmail,
+  venueOwnerEmail: venue?.owner_email,
+  finalVenueOwnerEmail: venueOwnerEmail
+});
+
+if (venueOwnerEmail && venueOwnerEmail.includes('@')) {
+  const venueOwner = {
+    name: bookingData?.venueOwnerName || venue?.venue_owners?.owner_name || 'Venue Owner',
+    email: venueOwnerEmail
+  };
+
+  // Send venue owner notification (blocking to ensure it's sent)
+  try {
+    const venueOwnerResult = await sendVenueOwnerNotification(booking, venue, customer, venueOwner);
+  } catch (venueOwnerError) {
+    console.error('❌ Venue owner notification failed:', venueOwnerError);
+    // Don't fail the entire process if venue owner email fails
+  }
+} else {
 }
 
-console.log('✅ Email service result:', customerEmailResult);
 return true;
 } catch (error) {
 console.error('❌ Failed to send booking emails:', error);
 
 // If it's the "recipients address is empty" error, run debug function
 if ((error.text === 'The recipients address is empty' || error.message?.includes('recipients address is empty')) && booking && venue && customer) {
-console.log('🔍 Running email debug function...');
 try {
   await debugBookingEmail(booking, venue, customer);
 } catch (debugError) {
@@ -324,7 +640,7 @@ if (user) {
           });
 
 if (profileError) {
-  console.error('Error updating user profile:', profileError);
+  // Profile update failed, continue anyway
 }
 
 return user;
@@ -339,11 +655,9 @@ password: userData.password
 
 if (existingUser?.user) {
 // User already exists, just sign them in
-console.log('User already exists, signed in:', existingUser.user.id);
 return existingUser.user;
 }
 
-console.log('Creating new user account for:', userData.email);
 
 // Create new user account
 const { data: newUser, error: signUpError } = await supabase.auth.signUp({
@@ -358,7 +672,6 @@ options: {
 });
 
 if (signUpError) {
-console.error('Signup error:', signUpError);
 throw signUpError;
 }
 
@@ -366,52 +679,55 @@ if (!newUser.user) {
 throw new Error('Failed to create user account - no user returned from signup');
 }
 
-      console.log('Successfully created user:', newUser.user.id);
 
-      // For new users, we don't need to verify the session immediately
-      // The user object from signup is sufficient for creating the profile
-      console.log('New user created successfully, proceeding with profile creation');
-
-      // Create user profile if it doesn't exist
-      if (newUser.user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .upsert([{
-            id: newUser.user.id,
-            first_name: userData.fullName.split(' ')[0] || '',
-            last_name: userData.fullName.split(' ').slice(1).join(' ') || '',
-            phone: userData.phone
-          }], {
-            onConflict: 'id'
+        // CRITICAL: For new users, ensure Supabase session is properly established for RLS
+        if (newUser.session) {
+          const { error: sessionError } = await supabase.auth.setSession({
+            access_token: newUser.session.access_token,
+            refresh_token: newUser.session.refresh_token
           });
+          
+          if (sessionError) {
+            throw new Error('Failed to establish authentication session');
+          }
+          
+          // Wait a moment for the session to be fully established
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+          // Verify the session is working
+          const { data: verifySession, error: verifyError } = await supabase.auth.getUser();
+          if (verifyError || !verifySession.user || verifySession.user.id !== newUser.user.id) {
+            throw new Error('Authentication session verification failed');
+          }
+          
+        } else {
+          throw new Error('No authentication session available - please try again');
+        }
 
-if (profileError) {
-  console.error('Error creating user profile:', profileError);
-}
-}
+
+      // Skip client-side profile upsert here to avoid RLS errors during email-confirmation flow.
+      // Profiles are auto-created by DB trigger on auth.users insert.
+      // Optionally update profile after the user logs in (when a session exists).
 
 return newUser.user;
 } catch (error) {
-console.error('Error with user account:', error);
 throw error;
 }
 };
 
-const handleSubmit = async (e) => {
-e.preventDefault();
-const formErrors = validateCheckoutForm(formData, !!user);
-setErrors(formErrors);
+const handleSubmit = async (paymentMethodId) => {
+  if (!paymentMethodId) {
+    return;
+  }
 
-if (Object.keys(formErrors).length === 0) {
+  if (!stripe) {
+    return;
+  }
+
 setIsSubmitting(true);
 
 try {
-// Apply referral code if provided
-if (formData.referralCode) {
-  applyReferralCode(formData.referralCode);
-}
-
-        // Create or update user account
+    // Create or update user account first
         const currentUser = await createOrUpdateUserAccount({
           fullName: formData.fullName,
           email: formData.email,
@@ -419,213 +735,292 @@ if (formData.referralCode) {
           password: formData.password
         });
 
-        // Validate that we have a valid user
-        if (!currentUser || !currentUser.id) {
-          throw new Error('Failed to create or authenticate user account. Please try again.');
-        }
+    if (!currentUser?.id) {
+      throw new Error('Failed to create or authenticate user account');
+    }
 
-        // Set current user for split payments (important for new users)
-        setCurrentUserForSplit(currentUser);
+    // Get venue and table IDs for regular booking flow
+    const venueId = bookingData?.venue?.id || selection?.venue?.id;
+    const tableId = bookingData?.table?.id || selection?.table?.id;
 
-        console.log('Current user for booking:', { id: currentUser.id, email: currentUser.email });
-
-        // Only verify session for existing users, not newly created ones
-        if (user) { // If user was already authenticated (existing user)
-          try {
-            const { data: finalCheck, error: finalError } = await supabase.auth.getUser();
-            if (finalError || !finalCheck.user || finalCheck.user.id !== currentUser.id) {
-              throw new Error(`User verification failed before booking: ${finalError?.message || 'User not found'}`);
-            }
-            console.log('Final user verification passed');
-          } catch (authError) {
-            console.error('Authentication check failed:', authError);
-            throw new Error('Authentication failed - please try logging in again');
-          }
-        } else {
-          console.log('New user created, skipping session verification');
-        }
-
-// Handle credit purchase flow
-if (selection.isCreditPurchase) {
-  // Create venue credit record
-  const { data: creditData, error: creditError } = await supabase
-    .from('venue_credits')
-    .insert([{
-      user_id: currentUser?.id,
-      venue_id: selection.venueId,
-      amount: selection.creditAmount * 100, // Convert to kobo/cents
-      notes: `Credit purchase for ${selection.venueName}`,
-      status: 'active'
-    }])
-    .select()
-    .single();
-
-  if (creditError) {
-    throw new Error(`Failed to create venue credits: ${creditError.message}`);
-  }
-
-  // Show success message
-  toast({
-    title: "Credits Purchased Successfully! 🎉",
-    description: `₦${selection.creditAmount.toLocaleString()} credits added to your ${selection.venueName} account`,
-    className: "bg-green-500 text-white",
-  });
-
-  // Navigate back to profile/wallet
-  setTimeout(() => {
-    navigate('/profile', { state: { activeTab: 'wallet' } });
-  }, 2000);
-
-  return; // Exit early for credit purchase flow
-}
-
-// Original booking flow continues here...
-// Prepare booking data for database
-const venueId = selection.venueId || selection.id;
-const tableId = selection.selectedTable?.id || selection.table?.id || null;
-
-// Validate required fields
 if (!venueId) {
-  throw new Error('Venue ID is required for booking');
-}
+      throw new Error('Venue ID is required');
+    }
 
-const bookingData = {
-  user_id: currentUser.id, // We've already validated this exists
-  venue_id: venueId,
-  table_id: tableId,
-  booking_date: selection.date || new Date().toISOString().split('T')[0],
-  start_time: selection.time || '19:00:00',
-  end_time: selection.endTime || '23:00:00',
-  number_of_guests: parseInt(selection.guests) || parseInt(selection.guestCount) || 2,
-  status: 'confirmed',
-  total_amount: parseFloat(calculateTotal())
+    // Generate security code for QR
+    const securityCode = generateSecurityCode();
+
+    // Create booking with confirmed status
+    const bookingDetails = {
+      user_id: currentUser.id,
+      venue_id: venueId,
+      table_id: tableId,
+      booking_date: selection?.date || bookingData?.date || new Date().toISOString().split('T')[0],
+      start_time: selection?.time || bookingData?.time || '19:00:00',
+      end_time: selection?.endTime || bookingData?.endTime || '23:00:00',
+      number_of_guests: parseInt(selection?.guests) || parseInt(bookingData?.guestCount) || 2,
+      status: 'confirmed',
+      qr_security_code: securityCode,
+      total_amount: parseFloat(calculateTotal())
 };
 
-console.log('Booking data to insert:', bookingData);
 
-// Validate table_id exists if provided
-if (tableId) {
-  const { data: tableExists, error: tableError } = await supabase
-    .from('venue_tables')
-    .select('id')
-    .eq('id', tableId)
+    // Save booking to database
+    const { data: pendingBooking, error: bookingError } = await supabase
+      .from('bookings')
+      .insert([bookingDetails])
+      .select()
     .single();
   
-  if (tableError || !tableExists) {
-    console.warn('Table ID not found, proceeding without table assignment');
-    bookingData.table_id = null;
-  }
-}
+    if (bookingError) {
+      throw new Error(`Failed to create booking: ${bookingError.message}`);
+    }
 
-// Save booking to database
-const { data: bookingRecord, error: bookingError } = await supabase
+    if (!pendingBooking?.id) {
+      throw new Error('Failed to create booking record');
+    }
+
+    // Since we already have the paymentMethodId from the form, we can proceed directly
+    // The payment method was already created in CheckoutForm, so we just need to confirm it
+    
+    // For single payments, we'll use a different approach - create a PaymentIntent directly
+    // We need to use the Edge Function after all, but with the correct parameters
+    
+    const response = await fetch(
+      'https://agydpkzfucicraedllgl.supabase.co/functions/v1/create-split-payment-intent',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+        },
+        body: JSON.stringify({
+          amount: Math.round(parseFloat(calculateTotal()) * 100),
+          paymentMethodId,
+          email: formData.email,
+          bookingId: pendingBooking.id, // Now we have the booking ID
+          bookingType: 'single', // Specify this is a single payment
+          splitRequests: [] // Empty array for single payments
+        })
+      }
+    );
+
+    if (!response.ok) {
+      // If payment fails, delete the pending booking
+      await supabase
   .from('bookings')
-  .insert([bookingData])
-  .select()
-  .single();
+        .delete()
+        .eq('id', pendingBooking.id);
 
-if (bookingError) {
-  throw new Error(`Failed to create booking: ${bookingError.message}`);
-}
+      const errorData = await response.json();
+      throw new Error(errorData.error || 'Failed to create payment intent');
+    }
 
-// Create booking record for localStorage (for backward compatibility)
-const newBooking = {
-  id: bookingRecord.id,
-  ...selection,
-  customerName: formData.fullName,
-  customerEmail: formData.email,
-  customerPhone: formData.phone,
-  userId: currentUser?.id,
-  bookingDate: new Date().toISOString(),
-  status: 'confirmed',
-  referralCode: formData.referralCode,
-  vipPerksApplied: vipPerks,
-  totalAmount: calculateTotal(),
-  dbRecord: bookingRecord // Reference to database record
-};
+    const { clientSecret } = await response.json();
 
-// Save booking to localStorage (for backward compatibility with existing components)
-const bookings = JSON.parse(localStorage.getItem('lagosvibe_bookings') || '[]');
-bookings.push(newBooking);
-localStorage.setItem('lagosvibe_bookings', JSON.stringify(bookings));
-localStorage.removeItem('lagosvibe_booking_selection');
+    // Confirm the payment
+    const { paymentIntent, error: confirmError } = await stripe.confirmCardPayment(clientSecret);
+    
+    if (confirmError) {
+      // If payment fails, send admin notification and mark payment as failed
+      
+      // Update booking with payment failure
+      await supabase
+        .from('bookings')
+        .update({ 
+          payment_status: 'failed',
+          payment_error: confirmError.message
+        })
+        .eq('id', pendingBooking.id);
 
-// Send confirmation email (non-blocking)
-const emailSent = await sendBookingConfirmationEmail({
-  ...newBooking,
-  bookingId: bookingRecord.id,
-  venueName: selection.venueName || selection.name
-});
+      // Send admin notification email
+      await sendAdminNotificationEmail({
+        type: 'payment_failed',
+        bookingId: pendingBooking.id,
+        error: confirmError.message,
+        amount: calculateTotal(),
+        customerEmail: formData.email,
+        customerName: formData.fullName
+      });
 
-// Unlock VIP perks
-const unlockedPerks = ["Free Welcome Drink", "Priority Queue"];
-localStorage.setItem('lagosvibe_vip_perks', JSON.stringify(unlockedPerks));
+      throw new Error(`Payment failed: ${confirmError.message}`);
+    }
 
-// Show success message regardless of email status
-const isNewUser = !user;
-toast({ 
-  title: isNewUser ? "Account Created & Booking Confirmed!" : "Booking Confirmed!", 
-  description: emailSent 
-    ? (isNewUser ? "Welcome to VIPClub! Check your email for confirmation." : "Your booking is confirmed! Check your email for confirmation.")
-    : (isNewUser ? "Welcome to VIPClub! Your booking is confirmed. You can view details in your profile." : "Your booking is confirmed. You can view details in your profile."),
-  className: "bg-green-500 text-white"
-});
+    // Update booking status to confirmed
+    
+    const { data: updatedBooking, error: updateError } = await supabase
+      .from('bookings')
+      .update({ 
+        status: 'confirmed',
+        qr_security_code: securityCode
+      })
+      .eq('id', pendingBooking.id)
+      .select()
+      .single();
 
-// If email failed, show a separate notification
-if (!emailSent) {
-  setTimeout(() => {
-    toast({
-      title: "Email Notification",
-      description: "Confirmation email could not be sent, but your booking is saved. You can view it in your profile.",
-      variant: "default"
+    if (updateError) {
+      throw new Error(`Failed to update booking status: ${updateError.message}`);
+    }
+
+    // Generate QR code for venue entry
+    let qrCodeImage = null;
+    try {
+      const qrCodeData = await generateVenueEntryQR({
+        ...updatedBooking,
+        venue_id: venueId,
+        table_id: tableId,
+        table: { table_number: selection?.table?.name || selection?.table?.table_number || 'N/A' }
+      });
+      qrCodeImage = qrCodeData;
+    } catch (qrError) {
+      console.error('❌ Failed to generate QR code:', qrError);
+      // Continue without QR code - booking is still valid
+    }
+
+    // Show success message
+    toast({ 
+      title: "Booking Confirmed!",
+      description: "Your booking has been confirmed. Check your email for details.",
+      className: "bg-green-500 text-white"
     });
-  }, 3000);
+
+    // Get venue data for email
+    const { data: venueData, error: venueError } = await supabase
+      .from('venues')
+      .select('*')
+      .eq('id', venueId)
+      .single();
+
+    if (venueError) {
+    }
+
+    // Get venue owner information separately
+    let venueOwnerData = null;
+    
+    if (venueData?.owner_id) {
+      const { data: ownerData, error: ownerError } = await supabase
+        .from('venue_owners')
+        .select('owner_email, owner_name, email')
+        .eq('user_id', venueData.owner_id)
+        .single();
+      
+      
+      if (!ownerError && ownerData) {
+        venueOwnerData = ownerData;
+      } else {
+        
+        // Try alternative query - maybe the venue_owners table has different structure
+        const { data: altOwnerData, error: altOwnerError } = await supabase
+          .from('venue_owners')
+          .select('*')
+          .eq('user_id', venueData.owner_id);
+        
+        
+        // Also try to see what's in the venue_owners table for this venue
+        const { data: allOwners, error: allOwnersError } = await supabase
+          .from('venue_owners')
+          .select('*')
+          .limit(5);
+        
+      }
+    } else {
+    }
+
+    // Send confirmation email with complete data
+    try {
+      const dataSource = selection || bookingData;
+      const emailResult = await sendBookingConfirmationEmail({
+        ...updatedBooking,
+        customerName: formData.fullName,
+        customerEmail: formData.email,
+        customerPhone: formData.phone,
+        venueName: venueData?.name || dataSource?.venueName || 'Venue',
+        venueAddress: venueData?.address || dataSource?.venueAddress || 'Lagos, Nigeria',
+        venuePhone: venueData?.contact_phone || dataSource?.venuePhone || '+234 XXX XXX XXXX',
+        venueEmail: venueOwnerData?.owner_email || venueOwnerData?.email || venueData?.contact_email || dataSource?.venueEmail || 'info@oneeddy.com',
+        venueOwnerEmail: venueOwnerData?.owner_email || venueOwnerData?.email,
+        venueOwnerName: venueOwnerData?.owner_name,
+        venueDescription: venueData?.description || 'Experience luxury dining and entertainment in Lagos\' most exclusive venue.',
+        venueDressCode: venueData?.dress_code || 'Smart Casual',
+        qrCodeImage: qrCodeImage
+      });
+
+      if (emailResult) {
+        // Send venue owner notification after successful booking confirmation
+        console.log('🔍 Second path venue owner data:', {
+          venueOwnerData,
+          ownerEmail: venueOwnerData?.owner_email,
+          email: venueOwnerData?.email,
+          hasValidEmail: venueOwnerData?.owner_email || venueOwnerData?.email
+        });
+        
+        if (venueOwnerData?.owner_email || venueOwnerData?.email) {
+          try {
+            const venueOwner = {
+              name: venueOwnerData?.owner_name || 'Venue Manager',
+              email: venueOwnerData?.owner_email || venueOwnerData?.email
+            };
+            
+            const venueOwnerResult = await sendVenueOwnerNotification(
+              updatedBooking,
+              venueData,
+              { full_name: formData.fullName, email: formData.email, phone: formData.phone },
+              venueOwner
+            );
+          } catch (venueOwnerError) {
+            console.error('❌ Venue owner notification failed:', venueOwnerError);
+            // Don't fail the booking if venue owner email fails
+          }
+        }
+      } else {
+      }
+    } catch (emailError) {
+      // Don't fail the booking if email fails
 }
 
-setShowConfirmation(true);
-
-} catch (error) {
-console.error('Error processing booking:', error);
+      setShowConfirmation(true);
+    } catch (error) {
 toast({
   title: "Booking Error",
-  description: error.message || "There was an error processing your booking. Please try again.",
-  variant: "destructive",
+      description: error.message || "Failed to process booking",
+      variant: "destructive"
 });
 } finally {
 setIsSubmitting(false);
 }
-} else {
-toast({
-title: "Form validation failed",
-description: "Please check the form and fix the errors.",
-variant: "destructive",
-});
-}
 };
 
 const calculateTotal = () => {
+
 if (isDepositFlow && depositAmount) {
 return depositAmount.toFixed(2);
 }
-if (selection?.isCreditPurchase) {
-return selection.purchaseAmount.toFixed(2);
-}
-if (!selection) return 0;
+  
+if (!selection && !bookingData) return 0;
 
 // Handle new booking modal format vs old format
 let basePrice = 0;
-if (selection.isFromModal) {
-// New format from booking modal
-basePrice = selection.selectedTable?.price || 50;
+if (selection?.isFromModal || bookingData?.isFromModal) {
+  // New format from booking modal - try all possible locations for table price
+  basePrice = selection?.selectedTable?.price || 
+              selection?.table?.price || 
+              bookingData?.selectedTable?.price || 
+              bookingData?.table?.price || 
+              50;
 } else {
-// Old format
-basePrice = (selection.ticket?.price || 0) + (selection.table?.price || 0);
+  // Old format - check both selection and bookingData
+  basePrice = (selection?.ticket?.price || 0) + 
+              (selection?.table?.price || 0) + 
+              (bookingData?.table?.price || 0);
 }
+
 
 let total = basePrice + 25; // 25 is service fee
 if (vipPerks.includes("10% Discount Applied")) {
 total *= 0.9; // Apply 10% discount
 }
+
+
 return total.toFixed(2);
 };
 
@@ -646,7 +1041,7 @@ setSplitLinks(Array(newCount).fill(''));
 const generateSplitLinks = () => {
 const links = splitAmounts.map((amount, index) => {
 // In a real app, this would generate a unique payment link
-return `${window.location.origin}/split-payment/${id}/${index + 1}/${amount}`;
+return getFullUrl(`/split-payment/${id}/${index + 1}/${amount}`);
 });
 setSplitLinks(links);
 setShowShareDialog(true);
@@ -665,256 +1060,300 @@ setSplitPaymentRequests(requests);
 setShowShareDialog(true);
 };
 
-if (loading) {
-return (
-<div className="container py-20 text-center">
-<div className="animate-pulse flex flex-col items-center">
-  <div className="h-8 w-64 bg-secondary rounded mb-4"></div>
-  <div className="h-4 w-48 bg-secondary rounded"></div>
-</div>
-</div>
-);
-}
+  // Add debugging for the render conditions
 
-if (!selection) {
-return (
-<div className="container py-20 text-center">
-<h2 className="text-2xl font-bold mb-4">No Selection Found</h2>
-<p className="text-muted-foreground mb-6">Please go back and select a ticket or table first.</p>
-<Link to={
-  isDepositFlow ? "/profile" : 
-  location.state?.creditPurchase ? "/venue-credit-purchase" :
-  `/venues/${id}`
-}>
-  <Button>
-    {isDepositFlow ? "Back to Profile" : 
-     location.state?.creditPurchase ? "Back to Credit Purchase" :
-     "Back to Venue"}
-  </Button>
-</Link>
-</div>
-);
-}
-
-return (
-<div className="container py-10">
-<Link to={
-isDepositFlow ? "/profile" : 
-location.state?.creditPurchase ? "/venue-credit-purchase" :
-`/venues/${id}`
-} className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-6">
-<ArrowLeft className="mr-2 h-4 w-4" />
-{isDepositFlow ? "Back to Profile" : 
- location.state?.creditPurchase ? "Back to Credit Purchase" :
- "Back to Venue"}
-</Link>
-
-<div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-<div className="lg:col-span-2">
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.5 }}
-  >
-    <h1 className="text-3xl font-bold mb-6 flex items-center">
-      <CreditCard className="h-8 w-8 mr-2" />
-      Checkout
-    </h1>
-
-    <Tabs defaultValue="single" className="w-full mb-6">
-      <TabsList className="grid w-full grid-cols-2 mb-6">
-        <TabsTrigger value="single">Single Payment</TabsTrigger>
-        <TabsTrigger value="split">Split Payment</TabsTrigger>
-      </TabsList>
-
-      <TabsContent value="single">
-        <CheckoutForm 
-          formData={formData}
-          errors={errors}
-          handleInputChange={handleInputChange}
-          handleSubmit={handleSubmit}
-          isSubmitting={isSubmitting}
-          totalAmount={calculateTotal()}
-          isAuthenticated={!!user}
-          icons={{
-            user: <User className="h-5 w-5 mr-2" />
-          }}
-        />
-        <Button 
-          type="submit" 
-          disabled={isSubmitting} 
-          className="w-full bg-brand-burgundy text-brand-cream hover:bg-brand-burgundy/90 py-3.5 text-lg rounded-md"
-        >
-          {isSubmitting ? (
-            <div className="flex items-center justify-center">
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-brand-cream mr-2"></div>
-              Processing...
-            </div>
-          ) : `Pay ₦${calculateTotal().toLocaleString()}`}
-        </Button>
-      </TabsContent>
-
-      <TabsContent value="split">
-        <SplitPaymentForm
-          totalAmount={parseFloat(calculateTotal())}
-          onSplitCreated={handleSplitPaymentCreated}
-          user={currentUserForSplit || userProfile || user}
-          bookingId={selection?.id}
-          createBookingIfNeeded={async () => {
-            // If booking already exists, return its ID
-            if (selection?.id) return selection.id;
-            // Otherwise, create a pending booking in the DB
-            const bookingData = {
-              user_id: (currentUserForSplit || userProfile || user)?.id,
-              venue_id: selection.venueId || selection.id,
-              table_id: selection.table?.id || null,
-              booking_date: selection.date || new Date().toISOString().split('T')[0],
-              start_time: selection.time || '19:00:00',
-              end_time: selection.endTime || '23:00:00',
-              number_of_guests: selection.guests || selection.guestCount || 2,
-              status: 'pending',
-              total_amount: parseFloat(calculateTotal())
-            };
-            const { data: bookingRecord, error: bookingError } = await supabase
-              .from('bookings')
-              .insert([bookingData])
-              .select()
-              .single();
-            if (bookingError) throw new Error(`Failed to create booking: ${bookingError.message}`);
-            // Update selection state with new booking ID
-            setSelection(prev => ({ ...prev, id: bookingRecord.id }));
-            return bookingRecord.id;
-          }}
-        />
-      </TabsContent>
-    </Tabs>
-  </motion.div>
-</div>
-
-<div>
-  <div className="sticky top-20">
-    <OrderSummary 
-      selection={selection} 
-      totalAmount={calculateTotal()} 
-      vipPerks={vipPerks}
-      icons={{
-        calendar: <Calendar className="h-5 w-5 mr-2" />,
-        clock: <Clock className="h-5 w-5 mr-2" />
-      }}
-    />
-  </div>
-</div>
-</div>
-
-<Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
-<DialogContent className="sm:max-w-md" aria-describedby="checkout-dialog-desc">
-  <div id="checkout-dialog-desc" className="sr-only">Enter your payment details to complete your booking.</div>
-  <DialogHeader>
-    <DialogTitle className="text-center text-2xl">Booking Confirmed!</DialogTitle>
-    <DialogDescription className="text-center">
-      <div className="flex justify-center my-6">
-        <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center">
-          <Check className="h-8 w-8 text-primary" />
+  // Update the loading check to include bookingData
+  if (loading) {
+    return (
+      <div className="container py-20 text-center">
+        <div className="animate-pulse flex flex-col items-center">
+          <div className="h-8 w-64 bg-secondary rounded mb-4"></div>
+          <div className="h-4 w-48 bg-secondary rounded"></div>
         </div>
       </div>
-      <p className="mb-2">
-        Your booking at <span className="font-bold">{selection.venueName}</span> has been confirmed.
-      </p>
-      {vipPerks.length > 0 && (
-        <div className="my-2 text-sm text-green-400">
-          <p className="font-semibold">VIP Perks Applied:</p>
-          <ul className="list-disc list-inside">
-            {vipPerks.map(perk => <li key={perk}>{perk}</li>)}
-          </ul>
-        </div>
-      )}
-      <p className="text-sm">
-        A confirmation email has been sent to {formData.email}. You can show this email or your ID at the entrance.
-      </p>
-    </DialogDescription>
-  </DialogHeader>
-  <div className="flex justify-center mt-4">
-    <Link to="/">
-      <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity text-accent-foreground">
-        Back to Home
-      </Button>
-    </Link>
-  </div>
-</DialogContent>
-</Dialog>
+    );
+  }
 
-{/* Split Payment Requests Dialog */}
-<Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
-<DialogContent aria-describedby="checkout-dialog-desc-2">
-  <div id="checkout-dialog-desc-2" className="sr-only">View and manage your split payment requests.</div>
-  <DialogHeader>
-    <DialogTitle>Split Payment Requests Sent</DialogTitle>
-  </DialogHeader>
-  <div className="space-y-4">
-    {splitPaymentRequests.length > 0 ? (
-      splitPaymentRequests.map((request, index) => (
-        <div key={request.id} className="border rounded-lg p-4">
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-brand-burgundy/10 rounded-full flex items-center justify-center">
-                <User className="h-4 w-4 text-brand-burgundy" />
-              </div>
-              <div>
-                <div className="font-medium">Recipient {index + 1}</div>
-                <div className="text-sm text-muted-foreground">
-                  {request.recipient_phone}
+  // Update the selection check to include bookingData
+  if (!selection && !bookingData) {
+    return (
+      <div className="container py-20 text-center">
+        <h2 className="text-2xl font-bold mb-4">No Selection Found</h2>
+        <p className="text-muted-foreground mb-6">Please go back and select a ticket or table first.</p>
+        <Link to={
+          isDepositFlow ? "/profile" : 
+          `/venues/${id}`
+        }>
+          <Button>
+            {isDepositFlow ? "Back to Profile" : 
+             "Back to Venue"}
+          </Button>
+        </Link>
+      </div>
+    );
+  }
+
+
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      <div className="container py-10">
+        <Link to={
+          isDepositFlow ? "/profile" : 
+          `/venues/${id}`
+        } className="inline-flex items-center text-sm text-muted-foreground hover:text-primary mb-6">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          {isDepositFlow ? "Back to Profile" : 
+           "Back to Venue"}
+        </Link>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <h1 className="text-3xl font-bold mb-6 flex items-center">
+                <CreditCard className="h-8 w-8 mr-2" />
+                Checkout
+              </h1>
+
+              {/* Show the selected booking details */}
+              {(selection || bookingData) && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                  <h3 className="font-semibold text-blue-800 mb-2">Booking Summary</h3>
+                  <div className="text-sm text-blue-700">
+                    <p><strong>Venue:</strong> {(selection || bookingData).venue.name}</p>
+                    <p><strong>Table:</strong> {(selection || bookingData).table.table_number} (Capacity: {(selection || bookingData).table.capacity})</p>
+                    <p><strong>Date:</strong> {(selection || bookingData).date}</p>
+                    <p><strong>Time:</strong> {(selection || bookingData).time} - {(selection || bookingData).endTime}</p>
+                    <p><strong>Guests:</strong> {(selection || bookingData).guestCount}</p>
+                  </div>
                 </div>
-              </div>
-            </div>
-            <div className="text-right">
-              <div className="font-bold">₦{request.amount.toLocaleString()}</div>
-              <Badge variant="outline" className="text-xs">
-                {request.status}
-              </Badge>
-            </div>
+              )}
+
+              <Tabs defaultValue="single" className="w-full mb-6">
+                <TabsList className="grid w-full grid-cols-2 mb-6">
+                  <TabsTrigger value="single">Single Payment</TabsTrigger>
+                  <TabsTrigger value="split">Split Payment</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="single">
+                  <Elements stripe={stripePromise}>
+                  <CheckoutForm 
+                    formData={formData}
+                    errors={errors}
+                    handleInputChange={handleInputChange}
+                    handleSubmit={handleSubmit}
+                    isSubmitting={isSubmitting}
+                    totalAmount={calculateTotal()}
+                    isAuthenticated={!!user}
+                    icons={{
+                      user: <User className="h-5 w-5 mr-2" />
+                    }}
+                  />
+                  </Elements>
+                </TabsContent>
+
+                <TabsContent value="split">
+                  <Elements stripe={stripePromise}>
+                    <SplitPaymentForm
+                      totalAmount={parseFloat(calculateTotal())}
+                      user={user}
+                      bookingId={null}
+                      createBookingIfNeeded={createBooking}
+                    />
+                  </Elements>
+                </TabsContent>
+              </Tabs>
+            </motion.div>
           </div>
           
-          <div className="flex items-center gap-2 mt-3">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => copyToClipboard(request.payment_link)}
-              className="flex-1"
-            >
-              <Copy className="h-4 w-4 mr-2" />
-              Copy Payment Link
-            </Button>
+          <div className="lg:col-span-1">
+            <OrderSummary 
+              selection={selection || bookingData}
+              totalAmount={calculateTotal()}
+              vipPerks={vipPerks}
+            />
           </div>
         </div>
-      ))
-    ) : (
-      <div className="text-center py-8 text-muted-foreground">
-        <p>No split payment requests created yet.</p>
+
+        <Dialog open={showConfirmation} onOpenChange={setShowConfirmation}>
+          <DialogContent className="sm:max-w-md" aria-describedby="checkout-dialog-desc">
+            <div id="checkout-dialog-desc" className="sr-only">Enter your payment details to complete your booking.</div>
+            <DialogHeader>
+              <DialogTitle className="text-center text-2xl">Booking Confirmed!</DialogTitle>
+              <DialogDescription className="text-center">
+                <div className="flex justify-center my-6">
+                  <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center">
+                    <Check className="h-8 w-8 text-primary" />
+                  </div>
+                </div>
+                <p className="mb-2">
+                  Your booking at <span className="font-bold">{(selection || bookingData)?.venue?.name}</span> has been confirmed.
+                </p>
+                {vipPerks.length > 0 && (
+                  <div className="my-2 text-sm text-green-400">
+                    <p className="font-semibold">VIP Perks Applied:</p>
+                    <ul className="list-disc list-inside">
+                      {vipPerks.map(perk => <li key={perk}>{perk}</li>)}
+                    </ul>
+                  </div>
+                )}
+                <p className="text-sm">
+                  A confirmation email has been sent to {formData.email}. You can show this email or your ID at the entrance.
+                </p>
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex justify-center mt-4">
+              <Link to="/">
+                <Button className="bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity text-accent-foreground">
+                  Back to Home
+                </Button>
+              </Link>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Split Payment Requests Dialog */}
+        <Dialog open={showShareDialog} onOpenChange={setShowShareDialog}>
+          <DialogContent aria-describedby="checkout-dialog-desc-2">
+            <div id="checkout-dialog-desc-2" className="sr-only">View and manage your split payment requests.</div>
+            <DialogHeader>
+              <DialogTitle>Split Payment Requests Sent</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              {splitPaymentRequests.length > 0 ? (
+                splitPaymentRequests.map((request, index) => (
+                  <div key={request.id} className="border rounded-lg p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 bg-brand-burgundy/10 rounded-full flex items-center justify-center">
+                          <User className="h-4 w-4 text-brand-burgundy" />
+                        </div>
+                        <div>
+                          <div className="font-medium">Recipient {index + 1}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {request.recipient_phone}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="font-bold">₦{request.amount.toLocaleString()}</div>
+                        <Badge variant="outline" className="text-xs">
+                          {request.status}
+                        </Badge>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 mt-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => copyToClipboard(request.payment_link)}
+                        className="flex-1"
+                      >
+                        <Copy className="h-4 w-4 mr-2" />
+                        Copy Payment Link
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p>No split payment requests created yet.</p>
+                </div>
+              )}
+              
+              <div className="flex justify-end gap-4 mt-6">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowShareDialog(false)}
+                >
+                  Close
+                </Button>
+                <Button
+                  className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90"
+                  onClick={() => {
+                    setShowShareDialog(false);
+                    navigate('/bookings');
+                  }}
+                >
+                  View All Bookings
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={loginOpen} onOpenChange={setLoginOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="text-brand-burgundy">
+                {awaitingConfirm ? 'Confirm your email' : (authMode === 'login' ? 'Log in to continue' : 'Create an account')}
+              </DialogTitle>
+            </DialogHeader>
+
+            {!awaitingConfirm ? (
+              <form onSubmit={handleAuthSubmit} className="space-y-4">
+                <div>
+                  <Label htmlFor="auth-email" className="text-brand-burgundy">Email</Label>
+                  <Input id="auth-email" type="email" value={authForm.email} onChange={(e) => setAuthForm(f => ({ ...f, email: e.target.value }))} required />
+                </div>
+                {authMode === 'signup' && (
+                  <>
+                    <div>
+                      <Label htmlFor="auth-name" className="text-brand-burgundy">Full Name</Label>
+                      <Input id="auth-name" type="text" value={authForm.fullName} onChange={(e) => setAuthForm(f => ({ ...f, fullName: e.target.value }))} placeholder="e.g. John Smith" required />
+                    </div>
+                    <div>
+                      <Label htmlFor="auth-phone" className="text-brand-burgundy">Phone (optional)</Label>
+                      <Input id="auth-phone" type="tel" value={authForm.phone} onChange={(e) => setAuthForm(f => ({ ...f, phone: e.target.value }))} placeholder="+234 ..." />
+                    </div>
+                  </>
+                )}
+                <div>
+                  <Label htmlFor="auth-pass" className="text-brand-burgundy">Password</Label>
+                  <Input id="auth-pass" type="password" value={authForm.password} onChange={(e) => setAuthForm(f => ({ ...f, password: e.target.value }))} required />
+                </div>
+                {authError && <div className="text-red-600 text-sm">{authError}</div>}
+                <Button type="submit" disabled={authLoading} className="w-full bg-brand-burgundy text-brand-cream hover:bg-brand-burgundy/90">
+                  {authLoading ? 'Please wait...' : (authMode === 'login' ? 'Login' : 'Sign Up')}
+                </Button>
+                <div className="text-center text-sm">
+                  {authMode === 'login' ? (
+                    <button type="button" className="text-brand-gold" onClick={() => setAuthMode('signup')}>New here? Create an account</button>
+                  ) : (
+                    <button type="button" className="text-brand-gold" onClick={() => setAuthMode('login')}>Already have an account? Login</button>
+                  )}
+                </div>
+              </form>
+            ) : (
+              <div className="space-y-4">
+                <p className="text-sm text-brand-burgundy/80">
+                  We sent a confirmation email to <span className="font-medium text-brand-burgundy">{authForm.email}</span>. Please click the link in that email to verify your account. Once confirmed, return to the app.
+                </p>
+                {EMAIL_REDIRECT && (
+                  <p className="text-xs text-brand-burgundy/60">
+                    Tip: The link opens the app via <span className="font-mono">{EMAIL_REDIRECT}</span>.
+                  </p>
+                )}
+                {authError && <div className="text-red-600 text-sm">{authError}</div>}
+                <div className="flex gap-2">
+                  <Button onClick={checkEmailConfirmed} disabled={authLoading} className="flex-1 bg-brand-burgundy text-brand-cream hover:bg-brand-burgundy/90">
+                    I've confirmed
+                  </Button>
+                  <Button onClick={resendConfirmation} variant="outline" disabled={authLoading} className="flex-1 border-brand-burgundy text-brand-burgundy">
+                    Resend email
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
-    )}
-    
-    <div className="flex justify-end gap-4 mt-6">
-      <Button
-        variant="outline"
-        onClick={() => setShowShareDialog(false)}
-      >
-        Close
-      </Button>
-      <Button
-        className="bg-brand-gold text-brand-burgundy hover:bg-brand-gold/90"
-        onClick={() => {
-          setShowShareDialog(false);
-          navigate('/bookings');
-        }}
-      >
-        View All Bookings
-      </Button>
-    </div>
-  </div>
-</DialogContent>
-</Dialog>
-</div>
-);
+      </div>
+    );
 };
 
 export default CheckoutPage;

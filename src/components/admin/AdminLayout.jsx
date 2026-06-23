@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LayoutDashboard, Ticket, Users, Settings, Menu, X, LogOut, ShieldCheck, LayoutGrid, QrCode as QrCodeIcon, Home } from 'lucide-react';
+import { LayoutDashboard, Ticket, Users, Settings, Menu, X, LogOut, ShieldCheck, LayoutGrid, Home } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -24,7 +24,6 @@ const AdminSidebar = ({ isOpen, toggleSidebar }) => {
     { name: 'Bookings', path: '/admin/bookings', icon: <Ticket className="h-5 w-5" /> },
     { name: 'Referrals', path: '/admin/referrals', icon: <Users className="h-5 w-5" /> },
     { name: 'Table Layouts', path: '/admin/table-layout', icon: <LayoutGrid className="h-5 w-5" /> },
-    { name: 'QR Codes', path: '/admin/qr-code', icon: <QrCodeIcon className="h-5 w-5" /> },
     { name: 'Settings', path: '/admin/settings', icon: <Settings className="h-5 w-5" /> },
   ];
 

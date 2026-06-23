@@ -1,13 +1,68 @@
 import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
 import { User, CreditCard, Gift } from 'lucide-react';
+import { CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { Button } from '@/components/ui/button'; // Add this import
 
 const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSubmitting, totalAmount, isAuthenticated = false }) => {
+  const stripe = useStripe();
+  const elements = useElements();
+  const [isProcessingPayment, setIsProcessingPayment] = React.useState(false);
+  const [stripeReady, setStripeReady] = React.useState(false);
+
+  // Check if Stripe is ready
+  React.useEffect(() => {
+    if (stripe && elements) {
+      setStripeReady(true);
+    } else {
+      setStripeReady(false);
+    }
+  }, [stripe, elements]);
+
+  const handlePaymentSubmit = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Prevent multiple submissions
+    if (isProcessingPayment || isSubmitting) {
+      return;
+    }
+
+    if (!stripe || !elements) {
+      return;
+    }
+
+    setIsProcessingPayment(true);
+
+    try {
+      const { error: stripeError, paymentMethod } = await stripe.createPaymentMethod({
+        type: 'card',
+        card: elements.getElement(CardElement),
+        billing_details: {
+          name: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+        }
+      });
+
+      if (stripeError) {
+        throw stripeError;
+      }
+
+      // Only pass the payment method ID
+      await handleSubmit(paymentMethod.id);
+    } catch (err) {
+      // Payment error handled by parent component
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
+
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handlePaymentSubmit} id="payment-form">
       <div className="space-y-6">
+        {/* Personal Information section */}
         <div className="bg-secondary/20 border border-border/50 rounded-lg p-6">
           <h2 className="text-xl font-bold mb-4 flex items-center">
             <User className="mr-2 h-5 w-5" />
@@ -52,7 +107,7 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
                   placeholder="Create a password for your account"
                 />
                 {errors.password && <p className="text-destructive text-sm mt-1">{errors.password}</p>}
-                <p className="text-xs text-muted-foreground mt-1">This will create your VIPClub account for future bookings</p>
+                <p className="text-xs text-muted-foreground mt-1">This will create your Eddy's Members account for future bookings</p>
               </div>
             )}
             {isAuthenticated && (
@@ -62,7 +117,7 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
                     <User className="h-3 w-3 text-white" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium text-green-800">Signed in to your VIPClub account</p>
+                    <p className="text-sm font-medium text-green-800">Signed in to your Eddy's Members account</p>
                     <p className="text-xs text-green-600">Your booking will be saved to your profile</p>
                   </div>
                 </div>
@@ -71,6 +126,7 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
           </div>
         </div>
 
+        {/* Referral Code section */}
         <div className="bg-secondary/20 border border-border/50 rounded-lg p-6">
           <h2 className="text-xl font-bold mb-4 flex items-center">
             <Gift className="mr-2 h-5 w-5" />
@@ -78,46 +134,108 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
           </h2>
           <div>
             <Label htmlFor="referralCode">Referral Code</Label>
-            <Input id="referralCode" name="referralCode" value={formData.referralCode} onChange={handleInputChange} placeholder="Enter code for perks" />
+            <Input 
+              id="referralCode" 
+              name="referralCode" 
+              value={formData.referralCode} 
+              onChange={handleInputChange} 
+              placeholder="Enter code for perks" 
+            />
           </div>
         </div>
         
+        {/* Payment Information section */}
         <div className="bg-secondary/20 border border-border/50 rounded-lg p-6">
           <h2 className="text-xl font-bold mb-4 flex items-center">
             <CreditCard className="mr-2 h-5 w-5" />
             Payment Information
           </h2>
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="cardNumber">Card Number</Label>
-              <Input id="cardNumber" name="cardNumber" placeholder="1234 5678 9012 3456" value={formData.cardNumber} onChange={handleInputChange} className={errors.cardNumber ? 'border-destructive' : ''} />
-              {errors.cardNumber && <p className="text-destructive text-sm mt-1">{errors.cardNumber}</p>}
+            <div 
+              className="p-4 border rounded-lg bg-white mobile-payment-container"
+              style={{
+                padding: '10px',
+                border: '1px solid #d1d5db',
+                borderRadius: '4px',
+                backgroundColor: 'white'
+              }}
+            >
+              {!stripeReady ? (
+                <div className="w-full text-center text-gray-500">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-burgundy mx-auto mb-2"></div>
+                  <p className="text-sm">Loading payment form...</p>
+                </div>
+              ) : (
+                <CardElement 
+                  options={{
+                    style: {
+                      base: {
+                        fontSize: '16px',
+                        color: '#800020',
+                        fontFamily: 'system-ui, -apple-system, sans-serif',
+                        lineHeight: '1.5',
+                        '::placeholder': {
+                          color: '#800020',
+                        },
+                      },
+                      invalid: {
+                        color: '#e53e3e',
+                      },
+                    },
+                    hidePostalCode: true,
+                    // Mobile-specific options
+                    supportedNetworks: ['visa', 'mastercard', 'amex', 'discover'],
+                    // Simple placeholder text
+                    placeholder: 'Card number',
+                    // Disable autofill for better mobile compatibility
+                    disableLink: false,
+                    // Ensure proper focus handling on mobile
+                    classes: {
+                      focus: 'is-focused',
+                      invalid: 'is-invalid',
+                    }
+                  }}
+                />
+              )}
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="expiryDate">Expiry Date</Label>
-                <Input id="expiryDate" name="expiryDate" placeholder="MM/YY" value={formData.expiryDate} onChange={handleInputChange} className={errors.expiryDate ? 'border-destructive' : ''} />
-                {errors.expiryDate && <p className="text-destructive text-sm mt-1">{errors.expiryDate}</p>}
-              </div>
-              <div>
-                <Label htmlFor="cvv">CVV</Label>
-                <Input id="cvv" name="cvv" placeholder="123" value={formData.cvv} onChange={handleInputChange} className={errors.cvv ? 'border-destructive' : ''} />
-                {errors.cvv && <p className="text-destructive text-sm mt-1">{errors.cvv}</p>}
-              </div>
-            </div>
+            {errors.stripe && (
+              <p className="text-destructive text-sm mt-1">{errors.stripe}</p>
+            )}
           </div>
         </div>
         
+        {/* Terms and conditions */}
         <div className="flex items-start gap-2">
-          <input type="checkbox" id="agreeToTerms" name="agreeToTerms" checked={formData.agreeToTerms} onChange={handleInputChange} className="mt-1" />
+          <input 
+            type="checkbox" 
+            id="agreeToTerms" 
+            name="agreeToTerms" 
+            checked={formData.agreeToTerms} 
+            onChange={handleInputChange} 
+            className="mt-1" 
+          />
           <div>
-            <Label htmlFor="agreeToTerms" className="text-sm">I agree to the Terms of Service and Privacy Policy</Label>
-            {errors.agreeToTerms && <p className="text-destructive text-sm">{errors.agreeToTerms}</p>}
+            <Label htmlFor="agreeToTerms" className="text-sm">
+              I agree to the Terms of Service and Privacy Policy
+            </Label>
+            {errors.agreeToTerms && (
+              <p className="text-destructive text-sm">{errors.agreeToTerms}</p>
+            )}
           </div>
         </div>
-        
-        <Button type="submit" className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity text-accent-foreground" disabled={isSubmitting}>
-          {isSubmitting ? 'Processing...' : `Pay $${totalAmount}`}
+
+        {/* Add the submit button back */}
+        <Button 
+          type="submit" 
+          disabled={isSubmitting || isProcessingPayment || !stripe || !stripeReady} 
+          className="w-full bg-brand-burgundy text-brand-cream hover:bg-brand-burgundy/90 py-3.5 text-lg rounded-md mt-6"
+        >
+          {isSubmitting || isProcessingPayment ? (
+            <div className="flex items-center justify-center">
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-brand-cream mr-2"></div>
+              {isProcessingPayment ? 'Processing Payment...' : 'Processing Booking...'}
+            </div>
+          ) : `Pay ₦${totalAmount.toLocaleString()}`}
         </Button>
       </div>
     </form>

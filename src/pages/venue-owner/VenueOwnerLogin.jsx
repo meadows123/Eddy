@@ -1,6 +1,6 @@
 // VenueOwnerLogin.jsx - Updated to fix auth.users query issue
 // Cache bust: 2024-01-15 - Removed direct auth.users queries
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Store, Mail, Lock, ArrowRight, Eye, EyeOff } from 'lucide-react';
@@ -15,6 +15,7 @@ const VenueOwnerLogin = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -22,102 +23,107 @@ const VenueOwnerLogin = () => {
   const [error, setError] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
 
+  // Check if user is already logged in and redirect automatically
+  useEffect(() => {
+    const checkExistingSession = async () => {
+      try {
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        
+        if (sessionError) {
+          setCheckingAuth(false);
+          return;
+        }
+
+        if (session && session.user) {
+          
+          // Check if user is a venue owner
+          const { data: venueOwners, error: venueOwnerError } = await supabase
+            .from('venue_owners')
+            .select('*')
+            .eq('user_id', session.user.id)
+            .eq('status', 'active');
+
+          if (!venueOwnerError && venueOwners && venueOwners.length > 0) {
+            toast({
+              title: 'Welcome back!',
+              description: 'Redirecting to your dashboard...',
+            });
+            navigate('/venue-owner/dashboard', { replace: true });
+            return;
+          }
+        }
+        
+        setCheckingAuth(false);
+      } catch (error) {
+        setCheckingAuth(false);
+      }
+    };
+
+    checkExistingSession();
+  }, [navigate, toast]);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
     try {
-      console.log('🔐 Starting login process for:', formData.email);
       
-      // Log the form data (without password)
-      console.log('📝 Login attempt:', {
-        email: formData.email,
-        passwordLength: formData.password.length,
-        hasPassword: !!formData.password
-      });
-
       const { data, error } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
       });
 
-      console.log('🔐 Auth result:', { data, error });
 
       if (error) {
-        console.error('❌ Authentication failed:', error);
         throw error;
       }
 
       if (!data.user) {
-        console.error('❌ No user data returned');
         throw new Error('No user data returned from authentication');
       }
 
-      console.log('✅ Authentication successful for user:', data.user.id);
-      console.log('👤 User details:', {
-        id: data.user.id,
-        email: data.user.email,
-        emailConfirmed: !!data.user.email_confirmed_at,
-        lastSignIn: data.user.last_sign_in_at
-      });
 
-      // Check if user is a venue owner
-      console.log('🔍 Checking venue owner status...');
-      const { data: venueOwner, error: venueOwnerError } = await supabase
+      // Check if user is a venue owner - modified to handle multiple records
+      const { data: venueOwners, error: venueOwnerError } = await supabase
         .from('venue_owners')
         .select('*')
         .eq('user_id', data.user.id)
-        .single();
+        .eq('status', 'active'); // Only get active records
 
-      console.log('🏢 Venue owner check result:', { venueOwner, venueOwnerError });
 
       if (venueOwnerError) {
-        console.error('❌ Venue owner lookup failed:', venueOwnerError);
-        throw new Error('Venue owner profile not found');
+        throw new Error('Failed to verify venue owner status');
       }
 
-      if (!venueOwner) {
-        console.error('❌ No venue owner record found');
-        throw new Error('No venue owner profile found for this user');
+      if (!venueOwners || venueOwners.length === 0) {
+        throw new Error('No active venue owner profile found for this user');
       }
 
-      console.log('✅ Venue owner found:', {
-        id: venueOwner.id,
-        email: venueOwner.owner_email,
-        status: venueOwner.status,
-        name: venueOwner.owner_name
-      });
+      // Use the first active venue owner record
+      const venueOwner = venueOwners[0];
 
-      // Check if venue owner is active
-      if (venueOwner.status !== 'active') {
-        console.error('❌ Venue owner not active:', venueOwner.status);
-        throw new Error(`Venue owner account is ${venueOwner.status}. Please contact support.`);
-      }
-
-      console.log('🎉 Login successful! Redirecting to dashboard...');
-      
-      // Navigate to dashboard
       navigate('/venue-owner/dashboard');
       
     } catch (error) {
-      console.error('❌ Login error:', error);
       
-      // Provide more specific error messages
-      if (error.message === 'Invalid login credentials') {
-        setError('Invalid email or password. If you recently registered, please check your email for a confirmation link and click it before logging in. You can also use the "Resend confirmation email" button below.');
+      // Provide more specific and helpful error messages
+      if (error.message === 'Invalid login credentials' || error.message.includes('Invalid login credentials')) {
+        setError('The email or password you entered is incorrect. Please check your credentials and try again. If you\'ve forgotten your password, click "Forgot Password?" below to reset it.');
       } else if (error.message.includes('Email not confirmed')) {
         setError('Please check your email and click the confirmation link before logging in. If you didn\'t receive the email, use the "Resend confirmation email" button below.');
-      } else if (error.message.includes('Invalid login credentials')) {
-        setError('Invalid email or password. If you recently registered, please check your email for a confirmation link and click it before logging in.');
+      } else if (error.message.includes('Too many requests')) {
+        setError('Too many login attempts. Please wait a few minutes before trying again. If you\'ve forgotten your password, use the "Forgot Password?" option below.');
+      } else if (error.message.includes('User not found')) {
+        setError('No account found with this email address. Please check your email or create a new account.');
       } else {
-        setError(error.message || 'Login failed');
+        setError(error.message || 'Login failed. Please try again or contact support if the problem persists.');
       }
       
-      // Show toast with additional guidance
+      // Show toast with helpful guidance
       toast({
         title: 'Login Failed',
-        description: 'If you recently registered, please check your email for a confirmation link. Use the "Debug Account Status" button to check your account status.',
+        description: 'Please check your credentials or use "Forgot Password?" to reset your password.',
         variant: 'destructive',
       });
     } finally {
@@ -160,8 +166,6 @@ const VenueOwnerLogin = () => {
       setLoading(true);
       setError(null);
       
-      console.log('🔄 Sending password reset email to:', formData.email);
-      console.log('📍 Redirect URL:', `${window.location.origin}/venue-owner/reset-password`);
       
       const { error } = await supabase.auth.resetPasswordForEmail(formData.email, {
         redirectTo: `${window.location.origin}/venue-owner/reset-password`
@@ -176,7 +180,6 @@ const VenueOwnerLogin = () => {
       });
       
       setError(null);
-      console.log('✅ Password reset email sent successfully');
       
       // Show additional instructions
       toast({
@@ -186,12 +189,21 @@ const VenueOwnerLogin = () => {
       });
       
     } catch (error) {
-      console.error('❌ Password reset error:', error);
-      setError(error.message || 'Failed to send password reset email');
+      
+      // Provide more helpful error messages for password reset
+      if (error.message.includes('User not found')) {
+        setError('No venue owner account found with this email address. Please check your email or contact support.');
+      } else if (error.message.includes('Too many requests')) {
+        setError('Too many password reset requests. Please wait a few minutes before trying again.');
+      } else if (error.message.includes('Invalid email')) {
+        setError('Please enter a valid email address.');
+      } else {
+        setError(error.message || 'Failed to send password reset email. Please try again or contact support.');
+      }
       
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to send password reset email. Please try again.',
+        title: 'Password Reset Failed',
+        description: 'Please check your email address and try again, or contact support if the problem persists.',
         variant: 'destructive',
       });
     } finally {
@@ -209,7 +221,6 @@ const VenueOwnerLogin = () => {
       setLoading(true);
       setError(null);
       
-      console.log('🔄 Resending confirmation email to:', formData.email);
       
       const { error } = await supabase.auth.resend({
         type: 'signup',
@@ -228,10 +239,8 @@ const VenueOwnerLogin = () => {
       });
       
       setError(null);
-      console.log('✅ Confirmation email resent successfully');
       
     } catch (error) {
-      console.error('❌ Resend confirmation error:', error);
       setError(error.message || 'Failed to resend confirmation email');
       
       toast({
@@ -244,67 +253,10 @@ const VenueOwnerLogin = () => {
     }
   };
 
-  const debugVenueOwnerStatus = async () => {
-    try {
-      console.log('🔍 Debugging venue owner status...');
-      
-      // Check if user exists
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      console.log('👤 Current user:', user, 'User Error:', userError);
-      
-      if (user) {
-        // Check venue owner records
-        const { data: venueOwners, error: venueOwnerError } = await supabase
-          .from('venue_owners')
-          .select('*')
-          .eq('user_id', user.id);
-        console.log('🏢 Venue owners for user:', venueOwners, 'Error:', venueOwnerError);
-        
-        // Check by email
-        const { data: venueOwnersByEmail, error: emailError } = await supabase
-          .from('venue_owners')
-          .select('*')
-          .eq('owner_email', formData.email);
-        console.log('📧 Venue owners by email:', venueOwnersByEmail, 'Error:', emailError);
-      }
-      
-      // Check venue_owners table by email (safe query)
-      const { data: venueOwnersByEmail, error: venueOwnerEmailError } = await supabase
-        .from('venue_owners')
-        .select('*')
-        .eq('owner_email', formData.email);
-      console.log('🏢 Venue owners by email:', venueOwnersByEmail, 'Error:', venueOwnerEmailError);
-      
-      // Check if there are any pending venue owner requests
-      const { data: pendingRequests, error: pendingError } = await supabase
-        .from('pending_venue_owner_requests')
-        .select('*')
-        .eq('email', formData.email);
-      console.log('⏳ Pending requests:', pendingRequests, 'Error:', pendingError);
-      
-      // Check venues by email
-      const { data: venues, error: venueError } = await supabase
-        .from('venues')
-        .select('*')
-        .eq('contact_email', formData.email);
-      console.log('🏢 Venues by email:', venues, 'Error:', venueError);
-      
-      // Summary of findings
-      console.log('📊 DEBUG SUMMARY:');
-      console.log('   - Auth user check: Use Supabase Auth API (cannot query auth.users directly)');
-      console.log('   - Venue owners found:', venueOwnersByEmail?.length || 0);
-      console.log('   - Venues found:', venues?.length || 0);
-      console.log('   - Pending requests:', pendingRequests?.length || 0);
-      
-    } catch (error) {
-      console.error('❌ Debug error:', error);
-    }
-  };
 
   const checkAuth = async () => {
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      console.log('Session:', session, 'Session Error:', sessionError);
 
       if (sessionError) throw new Error('Session error: ' + sessionError.message);
 
@@ -321,7 +273,6 @@ const VenueOwnerLogin = () => {
 
       // Check if user is a venue owner
       const { data: { user }, error: userError } = await supabase.auth.getUser();
-      console.log('User:', user, 'User Error:', userError);
       if (userError) throw new Error('User error: ' + userError.message);
 
       const { data: venueOwner, error: venueOwnerError } = await supabase
@@ -330,7 +281,6 @@ const VenueOwnerLogin = () => {
         .eq('user_id', user.id)
         .single();
 
-      console.log('Venue Owner:', venueOwner, 'Venue Owner Error:', venueOwnerError);
 
       if (venueOwnerError) throw new Error('Venue owner error: ' + venueOwnerError.message);
       if (!venueOwner) {
@@ -347,7 +297,6 @@ const VenueOwnerLogin = () => {
       // If we get here, user is authenticated and is a venue owner
       fetchVenueData();
     } catch (error) {
-      console.error('Auth check error:', error);
       setError(error.message);
       toast({
         title: 'Error',
@@ -365,7 +314,6 @@ const VenueOwnerLogin = () => {
 
       // Get current user
       const { data: { user }, error: userError } = await supabase.auth.getUser();
-      console.log('Current user:', user, 'User Error:', userError);
       if (userError) throw new Error('User error: ' + userError.message);
 
       // Get venue details
@@ -375,14 +323,12 @@ const VenueOwnerLogin = () => {
         .eq('owner_id', user.id)
         .single();
 
-      console.log('Venue data:', venueData, 'Venue Error:', venueError);
 
       if (venueError) throw new Error('Venue error: ' + venueError.message);
       if (!venueData) throw new Error('No venue found for this user.');
 
       // ...rest of your code...
     } catch (error) {
-      console.error('Error in fetchVenueData:', error);
       setError(error.message);
       toast({
         title: 'Error',
@@ -393,6 +339,18 @@ const VenueOwnerLogin = () => {
       setLoading(false);
     }
   };
+
+  // Show loading screen while checking for existing session
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-burgundy mx-auto mb-4"></div>
+          <p className="text-brand-burgundy/70">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center py-4 px-4 sm:py-12 sm:px-6 lg:px-8">
@@ -534,14 +492,6 @@ const VenueOwnerLogin = () => {
                 Resend confirmation email
               </button>
               
-              <button
-                type="button"
-                onClick={debugVenueOwnerStatus}
-                className="text-xs text-brand-burgundy/70 hover:text-brand-gold underline block"
-                disabled={loading}
-              >
-                Debug Account Status
-              </button>
             </div>
           </div>
         </div>
