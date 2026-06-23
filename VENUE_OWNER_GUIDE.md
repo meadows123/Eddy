@@ -1,7 +1,6 @@
 # Eddy's Members - Venue Owner Guide
 
 Welcome to the Eddy's Members Venue Owner Portal! This comprehensive guide will help you manage your venue, bookings, tables, and analytics effectively.
-
 ---
 
 ## Table of Contents

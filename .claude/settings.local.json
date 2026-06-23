@@ -6,7 +6,10 @@
       "Bash(sudo chown cisco:cisco /home/cisco/VIPCLub/.git/refs/remotes/origin/main)",
       "Bash(git checkout *)",
       "Bash(git add *)",
-      "Bash(git rm *)"
+      "Bash(git rm *)",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(git remote *)"
     ],
     "additionalDirectories": [
       "/home/cisco/VIPCLub/.git/refs/remotes/origin"
