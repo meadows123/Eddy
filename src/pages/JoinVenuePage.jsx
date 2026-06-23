@@ -116,11 +116,7 @@ const JoinVenuePage = () => {
               priceRange: '$$', // Default price range
               openingHours: 'Not specified',
               venuePhone: formData.phone,
-<<<<<<< HEAD
               viewUrl: 'https://oneeddy.com/admin/venue-approvals'
-=======
-              viewUrl: 'https://www.oneeddy.com/admin/venue-approvals'
->>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
             }
           }
         });
@@ -191,7 +187,6 @@ const JoinVenuePage = () => {
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* ... existing form fields ... */}
             
-<<<<<<< HEAD
             <div>
               <Label htmlFor="musicGenres" className="text-foreground flex items-center"><Music className="h-4 w-4 mr-2 text-primary" />Main Music Genres (comma-separated)</Label>
               <Input type="text" id="musicGenres" name="musicGenres" value={formData.musicGenres} onChange={handleChange} placeholder="e.g., House, Techno, Hip Hop" className="mt-1" />
@@ -202,8 +197,6 @@ const JoinVenuePage = () => {
               <Textarea id="venueDescription" name="venueDescription" value={formData.venueDescription} onChange={handleChange} placeholder="Describe what makes your venue unique..." rows={5} className="mt-1" />
             </div>
 
-=======
->>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
             <Button 
               type="submit" 
               className="w-full bg-gradient-to-r from-primary to-accent hover:opacity-90 transition-opacity text-accent-foreground text-lg py-3"

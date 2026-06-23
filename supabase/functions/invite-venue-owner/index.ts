@@ -60,7 +60,6 @@ serve(async (req: Request) => {
     }
 
     // 2) Send branded invitation via SendGrid
-<<<<<<< HEAD
     console.log('🔍 SendGrid Debug:', {
       apiKeySet: !!SENDGRID_API_KEY,
       fromEmail: FROM_EMAIL,
@@ -69,9 +68,6 @@ serve(async (req: Request) => {
     
     if (!SENDGRID_API_KEY) {
       console.error('❌ SENDGRID_API_KEY is not set')
-=======
-    if (!SENDGRID_API_KEY) {
->>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
       return new Response(JSON.stringify({ error: 'SENDGRID_API_KEY is not set' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 500
@@ -80,30 +76,17 @@ serve(async (req: Request) => {
 
     const html = `<!DOCTYPE html>
 <html lang="en">
-<<<<<<< HEAD
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Eddy's Members – Venue Owner Invitation</title></head>
 <body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;color:#333">
   <div style="max-width:600px;margin:0 auto;background:#fff;box-shadow:0 10px 30px rgba(128,0,32,0.08)">
     <div style="background:linear-gradient(135deg,#800020 0%,#A71D2A 100%);padding:36px 28px;text-align:center;position:relative">
       <img src="https://res.cloudinary.com/dq1l3wltu/image/upload/v1753338476/Eddy_Logo-07_vagzzy.jpg" alt="Eddy's Members" style="width:110px;height:110px;border-radius:50%;border:3px solid #FFD700;box-shadow:0 8px 20px rgba(255,215,0,.28);margin-bottom:12px">
-=======
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>VIPClub – Venue Owner Invitation</title></head>
-<body style="margin:0;padding:0;background:#f5f5f5;font-family:Arial,sans-serif;color:#333">
-  <div style="max-width:600px;margin:0 auto;background:#fff;box-shadow:0 10px 30px rgba(128,0,32,0.08)">
-    <div style="background:linear-gradient(135deg,#800020 0%,#A71D2A 100%);padding:36px 28px;text-align:center;position:relative">
-      <img src="https://res.cloudinary.com/dq1l3wltu/image/upload/v1753338476/Eddy_Logo-07_vagzzy.jpg" alt="VIPClub" style="width:110px;height:110px;border-radius:50%;border:3px solid #FFD700;box-shadow:0 8px 20px rgba(255,215,0,.28);margin-bottom:12px">
->>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
       <div style="color:#FFF5E6;font-size:26px;font-weight:700;letter-spacing:1.5px">EDDYS MEMBERS</div>
     </div>
 
     <div style="padding:40px 32px">
-<<<<<<< HEAD
       <h2 style="color:#800020;text-align:center;margin:0 0 14px 0">Invitation to Join Eddy's Members</h2>
       <p style="text-align:center;color:#555;margin:0 0 24px 0">Hi ${contactName || 'there'}, we're excited to invite you to onboard your venue ${venueName ? `<strong>${venueName}</strong>` : ''} on Eddy's Members.</p>
-=======
-      <h2 style="color:#800020;text-align:center;margin:0 0 14px 0">Invitation to Join VIPClub</h2>
-      <p style="text-align:center;color:#555;margin:0 0 24px 0">Hi ${contactName || 'there'}, we’re excited to invite you to onboard your venue ${venueName ? `<strong>${venueName}</strong>` : ''} on VIPClub.</p>
->>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
 
       <div style="background:linear-gradient(135deg,#FFF5E6 0%,#ffffff 100%);border:2px solid #FFD700;border-radius:14px;padding:24px;margin:18px 0">
         <div style="color:#800020;font-weight:700;font-size:14px;margin-bottom:12px;text-transform:uppercase">Details</div>
@@ -133,7 +116,6 @@ serve(async (req: Request) => {
 </body>
 </html>`
 
-<<<<<<< HEAD
     const sendGridPayload = {
       personalizations: [{ to: [{ email }] }],
       from: { email: FROM_EMAIL, name: 'VIPClub' },
@@ -148,15 +130,12 @@ serve(async (req: Request) => {
       subject: 'You are invited to join VIPClub as a Venue Owner'
     })
 
-=======
->>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
     const sgRes = await fetch('https://api.sendgrid.com/v3/mail/send', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${SENDGRID_API_KEY}`,
         'Content-Type': 'application/json'
       },
-<<<<<<< HEAD
       body: JSON.stringify(sendGridPayload)
     })
 
@@ -164,41 +143,27 @@ serve(async (req: Request) => {
       status: sgRes.status,
       statusText: sgRes.statusText,
       ok: sgRes.ok
-=======
-      body: JSON.stringify({
-        personalizations: [{ to: [{ email }] }],
-        from: { email: FROM_EMAIL, name: 'VIPClub' },
-        subject: 'You are invited to join VIPClub as a Venue Owner',
-        content: [{ type: 'text/html', value: html }]
-      })
->>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
     })
 
     if (!sgRes.ok) {
       const text = await sgRes.text()
-<<<<<<< HEAD
       console.error('❌ SendGrid Error:', {
         status: sgRes.status,
         statusText: sgRes.statusText,
         response: text
       })
-=======
->>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
       return new Response(JSON.stringify({ error: `SendGrid error (${sgRes.status}): ${text}`, inviteError: inviteErrorMessage || undefined }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 502
       })
     }
 
-<<<<<<< HEAD
     const sgResponseText = await sgRes.text()
     console.log('✅ SendGrid Success:', {
       status: sgRes.status,
       response: sgResponseText
     })
 
-=======
->>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
     return new Response(JSON.stringify({
       success: true,
       message: `Invitation prepared and email sent to ${email}`,

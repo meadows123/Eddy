@@ -20,54 +20,16 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
     }
   }, [stripe, elements]);
 
-<<<<<<< HEAD
-=======
-  // Add timeout to show error if Stripe doesn't load within 15 seconds
-  const [stripeLoadError, setStripeLoadError] = React.useState(false);
-  React.useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (!stripeReady && (!stripe || !elements)) {
-        console.error('Stripe Elements failed to load. Please check your Stripe configuration.');
-        setStripeLoadError(true);
-      }
-    }, 15000);
-    return () => clearTimeout(timeout);
-  }, [stripeReady, stripe, elements]);
-
->>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
   const handlePaymentSubmit = async (e) => {
     e.preventDefault();
     e.stopPropagation();
 
     // Prevent multiple submissions
     if (isProcessingPayment || isSubmitting) {
-<<<<<<< HEAD
       return;
     }
 
     if (!stripe || !elements) {
-=======
-      console.warn('Payment already processing, ignoring submit');
-      return;
-    }
-
-    if (!stripe) {
-      console.error('Stripe is not initialized');
-      alert('Payment form is not ready. Please wait for it to load and try again.');
-      return;
-    }
-
-    if (!elements) {
-      console.error('Stripe Elements is not initialized');
-      alert('Payment form is not ready. Please wait for it to load and try again.');
-      return;
-    }
-
-    const cardElement = elements.getElement(CardElement);
-    if (!cardElement) {
-      console.error('CardElement is not found');
-      alert('Card element is not available. Please refresh the page and try again.');
->>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
       return;
     }
 
@@ -76,11 +38,7 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
     try {
       const { error: stripeError, paymentMethod } = await stripe.createPaymentMethod({
         type: 'card',
-<<<<<<< HEAD
         card: elements.getElement(CardElement),
-=======
-        card: cardElement,
->>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
         billing_details: {
           name: formData.fullName,
           email: formData.email,
@@ -89,7 +47,6 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
       });
 
       if (stripeError) {
-<<<<<<< HEAD
         throw stripeError;
       }
 
@@ -97,36 +54,6 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
       await handleSubmit(paymentMethod.id);
     } catch (err) {
       // Payment error handled by parent component
-=======
-        console.error('Stripe error:', stripeError);
-        
-        // Provide helpful error message for live mode / test card mismatch
-        let errorMessage = stripeError.message || 'Please check your card details and try again.';
-        if (stripeError.message?.includes('live mode') && stripeError.message?.includes('test card')) {
-          errorMessage = '⚠️ LIVE/TEST Mode Mismatch: Your backend Edge Function is using a LIVE Stripe secret key, but you are trying to use a TEST card number.\n\nTo fix this:\n1. Go to Supabase Dashboard → Project Settings → Edge Functions → Secrets\n2. Set STRIPE_TEST_SECRET_KEY to your TEST key (starts with sk_test_)\n3. OR update STRIPE_SECRET_KEY to your TEST key (starts with sk_test_)\n4. Wait 30-60 seconds for Edge Function to redeploy\n5. Try again\n\nCheck Edge Function logs to verify the key mode.';
-        }
-        
-        console.error('Full Stripe error:', stripeError);
-        alert(`Payment error: ${errorMessage}`);
-        throw stripeError;
-      }
-
-      if (!paymentMethod || !paymentMethod.id) {
-        console.error('Payment method was not created');
-        alert('Failed to create payment method. Please try again.');
-        throw new Error('Payment method creation failed');
-      }
-
-      // Only pass the payment method ID
-      await handleSubmit(paymentMethod.id);
-    } catch (err) {
-      console.error('Payment submission error:', err);
-      // Re-throw so parent component can handle it
-      if (err.message && !err.message.includes('Payment error:')) {
-        alert(`Payment failed: ${err.message || 'Please try again.'}`);
-      }
-      throw err;
->>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
     } finally {
       setIsProcessingPayment(false);
     }
@@ -235,22 +162,8 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
             >
               {!stripeReady ? (
                 <div className="w-full text-center text-gray-500">
-<<<<<<< HEAD
                   <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-burgundy mx-auto mb-2"></div>
                   <p className="text-sm">Loading payment form...</p>
-=======
-                  {stripeLoadError ? (
-                    <>
-                      <p className="text-sm text-red-600 mb-2">⚠️ Payment form failed to load</p>
-                      <p className="text-xs text-gray-500">Please refresh the page or check your connection.</p>
-                    </>
-                  ) : (
-                    <>
-                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-burgundy mx-auto mb-2"></div>
-                      <p className="text-sm">Loading payment form...</p>
-                    </>
-                  )}
->>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
                 </div>
               ) : (
                 <CardElement 
@@ -260,14 +173,9 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
                         fontSize: '16px',
                         color: '#800020',
                         fontFamily: 'system-ui, -apple-system, sans-serif',
-<<<<<<< HEAD
                         lineHeight: '1.5',
                         '::placeholder': {
                           color: '#800020',
-=======
-                        '::placeholder': {
-                          color: '#9ca3af',
->>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
                         },
                       },
                       invalid: {
@@ -275,15 +183,12 @@ const CheckoutForm = ({ formData, errors, handleInputChange, handleSubmit, isSub
                       },
                     },
                     hidePostalCode: true,
-<<<<<<< HEAD
                     // Mobile-specific options
                     supportedNetworks: ['visa', 'mastercard', 'amex', 'discover'],
                     // Simple placeholder text
                     placeholder: 'Card number',
                     // Disable autofill for better mobile compatibility
                     disableLink: false,
-=======
->>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
                     // Ensure proper focus handling on mobile
                     classes: {
                       focus: 'is-focused',

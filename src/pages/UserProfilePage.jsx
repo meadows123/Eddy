@@ -8,7 +8,6 @@ import { Heart, Calendar, Settings, Clipboard, XCircle, CheckCircle, Send, Link 
 import { supabase } from '../lib/supabase.js';
 import { Elements, useStripe, useElements, CardElement } from '@stripe/react-stripe-js';
 import { Input } from "../components/ui/input";
-<<<<<<< HEAD
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Badge } from '../components/ui/badge';
 import { useToast } from "@/components/ui/use-toast";
@@ -16,14 +15,6 @@ import { getFullUrl } from '@/lib/urlUtils';
 import ChatBot from '../components/ChatBot';
 
 const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY);
-=======
-import { useNavigate, useLocation, useSearchParams } from 'react-router-dom';
-import { Badge } from '../components/ui/badge';
-import { useToast } from "@/components/ui/use-toast";
-import { getFullUrl } from '@/lib/urlUtils';
-import { stripePromise } from '@/lib/stripe';
-import ProfileDetailsEditor from '@/components/profile/ProfileDetailsEditor';
->>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
 
 const UserProfilePage = () => {
   const { toast } = useToast();
@@ -135,7 +126,6 @@ const UserProfilePage = () => {
     setSplitPaymentsLoading(true);
     const fetchSplitPayments = async () => {
       try {
-<<<<<<< HEAD
         // Sent requests - join with recipient profiles
         const { data: sent, error: sentError } = await supabase
           .from('split_payment_requests')
@@ -165,57 +155,6 @@ const UserProfilePage = () => {
           .order('created_at', { ascending: false });
           
           
-=======
-        // Sent and Received requests - query in parallel
-        // Now that recipient_id is populated when split requests are created,
-        // we only need to query by recipient_id for received requests
-        const [sentResult, receivedResult] = await Promise.all([
-          supabase
-            .from('split_payment_requests')
-            .select(`
-              *,
-              profiles!split_payment_requests_recipient_id_fkey (
-                first_name,
-                last_name,
-                phone
-              )
-            `)
-            .eq('requester_id', user.id)
-            .order('created_at', { ascending: false }),
-          supabase
-            .from('split_payment_requests')
-            .select(`
-              *,
-              profiles!split_payment_requests_requester_id_fkey (
-                first_name,
-                last_name,
-                phone
-              ),
-              bookings!split_payment_requests_booking_id_fkey (
-                booking_date,
-                start_time
-              )
-            `)
-            .eq('recipient_id', user.id)
-            .order('created_at', { ascending: false })
-        ]);
-        
-        const sentError = sentResult.error;
-        const receivedError = receivedResult.error;
-        
-        // Debug logging
-        console.log('🔍 Split payment query debug:', {
-          userId: user.id,
-          userEmail: user.email,
-          sentData: sentResult.data?.length || 0,
-          receivedData: receivedResult.data?.length || 0,
-          errors: { sentError, receivedError }
-        });
-        
-        const sent = sentResult.data || [];
-        const received = receivedResult.data || [];
-        
->>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
         if (sentError || receivedError) throw sentError || receivedError;
         
         // Map the joined data to the expected format
@@ -226,13 +165,7 @@ const UserProfilePage = () => {
         
         const mappedReceived = (received || []).map(request => ({
           ...request,
-<<<<<<< HEAD
           requester_profile: request.profiles
-=======
-          requester_profile: request.profiles,
-          booking_date: request.bookings?.booking_date,
-          booking_time: request.bookings?.start_time
->>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
         }));
         
         setSplitPaymentsSent(mappedSent);
@@ -265,11 +198,7 @@ const UserProfilePage = () => {
         .select('*')
         .eq('user_id', user.id)
         .eq('status', 'active')
-<<<<<<< HEAD
         .gt('remaining_balance', 0)
-=======
-        .gt('amount', 0)
->>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
         .order('created_at', { ascending: false });
 
 
@@ -579,7 +508,6 @@ const UserProfilePage = () => {
       setForm({ email: '', password: '' });
       
     } catch (error) {
-<<<<<<< HEAD
       // Provide more specific and helpful error messages
       if (error.message === 'Invalid login credentials' || error.message.includes('Invalid login credentials')) {
         setError('The email or password you entered is incorrect. Please check your credentials and try again. If you\'ve forgotten your password, click "Forgot Password?" below to reset it.');
@@ -592,40 +520,6 @@ const UserProfilePage = () => {
       } else {
         setError(error.message || 'Login failed. Please try again or contact support if the problem persists.');
       }
-=======
-      // Log error for debugging (especially helpful on mobile)
-      if (isMobile || import.meta.env.DEV) {
-        console.error('❌ Login failed:', {
-          error,
-          message: error?.message,
-          isMobile
-        });
-      }
-      
-      // Provide more specific and helpful error messages
-      let errorMessage = 'Login failed. Please try again or contact support if the problem persists.';
-      
-      if (error?.message === 'Invalid login credentials' || error?.message?.includes('Invalid login credentials')) {
-        errorMessage = 'The email or password you entered is incorrect. Please check your credentials and try again. If you\'ve forgotten your password, click "Forgot Password?" below to reset it.';
-      } else if (error?.message?.includes('Email not confirmed')) {
-        errorMessage = 'Please check your email and click the confirmation link before logging in. If you didn\'t receive the email, try signing up again.';
-      } else if (error?.message?.includes('Too many requests')) {
-        errorMessage = 'Too many login attempts. Please wait a few minutes before trying again. If you\'ve forgotten your password, use the "Forgot Password?" option below.';
-      } else if (error?.message?.includes('User not found')) {
-        errorMessage = 'No account found with this email address. Please check your email or create a new account.';
-      } else if (error?.message) {
-        errorMessage = error.message;
-      }
-      
-      setError(errorMessage);
-      
-      // Show toast notification for better visibility (works on both web and mobile)
-      toast({
-        title: 'Login Failed',
-        description: errorMessage,
-        variant: 'destructive',
-      });
->>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
     }
   };
 
@@ -693,23 +587,7 @@ const UserProfilePage = () => {
     }
   };
 
-<<<<<<< HEAD
   const [activeTab, setActiveTab] = useState(location.state?.activeTab || "profile");
-=======
-  // Initialize activeTab from URL params, location state, or default to "profile"
-  const [activeTab, setActiveTab] = useState(() => {
-    const urlTab = searchParams.get('tab');
-    return urlTab || location.state?.activeTab || "profile";
-  });
-
-  // Update activeTab when URL tab parameter changes
-  useEffect(() => {
-    const urlTab = searchParams.get('tab');
-    if (urlTab && urlTab !== activeTab) {
-      setActiveTab(urlTab);
-    }
-  }, [searchParams, activeTab]);
->>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
 
   // Add a debug effect for tab changes
   useEffect(() => {
@@ -1419,27 +1297,16 @@ const UserProfilePage = () => {
                 <div className="space-y-4 pb-8 border-b border-brand-burgundy/10">
                   <h2 className="text-xl font-semibold mb-4 flex items-center">
                     <Database className="h-5 w-5 mr-2" />
-<<<<<<< HEAD
                     Data & Account Management
-=======
-                    Delete Account
->>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
                   </h2>
                   <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                     <div className="flex items-start space-x-3">
                       <Trash2 className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
                       <div className="flex-1">
-<<<<<<< HEAD
                         <h3 className="font-semibold text-red-800 mb-2">Delete Your Data or Account</h3>
                         <p className="text-sm text-red-700 mb-4">
                           You have the right to delete specific data or your entire account. Choose what you want to delete:
                           individual data types or your complete account.
-=======
-                        <h3 className="font-semibold text-red-800 mb-2">Delete Your Account</h3>
-                        <p className="text-sm text-red-700 mb-4">
-                          You have the right to request deletion of all your personal data from our system. 
-                          This includes your profile, booking history, and payment records.
->>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
                         </p>
                         <div className="space-y-2 text-xs text-red-600 mb-4">
                           <p><strong>This will delete:</strong></p>
@@ -1456,11 +1323,7 @@ const UserProfilePage = () => {
                           onClick={() => navigate('/delete-data')}
                         >
                           <Trash2 className="h-4 w-4 mr-2" />
-<<<<<<< HEAD
                           Manage Data & Account
-=======
-                          Delete My Account
->>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
                         </Button>
                       </div>
                     </div>
@@ -1507,19 +1370,7 @@ const UserProfilePage = () => {
                     </div>
                   ) : (
                     <div className="space-y-4">
-<<<<<<< HEAD
                       {splitPaymentsReceived.map(request => (
-=======
-                      {splitPaymentsReceived.map(request => {
-                        console.log('🔍 Split payment request data:', { 
-                          id: request.id, 
-                          booking_date: request.booking_date,
-                          booking_time: request.booking_time,
-                          bookings: request.bookings,
-                          booking_id: request.booking_id 
-                        });
-                        return (
->>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
                         <Card key={request.id} className="p-4 hover:shadow-md transition-shadow">
                           <div className="flex items-center justify-between">
                             <div>
@@ -1531,18 +1382,8 @@ const UserProfilePage = () => {
                                   'Unknown User'
                                   : 'A friend'}
                               </div>
-<<<<<<< HEAD
                               <div className="text-xs text-brand-burgundy/50">
                                 {new Date(request.created_at).toLocaleDateString()}
-=======
-                              {request.booking_date && (
-                                <div className="text-xs text-brand-burgundy/50">
-                                  📅 {new Date(request.booking_date).toLocaleDateString()} at {request.booking_time || request.start_time || 'Time not set'}
-                                </div>
-                              )}
-                              <div className="text-xs text-brand-burgundy/50">
-                                Request sent: {new Date(request.created_at).toLocaleDateString()}
->>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
                               </div>
                             </div>
                             <div>
@@ -1572,12 +1413,7 @@ const UserProfilePage = () => {
                             </div>
                           </div>
                         </Card>
-<<<<<<< HEAD
                       ))}
-=======
-                        );
-                      })}
->>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
                     </div>
                   )}
                 </div>
@@ -1716,11 +1552,7 @@ const UserProfilePage = () => {
                       </div>
                       <div className="bg-brand-cream/30 p-4 rounded-lg border border-brand-burgundy/10 text-center">
                         <div className="text-2xl font-bold text-brand-gold">
-<<<<<<< HEAD
                           ₦{venueCredits.reduce((sum, credit) => sum + credit.remaining_balance, 0).toLocaleString()}
-=======
-                          ₦{venueCredits.reduce((sum, credit) => sum + (credit.amount - credit.used_amount), 0).toLocaleString()}
->>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
                         </div>
                         <div className="text-sm text-brand-burgundy/70">Total Available</div>
                       </div>
@@ -1749,11 +1581,7 @@ const UserProfilePage = () => {
                             </div>
                             <div className="flex flex-col sm:items-end">
                               <div className="text-lg font-bold text-brand-gold mb-1">
-<<<<<<< HEAD
                                 ₦{credit.remaining_balance.toLocaleString()}
-=======
-                                ₦{(credit.amount - credit.used_amount).toLocaleString()}
->>>>>>> 8e47d4d1fc2c487c708c02ab1035619c9d6440f5
                               </div>
                               <div className="text-sm text-brand-burgundy/70">
                                 of ₦{credit.amount.toLocaleString()} credits
